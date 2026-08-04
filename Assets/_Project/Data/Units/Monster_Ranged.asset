@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5dbe527860d1cbe42a3efae9fd5cb4b2, type: 3}
+  m_Name: Monster_Ranged
+  m_EditorClassIdentifier: 
+  displayName: 원거리 암세포
+  tier: 0
+  template: {fileID: 0}
+  hpStat: 6
+  attackStat: 4
+  defenseStat: 1
+  regenStat: 0
+  hpPercent: 100
+  detectRange: 8
+  attackRange: 5.0
+  attacksPerSecond: 0.7
+  moveSpeedTiles: 1.8
+  footprintTiles: 1

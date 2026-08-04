@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f3862a44dfdbd8c42adde6a2c6ebfb40, type: 3}
+  m_Name: Biome_Vessel
+  m_EditorClassIdentifier: 
+  displayName: 혈관 지대
+  weight: 1.2
+  floorTiles:
+  - tile: {fileID: 11400000, guid: a3a03b03ee542d77d56d33fd0a330c8f, type: 2}
+    weight: 4
+  - tile: {fileID: 11400000, guid: aa96a91af42c692c371eb50a55fd5887, type: 2}
+    weight: 4
+  - tile: {fileID: 11400000, guid: 788fb10d71947f1a3640ec57666dbe8b, type: 2}
+    weight: 3
+  - tile: {fileID: 11400000, guid: 2e6edb260c9948de0039d92756d1cf85, type: 2}
+    weight: 1
+  decoTiles:
+  - tile: {fileID: 11400000, guid: 2e6edb260c9948de0039d92756d1cf85, type: 2}
+    weight: 1
+  - tile: {fileID: 11400000, guid: 0a2fd1e32ee163d6ca90ae4b715b5c1c, type: 2}
+    weight: 1
+  decoChance: 0.05
+  obstacleTiles:
+  - tile: {fileID: 11400000, guid: da97bd089e81ada4bd156f46fc5b38d3, type: 2}
+    weight: 1
+  obstacleDensity: 0.18
+  noiseScale: 0.11
+  smoothPasses: 3

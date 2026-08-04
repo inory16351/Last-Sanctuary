@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2b6d8826f74a86846a0b59964f26f9c8, type: 3}
+  m_Name: BalanceConfig
+  m_EditorClassIdentifier:
+  statMin: 1
+  statMax: 100
+  initialStatMin: 1
+  initialStatMax: 10
+  hpBase: 40
+  hpPerStat: 10
+  attackBase: 2
+  attackPerStat: 2
+  defenseK: 50
+  defensePerStat: 1
+  regenTickSeconds: 10
+  regenPerStat: 1
+  minDamage: 1
+  attacksPerSecond: 1
+  moveSpeedTilesPerSecond: 3
+  meleeRangeTiles: 1.2
+  sightTiles: 8
+  outOfCombatRegenDelay: 5
