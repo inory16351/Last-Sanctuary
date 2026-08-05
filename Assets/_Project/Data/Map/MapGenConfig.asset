@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a8fe4b6d44b693340bbda8a750e3d46d, type: 3}
   m_Name: MapGenConfig
   m_EditorClassIdentifier: 
-  seed: -1626027840
+  seed: -267387357
   sizeMode: 1
   chunkCount: {x: 3, y: 2}
   mapSizeTiles: {x: 320, y: 320}
@@ -22,6 +22,14 @@ MonoBehaviour:
   spawnGateWidth: 6
   corridorWidth: 3
   corridorWobble: 0.35
-  biomes:
-  - {fileID: 11400000, guid: 1a2b3c4d5e6f70819a2b3c4d5e6f7081, type: 2}
-  - {fileID: 11400000, guid: 2b3c4d5e6f708192ab3c4d5e6f708192, type: 2}
+  tileSet: {fileID: 11400000, guid: 5955388f8624cd64ca4cf32f54e276bf, type: 2}
+  groundTilesPerChunk: {x: 3, y: 7}
+  crackedGroundRatio: 0.3
+  propTilesPerChunk: {x: 2, y: 6}
+  propChanceRange: {x: 0.03, y: 0.12}
+  obstacleDensityRange: {x: 0.12, y: 0.28}
+  noiseScaleRange: {x: 0.08, y: 0.16}
+  smoothPassesRange: {x: 2, y: 4}
+  useTransitionEdges: 1
+  transitionChance: 0.85
+  invertTransitionDirection: 0

@@ -54,6 +54,12 @@ namespace LastSanctuary.Map
         public Vector2Int MapSize { get; private set; }
         public Vector2Int Origin { get; private set; }
 
+        /// <summary>
+        /// 넥서스 등 고정 구조물이 차지한 칸. 장애물 타일맵과 별개로 관리해서
+        /// (타일맵은 절차적 생성이 통째로 다시 쓰므로) 구조물이 스스로 등록/해제한다.
+        /// </summary>
+        readonly HashSet<Vector3Int> _structureBlockedCells = new HashSet<Vector3Int>();
+
         /// <summary>스폰 게이트의 로컬 좌표 4개 (하, 상, 좌, 우 순).</summary>
         public List<Vector2Int> SpawnGates { get; } = new List<Vector2Int>();
 
@@ -76,25 +82,24 @@ namespace LastSanctuary.Map
             int w = MapSize.x, h = MapSize.y;
             Vector2Int cc = config.ChunkCount;
 
-            // 1. 청크별 바이옴
-            ChunkBiomeSO[] chunkBiome = PickChunkBiomes(seed);
+            // 1. 청크별 팔레트 — 전체 타일 풀에서 매번 새로 뽑는다
+            ChunkPalette[] palettes = BuildChunkPalettes(seed);
 
-            // 셀 하나가 속한 바이옴을 빠르게 얻기 위한 헬퍼.
+            // 셀 하나가 속한 청크 팔레트를 빠르게 얻기 위한 헬퍼.
             // Tiles 모드에서 맵이 청크 배수보다 작으면(= 잘린 경우) 마지막 청크는
             // 일부만 사용되며, Clamp 가 인덱스 초과를 막는다.
             int csx = Mathf.Max(1, config.chunkSize.x);
             int csy = Mathf.Max(1, config.chunkSize.y);
-            ChunkBiomeSO BiomeAt(int x, int y)
+            int ChunkIndexAt(int x, int y)
             {
                 int cx = Mathf.Clamp(x / csx, 0, cc.x - 1);
                 int cy = Mathf.Clamp(y / csy, 0, cc.y - 1);
-                return chunkBiome[cx + cy * cc.x];
+                return cx + cy * cc.x;
             }
-
             var rng = new System.Random(seed);
 
             // 2~6. 마스크 계산
-            bool[] isWall = BuildObstacleMask(seed, w, h, BiomeAt);
+            bool[] isWall = BuildObstacleMask(seed, w, h, palettes, ChunkIndexAt);
             ApplyNexusClear(isWall, w, h);
             ApplyBorderAndGates(isWall, w, h);
             CarveCorridors(isWall, w, h, seed);
@@ -105,25 +110,34 @@ namespace LastSanctuary.Map
             var deco     = new TileBase[w * h];
             var obstacle = new TileBase[w * h];
 
+            OrganicTileSetSO set = config.tileSet;
+
+            // 맵 밖은 벽으로 취급 — 최외곽 벽이 정면/모서리 판정에서 끊기지 않는다.
+            bool WallAt(int x, int y) =>
+                x < 0 || y < 0 || x >= w || y >= h || isWall[x + y * w];
+
             for (int y = 0; y < h; y++)
             {
                 for (int x = 0; x < w; x++)
                 {
                     int i = x + y * w;
-                    ChunkBiomeSO b = BiomeAt(x, y);
-                    if (b == null) continue;
+                    ChunkPalette p = palettes[ChunkIndexAt(x, y)];
 
-                    ground[i] = PickWeighted(b.floorTiles, rng);
+                    ground[i] = PickWeighted(p.ground, rng);
 
                     if (isWall[i])
                     {
-                        obstacle[i] = PickWeighted(b.obstacleTiles, rng);
+                        obstacle[i] = PickWallTile(set, x, y, WallAt, rng);
+                        continue;
                     }
-                    else if (b.decoTiles != null && b.decoTiles.Length > 0
-                             && rng.NextDouble() < b.decoChance)
-                    {
-                        deco[i] = PickWeighted(b.decoTiles, rng);
-                    }
+
+                    // 벽에 닿은 바닥칸은 경계 타일로 정리하고, 그 외에는 프롭을 얹는다.
+                    // 둘 다 Deco 타일맵을 쓰므로 한 칸에 하나만 놓일 수 있다.
+                    TileBase edge = PickEdgeTile(p.edges, x, y, WallAt, rng);
+                    if (edge != null) { deco[i] = edge; continue; }
+
+                    if (p.props != null && p.props.Length > 0 && rng.NextDouble() < p.propChance)
+                        deco[i] = PickWeighted(p.props, rng);
                 }
             }
 
@@ -146,7 +160,8 @@ namespace LastSanctuary.Map
 
             Debug.Log($"[MapGenerator] {w}x{h} 생성 완료 · seed={seed} · " +
                       $"청크 {cc.x}x{cc.y} (청크당 {config.chunkSize.x}x{config.chunkSize.y})" +
-                      $"{cropInfo} · 통행 가능 {CountTrue(Walkable)}/{w * h}");
+                      $"{cropInfo} · 통행 가능 {CountTrue(Walkable)}/{w * h} · " +
+                      $"타일셋 {(set != null ? set.TotalTiles : 0)}종");
         }
 
         /// <summary>세 타일맵을 모두 비운다.</summary>
@@ -181,9 +196,34 @@ namespace LastSanctuary.Map
                 ? groundTilemap.GetCellCenterWorld(cell)
                 : new Vector3(cell.x + 0.5f, cell.y + 0.5f, 0f);
 
-        /// <summary>해당 셀이 장애물인지.</summary>
+        /// <summary>해당 셀이 장애물인지 (지형 장애물 타일 + 넥서스 등 구조물 점유 칸).</summary>
         public bool IsCellBlocked(Vector3Int cell) =>
-            obstacleTilemap != null && obstacleTilemap.HasTile(cell);
+            (obstacleTilemap != null && obstacleTilemap.HasTile(cell)) ||
+            _structureBlockedCells.Contains(cell);
+
+        /// <summary>
+        /// 넥서스 등 구조물이 자기 발판 칸을 등록한다. 등록된 칸은 벽과 똑같이
+        /// <see cref="IsCellBlocked"/> / 이동 충돌 / 배치 판정에서 막힌 것으로 취급된다.
+        /// </summary>
+        public void RegisterStructureFootprint(IEnumerable<Vector3Int> cells)
+        {
+            foreach (Vector3Int c in cells) _structureBlockedCells.Add(c);
+        }
+
+        /// <summary>구조물이 파괴되거나 비활성화될 때 자기 발판 칸을 반납한다.</summary>
+        public void UnregisterStructureFootprint(IEnumerable<Vector3Int> cells)
+        {
+            foreach (Vector3Int c in cells) _structureBlockedCells.Remove(c);
+        }
+
+        /// <summary>중심 셀 기준 한 변 footprintTiles 칸의 정사각 영역을 나열한다.</summary>
+        public static IEnumerable<Vector3Int> FootprintCells(Vector3Int center, int footprintTiles)
+        {
+            int half = Mathf.Max(1, footprintTiles) / 2;
+            for (int dy = -half; dy <= half; dy++)
+                for (int dx = -half; dx <= half; dx++)
+                    yield return new Vector3Int(center.x + dx, center.y + dy, 0);
+        }
 
         /// <summary>월드 좌표 → 셀. 이동 충돌 판정처럼 위치 기반 조회가 필요한 곳에서 쓴다.</summary>
         public Vector3Int WorldToCell(Vector3 world) =>
@@ -322,9 +362,17 @@ namespace LastSanctuary.Map
                 Debug.LogError("[MapGenerator] Config 가 비어 있습니다.", this);
                 return false;
             }
-            if (config.biomes == null || config.biomes.Length == 0)
+            if (config.tileSet == null)
             {
-                Debug.LogError("[MapGenerator] Config 에 바이옴이 하나도 없습니다.", config);
+                Debug.LogError("[MapGenerator] Config 에 Tile Set 이 비어 있습니다. " +
+                               "메뉴 'LastSanctuary > 맵 > OrganicTilemap 타일셋 다시 읽기' 로 " +
+                               "타일셋을 만든 뒤 Config 에 연결하세요.", config);
+                return false;
+            }
+            if (!config.tileSet.IsUsable)
+            {
+                Debug.LogError("[MapGenerator] Tile Set 에 바닥 또는 벽 타일이 없습니다. " +
+                               "타일셋을 다시 읽어주세요.", config.tileSet);
                 return false;
             }
             if (groundTilemap == null || decoTilemap == null || obstacleTilemap == null)
@@ -335,36 +383,232 @@ namespace LastSanctuary.Map
             return true;
         }
 
-        /// <summary>청크마다 바이옴을 가중 랜덤으로 고른다. 시드가 같으면 결과가 같다.</summary>
-        ChunkBiomeSO[] PickChunkBiomes(int seed)
+        /// <summary>
+        /// 청크 하나가 쓸 타일 조합과 지형 파라미터. 에셋이 아니라 <b>생성할 때마다
+        /// 런타임에 뽑는다</b> — 그래서 시드를 바꾸면 모든 청크의 타일 구성이 새로 섞인다.
+        /// </summary>
+        class ChunkPalette
+        {
+            public WeightedTile[] ground;
+            public WeightedTile[] props;
+            public DirectionalTileSet edges;
+            public float propChance;
+            public float obstacleDensity;
+            public float noiseScale;
+            public int smoothPasses;
+        }
+
+        /// <summary>
+        /// 청크마다 전체 타일 풀에서 조합을 새로 뽑는다.
+        ///
+        /// 청크별 독립 RNG(<see cref="Hash"/>)를 쓰기 때문에 같은 시드는 항상 같은 맵을
+        /// 만들고(디버깅·재현에 필요), 시드를 바꾸면 256개 청크 전부가 다른 조합을 받는다.
+        /// </summary>
+        ChunkPalette[] BuildChunkPalettes(int seed)
         {
             Vector2Int cc = config.ChunkCount;
             int cw = cc.x, ch = cc.y;
-            var result = new ChunkBiomeSO[cw * ch];
+            var result = new ChunkPalette[cw * ch];
+            OrganicTileSetSO set = config.tileSet;
 
             for (int cy = 0; cy < ch; cy++)
             {
                 for (int cx = 0; cx < cw; cx++)
                 {
-                    // 청크별 독립 RNG — 청크 순서를 바꿔도 결과가 흔들리지 않는다.
                     var r = new System.Random(Hash(seed, cx, cy));
-                    result[cx + cy * cw] = PickWeightedBiome(config.biomes, r);
+                    result[cx + cy * cw] = BuildPalette(set, r);
                 }
             }
             return result;
         }
 
+        ChunkPalette BuildPalette(OrganicTileSetSO set, System.Random r)
+        {
+            var p = new ChunkPalette
+            {
+                obstacleDensity = RandRange(r, config.obstacleDensityRange),
+                noiseScale      = RandRange(r, config.noiseScaleRange),
+                smoothPasses    = RandRange(r, config.smoothPassesRange),
+                propChance      = RandRange(r, config.propChanceRange),
+                ground          = System.Array.Empty<WeightedTile>(),
+                props           = System.Array.Empty<WeightedTile>(),
+            };
+
+            if (set == null) return p;
+
+            int groundCount = RandRange(r, config.groundTilesPerChunk);
+            p.ground = ShuffleGround(set.ground, set.groundCracked,
+                                     config.crackedGroundRatio, groundCount, r);
+            p.props = ShufflePick(set.props, RandRange(r, config.propTilesPerChunk), r);
+
+            // 경계 장식 계열도 청크마다 갈라 준다 — 피 웅덩이 지대와 균열 지대가 섞인다.
+            bool blood = r.NextDouble() < 0.5;
+            DirectionalTileSet chosen = blood ? set.bloodEdge : set.chasmEdge;
+            if (chosen == null || !chosen.HasAny)
+                chosen = blood ? set.chasmEdge : set.bloodEdge;
+            p.edges = chosen;
+
+            return p;
+        }
+
+        /// <summary>바닥 팔레트 — 일반 바닥과 갈라진 바닥을 비율대로 섞는다.</summary>
+        static WeightedTile[] ShuffleGround(WeightedTile[] normal, WeightedTile[] cracked,
+                                            float crackedRatio, int count, System.Random r)
+        {
+            count = Mathf.Max(1, count);
+            int crackedCount = Mathf.RoundToInt(count * Mathf.Clamp01(crackedRatio));
+            int normalCount = Mathf.Max(1, count - crackedCount);
+
+            WeightedTile[] a = ShufflePick(normal, normalCount, r);
+            WeightedTile[] b = crackedCount > 0
+                ? ShufflePick(cracked, crackedCount, r)
+                : System.Array.Empty<WeightedTile>();
+
+            if (a.Length == 0) return b;
+            if (b.Length == 0) return a;
+
+            var merged = new WeightedTile[a.Length + b.Length];
+            a.CopyTo(merged, 0);
+            b.CopyTo(merged, a.Length);
+            return merged;
+        }
+
+        /// <summary>
+        /// 풀에서 서로 다른 타일 <paramref name="count"/> 개를 골라 가중치를 새로 굴린다.
+        /// 가중치까지 다시 굴리는 이유: 같은 타일 조합이 나와도 등장 비율이 달라져
+        /// 청크마다 다른 지대처럼 보인다.
+        /// </summary>
+        static WeightedTile[] ShufflePick(WeightedTile[] pool, int count, System.Random r)
+        {
+            if (pool == null || pool.Length == 0) return System.Array.Empty<WeightedTile>();
+            count = Mathf.Clamp(count, 1, pool.Length);
+
+            // 부분 피셔-예이츠 — 앞쪽 count 개만 섞으면 되므로 전체를 섞지 않는다.
+            var idx = new int[pool.Length];
+            for (int i = 0; i < idx.Length; i++) idx[i] = i;
+            for (int i = 0; i < count; i++)
+            {
+                int j = i + r.Next(idx.Length - i);
+                (idx[i], idx[j]) = (idx[j], idx[i]);
+            }
+
+            var picked = new WeightedTile[count];
+            for (int i = 0; i < count; i++)
+            {
+                picked[i] = pool[idx[i]];
+                picked[i].weight = 1f + (float)r.NextDouble() * 3f;
+            }
+            return picked;
+        }
+
+        static float RandRange(System.Random r, Vector2 range) =>
+            range.x + (float)r.NextDouble() * Mathf.Max(0f, range.y - range.x);
+
+        static int RandRange(System.Random r, Vector2Int range) =>
+            range.x + r.Next(Mathf.Max(1, range.y - range.x + 1));
+
+        // ------------------------------------------------------------------
+        // 방향에 맞는 타일 선택 (3/4 뷰)
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// 벽칸 하나에 쓸 타일을 고른다. <b>입체감은 전적으로 이 판정에서 나온다</b> —
+        /// 벽 덩어리의 어느 면이 바닥에 노출됐는지에 따라 다른 타일을 깔아야 두께가 보인다.
+        ///
+        /// 타일 팩이 <c>Wall_Inner</c>(사방이 벽인 내부 채움) + <c>Wall_Outer</c>(노출
+        /// 방향별 8종)로 나뉘어 있어서, 노출된 이웃 방향을 그대로 타일 종류에 대응시킨다.
+        ///
+        /// 마주보는 두 면이 열린 경우(N+S 또는 W+E)나 세 면 이상 열린 경우에는 딱 맞는
+        /// 타일이 없다. 그때는 <b>남쪽 노출을 우선</b>한다 — 3/4 뷰에서 카메라를 향한
+        /// 남쪽면이 가장 크게 보이므로 그쪽을 맞추는 것이 가장 자연스럽다.
+        /// </summary>
+        TileBase PickWallTile(OrganicTileSetSO set, int x, int y,
+                              System.Func<int, int, bool> wallAt, System.Random rng)
+        {
+            if (set == null) return null;
+
+            bool openN = !wallAt(x, y + 1);
+            bool openS = !wallAt(x, y - 1);
+            bool openW = !wallAt(x - 1, y);
+            bool openE = !wallAt(x + 1, y);
+
+            WallTileSet w = set.walls;
+
+            // 사방이 벽 — 덩어리 내부. 윗면만 보이는 채움 타일.
+            if (!openN && !openS && !openW && !openE)
+                return PickWeighted2(w.innerFill, w.exposedSouth, rng);
+
+            // 두 면이 동시에 노출된 모서리를 먼저 잡는다. 남쪽 조합을 앞에 둬서
+            // 세 면 이상 열린 칸도 남쪽면 기준으로 정리된다.
+            if (openS && openW) return PickWeighted2(w.cornerSW, w.exposedSouth, rng);
+            if (openS && openE) return PickWeighted2(w.cornerSE, w.exposedSouth, rng);
+            if (openN && openW) return PickWeighted2(w.cornerNW, w.exposedNorth, rng);
+            if (openN && openE) return PickWeighted2(w.cornerNE, w.exposedNorth, rng);
+
+            // 한 면만 노출 (또는 마주보는 두 면 — 남쪽을 우선).
+            if (openS) return PickWeighted2(w.exposedSouth, w.innerFill, rng);
+            if (openN) return PickWeighted2(w.exposedNorth, w.innerFill, rng);
+            if (openW) return PickWeighted2(w.exposedWest,  w.innerFill, rng);
+            return PickWeighted2(w.exposedEast, w.innerFill, rng);
+        }
+
+        /// <summary>
+        /// 벽에 닿은 바닥칸에 얹을 경계 타일. 벽이 어느 쪽에 있는지로 방향을 정한다.
+        /// 벽에 닿지 않았거나 확률에서 떨어지면 null (그 자리엔 프롭이 놓일 수 있다).
+        /// </summary>
+        TileBase PickEdgeTile(DirectionalTileSet edges, int x, int y,
+                              System.Func<int, int, bool> wallAt, System.Random rng)
+        {
+            if (!config.useTransitionEdges || edges == null) return null;
+
+            bool wN = wallAt(x, y + 1);
+            bool wS = wallAt(x, y - 1);
+            bool wW = wallAt(x - 1, y);
+            bool wE = wallAt(x + 1, y);
+            if (!wN && !wS && !wW && !wE) return null;
+
+            if (rng.NextDouble() >= config.transitionChance) return null;
+
+            // 아트의 방향 규약이 코드 가정과 반대일 때를 위한 스위치.
+            if (config.invertTransitionDirection)
+            {
+                (wN, wS) = (wS, wN);
+                (wW, wE) = (wE, wW);
+            }
+
+            if (wN && wW) return PickWeighted2(edges.cornerNW, edges.north, rng);
+            if (wN && wE) return PickWeighted2(edges.cornerNE, edges.north, rng);
+            if (wS && wW) return PickWeighted2(edges.cornerSW, edges.south, rng);
+            if (wS && wE) return PickWeighted2(edges.cornerSE, edges.south, rng);
+            if (wN) return PickWeighted(edges.north, rng);
+            if (wS) return PickWeighted(edges.south, rng);
+            if (wW) return PickWeighted(edges.west, rng);
+            return PickWeighted(edges.east, rng);
+        }
+
+        /// <summary>주 풀이 비어 있으면 대체 풀에서 뽑는다. 임포트가 불완전할 때의 안전장치.</summary>
+        static TileBase PickWeighted2(WeightedTile[] primary, WeightedTile[] fallback,
+                                      System.Random rng)
+        {
+            TileBase t = PickWeighted(primary, rng);
+            return t != null ? t : PickWeighted(fallback, rng);
+        }
+
         /// <summary>
         /// 펄린 노이즈로 벽 후보를 만들고 셀룰러 오토마타로 덩어리화.
         ///
-        /// 임계값은 고정값이 아니라 바이옴별 "백분위"로 구한다.
+        /// 임계값은 고정값이 아니라 청크별 "백분위"로 구한다.
         /// Mathf.PerlinNoise 는 값이 0.5 근처에 몰려 있어(실질 0.2~0.8) 고정 임계값을
-        /// 쓰면 density 를 0.18 로 줘도 벽이 거의 생기지 않는다. 해당 바이옴 셀들의
+        /// 쓰면 density 를 0.18 로 줘도 벽이 거의 생기지 않는다. 해당 청크 셀들의
         /// 노이즈 값을 정렬해 density 위치의 값을 임계값으로 삼으면
-        /// obstacleDensity 가 "그 바이옴 면적 중 벽이 될 비율" 이라는 뜻이 된다.
+        /// obstacleDensity 가 "그 청크 면적 중 벽이 될 비율" 이라는 뜻이 된다.
+        ///
+        /// 예전에는 바이옴 단위로 묶었는데, 이제 청크마다 밀도를 따로 뽑으므로
+        /// <b>청크 단위로 묶는다</b> — 청크마다 벽이 빽빽한 곳과 트인 곳이 갈린다.
         /// </summary>
         bool[] BuildObstacleMask(int seed, int w, int h,
-                                 System.Func<int, int, ChunkBiomeSO> biomeAt)
+                                 ChunkPalette[] palettes,
+                                 System.Func<int, int, int> chunkIndexAt)
         {
             var mask = new bool[w * h];
 
@@ -373,43 +617,43 @@ namespace LastSanctuary.Map
             float offX = (float)offRng.NextDouble() * 10000f;
             float offY = (float)offRng.NextDouble() * 10000f;
 
-            // 1) 셀별 노이즈 값 계산 + 바이옴별로 인덱스 모으기
+            // 1) 셀별 노이즈 값 계산 + 청크별로 인덱스 모으기
             var noise = new float[w * h];
-            var cellsByBiome = new Dictionary<ChunkBiomeSO, List<int>>();
+            var cellsByChunk = new Dictionary<int, List<int>>();
             int maxSmooth = 0;
 
             for (int y = 0; y < h; y++)
             {
                 for (int x = 0; x < w; x++)
                 {
-                    ChunkBiomeSO b = biomeAt(x, y);
-                    if (b == null) continue;
+                    int chunk = chunkIndexAt(x, y);
+                    ChunkPalette p = palettes[chunk];
 
                     int i = x + y * w;
-                    // 노이즈는 월드 좌표로 샘플 — 같은 바이옴 안에서 청크 경계가 튀지 않는다.
-                    noise[i] = Mathf.PerlinNoise((x + offX) * b.noiseScale,
-                                                 (y + offY) * b.noiseScale);
+                    // 노이즈는 월드 좌표로 샘플 — 청크 경계에서 무늬가 끊기지 않는다.
+                    noise[i] = Mathf.PerlinNoise((x + offX) * p.noiseScale,
+                                                 (y + offY) * p.noiseScale);
 
-                    if (!cellsByBiome.TryGetValue(b, out var list))
-                        cellsByBiome[b] = list = new List<int>();
+                    if (!cellsByChunk.TryGetValue(chunk, out var list))
+                        cellsByChunk[chunk] = list = new List<int>();
                     list.Add(i);
 
-                    if (b.smoothPasses > maxSmooth) maxSmooth = b.smoothPasses;
+                    if (p.smoothPasses > maxSmooth) maxSmooth = p.smoothPasses;
                 }
             }
 
-            // 2) 바이옴별 백분위 임계값으로 벽 후보 결정
-            foreach (var kv in cellsByBiome)
+            // 2) 청크별 백분위 임계값으로 벽 후보 결정
+            foreach (var kv in cellsByChunk)
             {
-                ChunkBiomeSO b = kv.Key;
+                ChunkPalette p = palettes[kv.Key];
                 List<int> cells = kv.Value;
-                if (b.obstacleDensity <= 0f || cells.Count == 0) continue;
+                if (p.obstacleDensity <= 0f || cells.Count == 0) continue;
 
                 var values = new float[cells.Count];
                 for (int k = 0; k < cells.Count; k++) values[k] = noise[cells[k]];
                 System.Array.Sort(values);
 
-                int cut = Mathf.Clamp(Mathf.RoundToInt(b.obstacleDensity * (cells.Count - 1)),
+                int cut = Mathf.Clamp(Mathf.RoundToInt(p.obstacleDensity * (cells.Count - 1)),
                                       0, cells.Count - 1);
                 float threshold = values[cut];
 
@@ -648,29 +892,6 @@ namespace LastSanctuary.Map
                 if (roll <= 0f) return pool[i].tile;
             }
             return pool[pool.Length - 1].tile;
-        }
-
-        static ChunkBiomeSO PickWeightedBiome(ChunkBiomeSO[] pool, System.Random rng)
-        {
-            float total = 0f;
-            for (int i = 0; i < pool.Length; i++)
-                if (pool[i] != null) total += Mathf.Max(0f, pool[i].weight);
-
-            if (total <= 0f)
-            {
-                // 전부 가중치 0이면 첫 유효 항목으로 폴백
-                for (int i = 0; i < pool.Length; i++) if (pool[i] != null) return pool[i];
-                return null;
-            }
-
-            float roll = (float)rng.NextDouble() * total;
-            for (int i = 0; i < pool.Length; i++)
-            {
-                if (pool[i] == null) continue;
-                roll -= Mathf.Max(0f, pool[i].weight);
-                if (roll <= 0f) return pool[i];
-            }
-            return pool[pool.Length - 1];
         }
 
         /// <summary>좌표와 시드를 섞어 결정적 해시를 만든다.</summary>

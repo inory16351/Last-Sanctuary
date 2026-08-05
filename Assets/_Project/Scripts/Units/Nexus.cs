@@ -1,5 +1,7 @@
+using System.Collections.Generic;
 using UnityEngine;
 using LastSanctuary.Combat;
+using LastSanctuary.Map;
 
 namespace LastSanctuary.Units
 {
@@ -14,6 +16,9 @@ namespace LastSanctuary.Units
 
         /// <summary>넥서스가 파괴되었을 때. 패배 처리가 여기에 붙는다.</summary>
         public event System.Action<Nexus> OnNexusDestroyed;
+
+        MapGenerator _mapGenerator;
+        Vector3Int[] _footprintCells;
 
         public NexusDefinitionSO Definition => definition;
 
@@ -35,6 +40,37 @@ namespace LastSanctuary.Units
         {
             definition = def;
             SetupHealth(balance);
+        }
+
+        /// <summary>
+        /// 넥서스가 차지한 칸을 벽과 동일하게 막는다. 유닛에는 Collider2D 가 없고
+        /// 이동 충돌이 전부 타일 기준 판정(<see cref="MapGenerator.IsCellBlocked"/>)이므로,
+        /// 넥서스도 그 판정에 자기 칸을 등록해야 캐릭터·몬스터가 뚫고 지나가지 않는다.
+        /// </summary>
+        protected override void Start()
+        {
+            base.Start();
+            RegisterFootprint();
+        }
+
+        void RegisterFootprint()
+        {
+            if (definition == null) return;
+
+            _mapGenerator = FindAnyObjectByType<MapGenerator>();
+            if (_mapGenerator == null) return;
+
+            Vector3Int center = _mapGenerator.WorldToCell(transform.position);
+            _footprintCells = new List<Vector3Int>(
+                MapGenerator.FootprintCells(center, definition.footprintTiles)).ToArray();
+            _mapGenerator.RegisterStructureFootprint(_footprintCells);
+        }
+
+        protected override void OnDisable()
+        {
+            base.OnDisable();
+            if (_mapGenerator != null && _footprintCells != null)
+                _mapGenerator.UnregisterStructureFootprint(_footprintCells);
         }
 
         protected override void OnDeath()

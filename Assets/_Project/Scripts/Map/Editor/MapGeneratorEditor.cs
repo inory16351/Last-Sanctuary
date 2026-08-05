@@ -13,6 +13,38 @@ namespace LastSanctuary.MapEditorTools
     [CustomEditor(typeof(MapGenerator))]
     public class MapGeneratorEditor : Editor
     {
+        /// <summary>
+        /// 오브젝트를 선택하지 않고도 맵을 다시 만들 수 있는 메뉴.
+        /// 타일셋을 다시 읽은 뒤에는 씬에 남아 있는 타일 데이터가 옛 타일을 가리키므로
+        /// 반드시 한 번 재생성해야 한다.
+        /// </summary>
+        [MenuItem("LastSanctuary/맵/새 시드로 맵 생성", priority = 201)]
+        static void RegenerateWithNewSeed()
+        {
+            var generator = Object.FindFirstObjectByType<MapGenerator>();
+            if (generator == null)
+            {
+                Debug.LogError("[MapGenerator] 씬에서 MapGenerator 를 찾지 못했습니다.");
+                return;
+            }
+
+            MapGenerationConfigSO config = generator.Config;
+            if (config == null)
+            {
+                Debug.LogError("[MapGenerator] Config 가 연결되지 않았습니다.", generator);
+                return;
+            }
+
+            int newSeed = Random.Range(int.MinValue, int.MaxValue);
+            Undo.RecordObject(config, "Randomize Map Seed");
+            config.seed = newSeed;
+            EditorUtility.SetDirty(config);
+
+            generator.Generate(newSeed);
+            EditorUtility.SetDirty(generator);
+            EditorSceneManager.MarkSceneDirty(generator.gameObject.scene);
+        }
+
         public override void OnInspectorGUI()
         {
             DrawDefaultInspector();

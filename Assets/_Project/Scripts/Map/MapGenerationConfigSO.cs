@@ -53,9 +53,53 @@ namespace LastSanctuary.Map
         [Tooltip("통로가 직선이 되지 않도록 주는 흔들림 강도. 0이면 직선")]
         [Range(0f, 1f)] public float corridorWobble = 0.35f;
 
-        [Header("바이옴")]
-        [Tooltip("청크마다 이 중에서 가중 랜덤으로 하나 선택")]
-        public ChunkBiomeSO[] biomes;
+        [Header("타일 세트")]
+        [Tooltip("OrganicTilemap 카탈로그에서 자동 분류된 타일 묶음. " +
+                 "메뉴 LastSanctuary > 맵 > OrganicTilemap 타일셋 다시 읽기 로 채운다")]
+        public OrganicTileSetSO tileSet;
+
+        // ------------------------------------------------------------------
+        // 청크 랜덤화
+        //
+        // 예전에는 손으로 만든 바이옴 에셋 2개를 청크마다 추첨해서 썼다. 그러면
+        // 에셋에 넣어둔 몇 개의 타일만 계속 나오고, 시트에 있는 나머지 타일은
+        // 영원히 쓰이지 않는다. 지금은 청크마다 전체 풀에서 조합을 새로 뽑고
+        // 가중치까지 다시 굴려서, 맵 한 장 안에 시트의 모든 타일이 골고루 섞이게 한다.
+        // ------------------------------------------------------------------
+
+        [Header("청크 랜덤화 — 생성할 때마다 청크마다 다시 뽑는다")]
+        [Tooltip("한 청크가 쓸 바닥 타일 종류 수의 범위 (최소, 최대). " +
+                 "작으면 청크마다 색이 뚜렷하게 갈리고, 크면 전체가 고르게 섞인다")]
+        public Vector2Int groundTilesPerChunk = new Vector2Int(3, 7);
+
+        [Tooltip("바닥 팔레트에서 '갈라진 바닥'이 차지하는 비율")]
+        [Range(0f, 1f)] public float crackedGroundRatio = 0.3f;
+
+        [Tooltip("한 청크가 쓸 프롭 종류 수의 범위 (최소, 최대)")]
+        public Vector2Int propTilesPerChunk = new Vector2Int(2, 6);
+
+        [Tooltip("프롭이 얹힐 확률 범위 (최소, 최대). 청크마다 이 사이에서 뽑는다")]
+        public Vector2 propChanceRange = new Vector2(0.03f, 0.12f);
+
+        [Tooltip("벽이 될 면적 비율의 범위 (최소, 최대). 청크마다 이 사이에서 뽑는다")]
+        public Vector2 obstacleDensityRange = new Vector2(0.12f, 0.28f);
+
+        [Tooltip("펄린 노이즈 스케일 범위. 작을수록 큰 덩어리, 클수록 잘게 흩어짐")]
+        public Vector2 noiseScaleRange = new Vector2(0.08f, 0.16f);
+
+        [Tooltip("셀룰러 오토마타 스무딩 횟수 범위 (최소, 최대)")]
+        public Vector2Int smoothPassesRange = new Vector2Int(2, 4);
+
+        [Header("전이 타일 (벽 경계 장식)")]
+        [Tooltip("벽에 닿은 바닥칸에 경계 타일을 얹어 벽과 바닥 사이를 정리한다")]
+        public bool useTransitionEdges = true;
+
+        [Tooltip("경계 타일이 놓일 확률. 1 이면 벽에 닿은 모든 바닥칸에 놓인다")]
+        [Range(0f, 1f)] public float transitionChance = 0.85f;
+
+        [Tooltip("경계 타일의 방향이 반대로 보이면 켠다 (남/북과 동/서를 서로 바꾼다). " +
+                 "아트의 방향 규약이 코드 가정과 다를 때를 위한 스위치")]
+        public bool invertTransitionDirection = false;
 
         /// <summary>
         /// 생성에 사용할 청크 개수.
@@ -126,6 +170,28 @@ namespace LastSanctuary.Map
             chunkCount   = new Vector2Int(Mathf.Max(1, chunkCount.x), Mathf.Max(1, chunkCount.y));
             chunkSize    = new Vector2Int(Mathf.Max(4, chunkSize.x),  Mathf.Max(4, chunkSize.y));
             mapSizeTiles = new Vector2Int(Mathf.Max(4, mapSizeTiles.x), Mathf.Max(4, mapSizeTiles.y));
+
+            // 범위 필드는 (최소, 최대) 순서가 뒤집히면 추첨이 깨지므로 여기서 바로잡는다.
+            groundTilesPerChunk = SortedInt(groundTilesPerChunk, 1);
+            propTilesPerChunk   = SortedInt(propTilesPerChunk, 0);
+            smoothPassesRange   = SortedInt(smoothPassesRange, 0);
+            propChanceRange     = Sorted(propChanceRange, 0f, 1f);
+            obstacleDensityRange = Sorted(obstacleDensityRange, 0f, 0.6f);
+            noiseScaleRange     = Sorted(noiseScaleRange, 0.02f, 0.5f);
+        }
+
+        static Vector2Int SortedInt(Vector2Int v, int min)
+        {
+            int a = Mathf.Max(min, v.x);
+            int b = Mathf.Max(min, v.y);
+            return new Vector2Int(Mathf.Min(a, b), Mathf.Max(a, b));
+        }
+
+        static Vector2 Sorted(Vector2 v, float min, float max)
+        {
+            float a = Mathf.Clamp(v.x, min, max);
+            float b = Mathf.Clamp(v.y, min, max);
+            return new Vector2(Mathf.Min(a, b), Mathf.Max(a, b));
         }
     }
 }

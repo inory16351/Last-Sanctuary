@@ -1,6 +1,7 @@
 using UnityEngine;
 using LastSanctuary.Combat;
 using LastSanctuary.Fog;
+using LastSanctuary.Map;
 using LastSanctuary.Wave;
 
 namespace LastSanctuary.Units
@@ -64,7 +65,11 @@ namespace LastSanctuary.Units
         DamageableUnit _self;
         FogOfWarService _fog;
         WaveManager _waveManager;
+        MapGenerator _map;
         DamageableUnit _nexus;
+
+        // 순찰 지점을 뽑을 때 벽에 걸리면 몇 번까지 다시 굴려볼지.
+        const int GuardSpotAttempts = 8;
 
         CharacterDuty _duty = CharacterDuty.Guard;
         Vector3 _destination;
@@ -85,6 +90,7 @@ namespace LastSanctuary.Units
         {
             _fog = FindAnyObjectByType<FogOfWarService>();
             _waveManager = FindAnyObjectByType<WaveManager>();
+            _map = FindAnyObjectByType<MapGenerator>();
 
             // 캐릭터마다 다른 난수열을 써야 정찰 목표가 겹치지 않는다.
             _rng = new System.Random(GetInstanceID());
@@ -109,7 +115,12 @@ namespace LastSanctuary.Units
             }
 
             bool arrived = Vector2.Distance(transform.position, _destination) <= arriveDistance;
-            if (arrived || Time.time >= _repickTime) PickDestination();
+
+            // 길이 막혔으면 타임아웃(정찰 15초)을 기다리지 않고 바로 다른 곳을 고른다.
+            // 이 신호가 없던 동안은 캐릭터가 갈 수 없는 목표를 향해 벽에 붙어
+            // 멈춰 있는 시간이 그대로 노출됐다.
+            if (arrived || _combat.DestinationUnreachable || Time.time >= _repickTime)
+                PickDestination();
         }
 
         // ------------------------------------------------------------------
@@ -147,16 +158,33 @@ namespace LastSanctuary.Units
         bool PickGuardSpot()
         {
             Vector3 center = NexusPosition();
-
-            // 넥서스 주변 원 안의 임의 지점. 넥서스에 딱 붙지 않도록 안쪽 반경을 둔다.
-            double angle = _rng.NextDouble() * System.Math.PI * 2.0;
             float minR = Mathf.Min(2f, guardRadius * 0.5f);
-            float radius = Mathf.Lerp(minR, guardRadius, (float)_rng.NextDouble());
 
-            _destination = center + new Vector3(
-                Mathf.Cos((float)angle) * radius,
-                Mathf.Sin((float)angle) * radius,
-                0f);
+            // 넥서스 주변 원 안의 임의 지점을 뽑되, 벽이나 넥서스 몸통에 걸린 칸은
+            // 버리고 다시 굴린다. 예전에는 검사 없이 그대로 목적지로 썼기 때문에
+            // 순찰 지점이 벽·넥서스 안에 박히면 캐릭터가 도달할 수 없는 곳을 향해
+            // 벽에 붙어 멈춘 채 다음 재추첨까지 기다렸다.
+            for (int attempt = 0; attempt < GuardSpotAttempts; attempt++)
+            {
+                double angle = _rng.NextDouble() * System.Math.PI * 2.0;
+                float radius = Mathf.Lerp(minR, guardRadius, (float)_rng.NextDouble());
+
+                Vector3 candidate = center + new Vector3(
+                    Mathf.Cos((float)angle) * radius,
+                    Mathf.Sin((float)angle) * radius,
+                    0f);
+
+                if (!IsWalkable(candidate)) continue;
+
+                _destination = candidate;
+                break;
+            }
+
+            // 다 실패했으면 넥서스 근처의 갈 수 있는 칸으로 폴백한다.
+            if (!IsWalkable(_destination) && _map != null &&
+                _map.TryFindPlaceableNear(_map.WorldToCell(center), Mathf.CeilToInt(guardRadius),
+                                          null, out Vector3Int fallback))
+                _destination = _map.CellCenterWorld(fallback);
 
             _repickTime = Time.time + Mathf.Lerp(guardRepositionDelay.x, guardRepositionDelay.y,
                                                  (float)_rng.NextDouble());
@@ -165,6 +193,10 @@ namespace LastSanctuary.Units
             _combat.SetHome(_destination, guardLeash + guardRadius);
             return true;
         }
+
+        /// <summary>그 월드 지점이 걸어갈 수 있는 칸인지 (맵 안 + 벽·구조물 아님).</summary>
+        bool IsWalkable(Vector3 worldPos) =>
+            _map == null || _map.IsCellPlaceable(_map.WorldToCell(worldPos));
 
         Vector3 NexusPosition()
         {

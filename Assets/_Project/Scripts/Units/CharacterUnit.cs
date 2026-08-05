@@ -50,6 +50,20 @@ namespace LastSanctuary.Units
             Heal(target - CurrentHp);
         }
 
+        /// <summary>
+        /// 성장 1회를 적용한다. 능력치를 덮어쓰고 업그레이드 횟수를 1 올린다.
+        ///
+        /// 업그레이드 횟수가 곧 <b>그 캐릭터의 다음 강화 비용</b>을 결정하므로
+        /// (<see cref="CharacterUpgradeService.CostFor"/>), 비용을 따로 저장하지 않고도
+        /// 캐릭터마다 독립적으로 비용이 올라간다. 새로 만든 캐릭터는 횟수가 0이라
+        /// 항상 기본 비용부터 시작한다.
+        /// </summary>
+        public void ApplyUpgrade(StatBlock newStats)
+        {
+            ApplyStats(newStats);
+            upgradeCount++;
+        }
+
         protected override void OnDeath()
         {
             Debug.Log($"[Character] {name} 사망", this);

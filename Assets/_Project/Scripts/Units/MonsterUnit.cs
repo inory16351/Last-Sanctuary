@@ -45,7 +45,8 @@ namespace LastSanctuary.Units
 
         protected override void OnDeath()
         {
-            // 자원 획득은 다음 단계(자원 매니저)에서 이 시점에 연결한다.
+            // 자원 획득은 여기서 직접 하지 않는다 — ResourceManager 가
+            // DamageableUnit.OnAnyDied 를 구독해 처리한다.
             Destroy(gameObject);
         }
 

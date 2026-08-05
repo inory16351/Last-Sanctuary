@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using LastSanctuary.Map;
 using LastSanctuary.Fog;
@@ -59,12 +60,36 @@ namespace LastSanctuary.Combat
         [Min(0f)] [SerializeField] float separationRadius = 0.55f;
         [Min(0f)] [SerializeField] float separationStrength = 1.4f;
 
+        [Header("바라보는 방향")]
+        [Tooltip("켜면 좌우로 이동할 때 스프라이트를 뒤집어 진행 방향을 보게 한다. " +
+                 "코어 키퍼·스타듀 밸리 방식 — 위아래로 이동할 때는 뒤집지 않고 " +
+                 "마지막 좌우 방향을 유지한다(스프라이트가 항상 화면에 수평으로 선다)")]
+        [SerializeField] bool flipSpriteToFaceMovement = false;
+
+        [Tooltip("스프라이트 원본이 오른쪽을 보고 있으면 켠다. 왼쪽을 보고 있으면 끈다. " +
+                 "정면을 보는 아트라면 어느 쪽이든 좌우가 뒤집혀 보일 뿐이니 " +
+                 "보기 좋은 쪽으로 고르면 된다")]
+        [SerializeField] bool spriteFacesRight = true;
+
+        [Tooltip("이 값보다 좌우 이동 성분이 작으면 방향을 바꾸지 않는다. " +
+                 "거의 수직으로 움직일 때 좌우로 덜덜 떨리는 것을 막는다")]
+        [Min(0f)] [SerializeField] float flipDeadzone = 0.15f;
+
+        [Header("길찾기")]
+        [Tooltip("켜면 목적지까지 A* 경로를 계산해 벽을 돌아간다. 끄면 직선 이동 + " +
+                 "벽 슬라이딩만 하므로 오목한 지형에서 멈춘다")]
+        [SerializeField] bool usePathfinding = true;
+
+        [Tooltip("이 시간 동안 거의 못 움직이면 막힌 것으로 보고 경로를 다시 계산한다(초)")]
+        [Min(0.1f)] [SerializeField] float stuckCheckInterval = 0.4f;
+
         [Header("디버그")]
         [SerializeField] bool drawGizmos = true;
 
         DamageableUnit _self;
         FlowFieldService _flowField;
         MapGenerator _mapGenerator;
+        GridPathfinder _pathfinder;
         FogOfWarService _fog;
         Vector3 _homePosition;
         DamageableUnit _target;
@@ -72,22 +97,68 @@ namespace LastSanctuary.Combat
         float _nextRetargetTime;
         CombatState _state = CombatState.Idle;
 
+        // 벽 슬라이딩 시 좌/우 중 어느 쪽을 먼저 시도할지. 유닛마다 고정해서
+        // 같은 장애물 앞에서 여러 유닛이 서로 다른 방향으로 흩어지게 한다.
+        int _slideSign;
+
+        // 스프라이트 뒤집기용. 마지막으로 인식한 좌우 방향을 유지한다.
+        SpriteRenderer _sprite;
+        int _facingSign = 1;
+
+        // 경로 추종 상태
+        readonly List<Vector3> _path = new List<Vector3>();
+        int _pathIndex;
+        Vector3 _pathGoal;
+        bool _hasPathGoal;
+        float _nextRepathTime;
+        int _failedRepaths;
+
+        // 막힘 감지
+        Vector3 _lastStuckSamplePos;
+        float _stuckTimer;
+        bool _destinationUnreachable;
+
         // 타겟 재탐색 간격. 매 프레임 전체를 훑지 않도록 분산시킨다.
         const float RetargetInterval = 0.2f;
+
+        // 경로를 다시 계산하기까지의 최소 간격. 매 프레임 A* 를 돌리지 않게 한다.
+        const float RepathCooldown = 0.5f;
+
+        // 웨이포인트에 이 거리 안으로 들어오면 다음 웨이포인트로 넘어간다.
+        const float WaypointArriveDistance = 0.35f;
+
+        // 목적지가 이만큼 움직이면 기존 경로를 버린다.
+        const float GoalMoveTolerance = 1.5f;
+
+        // 막힘 판정 — 이 거리보다 덜 움직였으면 못 움직인 것으로 본다.
+        const float StuckMoveEpsilon = 0.05f;
+
+        // 이만큼 연속으로 경로 계산에 실패하면 목적지 자체를 못 가는 곳으로 판단한다.
+        const int UnreachableAfterFailures = 3;
 
         public CombatState State => _state;
         public DamageableUnit Target => _target;
 
+        /// <summary>
+        /// 지금 목적지로 가는 길을 못 찾고 있는지. 행동 레이어(<c>CharacterBehavior</c>)가
+        /// 이 값을 보고 타임아웃을 기다리지 않고 즉시 다른 목적지를 고르게 한다.
+        /// </summary>
+        public bool DestinationUnreachable => _destinationUnreachable;
+
         void Awake()
         {
             _self = GetComponent<DamageableUnit>();
+            _sprite = GetComponent<SpriteRenderer>();
             _homePosition = transform.position;
+            _slideSign = (GetInstanceID() & 1) == 0 ? 1 : -1;
+            _lastStuckSamplePos = transform.position;
         }
 
         void Start()
         {
             _flowField = FindAnyObjectByType<FlowFieldService>();
             _mapGenerator = FindAnyObjectByType<MapGenerator>();
+            if (usePathfinding) _pathfinder = FindAnyObjectByType<GridPathfinder>();
             if (respectFogOfWar) _fog = FindAnyObjectByType<FogOfWarService>();
 
             // 유닛마다 재탐색 시점을 흩어 프레임 부하를 고르게 한다.
@@ -111,13 +182,34 @@ namespace LastSanctuary.Combat
         /// 귀환 지점을 지정한다. 전진하지 않는 유닛(캐릭터·포탑)은 타겟이 없으면
         /// 이 지점으로 걸어가므로, 여기를 옮기는 것이 곧 "이동 명령"이 된다.
         /// </summary>
-        public void SetHome(Vector3 worldPosition) => _homePosition = worldPosition;
+        public void SetHome(Vector3 worldPosition)
+        {
+            _homePosition = worldPosition;
+            ResetPathState();
+        }
 
         /// <summary>귀환 지점과 목줄 길이를 함께 지정한다.</summary>
         public void SetHome(Vector3 worldPosition, float leash)
         {
             _homePosition = worldPosition;
             if (leash >= 0f) leashRange = leash;
+            ResetPathState();
+        }
+
+        /// <summary>
+        /// 새 이동 명령을 받았으니 경로와 막힘 판정을 초기화한다.
+        /// 여기서 <see cref="_destinationUnreachable"/> 를 반드시 내려야 한다 —
+        /// 새 목적지가 직전 목적지와 가까우면(순찰 지점이 우연히 겹치는 경우)
+        /// 목표 변경 감지에 걸리지 않아 깃발이 계속 서 있고, 그러면 행동 레이어가
+        /// 매 프레임 목적지를 다시 고르며 제자리를 맴돈다.
+        /// </summary>
+        void ResetPathState()
+        {
+            _path.Clear();
+            _hasPathGoal = false;
+            _failedRepaths = 0;
+            _destinationUnreachable = false;
+            _nextRepathTime = 0f;
         }
 
         public Vector3 Home => _homePosition;
@@ -138,9 +230,76 @@ namespace LastSanctuary.Combat
 
             float dt = Time.deltaTime;
 
+            // 벽 안에 갇혀 있으면 이동 판정이 전부 실패해 영구히 멈춘다. 먼저 빼낸다.
+            if (EscapeIfEmbedded(dt)) return;
+
             AcquireTargetIfNeeded();
             DecideState();
             Act(dt);
+            TrackStuck(dt);
+        }
+
+        /// <summary>
+        /// 유닛이 막힌 칸 안에 있으면 가장 가까운 빈 칸으로 밀어낸다.
+        /// 스폰 위치가 나중에 막히는 경우(넥서스가 <c>Start</c> 에서 자기 발판 칸을
+        /// 등록하면 그 위에 있던 캐릭터가 갇힌다)가 실제로 있었고, 이 상태가 되면
+        /// <see cref="TryMoveTo"/> 의 모든 후보가 같은 막힌 칸이라 전부 실패해
+        /// 캐릭터가 그 자리에서 완전히 얼어붙는다.
+        /// </summary>
+        /// <returns>탈출 중이면 true — 이 프레임의 다른 이동은 건너뛴다.</returns>
+        bool EscapeIfEmbedded(float dt)
+        {
+            if (_mapGenerator == null) return false;
+
+            Vector3Int cell = _mapGenerator.WorldToCell(transform.position);
+            if (!_mapGenerator.IsCellBlocked(cell)) return false;
+
+            if (!_mapGenerator.TryFindPlaceableNear(cell, 8, null, out Vector3Int free))
+                return false;
+
+            // 충돌 판정을 무시하고 빈 칸 쪽으로 곧장 이동한다(이미 막힌 칸이므로
+            // 판정을 거치면 어디로도 못 간다).
+            Vector3 goal = _mapGenerator.CellCenterWorld(free);
+            float speed = CurrentSpeed();
+            transform.position = Vector3.MoveTowards(transform.position, goal, speed * dt);
+            FaceMovement(goal - transform.position);
+            return true;
+        }
+
+        /// <summary>
+        /// 이동하려는데 실제로 못 움직이고 있으면 경로를 다시 계산한다.
+        /// 몇 번 연속 실패하면 목적지를 못 가는 곳으로 표시해, 행동 레이어가
+        /// 타임아웃(정찰 15초)을 기다리지 않고 바로 다른 곳을 고르게 한다.
+        /// </summary>
+        void TrackStuck(float dt)
+        {
+            bool tryingToMove = _state == CombatState.Chase || _state == CombatState.Advance;
+            if (!tryingToMove)
+            {
+                _stuckTimer = 0f;
+                _lastStuckSamplePos = transform.position;
+                return;
+            }
+
+            _stuckTimer += dt;
+            if (_stuckTimer < stuckCheckInterval) return;
+
+            float moved = Vector2.Distance(transform.position, _lastStuckSamplePos);
+            _stuckTimer = 0f;
+            _lastStuckSamplePos = transform.position;
+
+            if (moved > StuckMoveEpsilon)
+            {
+                // 잘 움직이고 있다 — 실패 카운터를 되돌린다.
+                _failedRepaths = 0;
+                _destinationUnreachable = false;
+                return;
+            }
+
+            // 못 움직였다 → 경로를 버리고 다음 프레임에 다시 계산하게 한다.
+            _path.Clear();
+            _nextRepathTime = 0f;
+            if (++_failedRepaths >= UnreachableAfterFailures) _destinationUnreachable = true;
         }
 
         void AcquireTargetIfNeeded()
@@ -199,7 +358,7 @@ namespace LastSanctuary.Combat
                     Vector3 dest = _target != null && _target.IsAlive
                         ? _target.transform.position
                         : _homePosition;
-                    MoveTowards(dest, dt);
+                    MoveToDestination(dest, dt);
                     break;
 
                 case CombatState.Advance:
@@ -235,9 +394,77 @@ namespace LastSanctuary.Combat
                 return;
             }
 
-            // 없으면 넥서스를 직선으로 향한다 (플로우 필드 미구성 시 폴백)
+            // 플로우 필드가 없거나 이 칸에 방향이 없으면(고립된 구석 등) 길찾기로 간다.
             DamageableUnit nexus = UnitRegistry.FindFirst(_self.Faction.Opposite(), UnitKind.Nexus);
-            if (nexus != null) MoveTowards(nexus.transform.position, dt);
+            if (nexus != null) MoveToDestination(nexus.transform.position, dt);
+        }
+
+        /// <summary>
+        /// 목적지까지 이동한다. 직선으로 갈 수 있으면 그대로 가고(대부분의 경우),
+        /// 벽이 끼면 <see cref="GridPathfinder"/> 로 경로를 얻어 웨이포인트를 따라간다.
+        ///
+        /// 예전에는 직선 이동 + 축 분리 슬라이딩만 했는데, 그 방식은 벽이 오목하거나
+        /// 목적지가 벽 뒤에 있으면 원리적으로 빠져나올 수 없어 캐릭터가 벽에 붙어
+        /// 멈춘 채 행동 타임아웃(정찰 15초)을 기다리는 일이 잦았다.
+        /// </summary>
+        void MoveToDestination(Vector3 destination, float dt)
+        {
+            if (_pathfinder == null) { MoveTowards(destination, dt); return; }
+
+            // 목적지가 크게 바뀌었으면 기존 경로를 버린다.
+            if (!_hasPathGoal ||
+                (destination - _pathGoal).sqrMagnitude > GoalMoveTolerance * GoalMoveTolerance)
+            {
+                _path.Clear();
+                _pathGoal = destination;
+                _hasPathGoal = true;
+                _failedRepaths = 0;
+                _destinationUnreachable = false;
+            }
+
+            // 직선으로 통하면 경로가 필요 없다. 추격 중 이 경우가 대부분이라
+            // A* 호출 자체를 대체로 건너뛰게 된다.
+            if (_pathfinder.HasLineOfSight(transform.position, destination))
+            {
+                _path.Clear();
+                MoveTowards(destination, dt);
+                return;
+            }
+
+            if (_path.Count == 0 && Time.time >= _nextRepathTime)
+            {
+                _nextRepathTime = Time.time + RepathCooldown;
+                if (_pathfinder.TryFindPath(transform.position, destination, _path))
+                {
+                    _pathIndex = 0;
+                }
+                else
+                {
+                    _path.Clear();
+                    if (++_failedRepaths >= UnreachableAfterFailures) _destinationUnreachable = true;
+                }
+            }
+
+            if (_path.Count == 0)
+            {
+                // 경로를 못 얻었다 — 그래도 목적지 쪽으로 밀어보며 슬라이딩에 맡긴다.
+                MoveTowards(destination, dt);
+                return;
+            }
+
+            // 이미 지나친 웨이포인트를 건너뛴다.
+            while (_pathIndex < _path.Count &&
+                   Vector2.Distance(transform.position, _path[_pathIndex]) <= WaypointArriveDistance)
+                _pathIndex++;
+
+            if (_pathIndex >= _path.Count)
+            {
+                _path.Clear();
+                MoveTowards(destination, dt);
+                return;
+            }
+
+            MoveTowards(_path[_pathIndex], dt);
         }
 
         void MoveTowards(Vector3 destination, float dt)
@@ -249,21 +476,41 @@ namespace LastSanctuary.Combat
 
         void Step(Vector2 direction, float dt)
         {
-            float speed = moveSpeedTiles > 0f
-                ? moveSpeedTiles
-                : (_self.Balance != null ? _self.Balance.moveSpeedTilesPerSecond : 3f);
-
             Vector2 move = direction + Separation() * separationStrength;
             if (move.sqrMagnitude > 0.0001f) move.Normalize();
 
-            MoveWithCollision((Vector3)(move * speed * dt));
+            FaceMovement(move);
+            MoveWithCollision((Vector3)(move * CurrentSpeed() * dt));
+        }
+
+        float CurrentSpeed() =>
+            moveSpeedTiles > 0f
+                ? moveSpeedTiles
+                : (_self != null && _self.Balance != null ? _self.Balance.moveSpeedTilesPerSecond : 3f);
+
+        /// <summary>
+        /// 스프라이트를 좌우로만 뒤집어 진행 방향을 보게 한다 (코어 키퍼·스타듀 밸리 방식).
+        /// 트랜스폼을 회전시키면 위로 갈 때 스프라이트가 눕거나 뒤집혀 보이므로,
+        /// 세로 이동은 방향에 반영하지 않고 마지막 좌우 방향을 그대로 유지한다.
+        /// </summary>
+        void FaceMovement(Vector2 move)
+        {
+            if (!flipSpriteToFaceMovement || _sprite == null) return;
+            if (Mathf.Abs(move.x) < flipDeadzone) return;   // 거의 수직 이동 → 유지
+
+            _facingSign = move.x > 0f ? 1 : -1;
+            _sprite.flipX = spriteFacesRight ? _facingSign < 0 : _facingSign > 0;
         }
 
         /// <summary>
         /// 유닛에 Collider2D 가 없어 물리 충돌이 걸리지 않으므로, 벽 타일맵을
-        /// 직접 검사해 막힌 칸으로는 못 들어가게 한다(Advance 상태는 플로우 필드가
-        /// 이미 벽을 피하지만, Chase·귀환은 직선 이동이라 이 검사가 없으면 벽을 뚫고 지나간다).
-        /// 막히면 축 하나씩 미끄러뜨려 벽을 따라 이동하게 한다.
+        /// 직접 검사해 막힌 칸으로는 못 들어가게 한다.
+        ///
+        /// 경로 자체는 <see cref="MoveToDestination"/> 의 A* 가 잡아주므로, 여기서는
+        /// 벽을 스치는 정도만 처리한다 — 정면으로 막히면 축을 하나씩 분리해 미끄러뜨리고,
+        /// 그래도 안 되면 진행 방향에 수직으로 살짝 흘린다. (예전에는 여기서
+        /// 150도까지 꺾어보며 우회를 시도했는데, 한 프레임 이동량만큼만 움직일 수
+        /// 있어 효과는 거의 없고 뒤로 밀려 덜덜 떠는 부작용만 있었다.)
         /// </summary>
         void MoveWithCollision(Vector3 delta)
         {
@@ -272,7 +519,14 @@ namespace LastSanctuary.Combat
             Vector3 pos = transform.position;
             if (TryMoveTo(pos + delta)) return;
             if (delta.x != 0f && TryMoveTo(pos + new Vector3(delta.x, 0f, 0f))) return;
-            if (delta.y != 0f) TryMoveTo(pos + new Vector3(0f, delta.y, 0f));
+            if (delta.y != 0f && TryMoveTo(pos + new Vector3(0f, delta.y, 0f))) return;
+
+            // 벽을 정면으로 마주봤다 — 벽면을 따라 옆으로 흘린다.
+            Vector2 dir = ((Vector2)delta).normalized;
+            float dist = delta.magnitude;
+            var perpendicular = new Vector2(-dir.y, dir.x) * _slideSign;
+            if (TryMoveTo(pos + (Vector3)(perpendicular * dist))) return;
+            TryMoveTo(pos + (Vector3)(-perpendicular * dist));
         }
 
         bool TryMoveTo(Vector3 candidate)
@@ -342,6 +596,19 @@ namespace LastSanctuary.Combat
             {
                 Gizmos.color = Color.red;
                 Gizmos.DrawLine(transform.position, _target.transform.position);
+            }
+
+            // 계산된 우회 경로. 벽에 걸릴 때 어디로 돌아가려는지 눈으로 확인할 수 있다.
+            if (Application.isPlaying && _path.Count > 0)
+            {
+                Gizmos.color = new Color(1f, 0.5f, 0f, 0.9f);
+                Vector3 prev = transform.position;
+                for (int i = _pathIndex; i < _path.Count; i++)
+                {
+                    Gizmos.DrawLine(prev, _path[i]);
+                    Gizmos.DrawWireCube(_path[i], Vector3.one * 0.25f);
+                    prev = _path[i];
+                }
             }
         }
     }
