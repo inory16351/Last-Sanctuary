@@ -1,0 +1,20 @@
+# Last Sanctuary — 머지 안전장치
+# 근거: Docs/머지 계획.md §3 단계 0 (S1), §5 충돌 처방표
+#
+# Assets/Scenes/Proto_01.unity 은 320x320 타일맵이 직렬화되어 있어 약 38 MB 다.
+# git 이 이 파일을 텍스트로 자동 병합하려 하면 (a) 매우 느리고 (b) 결과물이
+# Unity 가 못 읽는 YAML 이 될 수 있다. 그래서 자동 병합·diff 생성을 끄고,
+# 충돌 시 "양쪽 중 하나를 명시적으로 고르게" 강제한다.
+#
+# ⚠️ `binary` 로 표시하지 않는 이유:
+#   `binary` = `-text -diff -merge` 이고, 이 저장소는 core.autocrlf=true 라
+#   작업 트리의 씬 파일이 CRLF, 저장된 blob 은 LF 다. `-text` 를 걸면 그 순간
+#   38 MB 파일 전체가 "수정됨" 으로 뜨고, 무심코 add 하면 줄바꿈만 바뀐
+#   38 MB 커밋이 히스토리에 박힌다. 그래서 줄바꿈 처리는 건드리지 않고
+#   `-merge -diff` 만 준다.
+#
+# 이 파일은 두 브랜치 모두 수정 금지(동결) — 준수사항 §2 참조.
+
+*.unity   -merge -diff
+*.prefab  -merge
+*.asset   -merge

@@ -57,7 +57,21 @@ namespace LastSanctuary.Units
         public Nexus SpawnedNexus { get; private set; }
         public List<CharacterUnit> SpawnedCharacters { get; } = new List<CharacterUnit>();
 
+        /// <summary>
+        /// 캐릭터가 하나 생성될 때마다 발생. 최초 3명과 <see cref="SpawnOneCharacter"/> 로
+        /// 추가 생성된 캐릭터 모두 여기로 온다 — UI 가 목록을 갱신할 때 쓴다.
+        /// </summary>
+        public event System.Action<CharacterUnit> OnCharacterSpawned;
+
         Transform _unitsRoot;
+
+        // 능력치 추첨용 난수열. 최초 생성과 추가 생성이 같은 난수열을 이어 써야
+        // "같은 시드 = 같은 결과" 가 유지된다.
+        System.Random _rng;
+
+        // 이미 유닛이 놓인 칸(넥서스 발판 포함). 추가 생성 때도 겹치지 않게 하려면
+        // 지역 변수가 아니라 스포너가 계속 들고 있어야 한다.
+        readonly HashSet<Vector3Int> _usedCells = new HashSet<Vector3Int>();
 
         void Start()
         {
@@ -86,6 +100,7 @@ namespace LastSanctuary.Units
         {
             SpawnedCharacters.Clear();
             SpawnedNexus = null;
+            _usedCells.Clear();
 
             if (_unitsRoot == null) return;
             if (Application.isPlaying) Destroy(_unitsRoot.gameObject);
@@ -135,39 +150,78 @@ namespace LastSanctuary.Units
 
         void SpawnCharacters(Vector3Int centerCell)
         {
-            var rng = new System.Random(
+            _rng = new System.Random(
                 randomizeSeed ? Random.Range(int.MinValue, int.MaxValue) : seed);
 
             // 넥서스가 차지하는 칸은 제외
             int half = Mathf.Max(1, nexusDefinition.footprintTiles) / 2;
-            var used = new HashSet<Vector3Int>();
             for (int dy = -half; dy <= half; dy++)
                 for (int dx = -half; dx <= half; dx++)
-                    used.Add(new Vector3Int(centerCell.x + dx, centerCell.y + dy, 0));
+                    _usedCells.Add(new Vector3Int(centerCell.x + dx, centerCell.y + dy, 0));
 
             for (int i = 0; i < characterCount; i++)
+                SpawnCharacterAt(centerCell, i, characterCount);
+        }
+
+        /// <summary>
+        /// 캐릭터 한 명을 추가로 생성한다 — <b>UI(캐릭터 생성 패널)가 호출하는 유일한 접점.</b>
+        ///
+        /// 비용 소모·생성 가능 판정은 여기서 하지 않는다. 그건 게임 규칙이고, 이 프로젝트는
+        /// 규칙과 입력을 분리하는 방식을 이미 쓰고 있다(<c>CharacterUpgradeService</c> ↔
+        /// <c>UpgradeButtonUI</c>). 호출하는 쪽이 <c>ResourceManager.TrySpend</c> 로
+        /// 비용을 먼저 처리하고, 성공했을 때만 이 메서드를 부른다.
+        ///
+        /// 능력치는 최초 3명과 같은 난수열을 이어 써서 "같은 시드 = 같은 결과"를 유지한다.
+        /// </summary>
+        /// <returns>생성된 캐릭터. 데이터/템플릿이 연결되지 않았으면 null.</returns>
+        public CharacterUnit SpawnOneCharacter()
+        {
+            if (!Validate()) return null;
+
+            // SpawnAll 없이 먼저 불릴 수도 있다(에디터에서 단독 테스트 등).
+            if (_unitsRoot == null)
             {
-                Vector3Int cell = PickCharacterCell(centerCell, i, used);
-                used.Add(cell);
-
-                StatBlock rolled = StatBlock.Roll(rng, balance.initialStatMin, balance.initialStatMax);
-
-                CharacterUnit unit = Instantiate(characterTemplate, CellCenter(cell),
-                                                 Quaternion.identity, _unitsRoot);
-                unit.name = $"Character_{i + 1}";
-                unit.gameObject.SetActive(true);
-                unit.Initialize(rolled, balance);
-
-                SpawnedCharacters.Add(unit);
-                Debug.Log($"[UnitSpawner] {unit.name} @ cell{cell.x},{cell.y} · {unit.DebugSummary()}",
-                          unit);
+                _unitsRoot = new GameObject("Units").transform;
+                _unitsRoot.SetParent(transform, false);
             }
+            if (_rng == null)
+                _rng = new System.Random(
+                    randomizeSeed ? Random.Range(int.MinValue, int.MaxValue) : seed);
+
+            Vector3Int centerCell = mapGenerator != null ? mapGenerator.CenterCell : Vector3Int.zero;
+            int index = SpawnedCharacters.Count;
+
+            // 배치 각도를 계속 균등하게 나누려면 분모가 실제 인원 수와 함께 커져야 한다.
+            return SpawnCharacterAt(centerCell, index, Mathf.Max(characterCount, index + 1));
+        }
+
+        /// <summary>캐릭터 한 명을 실제로 만든다. 최초 생성과 추가 생성이 이 경로를 공유한다.</summary>
+        CharacterUnit SpawnCharacterAt(Vector3Int centerCell, int index, int ringDivisor)
+        {
+            Vector3Int cell = PickCharacterCell(centerCell, index, ringDivisor, _usedCells);
+            _usedCells.Add(cell);
+
+            StatBlock rolled = StatBlock.Roll(_rng, balance.initialStatMin, balance.initialStatMax);
+
+            CharacterUnit unit = Instantiate(characterTemplate, CellCenter(cell),
+                                             Quaternion.identity, _unitsRoot);
+            unit.name = $"Character_{index + 1}";
+            unit.gameObject.SetActive(true);
+            unit.Initialize(rolled, balance);
+
+            SpawnedCharacters.Add(unit);
+            Debug.Log($"[UnitSpawner] {unit.name} @ cell{cell.x},{cell.y} · {unit.DebugSummary()}",
+                      unit);
+
+            OnCharacterSpawned?.Invoke(unit);
+            return unit;
         }
 
         /// <summary>넥서스 주위를 균등하게 둘러싸는 위치를 고르고, 막혀 있으면 근처 빈 칸을 찾는다.</summary>
-        Vector3Int PickCharacterCell(Vector3Int centerCell, int index, HashSet<Vector3Int> used)
+        Vector3Int PickCharacterCell(Vector3Int centerCell, int index, int ringDivisor,
+                                     HashSet<Vector3Int> used)
         {
-            float angle = (360f / Mathf.Max(1, characterCount)) * index * Mathf.Deg2Rad;
+            float angle = (360f / Mathf.Max(1, ringDivisor)) * index * Mathf.Deg2Rad;
             var desired = new Vector3Int(
                 centerCell.x + Mathf.RoundToInt(Mathf.Cos(angle) * spawnRingRadius),
                 centerCell.y + Mathf.RoundToInt(Mathf.Sin(angle) * spawnRingRadius),
