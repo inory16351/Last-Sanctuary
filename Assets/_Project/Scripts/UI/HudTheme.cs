@@ -36,11 +36,18 @@ namespace LastSanctuary.UI
         public static readonly Color ButtonOn     = new Color(0.16f, 0.42f, 0.38f, 0.98f);
         public static readonly Color ButtonOff    = new Color(0.10f, 0.11f, 0.13f, 0.85f);
 
-        // 미니맵
-        public static readonly Color32 MapFloor      = new Color32( 38,  44,  52, 255);
-        public static readonly Color32 MapWall       = new Color32( 16,  18,  22, 255);
-        public static readonly Color32 MapUnexplored = new Color32(  6,   6,   8, 255);
-        public static readonly Color32 MapDimMul     = new Color32(140, 140, 140, 255); // 탐사됐지만 시야 밖
+        // 미니맵 — 미탐사(안개) → 탐사됐지만 지금 시야 밖(캐릭터가 지나간 곳) → 지금 시야 안(가장 밝음)
+        // 3단계가 한눈에 구분되도록 밝기 격차를 크게 뒀다. 예전엔 지형 원색 자체가 어두워서
+        // (바닥 38,44,52) "탐사됨" 상태가 곱연산으로 한 번 더 죽으면 미탐사와 거의 안 구별됐다
+        // (유저 피드백: "캐릭터가 지나간 곳이 안 밝아 보인다") — 지형 원색을 밝게 올리고,
+        // "탐사됐지만 시야 밖"은 곱연산이 아니라 미탐사 색과 지형 원색 사이를 보간해서 항상
+        // 미탐사보다 확실히 밝은 중간 밝기를 보장하도록 바꿨다.
+        public static readonly Color32 MapFloor      = new Color32(145, 160, 170, 255);
+        public static readonly Color32 MapWall       = new Color32( 55,  62,  72, 255);
+        public static readonly Color32 MapUnexplored = new Color32( 10,  10,  13, 255);
+
+        /// <summary>탐사됐지만 지금 시야 밖인 칸의 밝기 — 미탐사(0)와 지금 시야 안(1) 사이의 보간 비율.</summary>
+        public const float MapExploredBrightness = 0.5f;
         public static readonly Color32 MapNexus      = new Color32(120, 235, 200, 255);
         public static readonly Color32 MapAlly       = new Color32( 90, 200, 255, 255);
         public static readonly Color32 MapEnemy      = new Color32(240,  90,  90, 255);

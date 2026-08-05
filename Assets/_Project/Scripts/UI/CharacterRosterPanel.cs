@@ -5,6 +5,7 @@ using UnityEngine.UI;
 using LastSanctuary.CameraControl;
 using LastSanctuary.Combat;
 using LastSanctuary.Units;
+using LastSanctuary.Wave;
 
 namespace LastSanctuary.UI
 {
@@ -16,17 +17,23 @@ namespace LastSanctuary.UI
     /// 만들되 개수가 런타임에 정해지는 반복 요소만 스크립트가 복제한다는 규칙
     /// (Docs/UI 브렌치 준수사항.md §10 H-2). 유닛 템플릿 복제 패턴(진행상황 5절)과 같은 모양이다.
     ///
-    /// 갱신은 두 갈래다:
+    /// <b>죽어도 행이 즉시 사라지지 않는다</b> — 유저 요청: 사망한 캐릭터는 회색으로 표시해
+    /// "죽었음"을 명확히 보여주고, 실제로 목록에서 지우는 건 웨이브가 끝난 뒤(<see cref="WaveManager.OnWaveEnded"/>)
+    /// 로 미룬다. 그래서 캐릭터 목록(<see cref="_characters"/>)은 사망으로 줄어들지 않고
+    /// <see cref="HandleWaveEnded"/> 에서만 정리된다. `CharacterUnit.OnDeath()` 가 오브젝트를
+    /// 파괴하므로(<c>Destroy(gameObject)</c>), 죽는 순간(<see cref="DamageableUnit.OnDied"/>)에
+    /// 이름·능력치를 미리 스냅샷해두고, 그 뒤로는 살아있는 멤버(Stats·transform 등)를 다시 읽지 않는다.
+    ///
+    /// 갱신은 세 갈래다:
     ///   - <b>HP 바</b>: <see cref="DamageableUnit.OnHpChanged"/> 를 행마다 구독해 <b>즉시</b> 반영한다.
-    ///     맞는 순간 바로 줄어들어야 하는 값이라 폴링 지연을 두지 않는다.
+    ///   - <b>사망 처리</b>: <see cref="DamageableUnit.OnDied"/> 를 행마다 구독해 <b>즉시</b> 회색으로 바꾼다.
     ///   - <b>그 외(이름·능력치·행동·선택 표시·강화 가능 여부)</b>: <see cref="refreshInterval"/> 마다
-    ///     한 번씩 — 매 프레임 전수 조회를 피하기 위한 것이다(준수사항 U-D10).
-    /// 재구성(행 개수 맞추기)은 살아있는 캐릭터 집합이 바뀌었을 때만(생성·사망) 일어난다.
+    ///     한 번씩, 살아있는 행만 — 매 프레임 전수 조회를 피하기 위한 것이다(준수사항 U-D10).
     /// </summary>
     public class CharacterRosterPanel : MonoBehaviour
     {
         [Header("하이라키 연결 (비워두면 자식에서 이름으로 찾는다)")]
-        [Tooltip("행이 쌓이는 컨테이너 (VerticalLayoutGroup). 비우면 자식 \"List\"")]
+        [Tooltip("행이 쌓이는 컨테이너 (VerticalLayoutGroup). 비우면 \"ScrollView/Viewport/List\"")]
         [SerializeField] RectTransform listRoot;
 
         [Tooltip("복제할 행의 원본. 비우면 자식 \"RowTemplate\". 비활성으로 둘 것")]
@@ -42,6 +49,17 @@ namespace LastSanctuary.UI
 
         [Tooltip("HP 가 이 비율 아래로 내려가면 막대가 붉게 바뀐다")]
         [Range(0f, 1f)] [SerializeField] float lowHpRatio = 0.35f;
+
+        [Header("사망 표시 (웨이브가 끝날 때까지 행을 남겨둔다)")]
+        [Tooltip("사망한 캐릭터의 행 배경색")]
+        [SerializeField] Color rowDead = new Color(0.08f, 0.08f, 0.09f, 0.55f);
+
+        [Tooltip("사망한 캐릭터의 체력바 색. 비어서(투명) 안 보이는 것보다 " +
+                 "꽉 찬 회색 막대가 '사망'을 훨씬 눈에 띄게 알려준다")]
+        [SerializeField] Color deadBarColor = new Color(0.42f, 0.42f, 0.45f, 0.9f);
+
+        [Tooltip("사망한 캐릭터의 이름·능력치 글자색")]
+        [SerializeField] Color deadTextColor = new Color(0.5f, 0.5f, 0.52f, 1f);
 
         [Header("카메라")]
         [Tooltip("행을 누르면 카메라를 그 캐릭터 위치로 옮긴다")]
@@ -62,23 +80,41 @@ namespace LastSanctuary.UI
             public Image HpFill;
             public Button UpgradeButton;
             public TMP_Text UpgradeLabel;
+
+            /// <summary>살아있는 동안만 유효. 죽은 뒤에는 멤버를 다시 읽지 않는다(파괴된 오브젝트라서).</summary>
             public CharacterUnit Unit;
 
-            /// <summary>지금 <see cref="HpHandler"/> 를 구독하고 있는 대상. 행이 재활용되어
-            /// 다른 캐릭터로 바뀔 때 이전 구독을 정확히 끊기 위해 <see cref="Unit"/> 과 따로 든다.</summary>
+            /// <summary>지금 <see cref="HpHandler"/>/<see cref="DiedHandler"/> 를 구독하고 있는 대상.
+            /// 행이 재활용되어 다른 캐릭터로 바뀔 때 이전 구독을 정확히 끊기 위해 <see cref="Unit"/> 과 따로 든다.</summary>
             public DamageableUnit SubscribedUnit;
 
-            /// <summary>이 행에 고정된 HP 변경 핸들러. 구독/해제에 매번 같은 델리게이트가 필요하다.</summary>
+            /// <summary>이 행에 고정된 핸들러들. 구독/해제에 매번 같은 델리게이트가 필요하다.</summary>
             public System.Action<int, int> HpHandler;
+            public System.Action<DamageableUnit> DiedHandler;
+
+            /// <summary>사망 확정 여부. true 가 되면 폴링 갱신(RefreshValues)에서 건드리지 않는다.</summary>
+            public bool IsDead;
+
+            /// <summary>죽기 직전에 찍어둔 표시값 — 죽은 뒤에는 이 값만 쓴다.</summary>
+            public string CachedName;
+            public string CachedStats;
         }
 
         readonly List<Row> _rows = new List<Row>();
+
+        /// <summary>로스터에 한 번이라도 올라온 캐릭터 전부. 죽어도 여기서 안 빠진다 —
+        /// <see cref="HandleWaveEnded"/> 에서만 정리한다.</summary>
         readonly List<CharacterUnit> _characters = new List<CharacterUnit>();
-        readonly List<CharacterUnit> _scratch = new List<CharacterUnit>();
+
+        readonly List<CharacterUnit> _aliveScratch = new List<CharacterUnit>();
+
+        /// <summary>이번 웨이브에서 죽은 캐릭터 집합. 웨이브가 끝나면 이 집합 기준으로 정리하고 비운다.</summary>
+        readonly HashSet<CharacterUnit> _dead = new HashSet<CharacterUnit>();
 
         UnitSelector _selector;
         CharacterUpgradeService _upgrades;
         CameraRigController _cameraRig;
+        WaveManager _waveManager;
         float _nextRefresh;
 
         void Start()
@@ -86,6 +122,7 @@ namespace LastSanctuary.UI
             _selector = UnitSelector.Instance;
             _upgrades = CharacterUpgradeService.Instance;
             _cameraRig = FindAnyObjectByType<CameraRigController>();
+            _waveManager = FindAnyObjectByType<WaveManager>();
 
             // MCP 로는 씬 오브젝트 참조를 인스펙터에 넣을 수 없어서(진행상황 8절 4번),
             // 비어 있으면 이름으로 찾는다. 인스펙터에서 직접 넣으면 그 값이 우선이다.
@@ -103,7 +140,10 @@ namespace LastSanctuary.UI
 
             rowTemplate.gameObject.SetActive(false);
             BindScrollRect();
-            Rebuild();
+
+            if (_waveManager != null) _waveManager.OnWaveEnded += HandleWaveEnded;
+
+            AppendNewCharacters();
         }
 
         /// <summary>
@@ -137,10 +177,18 @@ namespace LastSanctuary.UI
 
         void OnDestroy()
         {
+            if (_waveManager != null) _waveManager.OnWaveEnded -= HandleWaveEnded;
+            UnsubscribeAll();
+        }
+
+        void UnsubscribeAll()
+        {
             for (int i = 0; i < _rows.Count; i++)
             {
                 Row row = _rows[i];
-                if (row.SubscribedUnit != null) row.SubscribedUnit.OnHpChanged -= row.HpHandler;
+                if (row.SubscribedUnit == null) continue;
+                row.SubscribedUnit.OnHpChanged -= row.HpHandler;
+                row.SubscribedUnit.OnDied -= row.DiedHandler;
             }
         }
 
@@ -151,15 +199,22 @@ namespace LastSanctuary.UI
 
             if (_selector == null) _selector = UnitSelector.Instance;
             if (_upgrades == null) _upgrades = CharacterUpgradeService.Instance;
+            if (_waveManager == null)
+            {
+                _waveManager = FindAnyObjectByType<WaveManager>();
+                if (_waveManager != null) _waveManager.OnWaveEnded += HandleWaveEnded;
+            }
 
-            if (CharacterSetChanged()) Rebuild();
+            AppendNewCharacters();
             RefreshValues();
         }
 
         // ------------------------------------------------------------------
+        // 캐릭터 목록 — 죽어도 안 줄어든다. 웨이브 종료 때만 정리한다.
+        // ------------------------------------------------------------------
 
-        /// <summary>살아있는 캐릭터 목록을 모은다. 죽으면 오브젝트가 파괴되므로 레지스트리가 정본이다.</summary>
-        void CollectCharacters(List<CharacterUnit> into)
+        /// <summary>지금 살아있는 캐릭터를 모은다 — "새로 생긴 캐릭터"를 찾는 용도로만 쓴다.</summary>
+        void CollectAliveCharacters(List<CharacterUnit> into)
         {
             into.Clear();
             var all = UnitRegistry.All;
@@ -167,51 +222,92 @@ namespace LastSanctuary.UI
                 if (all[i] is CharacterUnit c && c.IsAlive) into.Add(c);
         }
 
-        bool CharacterSetChanged()
+        /// <summary>아직 로스터에 없는 살아있는 캐릭터를 찾아 뒤에 추가하고 행을 물린다.</summary>
+        void AppendNewCharacters()
         {
-            CollectCharacters(_scratch);
-            if (_scratch.Count != _characters.Count) return true;
+            CollectAliveCharacters(_aliveScratch);
 
-            for (int i = 0; i < _scratch.Count; i++)
-                if (!ReferenceEquals(_scratch[i], _characters[i])) return true;
+            bool added = false;
+            for (int i = 0; i < _aliveScratch.Count; i++)
+            {
+                CharacterUnit c = _aliveScratch[i];
+                if (_characters.Contains(c)) continue;
+                _characters.Add(c);
+                added = true;
+            }
+            if (!added) return;
 
-            return false;
-        }
-
-        /// <summary>행 개수를 캐릭터 수에 맞추고 각 행에 캐릭터를 물린다.</summary>
-        void Rebuild()
-        {
-            CollectCharacters(_characters);
-
-            // 모자라면 모체를 복제해서 채운다. 남으면 끄기만 하고 파괴하지 않는다
-            // (캐릭터가 죽었다 다시 생기는 일이 잦아서, 매번 Destroy 하면 GC 만 늘어난다).
             while (_rows.Count < _characters.Count)
                 _rows.Add(CreateRow(_rows.Count));
 
+            for (int i = 0; i < _characters.Count; i++)
+            {
+                Row row = _rows[i];
+                if (!row.Root.activeSelf) row.Root.SetActive(true);
+                if (ReferenceEquals(row.Unit, _characters[i])) continue;   // 이미 이 캐릭터를 보여주는 중
+                BindRowToUnit(row, _characters[i]);
+            }
+        }
+
+        /// <summary>웨이브가 끝나면 죽은 캐릭터를 로스터에서 실제로 지운다(유저 요청).</summary>
+        void HandleWaveEnded(int wave)
+        {
+            if (_dead.Count == 0) return;
+
+            _characters.RemoveAll(c => _dead.Contains(c));
+            _dead.Clear();
+
+            ReassignAllRows();
+        }
+
+        /// <summary>죽은 캐릭터가 빠져 인덱스가 밀렸을 수 있으니 행 전체를 다시 배정한다.</summary>
+        void ReassignAllRows()
+        {
             for (int i = 0; i < _rows.Count; i++)
             {
                 Row row = _rows[i];
                 bool used = i < _characters.Count;
 
-                if (row.Root.activeSelf != used) row.Root.SetActive(used);
-
-                CharacterUnit newUnit = used ? _characters[i] : null;
-                if (ReferenceEquals(row.Unit, newUnit)) continue;
-
-                // 행이 다른 캐릭터로 바뀌는 순간(재활용 포함) 구독을 정확히 갈아탄다 —
-                // 이전 대상의 이벤트를 계속 듣고 있으면 남의 HP 로 이 행이 갱신되는
-                // 사고가 난다.
-                if (row.SubscribedUnit != null) row.SubscribedUnit.OnHpChanged -= row.HpHandler;
-
-                row.Unit = newUnit;
-                row.SubscribedUnit = newUnit;
-
-                if (newUnit != null)
+                if (!used)
                 {
-                    newUnit.OnHpChanged += row.HpHandler;
-                    ApplyHp(row, newUnit.CurrentHp, newUnit.MaxHp);   // 재구성 즉시 최신 HP로
+                    if (row.SubscribedUnit != null)
+                    {
+                        row.SubscribedUnit.OnHpChanged -= row.HpHandler;
+                        row.SubscribedUnit.OnDied -= row.DiedHandler;
+                        row.SubscribedUnit = null;
+                    }
+                    row.Unit = null;
+                    row.IsDead = false;
+                    if (row.Root.activeSelf) row.Root.SetActive(false);
+                    continue;
                 }
+
+                if (!row.Root.activeSelf) row.Root.SetActive(true);
+
+                CharacterUnit newUnit = _characters[i];
+                if (ReferenceEquals(row.Unit, newUnit)) continue;   // 죽지 않고 그대로 남은 자리
+
+                if (row.SubscribedUnit != null)
+                {
+                    row.SubscribedUnit.OnHpChanged -= row.HpHandler;
+                    row.SubscribedUnit.OnDied -= row.DiedHandler;
+                }
+                BindRowToUnit(row, newUnit);
             }
+        }
+
+        /// <summary>행에 캐릭터를 물리고 구독을 건다. "살아있음" 상태로 시각을 되돌린다(재활용 대비).</summary>
+        void BindRowToUnit(Row row, CharacterUnit unit)
+        {
+            row.Unit = unit;
+            row.SubscribedUnit = unit;
+            row.IsDead = false;
+
+            unit.OnHpChanged += row.HpHandler;
+            unit.OnDied += row.DiedHandler;
+
+            ApplyHp(row, unit.CurrentHp, unit.MaxHp);
+            ApplyAliveAppearance(row);
         }
 
         Row CreateRow(int index)
@@ -251,10 +347,11 @@ namespace LastSanctuary.UI
             if (row.UpgradeButton != null)
                 row.UpgradeButton.onClick.AddListener(() => UpgradeRow(row));
 
-            // HP 핸들러도 같은 이유로 row 를 닫아 두고 한 번만 만든다 — Rebuild() 가
-            // 구독/해제할 때마다 새 델리게이트를 만들면 구독 해제(-=)가 다른 인스턴스를
-            // 지우려다 실패한다(C# 이벤트는 참조가 같아야 -= 가 먹는다).
+            // 핸들러도 같은 이유로 row 를 닫아 두고 한 번만 만든다 — 구독/해제할 때마다 새
+            // 델리게이트를 만들면 구독 해제(-=)가 다른 인스턴스를 지우려다 실패한다
+            // (C# 이벤트는 참조가 같아야 -= 가 먹는다).
             row.HpHandler = (current, max) => ApplyHp(row, current, max);
+            row.DiedHandler = unit => HandleUnitDied(row, unit);
 
             return row;
         }
@@ -262,11 +359,69 @@ namespace LastSanctuary.UI
         /// <summary>HP 바 채움·색만 즉시 반영한다. <see cref="DamageableUnit.OnHpChanged"/> 구독 콜백.</summary>
         void ApplyHp(Row row, int current, int max)
         {
-            if (row.HpFill == null) return;
+            if (row.IsDead || row.HpFill == null) return;   // 사망 처리 후에는 덮어쓰지 않는다
 
             float ratio = max > 0 ? (float)current / max : 0f;
             row.HpFill.fillAmount = ratio;
             row.HpFill.color = ratio <= lowHpRatio ? HudTheme.BarHpLow : HudTheme.BarHp;
+        }
+
+        /// <summary>
+        /// 사망 확정. <see cref="DamageableUnit.OnDied"/> 구독 콜백 — <c>CharacterUnit.OnDeath()</c>
+        /// 가 <c>Destroy(gameObject)</c> 를 부른 바로 다음에 같은 프레임에서 호출된다. Unity 의
+        /// Destroy 는 프레임 끝에 처리되므로(DamageableUnit.ApplyDamage 주석 참조) <b>지금은 아직</b>
+        /// <c>row.Unit</c> 의 멤버를 안전하게 읽을 수 있는 마지막 순간이다 — 표시에 필요한 값을
+        /// 전부 스냅샷해두고, 이후로는 다시 읽지 않는다.
+        /// </summary>
+        void HandleUnitDied(Row row, DamageableUnit deadUnit)
+        {
+            if (row.IsDead) return;
+            row.IsDead = true;
+
+            if (row.Unit != null)
+            {
+                _dead.Add(row.Unit);
+                row.CachedName = row.Unit.name;
+                StatBlock s = row.Unit.Stats;
+                row.CachedStats = $"체{s.hp} 공{s.attack} 방{s.defense} 회{s.regen}";
+            }
+
+            ApplyDeadAppearance(row);
+
+            // 선택·강화 대상에서 확실히 빼둔다. UnitSelector 도 다음 프레임에 스스로
+            // 선택을 놓지만(죽은 유닛은 IsAlive 가 false), 그 전에 우리 쪽 버튼이라도
+            // 눌리지 않게 즉시 막는다.
+            if (row.SelectButton != null) row.SelectButton.interactable = false;
+            if (row.UpgradeButton != null) row.UpgradeButton.interactable = false;
+        }
+
+        /// <summary>죽은 캐릭터의 행을 회색으로 — "확실하게 죽었다"는 걸 알아볼 수 있게 한다.</summary>
+        void ApplyDeadAppearance(Row row)
+        {
+            if (row.Background != null) row.Background.color = rowDead;
+            if (row.Name != null) { row.Name.text = row.CachedName; row.Name.color = deadTextColor; }
+            if (row.Stats != null) { row.Stats.text = row.CachedStats; row.Stats.color = deadTextColor; }
+            if (row.Duty != null) { row.Duty.text = "사망"; row.Duty.color = deadTextColor; }
+
+            // 비어서(투명) 안 보이는 것보다, 꽉 찬 회색 막대가 "사망"을 훨씬 눈에 띄게 알려준다.
+            if (row.HpFill != null)
+            {
+                row.HpFill.fillAmount = 1f;
+                row.HpFill.color = deadBarColor;
+            }
+
+            if (row.UpgradeLabel != null) row.UpgradeLabel.text = "강화";
+        }
+
+        /// <summary>행이 재활용될 때 이전 사망 표시(회색)를 지우고 정상 색으로 되돌린다.</summary>
+        void ApplyAliveAppearance(Row row)
+        {
+            if (row.Background != null) row.Background.color = rowNormal;
+            if (row.Name != null) row.Name.color = HudTheme.TextMain;
+            if (row.Stats != null) row.Stats.color = HudTheme.TextDim;
+            if (row.Duty != null) row.Duty.color = HudTheme.TextDim;
+            if (row.SelectButton != null) row.SelectButton.interactable = true;
+            if (row.UpgradeButton != null) row.UpgradeButton.interactable = true;
         }
 
         static TMP_Text FindText(Transform parent, string childName)
@@ -277,7 +432,7 @@ namespace LastSanctuary.UI
 
         void SelectRow(Row row)
         {
-            if (row.Unit == null || !row.Unit.IsAlive) return;
+            if (row.IsDead || row.Unit == null || !row.Unit.IsAlive) return;
             if (_selector == null) _selector = UnitSelector.Instance;
             _selector?.Select(row.Unit);
             FocusCameraOn(row.Unit);
@@ -301,7 +456,7 @@ namespace LastSanctuary.UI
 
         void UpgradeRow(Row row)
         {
-            if (row.Unit == null || !row.Unit.IsAlive) return;
+            if (row.IsDead || row.Unit == null || !row.Unit.IsAlive) return;
             if (_upgrades == null) _upgrades = CharacterUpgradeService.Instance;
             if (_upgrades == null) return;
 
@@ -327,6 +482,7 @@ namespace LastSanctuary.UI
             {
                 Row row = _rows[i];
                 if (!row.Root.activeSelf || row.Unit == null) continue;
+                if (row.IsDead) continue;   // ApplyDeadAppearance 가 이미 확정한 값을 그대로 둔다
 
                 CharacterUnit unit = row.Unit;
 

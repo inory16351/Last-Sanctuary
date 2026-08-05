@@ -210,15 +210,14 @@ namespace LastSanctuary.UI
                         _pixels[row + x] = HudTheme.MapUnexplored;
                         continue;
                     }
-                    if (_fog.IsVisible(cell)) continue;      // 시야 안 — 지형 그대로 밝게
+                    if (_fog.IsVisible(cell)) continue;      // 지금 시야 안 — 지형 원색 그대로(가장 밝음)
 
-                    // 탐사는 됐지만 지금 시야 밖 — 어둡게 눌러준다.
-                    Color32 c = _pixels[row + x];
-                    _pixels[row + x] = new Color32(
-                        (byte)(c.r * HudTheme.MapDimMul.r / 255),
-                        (byte)(c.g * HudTheme.MapDimMul.g / 255),
-                        (byte)(c.b * HudTheme.MapDimMul.b / 255),
-                        255);
+                    // 탐사는 됐지만 지금 시야 밖(캐릭터가 지나간 곳) — 미탐사 색과 지형 원색
+                    // 사이를 보간한다. 곱연산으로 한 번 더 죽이면(예전 방식) 이미 어두운 지형
+                    // 색이 거의 검정에 수렴해 미탐사와 구별이 안 됐다 — 보간이면 항상 미탐사보다
+                    // 확실히 밝은 중간 밝기가 보장된다.
+                    _pixels[row + x] = LerpColor32(HudTheme.MapUnexplored, _pixels[row + x],
+                                                    HudTheme.MapExploredBrightness);
                 }
             }
         }
@@ -316,6 +315,17 @@ namespace LastSanctuary.UI
         {
             Vector3Int cell = _map.WorldToCell(world);
             return new Vector2Int(cell.x - _origin.x, cell.y - _origin.y);
+        }
+
+        /// <summary><c>Color32</c> 에는 내장 Lerp 가 없어서(Color 전용) 채널별로 직접 보간한다.</summary>
+        static Color32 LerpColor32(Color32 a, Color32 b, float t)
+        {
+            t = Mathf.Clamp01(t);
+            return new Color32(
+                (byte)Mathf.RoundToInt(Mathf.Lerp(a.r, b.r, t)),
+                (byte)Mathf.RoundToInt(Mathf.Lerp(a.g, b.g, t)),
+                (byte)Mathf.RoundToInt(Mathf.Lerp(a.b, b.b, t)),
+                255);
         }
 
         void SetPixel(int x, int y, Color32 color)

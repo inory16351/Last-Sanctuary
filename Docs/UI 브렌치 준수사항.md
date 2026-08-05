@@ -243,7 +243,18 @@ git diff --name-only origin/main...UI | grep -E "Scripts/(Build|Wave|Map|Fog)/|U
 - `update_gameobject` 는 **`objectPath` 가 없으면 새로 만든다** — 부모부터 순서대로 만들 것.
 - `update_component` 는 **컴포넌트가 없으면 추가**한다. `RectTransform` 의 앵커·피벗·오프셋은 필드명이 `m_AnchorMin` 계열이라 **넣은 뒤 `get_gameobject` 로 반드시 재확인**할 것 (진행상황 8절 3번: 조용히 무시되는 필드가 있다).
 - 비활성 오브젝트(템플릿)는 **경로로 조회되지 않는다** — `get_scenes_hierarchy` 로 받은 `instanceId` 를 **같은 턴에** 쓸 것 (진행상황 12절).
-- 스프라이트 참조는 MCP 로 넣을 수 없다(8절 1번). 배경은 스프라이트 없는 `Image`(색만)로 처리한다.
+- **스프라이트 참조는 조건부로 가능하다 — "무조건 불가"가 아니다(2026-08-05 정정).** 진행상황
+  8절 1번의 제약은 **Sprite Mode = Multiple**(텍스처가 메인 에셋, 스프라이트는 서브에셋)일 때만
+  해당한다. **Sprite Mode = Single** 로 새로 임포트한 텍스처는 그 스프라이트 자체가 경로의
+  메인 오브젝트로 취급되어, `update_component` 로 `Image.sprite` 에 그 PNG 경로를 그대로 넣으면
+  **정상적으로 붙는다**(실제 확인: `RallyMarkerTemplate` 원형 마커). 새 UI 스프라이트가
+  필요하면: PNG 를 만들어 `Assets/Refresh` 로 1차 임포트(기본은 `textureType:0`) → 기존 유닛
+  스프라이트 `.meta`(예: `Art/Units/monster_melee.png.meta`) 구조를 참고해 손으로
+  `textureType: 8`(Sprite) · `spriteMode: 1`(Single) · `alphaIsTransparency: 1` 로 고친 뒤
+  재-`Refresh`(8절의 손 편집 `.meta` 패턴 재사용) → `update_component` 로 `sprite` 필드에 경로
+  지정. **기존에 이미 참조가 걸려 있는 스프라이트의 겉모양만 바꿀 때는** 여전히 8절 1번 방식
+  (같은 guid 의 원본 텍스처 파일 내용만 교체)이 더 안전하다 — 참조 자체를 새로 걸 필요가 없어서
+  씬을 건드리지 않는다.
 
 ---
 
@@ -277,5 +288,6 @@ git diff --name-only origin/main...UI | grep -E "Scripts/(Build|Wave|Map|Fog)/|U
 | 날짜 | 브랜치 | 무엇을 | 왜 |
 |---|---|---|---|
 | 2026-08-05 | UI | 최초 작성(v1) | UI/PROTO 병렬 작업 개시. 씬은 PROTO 소유, UI는 additive 씬 + 동결 계약 파일 구조 |
+| 2026-08-05 | UI | **v2.2** — MCP 실전 주의에 "Single 모드 스프라이트는 MCP 로 참조 설정 가능" 정정 추가 | `RallyMarkerTemplate` 을 원형 스프라이트로 바꾸며 실제로 시도해 확인. 진행상황 8절 1번의 제약이 Multiple 모드에만 해당한다는 걸 이번에 알았다 |
 | 2026-08-05 | UI | **v2.1** — §10 을 "MCP 로 하이라키 직접 생성"으로 교체(런타임 코드 생성 방침 폐기), U-S2/U-S8 연동 수정, MCP 실전 주의 추가 | 유저 확정: **객체 생성은 스크립트로 하지 말고 MCP 로 하이라키에 직접 생성. 단 하나의 템플릿을 복제하는 구조는 모체 1개만 MCP 로 만들고 나머지는 스크립트 복제 허용.** 하이라키에 실물이 있어야 인스펙터에서 직접 조정할 수 있다. 씬 저장 비용은 "다 만든 뒤 1회 저장"(H-8)으로 관리한다 |
 | 2026-08-05 | UI | **v2 전면 개정** — 전투 AI를 UI 브랜치로 이관, **씬 소유권 PROTO→UI 이전**, `Scripts/Orders/` 계약과 `UI_HUD.unity` 폐기(§4에 사유 보존), §9 이번 스코프 6개 패널 확정, §10 HUD 코드 생성 방침·네오둥근모 고정 추가 | 유저 결정: 전술 명령·집결지는 AI 거동을 바꾸는 기능이라 UI와 AI가 다른 PC에 갈라져 있으면 어느 쪽도 결과를 확인할 수 없다. 두 축이 한 브랜치로 합쳐지면서 계약·별도 씬이 불필요해졌고, 대신 템플릿 조정 빈도가 올라가 씬 소유권을 가져왔다. **v1 은 아직 원격에 push 되지 않아 PROTO 쪽에 배포된 적이 없다 — 그래서 v1 조항을 새 항목으로 덧붙이지 않고 본문을 재작성했다.** 폐기 항목의 사유는 §4 에 남겼다 |
