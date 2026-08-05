@@ -459,3 +459,52 @@ Handle` 신설(+ 기존 `List` reparent), `HUD_Log` 앵커·위치 변경. 저�
 
 ### 씬반영요청 목록
 없음.
+
+---
+
+## UI-5. 캐릭터 생성 비용 공식 확정 (2026-08-05)
+
+### 무엇을 / 왜
+
+유저 확정: 캐릭터 성장 기획서(5장 "캐릭터 생성 방식" — "생성한 캐릭터 수에 비례하여 자원
+소모량 점진적 상승", 구체적 수치는 기획서에 없음)를 근거로, **비용 = 150 + 100n** (n = 몇
+번째로 만드는 캐릭터인지, 1부터 — ex: 1 → 2 → 3 …) 공식을 그대로 적용하라는 지시.
+
+### 어떻게
+
+[CharacterCreationService.cs](Assets/_Project/Scripts/UI/CharacterCreationService.cs) —
+기존엔 `baseCost(30) + costIncreasePerCharacter(15) × extra`(extra = 0부터 시작하는 증가분)
+였던 걸, `NextCreationNumber`(n, 1부터) 프로퍼티를 새로 뽑아내고 `CurrentCost = baseCost(150)
++ costPerCreation(100) × n` 으로 교체했다. n 계산 로직(시작 인원 3명을 빼는 것)은 그대로
+재사용 — 시작 캐릭터는 기획서가 말하는 "생성한 캐릭터"가 아니라 게임이 처음부터 쥐여주는
+인원이라 공식에서 빼는 게 맞다.
+
+씬의 `GameSystems/CharacterCreationService` 필드 이름이 `costIncreasePerCharacter` →
+`costPerCreation` 으로 바뀌면서, 기존 씬 YAML 의 `baseCost: 30` 값은 필드명이 그대로라
+남아있었고(30에서 150으로 안 바뀜) `costPerCreation` 은 새 필드라 코드 기본값(100)을 그대로
+받았다 — `baseCost` 만 `update_component` 로 150으로 명시적으로 다시 넣어 맞췄다
+(`get_gameobject` 로 `NextCreationNumber: 1, CurrentCost: 250` 확인, 150+100×1과 일치).
+
+### 겪은 함정
+- **필드 이름을 바꾸면 기존 씬의 값이 새 기본값으로 조용히 리셋된다(필드별로 다르게).**
+  이름이 그대로인 필드(`baseCost`)는 옛 값(30)이 남고, 이름이 바뀐 필드(옛
+  `costIncreasePerCharacter` 15 → 새 `costPerCreation`)는 코드의 새 기본값(100)을 받는다 —
+  둘 다 다시 확인 안 하면 어중간하게 섞인 값(30+100×1=130)이 나온다. 값을 바꾸는 리팩터링을
+  할 땐 **씬에 이미 값이 박혀있는 필드는 이름을 유지하거나, 바꿨으면 반드시 씬 값도
+  다시 확인할 것.**
+
+### 확인된 것
+- `recompile_scripts` 에러·경고 0.
+- `get_gameobject` 로 `CharacterCreationService.CurrentCost: 250`(=150+100×1, 첫 생성) 확인.
+- Edit mode 확인 후 `save_scene` 1회.
+
+### 아직 확인 못 한 것
+- 플레이 모드에서 실제로 2번째·3번째 생성 시 350/450 으로 오르는지 미확인.
+- `baseCost`/`costPerCreation` 값 자체(150/100)는 유저가 명시적으로 지정한 최종값이라
+  추가 확인 불필요.
+
+### 씬 변경 여부
+있음. `CharacterCreationService.baseCost` 값 변경(30→150). 저장 1회.
+
+### 씬반영요청 목록
+없음.

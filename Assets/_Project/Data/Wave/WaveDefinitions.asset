@@ -1,0 +1,115 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a89b0943f2360fa4cb1dd10fe3161e44, type: 3}
+  m_Name: WaveDefinitions
+  m_EditorClassIdentifier:
+  waves:
+  - waveNumber: 1
+    meleeCount: 3
+    rangedCount: 3
+    bossCount: 0
+    statPercent: 60
+  - waveNumber: 2
+    meleeCount: 3
+    rangedCount: 3
+    bossCount: 0
+    statPercent: 70
+  - waveNumber: 3
+    meleeCount: 5
+    rangedCount: 5
+    bossCount: 0
+    statPercent: 80
+  - waveNumber: 4
+    meleeCount: 5
+    rangedCount: 5
+    bossCount: 0
+    statPercent: 90
+  - waveNumber: 5
+    meleeCount: 6
+    rangedCount: 6
+    bossCount: 0
+    statPercent: 110
+  - waveNumber: 6
+    meleeCount: 7
+    rangedCount: 7
+    bossCount: 0
+    statPercent: 118
+  - waveNumber: 7
+    meleeCount: 8
+    rangedCount: 8
+    bossCount: 0
+    statPercent: 126
+  - waveNumber: 8
+    meleeCount: 10
+    rangedCount: 10
+    bossCount: 0
+    statPercent: 134
+  - waveNumber: 9
+    meleeCount: 10
+    rangedCount: 10
+    bossCount: 0
+    statPercent: 142
+  - waveNumber: 10
+    meleeCount: 6
+    rangedCount: 6
+    bossCount: 1
+    statPercent: 160
+  - waveNumber: 11
+    meleeCount: 11
+    rangedCount: 11
+    bossCount: 0
+    statPercent: 168
+  - waveNumber: 12
+    meleeCount: 11
+    rangedCount: 11
+    bossCount: 0
+    statPercent: 176
+  - waveNumber: 13
+    meleeCount: 12
+    rangedCount: 12
+    bossCount: 0
+    statPercent: 184
+  - waveNumber: 14
+    meleeCount: 13
+    rangedCount: 13
+    bossCount: 0
+    statPercent: 192
+  - waveNumber: 15
+    meleeCount: 15
+    rangedCount: 15
+    bossCount: 0
+    statPercent: 213
+  - waveNumber: 16
+    meleeCount: 15
+    rangedCount: 15
+    bossCount: 0
+    statPercent: 221
+  - waveNumber: 17
+    meleeCount: 16
+    rangedCount: 16
+    bossCount: 0
+    statPercent: 229
+  - waveNumber: 18
+    meleeCount: 16
+    rangedCount: 16
+    bossCount: 0
+    statPercent: 237
+  - waveNumber: 19
+    meleeCount: 18
+    rangedCount: 18
+    bossCount: 0
+    statPercent: 245
+  - waveNumber: 20
+    meleeCount: 13
+    rangedCount: 13
+    bossCount: 1
+    statPercent: 263

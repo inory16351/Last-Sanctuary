@@ -12,19 +12,25 @@ namespace LastSanctuary.UI
     /// <c>CharacterUpgradeService</c> ↔ <c>UpgradeButtonUI</c> 와 같은 모양으로 맞췄다.
     /// 덕분에 버튼을 다시 만들어도 비용 규칙은 그대로 남는다.
     ///
-    ///   비용 = baseCost + costIncreasePerCharacter × (지금까지 생성된 캐릭터 수 − 시작 인원)
+    /// <b>비용 공식(유저 확정)</b>: <c>150 + 100n</c> — <c>n</c> 은 몇 번째로 만드는 캐릭터인지
+    /// (1부터, ex: 1 → 2 → 3 …). 캐릭터 성장 기획서 5장의 "생성한 캐릭터 수에 비례하여
+    /// 자원 소모량 점진적 상승"을 그대로 수치화한 것 — 문서엔 구체적인 공식이 없어서
+    /// 유저가 직접 지정한 값을 그대로 반영한다.
+    ///
+    ///   비용 = baseCost(150) + costPerCreation(100) × n
     ///
     /// 시작 인원(UnitSpawner 가 게임 시작에 만드는 3명)은 비용 계산에서 빼서,
-    /// 첫 추가 생성이 항상 baseCost 부터 시작하게 했다.
+    /// 첫 추가 생성이 항상 n=1(=250) 부터 시작하게 했다 — 시작 캐릭터는 "생성" 이 아니라
+    /// 게임이 처음부터 쥐여주는 인원이라, 기획서가 말하는 "생성한 캐릭터 수"에 포함되지 않는다.
     /// </summary>
     public class CharacterCreationService : MonoBehaviour
     {
-        [Header("비용")]
-        [Tooltip("첫 번째 추가 캐릭터를 만드는 데 드는 에너지")]
-        [Min(0)] [SerializeField] int baseCost = 30;
+        [Header("비용 — 캐릭터 성장 기획서 5장 + 유저 확정 공식 150+100n")]
+        [Tooltip("공식의 상수항(150)")]
+        [Min(0)] [SerializeField] int baseCost = 150;
 
-        [Tooltip("한 명 늘어날 때마다 다음 생성 비용에 더해지는 양")]
-        [Min(0)] [SerializeField] int costIncreasePerCharacter = 15;
+        [Tooltip("공식의 n 배율(100) — n 은 몇 번째 생성인지(1부터)")]
+        [Min(0)] [SerializeField] int costPerCreation = 100;
 
         [Header("제한")]
         [Tooltip("이 인원을 넘겨서는 만들 수 없다. 0 이면 제한 없음")]
@@ -73,12 +79,12 @@ namespace LastSanctuary.UI
         /// <summary>지금까지 만들어진 캐릭터 수(죽은 것 포함). 비용은 이 값 기준으로 오른다.</summary>
         public int CreatedCount => _spawner != null ? _spawner.SpawnedCharacters.Count : 0;
 
-        /// <summary>다음 캐릭터를 만드는 데 드는 에너지.</summary>
-        public int CurrentCost
+        /// <summary>다음에 만들 캐릭터가 몇 번째 생성인지(1부터) — 공식의 n.</summary>
+        public int NextCreationNumber
         {
             get
             {
-                if (_spawner == null) return baseCost;
+                if (_spawner == null) return 1;
 
                 // 시작 인원은 게임이 캐릭터를 다 만든 뒤(첫 프레임 이후)에야 확정된다.
                 if (_startingCount < 0 && _spawner.SpawnedCharacters.Count > 0)
@@ -86,9 +92,12 @@ namespace LastSanctuary.UI
 
                 int start = Mathf.Max(0, _startingCount);
                 int extra = Mathf.Max(0, _spawner.SpawnedCharacters.Count - start);
-                return baseCost + costIncreasePerCharacter * extra;
+                return extra + 1;   // 1번째 생성부터 시작 (ex: 1 → 2 → 3 …)
             }
         }
+
+        /// <summary>다음 캐릭터를 만드는 데 드는 에너지. 150 + 100n.</summary>
+        public int CurrentCost => baseCost + costPerCreation * NextCreationNumber;
 
         /// <summary>인원 상한에 걸렸는지.</summary>
         public bool AtLimit => maxCharacters > 0 && AliveCount >= maxCharacters;

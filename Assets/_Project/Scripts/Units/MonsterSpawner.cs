@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using LastSanctuary.Combat;
 using LastSanctuary.Map;
+using LastSanctuary.Wave;
 
 namespace LastSanctuary.Units
 {
@@ -27,14 +28,37 @@ namespace LastSanctuary.Units
     /// 언제 소환할지는 <see cref="LastSanctuary.Wave.WaveManager"/> 가 정하고,
     /// 이 클래스는 "한 무리를 어떻게 스폰할지"만 담당한다.
     /// 몬스터는 맵 가장자리 스폰 게이트에서 0.5초 간격으로 순차 등장한다(웨이브 기획서 p10).
+    ///
+    /// <b>웨이브별 구성(2026-08-05 반영)</b>: <see cref="waveDefinitions"/> 가 지정되어 있고
+    /// 그 표에 해당 웨이브 행이 있으면, 고정된 <see cref="spawnTable"/> 대신 그 행의 근거리/
+    /// 원거리/보스 마리 수와 능력치 배율(<c>wave.statPercent</c>)을 쓴다 — `테이블/웨이브테이블.xlsx`
+    /// 를 그대로 반영한 것으로, 예전의 "웨이브가 올라도 구성은 고정, 배율만 선형으로 커진다"
+    /// (진행상황 6절)를 대체한다. 표가 없으면(예전 씬) <see cref="hpPercentPerWave"/>/
+    /// <see cref="attackPercentPerWave"/> 선형 공식 + <see cref="spawnTable"/> 로 그대로 동작한다.
     /// </summary>
     public class MonsterSpawner : MonoBehaviour
     {
         [Header("데이터")]
         [SerializeField] BalanceConfigSO balance;
 
-        [Tooltip("이 목록에 정의와 마리 수를 넣으면 알아서 생성한다")]
+        [Tooltip("이 목록에 정의와 마리 수를 넣으면 알아서 생성한다. " +
+                 "waveDefinitions 가 지정되고 그 웨이브 행을 찾으면 이 표의 count 는 무시된다")]
         [SerializeField] MonsterSpawnEntry[] spawnTable;
+
+        [Header("웨이브 테이블 (테이블/웨이브테이블.xlsx 반영)")]
+        [Tooltip("지정하면 웨이브 번호로 표를 조회해 근거리/원거리/보스 마리 수와 능력치 배율을 " +
+                 "가져온다 — 비워두면 아래 hpPercentPerWave/attackPercentPerWave 선형 공식으로 " +
+                 "되돌아간다(예전 동작 그대로 유지)")]
+        [SerializeField] WaveDefinitionSO waveDefinitions;
+
+        [Tooltip("웨이브 테이블 사용 시 근거리 담당 (정의+템플릿만 쓰고 count 는 표를 따른다)")]
+        [SerializeField] MonsterSpawnEntry meleeSlot;
+
+        [Tooltip("웨이브 테이블 사용 시 원거리 담당")]
+        [SerializeField] MonsterSpawnEntry rangedSlot;
+
+        [Tooltip("웨이브 테이블 사용 시 보스 담당")]
+        [SerializeField] MonsterSpawnEntry bossSlot;
 
         [Header("맵 참조")]
         [SerializeField] MapGenerator mapGenerator;
@@ -121,17 +145,29 @@ namespace LastSanctuary.Units
             var rng = new System.Random(seed + waveNumber * 7919);
             List<Vector3Int> gates = BuildSpawnGates();
 
-            int hpScale = 100 + hpPercentPerWave * (waveNumber - 1);
-            int atkScale = 100 + attackPercentPerWave * (waveNumber - 1);
+            int hpScale, atkScale;
+            var queue = new List<(MonsterDefinitionSO def, MonsterUnit template)>();
+
+            // 웨이브 테이블에 이 웨이브 행이 있으면 그 구성(마리 수·능력치 배율)을 그대로 쓴다.
+            // 표가 없거나 행이 없으면(예전 씬 그대로) 기존 선형 공식 + 고정 spawnTable 로 돌아간다 —
+            // 이 분기가 하나도 안 바뀌므로 웨이브 테이블을 아직 안 연결한 다른 상황을 깨지 않는다.
+            if (waveDefinitions != null && waveDefinitions.TryGetWave(waveNumber, out var wave))
+            {
+                hpScale = atkScale = wave.statPercent;
+                AppendToQueue(queue, meleeSlot, wave.meleeCount);
+                AppendToQueue(queue, rangedSlot, wave.rangedCount);
+                AppendToQueue(queue, bossSlot, wave.bossCount);
+            }
+            else
+            {
+                hpScale = 100 + hpPercentPerWave * (waveNumber - 1);
+                atkScale = 100 + attackPercentPerWave * (waveNumber - 1);
+
+                foreach (MonsterSpawnEntry e in spawnTable)
+                    AppendToQueue(queue, e, e.count);
+            }
 
             // 종류를 섞어서 한 방향에 같은 종류만 몰리지 않게 한다.
-            var queue = new List<(MonsterDefinitionSO def, MonsterUnit template)>();
-            foreach (MonsterSpawnEntry e in spawnTable)
-            {
-                if (e.definition == null) continue;
-                MonsterUnit tpl = e.template != null ? e.template : e.definition.template;
-                for (int i = 0; i < e.count; i++) queue.Add((e.definition, tpl));
-            }
             for (int i = queue.Count - 1; i > 0; i--)
             {
                 int j = rng.Next(i + 1);
@@ -151,6 +187,15 @@ namespace LastSanctuary.Units
 
                 if (spawnInterval > 0f) yield return new WaitForSeconds(spawnInterval);
             }
+        }
+
+        /// <summary>정의+템플릿이 채워진 슬롯을 count 마리만큼 스폰 대기열에 넣는다.</summary>
+        static void AppendToQueue(List<(MonsterDefinitionSO def, MonsterUnit template)> queue,
+                                  MonsterSpawnEntry entry, int count)
+        {
+            if (entry.definition == null || count <= 0) return;
+            MonsterUnit tpl = entry.template != null ? entry.template : entry.definition.template;
+            for (int i = 0; i < count; i++) queue.Add((entry.definition, tpl));
         }
 
         void SpawnOne(MonsterDefinitionSO def, MonsterUnit template, Vector3Int gateCell,
