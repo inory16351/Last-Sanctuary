@@ -28,6 +28,10 @@ namespace LastSanctuary.UI
     /// 소환 지점은 <see cref="MonsterSpawner.Alive"/> 를 읽어 위치를 뭉쳐서 구한다.
     /// 스포너가 어느 게이트를 썼는지 따로 공개하지 않기 때문인데, 결과적으로 스포너 쪽
     /// 코드를 건드리지 않아도 된다(스포너는 PROTO 브랜치 소유 — 준수사항 §2).
+    ///
+    /// ⚠️ 지형은 <see cref="MapGenerator.Walkable"/> 이 아니라 <see cref="MapGenerator.IsCellBlocked"/>
+    /// (장애물 타일맵 기준)로 굽는다 — 자세한 이유는 <see cref="EnsureTexture"/> 참조.
+    /// 처음 구현에서 <c>Walkable</c> 을 썼다가 플레이 모드에서 미니맵이 계속 텅 비는 문제가 있었다.
     /// </summary>
     public class MinimapPanel : MonoBehaviour
     {
@@ -131,18 +135,31 @@ namespace LastSanctuary.UI
         // 지형 — 맵 크기가 바뀔 때만 다시 굽는다
         // ------------------------------------------------------------------
 
+        /// <summary>
+        /// ⚠️ <see cref="MapGenerator.Walkable"/> / <c>MapSize</c> / <c>Origin</c> 을 쓰지 않는다.
+        /// 이 셋은 <c>Generate()</c> 안에서만 채워지는 <b>런타임 전용 캐시</b>라, 씬의
+        /// <c>generateOnAwake</c> 가 꺼져 있으면(현재 씬 값 — 에디터에서 미리 생성해두고 저장하는
+        /// 방식이라 꺼둔 것) 플레이 모드에서 <c>Generate()</c> 가 한 번도 안 불려 계속 <c>null</c>
+        /// 이다. 그 결과 이 메서드가 항상 실패해 미니맵이 텅 빈 채로 남아있었다(실측 확인).
+        ///
+        /// 대신 <b>씬에 직렬화되어 항상 유효한 값</b>을 쓴다 — 크기/원점은
+        /// <see cref="MapGenerator.Config"/>(SO 에셋, 항상 값이 있음)에서, 통행 가능 여부는
+        /// <see cref="MapGenerator.IsCellBlocked"/>(장애물 타일맵 기준, 진행상황 8절이 이미
+        /// 같은 이유로 권장하는 방식)에서 얻는다. 둘 다 <c>Generate()</c> 호출 여부와 무관하다.
+        /// </summary>
         bool EnsureTexture()
         {
             if (_map == null) _map = FindAnyObjectByType<MapGenerator>();
-            if (_map == null || _map.Walkable == null) return false;
+            var config = _map != null ? _map.Config : null;
+            if (config == null) return false;
 
-            Vector2Int size = _map.MapSize;
+            Vector2Int size = config.MapSize;
             if (size.x <= 0 || size.y <= 0) return false;
 
             if (_texture != null && _size == size) return true;
 
             _size = size;
-            _origin = _map.Origin;
+            _origin = config.Origin;
 
             _texture = new Texture2D(size.x, size.y, TextureFormat.RGBA32, false)
             {
@@ -154,9 +171,16 @@ namespace LastSanctuary.UI
             _terrain = new Color32[size.x * size.y];
             _pixels = new Color32[size.x * size.y];
 
-            bool[] walkable = _map.Walkable;
-            for (int i = 0; i < _terrain.Length; i++)
-                _terrain[i] = walkable[i] ? HudTheme.MapFloor : HudTheme.MapWall;
+            for (int y = 0; y < size.y; y++)
+            {
+                int row = y * size.x;
+                int cellY = y + _origin.y;
+                for (int x = 0; x < size.x; x++)
+                {
+                    bool blocked = _map.IsCellBlocked(new Vector3Int(x + _origin.x, cellY, 0));
+                    _terrain[row + x] = blocked ? HudTheme.MapWall : HudTheme.MapFloor;
+                }
+            }
 
             view.texture = _texture;
             return true;

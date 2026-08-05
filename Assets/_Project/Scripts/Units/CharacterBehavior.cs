@@ -11,7 +11,7 @@ namespace LastSanctuary.Units
     {
         Scout,   // 정찰 — 대기시간 동안 미탐사 지역으로 나가 전장을 밝힌다
         Guard,   // 방어 — 웨이브에 대비해 넥서스 주변을 돈다
-        Rally,   // 집결 — 플레이어가 지정한 집결지로 간다 (정찰·방어보다 우선)
+        Rally,   // 집결 — 웨이브 소환 이후, 넥서스 대신 지정된 집결지 구역을 지킨다
     }
 
     /// <summary>
@@ -23,10 +23,17 @@ namespace LastSanctuary.Units
     /// 갈라지지 않는다.
     ///
     ///   대기시간(Preparation) → 정찰: 아직 안 밝혀진 칸을 찾아 나간다
-    ///   그 외                 → 방어: 넥서스 반경 안을 돌아다닌다
+    ///   그 외(방어 시점)       → 집결지가 있으면 그 구역을 경계, 없으면 넥서스 주변을 경계
     ///
     /// 적을 발견하면 UnitCombat 이 알아서 교전하고, 이 컴포넌트는 교전이 끝날
     /// 때까지 목적지를 건드리지 않는다.
+    ///
+    /// <b>집결지 반영 시점 — "웨이브 몬스터 소환 직후"</b>: 플레이어는 대기시간 중에도
+    /// 미리 집결지를 찍어둘 수 있지만, 실제로 그쪽으로 움직이는 건 방어 임무로
+    /// 넘어가는 순간부터다. <see cref="WaveManager"/> 는 대기시간이 끝나며 몬스터를
+    /// 소환하는 순간 곧바로 Marching 으로 전환하므로(11절), "방어 임무 시작 = 소환 직후"가
+    /// 그대로 성립한다 — 소환 이벤트를 따로 구독하지 않고 <see cref="CurrentDuty"/> 판정만으로
+    /// 정확한 시점에 반영된다.
     /// </summary>
     [RequireComponent(typeof(UnitCombat))]
     public class CharacterBehavior : MonoBehaviour
@@ -55,8 +62,12 @@ namespace LastSanctuary.Units
         [Tooltip("다음 순찰 지점으로 옮기기까지의 대기 시간 범위(초)")]
         [SerializeField] Vector2 guardRepositionDelay = new Vector2(2.5f, 6f);
 
-        [Header("집결 (플레이어 지정)")]
-        [Tooltip("집결지 주변에서 적을 쫓을 수 있는 거리(타일). 너무 크면 집결지를 벗어나 흩어진다")]
+        [Header("집결 (플레이어 지정, 웨이브 소환 이후 반영)")]
+        [Tooltip("집결지 구역의 한 변 길이(타일) — 지금은 임시로 10x10. 이 구역 안에서 " +
+                 "경계하며 순찰한다(방어와 같은 방식, 중심만 넥서스 대신 집결지)")]
+        [Min(2f)] [SerializeField] float rallyAreaSize = 10f;
+
+        [Tooltip("집결지 구역 안에서 적을 쫓을 수 있는 거리(타일). 너무 크면 구역을 벗어나 흩어진다")]
         [Min(1f)] [SerializeField] float rallyLeash = 6f;
 
         [Header("공통")]
@@ -119,53 +130,44 @@ namespace LastSanctuary.Units
             // (사냥 중인 중립 몬스터도 이 시점엔 이미 Target 으로 잡혀 있다).
             if (_combat.Target != null && _combat.Target.IsAlive) return;
 
-            // 플레이어가 집결지를 찍었으면 정찰·방어보다 우선한다 — 명시적 명령이므로.
-            // 집결지가 없으면(대부분의 경우) 아래 기존 로직이 그대로 돈다.
-            if (UI.RallyPointService.TryGetRallyPoint(_character, out Vector3 rally))
-            {
-                if (_duty != CharacterDuty.Rally ||
-                    (rally - _destination).sqrMagnitude > 0.01f)
-                {
-                    _duty = CharacterDuty.Rally;
-                    _destination = rally;
-                    _combat.SetHome(_destination, rallyLeash);
-                }
-                return;
-            }
-
-            // 집결지가 방금 해제됐으면 원래 임무로 되돌린다.
-            if (_duty == CharacterDuty.Rally)
-            {
-                _duty = CurrentDuty();
-                PickDestination();
-                return;
-            }
-
-            CharacterDuty duty = CurrentDuty();
+            CharacterDuty baseline = CurrentDuty();   // Scout(대기시간) 또는 Guard(그 외)
 
             // 정찰 중에만 먼저 조우한 중립 몬스터를 사냥하러 간다 — 웨이브 몬스터는
             // 넥서스로 전진해오지만 중립 몬스터는 서식지에 머물러 있으므로, 캐릭터가
             // 직접 찾아가야만 마주친다(기획 요청: "탐색 중 조우 시 사냥, 에너지 획득").
-            if (duty == CharacterDuty.Scout && TryFindHuntPrey(out DamageableUnit prey))
+            if (baseline == CharacterDuty.Scout && TryFindHuntPrey(out DamageableUnit prey))
             {
                 _combat.SetHuntTarget(prey);
                 return;
             }
 
+            // 집결지는 "방어" 를 대신한다 — 정찰(대기시간) 중에는 반영하지 않는다.
+            // baseline 이 Guard 로 바뀌는 시점이 곧 웨이브 소환 직후이므로(클래스 doc 참조),
+            // 별도 이벤트 구독 없이 이 검사만으로 "소환 직후부터 반영" 이 정확히 성립한다.
+            Vector3 rallyCenter = default;
+            bool hasRally = baseline == CharacterDuty.Guard &&
+                            UI.RallyPointService.TryGetRallyPoint(_character, out rallyCenter);
+            CharacterDuty duty = hasRally ? CharacterDuty.Rally : baseline;
+
             if (duty != _duty)
             {
                 _duty = duty;
-                PickDestination();
+                if (duty == CharacterDuty.Rally) PickRallySpot(rallyCenter);
+                else PickDestination();
                 return;
             }
 
             bool arrived = Vector2.Distance(transform.position, _destination) <= arriveDistance;
 
-            // 길이 막혔으면 타임아웃(정찰 15초)을 기다리지 않고 바로 다른 곳을 고른다.
-            // 이 신호가 없던 동안은 캐릭터가 갈 수 없는 목표를 향해 벽에 붙어
-            // 멈춰 있는 시간이 그대로 노출됐다.
+            // 길이 막혔거나(DestinationUnreachable) 도착했거나 재추첨 시간이 됐으면 다시 고른다.
+            // 예전엔 집결지에 "도착"하면 그 뒤로 아무 재추첨이 없어 제자리에 멈춰 서 있었다
+            // (UnitCombat 은 목표에 닿으면 Idle 로 멈추고 스스로 돌아다니지 않는다) — 방어와
+            // 똑같이 구역 안에서 계속 순찰 지점을 다시 고르게 해서 고쳤다.
             if (arrived || _combat.DestinationUnreachable || Time.time >= _repickTime)
-                PickDestination();
+            {
+                if (duty == CharacterDuty.Rally) PickRallySpot(rallyCenter);
+                else PickDestination();
+            }
         }
 
         // ------------------------------------------------------------------
@@ -200,24 +202,48 @@ namespace LastSanctuary.Units
             return true;
         }
 
-        bool PickGuardSpot()
-        {
-            Vector3 center = NexusPosition();
-            float minR = Mathf.Min(2f, guardRadius * 0.5f);
+        bool PickGuardSpot() => PickSpotAround(NexusPosition(), guardRadius, guardLeash, square: false);
 
-            // 넥서스 주변 원 안의 임의 지점을 뽑되, 벽이나 넥서스 몸통에 걸린 칸은
-            // 버리고 다시 굴린다. 예전에는 검사 없이 그대로 목적지로 썼기 때문에
-            // 순찰 지점이 벽·넥서스 안에 박히면 캐릭터가 도달할 수 없는 곳을 향해
-            // 벽에 붙어 멈춘 채 다음 재추첨까지 기다렸다.
+        /// <summary>
+        /// 집결지 구역 안에서 순찰 지점을 고른다. 방어(<see cref="PickGuardSpot"/>)와 로직은
+        /// 같고 표본 추출 방식만 다르다 — 방어는 넥서스 중심의 원, 집결은 "n×n 구역"이라는
+        /// 요청을 그대로 반영해 정사각 영역 안에서 균등하게 뽑는다.
+        /// </summary>
+        bool PickRallySpot(Vector3 center) =>
+            PickSpotAround(center, rallyAreaSize * 0.5f, rallyLeash, square: true);
+
+        /// <summary>
+        /// 지정 중심 주변에서 순찰 지점을 하나 고른다. 벽·구조물에 걸린 칸은 버리고 다시
+        /// 굴린다 — 검사 없이 그대로 쓰면 순찰 지점이 벽 안에 박혀 캐릭터가 도달할 수 없는
+        /// 곳을 향해 벽에 붙어 멈춘 채 다음 재추첨까지 기다리게 된다.
+        ///
+        /// 도착 후에도 이 메서드가 주기적으로 다시 불려야 한다 — <see cref="UnitCombat"/> 은
+        /// 목적지에 닿으면 Idle 로 멈추고 스스로는 돌아다니지 않으므로, 여기서 새 지점을
+        /// 계속 골라줘야 "경계 순찰"처럼 보인다(가만히 서 있는 것과의 차이).
+        /// </summary>
+        bool PickSpotAround(Vector3 center, float halfExtent, float extraLeash, bool square)
+        {
             for (int attempt = 0; attempt < GuardSpotAttempts; attempt++)
             {
-                double angle = _rng.NextDouble() * System.Math.PI * 2.0;
-                float radius = Mathf.Lerp(minR, guardRadius, (float)_rng.NextDouble());
+                Vector3 candidate;
+                if (square)
+                {
+                    // "n×n 구역" 요청을 그대로 반영 — 정사각 안에서 균등하게 뽑는다.
+                    float dx = Mathf.Lerp(-halfExtent, halfExtent, (float)_rng.NextDouble());
+                    float dy = Mathf.Lerp(-halfExtent, halfExtent, (float)_rng.NextDouble());
+                    candidate = center + new Vector3(dx, dy, 0f);
+                }
+                else
+                {
+                    float minR = Mathf.Min(2f, halfExtent * 0.5f);
+                    double angle = _rng.NextDouble() * System.Math.PI * 2.0;
+                    float radius = Mathf.Lerp(minR, halfExtent, (float)_rng.NextDouble());
 
-                Vector3 candidate = center + new Vector3(
-                    Mathf.Cos((float)angle) * radius,
-                    Mathf.Sin((float)angle) * radius,
-                    0f);
+                    candidate = center + new Vector3(
+                        Mathf.Cos((float)angle) * radius,
+                        Mathf.Sin((float)angle) * radius,
+                        0f);
+                }
 
                 if (!IsWalkable(candidate)) continue;
 
@@ -225,17 +251,17 @@ namespace LastSanctuary.Units
                 break;
             }
 
-            // 다 실패했으면 넥서스 근처의 갈 수 있는 칸으로 폴백한다.
+            // 다 실패했으면 중심 근처의 갈 수 있는 칸으로 폴백한다.
             if (!IsWalkable(_destination) && _map != null &&
-                _map.TryFindPlaceableNear(_map.WorldToCell(center), Mathf.CeilToInt(guardRadius),
+                _map.TryFindPlaceableNear(_map.WorldToCell(center), Mathf.CeilToInt(halfExtent),
                                           null, out Vector3Int fallback))
                 _destination = _map.CellCenterWorld(fallback);
 
             _repickTime = Time.time + Mathf.Lerp(guardRepositionDelay.x, guardRepositionDelay.y,
                                                  (float)_rng.NextDouble());
 
-            // 목줄은 넥서스 기준이어야 하므로, 순찰 지점까지의 거리를 더해준다.
-            _combat.SetHome(_destination, guardLeash + guardRadius);
+            // 목줄은 중심 기준이어야 하므로, 순찰 지점까지의 거리를 더해준다.
+            _combat.SetHome(_destination, extraLeash + halfExtent);
             return true;
         }
 
