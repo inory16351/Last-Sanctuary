@@ -11,6 +11,7 @@ namespace LastSanctuary.Units
     {
         Scout,   // 정찰 — 대기시간 동안 미탐사 지역으로 나가 전장을 밝힌다
         Guard,   // 방어 — 웨이브에 대비해 넥서스 주변을 돈다
+        Rally,   // 집결 — 플레이어가 지정한 집결지로 간다 (정찰·방어보다 우선)
     }
 
     /// <summary>
@@ -54,6 +55,10 @@ namespace LastSanctuary.Units
         [Tooltip("다음 순찰 지점으로 옮기기까지의 대기 시간 범위(초)")]
         [SerializeField] Vector2 guardRepositionDelay = new Vector2(2.5f, 6f);
 
+        [Header("집결 (플레이어 지정)")]
+        [Tooltip("집결지 주변에서 적을 쫓을 수 있는 거리(타일). 너무 크면 집결지를 벗어나 흩어진다")]
+        [Min(1f)] [SerializeField] float rallyLeash = 6f;
+
         [Header("공통")]
         [Tooltip("목표에 이 거리 안으로 들어오면 도착으로 친다(타일)")]
         [Min(0.2f)] [SerializeField] float arriveDistance = 1.2f;
@@ -68,6 +73,7 @@ namespace LastSanctuary.Units
 
         UnitCombat _combat;
         DamageableUnit _self;
+        CharacterUnit _character;
         FogOfWarService _fog;
         WaveManager _waveManager;
         MapGenerator _map;
@@ -88,6 +94,7 @@ namespace LastSanctuary.Units
         {
             _combat = GetComponent<UnitCombat>();
             _self = GetComponent<DamageableUnit>();
+            _character = GetComponent<CharacterUnit>();
             _destination = transform.position;
         }
 
@@ -111,6 +118,28 @@ namespace LastSanctuary.Units
             // 교전 중에는 UnitCombat 에 맡기고 목적지를 건드리지 않는다
             // (사냥 중인 중립 몬스터도 이 시점엔 이미 Target 으로 잡혀 있다).
             if (_combat.Target != null && _combat.Target.IsAlive) return;
+
+            // 플레이어가 집결지를 찍었으면 정찰·방어보다 우선한다 — 명시적 명령이므로.
+            // 집결지가 없으면(대부분의 경우) 아래 기존 로직이 그대로 돈다.
+            if (UI.RallyPointService.TryGetRallyPoint(_character, out Vector3 rally))
+            {
+                if (_duty != CharacterDuty.Rally ||
+                    (rally - _destination).sqrMagnitude > 0.01f)
+                {
+                    _duty = CharacterDuty.Rally;
+                    _destination = rally;
+                    _combat.SetHome(_destination, rallyLeash);
+                }
+                return;
+            }
+
+            // 집결지가 방금 해제됐으면 원래 임무로 되돌린다.
+            if (_duty == CharacterDuty.Rally)
+            {
+                _duty = CurrentDuty();
+                PickDestination();
+                return;
+            }
 
             CharacterDuty duty = CurrentDuty();
 
@@ -248,9 +277,12 @@ namespace LastSanctuary.Units
         {
             if (!drawGizmos || !Application.isPlaying) return;
 
-            Gizmos.color = _duty == CharacterDuty.Scout
-                ? new Color(0.4f, 1f, 0.6f, 0.9f)
-                : new Color(0.4f, 0.7f, 1f, 0.9f);
+            Gizmos.color = _duty switch
+            {
+                CharacterDuty.Scout => new Color(0.4f, 1f, 0.6f, 0.9f),
+                CharacterDuty.Rally => new Color(1f, 0.95f, 0.5f, 0.9f),
+                _                   => new Color(0.4f, 0.7f, 1f, 0.9f),
+            };
             Gizmos.DrawLine(transform.position, _destination);
             Gizmos.DrawWireCube(_destination, Vector3.one * 0.8f);
         }

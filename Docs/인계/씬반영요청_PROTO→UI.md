@@ -13,7 +13,7 @@
 | 하고 싶은 것 | 씬 없이 하는 방법 |
 |---|---|
 | 포탑 원본(`Tower_Template`) 배치 | **프리팹으로 만든다** — `Assets/_Project/Prefabs/Build/Tower_Template.prefab`. `Instantiate` 는 프리팹도 받으므로 기존 템플릿 복제 패턴(진행상황 5절)이 그대로 통한다 (P-S4) |
-| `BuildManager` 같은 매니저 오브젝트 | **`[RuntimeInitializeOnLoadMethod]` 로 런타임 생성** — UI 브랜치의 `HudBootstrap` 이 같은 방식이다 (P-S5) |
+| `BuildManager` 같은 매니저 오브젝트 | **이건 씬반영요청 대상이다** (P-S5). 유저 확정으로 **스크립트가 GameObject 를 만들어내는 우회는 금지** — 하이라키에 실물이 있어야 인스펙터에서 조정할 수 있다. UI 가 MCP 로 만들어준다 |
 | 밸런스·정의 값 변경 | SO 에셋(`Data/Units/**`, `Data/Map/**`)은 PROTO 소유다. 그냥 고치면 된다 |
 | 맵 파라미터 변경 | `MapGenConfig.asset` 은 고쳐도 된다. **다만 생성 버튼은 누르지 말 것** — 재생성은 씬 재작성이다 (P-S3) |
 
