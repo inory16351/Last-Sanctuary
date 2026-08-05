@@ -52,6 +52,13 @@ namespace LastSanctuary.Resource
 
         void HandleDeath(DamageableUnit unit)
         {
+            // 중립 몬스터는 정의 테이블의 min~max_energy 범위에서 무작위 지급 (정찰 중 사냥 보상).
+            if (unit is NeutralMonsterUnit neutral)
+            {
+                AddEnergy(neutral.RollEnergyReward());
+                return;
+            }
+
             // 몬스터(암세포 진영) 중에서도 일반 등급만 지금 보상 대상이다.
             if (unit.Faction != Faction.Cancer || unit.Kind != UnitKind.Monster) return;
             if (unit is MonsterUnit monster && monster.Tier != MonsterTier.Normal) return;

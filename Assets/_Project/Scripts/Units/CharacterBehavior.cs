@@ -58,6 +58,11 @@ namespace LastSanctuary.Units
         [Tooltip("목표에 이 거리 안으로 들어오면 도착으로 친다(타일)")]
         [Min(0.2f)] [SerializeField] float arriveDistance = 1.2f;
 
+        [Header("중립 몬스터 사냥 (정찰 중)")]
+        [Tooltip("정찰(Scout) 중 이 거리 안에 중립 몬스터가 있으면 정찰을 멈추고 사냥한다(타일). " +
+                 "웨이브 몬스터와 달리 넥서스로 오지 않으므로 캐릭터가 직접 찾아가야 마주친다")]
+        [Min(0f)] [SerializeField] float huntDetectRange = 10f;
+
         [Header("디버그")]
         [SerializeField] bool drawGizmos = true;
 
@@ -103,10 +108,21 @@ namespace LastSanctuary.Units
         {
             if (_self == null || !_self.IsAlive) return;
 
-            // 교전 중에는 UnitCombat 에 맡기고 목적지를 건드리지 않는다.
+            // 교전 중에는 UnitCombat 에 맡기고 목적지를 건드리지 않는다
+            // (사냥 중인 중립 몬스터도 이 시점엔 이미 Target 으로 잡혀 있다).
             if (_combat.Target != null && _combat.Target.IsAlive) return;
 
             CharacterDuty duty = CurrentDuty();
+
+            // 정찰 중에만 먼저 조우한 중립 몬스터를 사냥하러 간다 — 웨이브 몬스터는
+            // 넥서스로 전진해오지만 중립 몬스터는 서식지에 머물러 있으므로, 캐릭터가
+            // 직접 찾아가야만 마주친다(기획 요청: "탐색 중 조우 시 사냥, 에너지 획득").
+            if (duty == CharacterDuty.Scout && TryFindHuntPrey(out DamageableUnit prey))
+            {
+                _combat.SetHuntTarget(prey);
+                return;
+            }
+
             if (duty != _duty)
             {
                 _duty = duty;
@@ -192,6 +208,28 @@ namespace LastSanctuary.Units
             // 목줄은 넥서스 기준이어야 하므로, 순찰 지점까지의 거리를 더해준다.
             _combat.SetHome(_destination, guardLeash + guardRadius);
             return true;
+        }
+
+        /// <summary>주변에서 사냥할 만한(살아있는) 중립 몬스터를 찾는다. 가장 가까운 것을 고른다.</summary>
+        bool TryFindHuntPrey(out DamageableUnit prey)
+        {
+            prey = null;
+            if (huntDetectRange <= 0f) return false;
+
+            float bestSqr = huntDetectRange * huntDetectRange;
+            var all = UnitRegistry.All;
+            for (int i = 0; i < all.Count; i++)
+            {
+                DamageableUnit u = all[i];
+                if (u == null || !u.IsAlive || u.Faction != Faction.Neutral) continue;
+
+                float sqr = (u.transform.position - transform.position).sqrMagnitude;
+                if (sqr > bestSqr) continue;
+
+                bestSqr = sqr;
+                prey = u;
+            }
+            return prey != null;
         }
 
         /// <summary>그 월드 지점이 걸어갈 수 있는 칸인지 (맵 안 + 벽·구조물 아님).</summary>

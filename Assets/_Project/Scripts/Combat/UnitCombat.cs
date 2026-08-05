@@ -97,6 +97,11 @@ namespace LastSanctuary.Combat
         float _nextRetargetTime;
         CombatState _state = CombatState.Idle;
 
+        // 정찰 중 중립 몬스터 사냥 등, 평소 진영 판정(Faction.Opposite)을 거치지 않고
+        // "이 상대를 지금 공격하라"고 외부에서 지정하는 타겟. 설정돼 있으면 일반 탐색보다
+        // 우선한다 — CharacterBehavior 가 이 훅으로 사냥을 건다.
+        DamageableUnit _huntOverrideTarget;
+
         // 벽 슬라이딩 시 좌/우 중 어느 쪽을 먼저 시도할지. 유닛마다 고정해서
         // 같은 장애물 앞에서 여러 유닛이 서로 다른 방향으로 흩어지게 한다.
         int _slideSign;
@@ -214,6 +219,23 @@ namespace LastSanctuary.Combat
 
         public Vector3 Home => _homePosition;
 
+        /// <summary>
+        /// 평소 진영 판정을 건너뛰고 이 상대를 사냥하도록 강제한다 (정찰 중 중립 몬스터 조우 등).
+        /// 다음 <see cref="AcquireTargetIfNeeded"/> 에서 즉시 <see cref="Target"/> 으로 잡힌다.
+        /// 대상이 <see cref="leashRange"/>(귀환 지점 기준) 밖으로 벗어나면 자동으로 포기한다.
+        /// </summary>
+        public void SetHuntTarget(DamageableUnit target) => _huntOverrideTarget = target;
+
+        /// <summary>사냥을 포기한다. 이미 그 상대를 쫓고 있었다면 타겟도 함께 비운다.</summary>
+        public void ClearHuntTarget()
+        {
+            if (_huntOverrideTarget != null && _target == _huntOverrideTarget) _target = null;
+            _huntOverrideTarget = null;
+        }
+
+        /// <summary>지금 사냥 타겟을 쫓는 중인지 (일반 진영 전투와 구분해서 보고 싶을 때 사용).</summary>
+        public bool IsHunting => _huntOverrideTarget != null && _huntOverrideTarget.IsAlive;
+
         /// <summary>귀환 지점에 도착했는지.</summary>
         public bool IsAtHome(float tolerance = 0.5f) =>
             Vector2.Distance(transform.position, _homePosition) <= tolerance;
@@ -304,6 +326,24 @@ namespace LastSanctuary.Combat
 
         void AcquireTargetIfNeeded()
         {
+            if (_huntOverrideTarget != null)
+            {
+                if (!_huntOverrideTarget.IsAlive)
+                {
+                    _huntOverrideTarget = null;   // 사냥감이 죽었다 — 다음부터 일반 탐색으로 돌아간다
+                }
+                else if (leashRange > 0f &&
+                         Vector2.Distance(_huntOverrideTarget.transform.position, _homePosition) > leashRange)
+                {
+                    _huntOverrideTarget = null;   // 서식지 밖으로 너무 멀어졌다 — 사냥을 포기한다
+                }
+                else
+                {
+                    _target = _huntOverrideTarget;
+                    return;
+                }
+            }
+
             bool targetInvalid = _target == null || !_target.IsAlive;
 
             // 유효한 타겟이 있어도 주기적으로 다시 훑어 더 우선순위 높은 적을 잡는다.
