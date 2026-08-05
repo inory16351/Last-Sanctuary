@@ -63,12 +63,13 @@ namespace LastSanctuary.Units
         [SerializeField] Vector2 guardRepositionDelay = new Vector2(2.5f, 6f);
 
         [Header("집결 (플레이어 지정, 웨이브 소환 이후 반영)")]
-        [Tooltip("집결지 구역의 한 변 길이(타일) — 지금은 임시로 10x10. 이 구역 안에서 " +
-                 "경계하며 순찰한다(방어와 같은 방식, 중심만 넥서스 대신 집결지)")]
-        [Min(2f)] [SerializeField] float rallyAreaSize = 10f;
-
         [Tooltip("집결지 구역 안에서 적을 쫓을 수 있는 거리(타일). 너무 크면 구역을 벗어나 흩어진다")]
         [Min(1f)] [SerializeField] float rallyLeash = 6f;
+
+        [Tooltip("RallyPointService 를 못 찾았을 때만 쓰는 구역 크기(타일). 평소엔 " +
+                 "RallyPointService.RallyAreaSize 를 그대로 읽는다 — 화면에 보이는 범위 표시와 " +
+                 "실제 순찰 범위가 항상 같아야 해서 값을 두 곳에 따로 두지 않는다")]
+        [Min(2f)] [SerializeField] float rallyAreaSizeFallback = 10f;
 
         [Header("공통")]
         [Tooltip("목표에 이 거리 안으로 들어오면 도착으로 친다(타일)")]
@@ -210,7 +211,17 @@ namespace LastSanctuary.Units
         /// 요청을 그대로 반영해 정사각 영역 안에서 균등하게 뽑는다.
         /// </summary>
         bool PickRallySpot(Vector3 center) =>
-            PickSpotAround(center, rallyAreaSize * 0.5f, rallyLeash, square: true);
+            PickSpotAround(center, RallyAreaSize() * 0.5f, rallyLeash, square: true);
+
+        /// <summary>
+        /// 집결지 구역 크기 — <see cref="UI.RallyPointService.RallyAreaSize"/> 를 그대로 읽는다.
+        /// 미니맵·월드 오버레이에 보이는 범위 표시와 실제 순찰 범위가 항상 같아야 하므로,
+        /// 서비스가 정본이고 여기서는 값을 복제해두지 않는다. 서비스가 없을 때만 폴백을 쓴다.
+        /// </summary>
+        float RallyAreaSize() =>
+            UI.RallyPointService.Instance != null
+                ? UI.RallyPointService.Instance.RallyAreaSize
+                : rallyAreaSizeFallback;
 
         /// <summary>
         /// 지정 중심 주변에서 순찰 지점을 하나 고른다. 벽·구조물에 걸린 칸은 버리고 다시

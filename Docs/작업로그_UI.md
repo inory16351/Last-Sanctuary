@@ -229,3 +229,117 @@ GameSystems  ← RallyPointService · CharacterCreationService 추가 (기존 Un
 
 ### 씬반영요청 목록
 없음.
+
+---
+
+## UI-3. 집결지 범위 표시 · HP 바 이벤트 반영 · 로스터 스크롤 (2026-08-05)
+
+### 무엇을 / 왜
+
+유저 요청 3건.
+1. 집결지 마커 주변에 실제 범위(구역)를 눈으로 보이게 — 지정 모드로 들어가 마우스를 움직일 때도,
+   실제로 찍은 뒤에도 둘 다.
+2. HUD_Roster 의 HP 바가 몬스터에게 맞아도 안 줄어드는 것을 "줄어드는 게이지"로 확실히 만들 것.
+3. HUD_Roster 를 세로로 더 길게(캐릭터가 늘어날 걸 감안), 넘치면 오른쪽 스크롤바로 드래그.
+   그 결과 로그 창은 아래로 밀리는데, **로그의 새 위치는 미니맵의 Y값을 기준으로 그 바로 위**에
+   두고, X 는 그대로 좌측 고정.
+
+### 어떻게
+
+**① 집결지 범위 표시 — `RallyPointService.cs`**
+- `RallyAreaSize` 를 이 서비스의 **정본**으로 옮겼다. `CharacterBehavior` 는 더 이상 자기 필드를
+  들고 있지 않고 `RallyPointService.Instance.RallyAreaSize` 를 그대로 읽는다(서비스가 없을 때만
+  `rallyAreaSizeFallback` 폴백). **화면에 보이는 범위와 실제 순찰 범위가 항상 같아야** 값을 두
+  곳에 따로 둘 수 없었다 — 하나가 정본, 나머지는 그걸 읽기만 하는 구조로 정리했다.
+- 신규 템플릿 `RallyRangeTemplate`(반투명 정사각, 노란색 alpha 0.16, MCP 로 직접 생성)을
+  `RallyMarkerTemplate` 과 같은 방식으로 풀링한다. `UpdateMarkers()` 를 `UpdateOverlay()` 로
+  확장해 **마커(점)와 범위(사각형)를 같은 위치 목록으로 동시에 동기화**한다.
+- **미리보기**: 지정 모드(`IsPicking`) 중에는 매 프레임 마우스가 가리키는 월드 위치를 `Snap()`
+  까지 거쳐 계산해두고(`UpdatePreview()`), 그 위치를 활성 목록의 **인덱스 0**으로 얹는다. 확정된
+  집결지와 구분되도록 `previewAlphaScale`(기본 0.55)만큼 옅게 그린다 — "아직 안 찍었다"는 걸
+  알아볼 수 있게.
+- **범위 사각형의 화면 크기 계산**: 카메라 줌이 바뀌면 같은 10타일이 차지하는 화면 픽셀 크기도
+  바뀐다(진행상황 §11, "월드 공간 UI는 줌에 따라 크기가 튄다"). 그래서 매 프레임 `worldSize`
+  만큼 떨어진 두 모서리를 각각 `WorldToScreenPoint` → `ScreenPointToLocalPointInRectangle` 로
+  변환해 그 차이를 재는 방식(`WorldSizeToLocalSize`)을 썼다 — 줌·해상도·CanvasScaler 배율이
+  전부 이 변환 두 번 사이에서 자동으로 상쇄되므로, "픽셀당 타일 수"를 직접 계산할 필요가 없다.
+
+**② HP 바를 이벤트로 반영 — `CharacterRosterPanel.cs`**
+- HP 표시가 폴링(0.2초 간격)에만 의존하고 있었다 — 로직 자체는 맞았지만(측정된 `Image` 컴포넌트
+  값도 `Type.Filled/Horizontal/Left/1` 로 정확히 붙어 있었다), "정의해 줄어들게 표시"라는 요청에
+  맞춰 **`DamageableUnit.OnHpChanged` 를 행마다 직접 구독**하는 방식으로 바꿨다. 이 이벤트는
+  `ApplyDamage`/`Heal`/`SetupHealth`(강화 포함) 전부에서 발생하므로 HP 에 영향을 주는 모든
+  경로를 하나도 놓치지 않는다.
+- 행은 재활용되므로(캐릭터가 죽고 다른 캐릭터가 그 자리를 대신 씀), `Row.SubscribedUnit` 을 따로
+  들고 있다가 `Rebuild()` 에서 캐릭터가 바뀌는 순간 **이전 구독을 정확히 끊고 새로 구독**한다.
+  구독 즉시 `ApplyHp` 를 한 번 호출해 재구성 직후에도 최신 HP 가 바로 보이게 했다. `RefreshValues()`
+  의 폴링 쪽에서는 HP 필드를 더 이상 건드리지 않는다 — 이벤트와 폴링이 같은 값을 이중으로 쓰면
+  순서에 따라 잠깐 어긋나 보일 수 있어서다.
+- `OnDestroy()` 에서 모든 행의 구독을 해제해 패널이 없어져도 죽은 델리게이트가 이벤트에 남지
+  않게 했다.
+
+**③ 로스터 스크롤 + 로그 재배치 — 씬(MCP) + 코드**
+- `HUD_Roster` 높이 320 → **460**(위치는 그대로, 아래로만 늘림).
+- 표준 uGUI 스크롤 구조를 그대로 따랐다: `ScrollView`(`ScrollRect`) → `Viewport`(`RectMask2D` +
+  투명 `Image`, `raycastTarget=true` — 마스크 자체는 Graphic 이 아니라 드래그를 받으려면 필요) →
+  `List`(기존 것을 **reparent**, `VerticalLayoutGroup` 은 그대로 두고 `ContentSizeFitter`
+  Vertical=PreferredSize 추가 — 내용만큼 자동으로 커진다). `Scrollbar`(오른쪽 14px, `Handle` 자식)
+  는 새로 만들었다. **`ScrollRect.content/viewport/verticalScrollbar`, `Scrollbar.handleRect/
+  targetGraphic` 같은 오브젝트 참조 필드는 MCP 로 못 넣는다**(진행상황 8절 4번) — 그래서
+  `CharacterRosterPanel.BindScrollRect()` 를 새로 만들어 `Start()` 에서 이름으로 찾아 코드로
+  연결했다. `listRoot` 의 자동 탐색 경로도 `"List"` → `"ScrollView/Viewport/List"` 로 한 단계
+  깊어진 걸 반영했다.
+- 로그 위치는 **미니맵을 기준으로 재계산**했다: 미니맵은 우하단 고정(`anchoredPosition.y=16`,
+  높이 322) → 미니맵 윗변 = 화면 아래로부터 `16+322=338`. 로그를 **아래-왼쪽 앵커**로 바꾸고
+  (기존엔 위-왼쪽 앵커였다) `anchoredPosition = (16, 338+8[기존 여백과 같은 간격])`. X 는 그대로
+  16(좌측 고정, 애초에 앵커가 왼쪽이라 값 자체는 안 바뀜) — 요청한 "미니맵의 y값만 가져오고 x는
+  좌측 고정"을 그대로 구현했다. 로스터(위 16~476)와 로그(아래 494~734, 화면 위쪽 기준)가
+  18px 여유를 두고 겹치지 않는 것도 계산으로 확인했다.
+
+### 겪은 함정
+
+1. **`RectTransform` 을 `anchoredPosition`+`sizeDelta` 와 `offsetMin`+`offsetMax` 로 동시에
+   지정하면 안 된다.** 둘은 같은 내부 값을 표현하는 다른 방식일 뿐이라 서로 덮어쓸 수 있다
+   (실제로 스크롤바 RT 를 처음에 `anchoredPosition`/`sizeDelta` 조합으로 대충 계산했다가, 다시
+   `get_gameobject` 로 확인해보니 계산이 꼬여 있었다 — `offsetMin`/`offsetMax` 로 정리해서
+   고쳤다). **한 axis 라도 스트레치 앵커(anchorMin≠anchorMax)면 그 axis 는 `offsetMin`/`offsetMax`
+   로만 지정하는 편이 안전하다** — 포인트 앵커인 축도 offset 표현이 항상 유효하므로(앵커 지점
+   기준 오프셋), 아예 RectTransform 은 전부 offsetMin/offsetMax 로 통일해서 쓰는 게 사고를 줄인다.
+2. **object 참조 필드(ScrollRect/Scrollbar)는 MCP 로 절대 못 넣는다**는 걸 다시 확인했다(이미
+   알던 제약이지만 컴포넌트를 추가하고 나서야 `get_gameobject` 로 `handleRect: null` 인 걸 보고
+   실제로 체감했다). **object 참조가 있는 컴포넌트를 씬에 추가할 땐, 처음부터 "이건 코드에서
+   이름으로 찾아 연결해야 한다"를 전제하고 시작할 것** — 나중에 알아채면 이미 만든 계층을 다시
+   훑어야 한다.
+3. **집결지 범위 크기를 두 컴포넌트에 각각 갖고 있으면 반드시 벌어진다.** `CharacterBehavior` 가
+   `rallyAreaSize` 를 자기 필드로 갖고 있었는데, 화면에 표시하는 범위(`RallyPointService`)와
+   값이 분리되어 있어서 인스펙터에서 한쪽만 고치면 "보이는 범위"와 "실제 순찰 범위"가 어긋난다.
+   값을 하나로 합치고 한쪽이 다른 쪽을 읽게 고쳤다.
+
+### 확인된 것
+- `recompile_scripts` 에러·경고 0 (총 3회 — 코드 변경 단계마다).
+- 씬 계층 확인(`get_gameobject`): `ScrollView/Viewport/List` 경로, `List` 가
+  `drivenByObject: "List"`(ContentSizeFitter 가 실제로 높이를 제어 중)로 표시됨,
+  `Scrollbar` rect 너비 14 · 높이 414(패널 body 영역과 정확히 일치), `HUD_Log` rect
+  (16,346)-(376,586) 계산값과 일치.
+- `HpFill` 의 `Image` 값(`m_Type: Filled, m_FillMethod: Horizontal, m_FillOrigin: 0,
+  m_FillAmount: 1`)이 애초에 정확히 붙어 있었다는 것도 재확인 — 원래 버그는 UI 쪽이 아니라
+  (아마) 폴링 타이밍/관찰 시점 문제였을 가능성이 높지만, 이벤트 기반으로 바꿔 어느 쪽이든
+  해소되게 했다.
+- Edit mode 확인 후 `save_scene` **1회**.
+
+### 아직 확인 못 한 것 (유저가 볼 것)
+- **여전히 플레이 모드 검증 안 함.** 이번엔 특히:
+  - 집결지 지정 모드에서 마우스를 움직일 때 옅은 사각형(미리보기)이 따라오는지, 클릭하면 진하게
+    고정되는지, 우클릭/Esc 로 없어지는지
+  - HP 바가 실제로 전투 중 즉시 줄어드는지 (이번 수정으로 원래 뭐가 문제였는지도 자연히 드러날 것)
+  - 로스터에 캐릭터가 6명 이상일 때 스크롤바가 실제로 드래그되고 목록이 스크롤되는지
+  - 로그 창이 미니맵 바로 위에 딱 붙어 보이는지, 로스터와 로그 사이 간격이 어색하지 않은지
+- `rallyAreaSize`(10), `previewAlphaScale`(0.55) 는 여전히 **임의값**.
+- 스크롤 영역이 생기면서 행 너비가 340→322 로 18px 좁아졌다 — 텍스트 잘림이 생기면 알려줄 것.
+
+### 씬 변경 여부
+**있음.** `RallyRangeTemplate` 신설, `HUD_Roster` 높이 변경 + `ScrollView/Viewport/List/Scrollbar/
+Handle` 신설(+ 기존 `List` reparent), `HUD_Log` 앵커·위치 변경. 저장 1회.
+
+### 씬반영요청 목록
+없음.

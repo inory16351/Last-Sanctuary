@@ -16,10 +16,12 @@ namespace LastSanctuary.UI
     /// 만들되 개수가 런타임에 정해지는 반복 요소만 스크립트가 복제한다는 규칙
     /// (Docs/UI 브렌치 준수사항.md §10 H-2). 유닛 템플릿 복제 패턴(진행상황 5절)과 같은 모양이다.
     ///
-    /// 갱신은 두 단계로 나눈다:
-    ///   - <b>재구성</b>: 살아있는 캐릭터 집합이 바뀌었을 때만 (생성·사망)
-    ///   - <b>값 갱신</b>: <see cref="refreshInterval"/> 마다 HP·행동·강화 비용만
-    /// 매 프레임 전수 조회를 피하기 위한 것이다(준수사항 U-D10).
+    /// 갱신은 두 갈래다:
+    ///   - <b>HP 바</b>: <see cref="DamageableUnit.OnHpChanged"/> 를 행마다 구독해 <b>즉시</b> 반영한다.
+    ///     맞는 순간 바로 줄어들어야 하는 값이라 폴링 지연을 두지 않는다.
+    ///   - <b>그 외(이름·능력치·행동·선택 표시·강화 가능 여부)</b>: <see cref="refreshInterval"/> 마다
+    ///     한 번씩 — 매 프레임 전수 조회를 피하기 위한 것이다(준수사항 U-D10).
+    /// 재구성(행 개수 맞추기)은 살아있는 캐릭터 집합이 바뀌었을 때만(생성·사망) 일어난다.
     /// </summary>
     public class CharacterRosterPanel : MonoBehaviour
     {
@@ -61,6 +63,13 @@ namespace LastSanctuary.UI
             public Button UpgradeButton;
             public TMP_Text UpgradeLabel;
             public CharacterUnit Unit;
+
+            /// <summary>지금 <see cref="HpHandler"/> 를 구독하고 있는 대상. 행이 재활용되어
+            /// 다른 캐릭터로 바뀔 때 이전 구독을 정확히 끊기 위해 <see cref="Unit"/> 과 따로 든다.</summary>
+            public DamageableUnit SubscribedUnit;
+
+            /// <summary>이 행에 고정된 HP 변경 핸들러. 구독/해제에 매번 같은 델리게이트가 필요하다.</summary>
+            public System.Action<int, int> HpHandler;
         }
 
         readonly List<Row> _rows = new List<Row>();
@@ -80,19 +89,59 @@ namespace LastSanctuary.UI
 
             // MCP 로는 씬 오브젝트 참조를 인스펙터에 넣을 수 없어서(진행상황 8절 4번),
             // 비어 있으면 이름으로 찾는다. 인스펙터에서 직접 넣으면 그 값이 우선이다.
-            if (listRoot == null) listRoot = transform.Find("List") as RectTransform;
+            // "List" 는 스크롤(ScrollView/Viewport) 안으로 옮겨졌으므로 경로가 한 단계 깊다.
+            if (listRoot == null) listRoot = transform.Find("ScrollView/Viewport/List") as RectTransform;
             if (rowTemplate == null) rowTemplate = transform.Find("RowTemplate") as RectTransform;
 
             if (rowTemplate == null || listRoot == null)
             {
                 Debug.LogError("[Roster] listRoot / rowTemplate 이 연결되지 않았습니다. " +
-                               "HUD_Roster 의 List 와 RowTemplate 을 인스펙터에 넣어주세요.", this);
+                               "HUD_Roster 의 ScrollView/Viewport/List 와 RowTemplate 을 인스펙터에 넣어주세요.", this);
                 enabled = false;
                 return;
             }
 
             rowTemplate.gameObject.SetActive(false);
+            BindScrollRect();
             Rebuild();
+        }
+
+        /// <summary>
+        /// ScrollRect·Scrollbar 의 object-참조 필드(content/viewport/handleRect 등)는
+        /// MCP 로 넣을 수 없다(진행상황 8절 4번) — 그래서 이름으로 찾아 코드에서 직접 연결한다.
+        /// 인스펙터에서 이미 연결돼 있으면 건드리지 않는다(사람이 직접 맞춘 값이 우선).
+        /// </summary>
+        void BindScrollRect()
+        {
+            var scrollRect = transform.Find("ScrollView")?.GetComponent<ScrollRect>();
+            if (scrollRect == null) return;
+
+            if (scrollRect.content == null) scrollRect.content = listRoot;
+            if (scrollRect.viewport == null)
+                scrollRect.viewport = transform.Find("ScrollView/Viewport") as RectTransform;
+
+            if (scrollRect.verticalScrollbar == null)
+            {
+                var scrollbar = transform.Find("Scrollbar")?.GetComponent<Scrollbar>();
+                if (scrollbar != null)
+                {
+                    scrollRect.verticalScrollbar = scrollbar;
+
+                    if (scrollbar.handleRect == null)
+                        scrollbar.handleRect = transform.Find("Scrollbar/Handle") as RectTransform;
+                    if (scrollbar.targetGraphic == null)
+                        scrollbar.targetGraphic = transform.Find("Scrollbar/Handle")?.GetComponent<Image>();
+                }
+            }
+        }
+
+        void OnDestroy()
+        {
+            for (int i = 0; i < _rows.Count; i++)
+            {
+                Row row = _rows[i];
+                if (row.SubscribedUnit != null) row.SubscribedUnit.OnHpChanged -= row.HpHandler;
+            }
         }
 
         void Update()
@@ -145,7 +194,23 @@ namespace LastSanctuary.UI
                 bool used = i < _characters.Count;
 
                 if (row.Root.activeSelf != used) row.Root.SetActive(used);
-                row.Unit = used ? _characters[i] : null;
+
+                CharacterUnit newUnit = used ? _characters[i] : null;
+                if (ReferenceEquals(row.Unit, newUnit)) continue;
+
+                // 행이 다른 캐릭터로 바뀌는 순간(재활용 포함) 구독을 정확히 갈아탄다 —
+                // 이전 대상의 이벤트를 계속 듣고 있으면 남의 HP 로 이 행이 갱신되는
+                // 사고가 난다.
+                if (row.SubscribedUnit != null) row.SubscribedUnit.OnHpChanged -= row.HpHandler;
+
+                row.Unit = newUnit;
+                row.SubscribedUnit = newUnit;
+
+                if (newUnit != null)
+                {
+                    newUnit.OnHpChanged += row.HpHandler;
+                    ApplyHp(row, newUnit.CurrentHp, newUnit.MaxHp);   // 재구성 즉시 최신 HP로
+                }
             }
         }
 
@@ -186,7 +251,22 @@ namespace LastSanctuary.UI
             if (row.UpgradeButton != null)
                 row.UpgradeButton.onClick.AddListener(() => UpgradeRow(row));
 
+            // HP 핸들러도 같은 이유로 row 를 닫아 두고 한 번만 만든다 — Rebuild() 가
+            // 구독/해제할 때마다 새 델리게이트를 만들면 구독 해제(-=)가 다른 인스턴스를
+            // 지우려다 실패한다(C# 이벤트는 참조가 같아야 -= 가 먹는다).
+            row.HpHandler = (current, max) => ApplyHp(row, current, max);
+
             return row;
+        }
+
+        /// <summary>HP 바 채움·색만 즉시 반영한다. <see cref="DamageableUnit.OnHpChanged"/> 구독 콜백.</summary>
+        void ApplyHp(Row row, int current, int max)
+        {
+            if (row.HpFill == null) return;
+
+            float ratio = max > 0 ? (float)current / max : 0f;
+            row.HpFill.fillAmount = ratio;
+            row.HpFill.color = ratio <= lowHpRatio ? HudTheme.BarHpLow : HudTheme.BarHp;
         }
 
         static TMP_Text FindText(Transform parent, string childName)
@@ -259,12 +339,8 @@ namespace LastSanctuary.UI
                                      (unit.UpgradeCount > 0 ? $"  +{unit.UpgradeCount}" : string.Empty);
                 }
 
-                if (row.HpFill != null)
-                {
-                    float ratio = unit.HpRatio;
-                    row.HpFill.fillAmount = ratio;
-                    row.HpFill.color = ratio <= lowHpRatio ? HudTheme.BarHpLow : HudTheme.BarHp;
-                }
+                // HP 바는 여기서 건드리지 않는다 — OnHpChanged 구독(ApplyHp)이 즉시 반영한다.
+                // 폴링과 이벤트가 같은 값을 이중으로 쓰면 순서에 따라 잠깐 어긋나 보일 수 있다.
 
                 if (row.Duty != null) row.Duty.text = DutyTextOf(unit);
 
