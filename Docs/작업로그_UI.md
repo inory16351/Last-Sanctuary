@@ -633,3 +633,145 @@ Handle` 신설(+ 기존 `List` reparent), `HUD_Log` 앵커·위치 변경. 저�
 
 ### 씬반영요청 목록
 없음.
+
+---
+
+## UI-7. 전방 포지션 적극 방어 · 비선공 반격 · 철권식 체력바 · 캐릭터 애니메이션 (2026-08-06)
+
+UI-6 에 대한 유저 피드백 7건을 한 번에 처리했다.
+
+### 1. 전방 포지션이 적극적으로 방어
+
+⚠️ **처음 "근거리 공격 유형"으로 잘못 이해했다가 유저가 정정했다** — "근거리가 아니라 **전방
+포지션**이 적극 방어해야 하고, **공격 유형은 기존 방식 유지**". 전열을 정하는 축은 포지션이고
+공격 유형은 때리는 방식일 뿐이므로, 그쪽이 옳다.
+
+[CharacterBehavior.cs](Assets/_Project/Scripts/Units/CharacterBehavior.cs) —
+`PickZoneSpot()` 을 새로 만들어 목적지 선택을 한 곳으로 모으고, **전방 포지션에 한해**
+`TryPickInterceptSpot()` 을 순찰보다 먼저 시도한다. 구역 중심에서 `frontInterceptRange`(14타일)
+안에 웨이브 몬스터가 있으면, 구역 안을 어슬렁거리는 대신 **구역 중심 → 그 적 방향으로 구역
+경계 + `frontInterceptOvershoot`(1.5타일)** 지점으로 나가 선다. 목줄도 그만큼 늘려줘야 그
+자리에서 실제로 교전한다(`frontInterceptLeashBonus` 4).
+
+- **위협 선정은 "나에게 가까운 적"이 아니라 "구역에 가까운 적"**이다 — 지키는 대상이 구역이므로.
+- **중립 몬스터는 대상이 아니다.** 넣으면 전방 캐릭터가 사냥감을 쫓아 구역을 비운다
+  (24-5절에서 고친 문제와 같은 종류).
+- 적이 이미 구역 안까지 들어왔으면 `outward` 를 적까지의 거리로 clamp 해서 뒤로 물러나지 않게 했다.
+
+### 2. 집결지 표시가 다른 UI 를 가리지 않게
+
+같은 캔버스 안이라 **형제 순서**로 그려지는데, 마커·범위가 `UI_Root` 의 마지막 자식이라
+HUD 위에 덮여 그려졌다. `duplicate_gameobject`/`Instantiate` 는 항상 맨 뒤에 붙으므로
+순서로 해결하면 계속 깨진다 → **`UI_Root/RallyOverlay` 컨테이너에 `Canvas`(overrideSorting,
+sortingOrder **-1**)를 붙여** 형제 순서와 무관하게 항상 HUD 뒤에 그려지게 했다.
+
+- `GraphicRaycaster` 를 **일부러 안 붙였다** — 집결지 표시가 클릭을 먹으면 안 된다.
+- [RallyPointService.cs](Assets/_Project/Scripts/UI/RallyPointService.cs) 는 템플릿을 이
+  컨테이너에서 찾고, 복제본도 그 안에 만든다. 예전 위치(UI_Root 직속)도 폴백으로 남겼다.
+
+### 3. 비선공 중립 몬스터도 맞으면 반격
+
+유저 정의: **"비선공은 먼저 공격하지 않는다는 뜻"** — 맞고도 가만히 있는 게 아니다.
+
+⚠️ `NeutralMonster*` 3개 파일은 **PROTO 소유(§2)라 손댈 수 없다.** 그래서 UI 소유 파일에서만 처리했다:
+- [DamageableUnit.cs](Assets/_Project/Scripts/Combat/DamageableUnit.cs) — `LastAttacker` /
+  `LastAttackedTime` 추가. `TakeDamageFrom(attacker)` 가 이미 공격자를 받고 있어서 기록만 하면 됐다.
+- [UnitCombat.cs](Assets/_Project/Scripts/Combat/UnitCombat.cs) — `canAcquireTargets` 가 꺼져
+  있어도 `FindRetaliationTarget()` 으로 때린 상대를 타겟으로 잡는다. 그만두는 조건 셋:
+  **공격력 0**(때려봐야 의미 없음 — 유저가 말한 "공격력이 존재할 경우") ·
+  `retaliateMemorySeconds`(8초) 경과 · `retaliateChaseRange`(8타일) 밖으로 도망.
+  마지막 두 개가 없으면 배회하던 중립이 캐릭터를 맵 끝까지 쫓아간다.
+- 부수 효과 없음 확인: 중립은 `Faction.Neutral` 이고 `WaveManager.IsMonsterVersusAngel` 은
+  `Faction.Cancer` 를 확인하므로(24-6절 3번 수정), 반격이 웨이브 전투 타이머를 잘못 켜지 않는다.
+
+### 4. 후퇴 판단 기준 — 막대 드래그(1%) + ±5% 버튼 유지
+
+[UiDragBar.cs](Assets/_Project/Scripts/UI/UiDragBar.cs)(신규) — `IPointerDownHandler` +
+`IDragHandler` 만 구현한 최소 컴포넌트. 자기 `RectTransform` 안에서의 마우스 x 만 보고 0~1 을
+낸다. **유니티 `Slider` 를 안 쓴 이유**: `fillRect`/`handleRect`/`targetGraphic` 이 전부
+오브젝트 참조라 MCP 로 넣을 수 없다(진행상황 8절 4번). 이 방식은 참조가 0개다.
+
+`Col2/RetreatBar` 에 붙이고 `raycastTarget` 을 켰다(`Fill` 은 껐다 — 자식이 이벤트를 가로채면
+막대 오른쪽 끝을 잡을 수 없다). ± 버튼은 그대로 남겼다: 막대는 대충, 버튼은 정확히.
+
+### 5. 체력바 — 철권식 잔상으로 재작업
+
+**UI-6 의 방식이 틀렸다.** `fillAmount` 자체를 목표치까지 서서히 줄이면 **맞는 순간에는 아무
+변화가 없고** 막대가 뒤늦게 스르륵 줄어들 뿐이다 — "실제로 깎이는 게 보인다"의 반대다.
+
+[HpGhostBar.cs](Assets/_Project/Scripts/UI/HpGhostBar.cs)(신규, 로스터·전술 지침 창 공용) —
+두 겹으로 갈랐다:
+- **본 막대**(`HpFill`) — 실제 체력을 **즉시** 반영. 맞는 순간 뚝 떨어진다.
+- **잔상 막대**(`HpGhost`, 본 막대 **뒤**) — 맞기 직전 값을 `HoldSeconds`(0.35초) 붙들고
+  있다가 `DrainPerSecond`(0.7/초)로 줄어 사라진다. 그래서 "방금 깎인 구간"이 밝은 띠로 남는다.
+- **회복은 잔상이 즉시 따라붙는다** — 안 그러면 체력이 늘었는데 막대가 안 늘어난 것처럼 보인다.
+- 행 재활용·캐릭터 전환 시엔 `Snap()` 으로 애니메이션 없이 맞춘다.
+- 사망 표시(회색 꽉 찬 막대)에는 잔상을 0으로 죽였다 — 방해만 된다.
+
+`hpDrainSpeed` 필드는 없어졌고 `ghostHoldSeconds` / `ghostDrainSpeed` / `ghostColor` 로 대체됐다.
+
+### 6·7. 캐릭터 애니메이션 + 외형 2종 랜덤
+
+에셋 구성 확인: `Art/Char_Asset/Char_Asset_Angel`(Idle 4 / Walk 5 / MeleeAttack 5 /
+RangedAttack 5, 방향별) · `Art/Char_Asset/Char_Asset_LastSanctuary`(Idle 4 / Walk 6 /
+Attack 6, 방향별). 둘 다 `spriteMode: 1`(Single) · 피벗 (0.5, 0) 발밑 · PPU 50 · Point 필터.
+
+- [CharacterSkinSO.cs](Assets/_Project/Scripts/Combat/CharacterSkinSO.cs) — 모션×방향 프레임 목록.
+  원거리 프레임이 없는 스킨은 근접 모션으로 자동 대체한다(LastSanctuary 가 그렇다).
+- [CharacterAnimator.cs](Assets/_Project/Scripts/Combat/CharacterAnimator.cs) — `UnitCombat` 의
+  상태와 새 `OnAttackPerformed` 이벤트를 읽어 프레임을 넘긴다. 우선순위는 **공격 → 이동 → 대기**
+  (공격을 먼저 보는 이유: 때리는 동안에도 밀림(separation)으로 좌표가 흔들려서 이동 판정을
+  먼저 보면 걷는 모션이 섞인다).
+- **Animator/AnimatorController 를 쓰지 않았다** — 컨트롤러·클립이 전부 오브젝트 참조라 MCP 로
+  넣을 수 없고 스킨마다 컨트롤러를 손으로 만들어야 한다. 이 프로젝트는 이미 코드가 FSM 상태를
+  들고 있어서 그걸 그대로 읽는 편이 단순하다. (`Char_Asset_Angel/Anim/*.anim` 과
+  `Char_Angel_Controller.controller` 는 에셋에 들어있지만 **쓰지 않는다** — 남겨는 뒀다.)
+- **스킨 목록은 `Resources/Skins` 에서 `LoadAll` 한다** — Sprite 배열은 오브젝트 참조라 MCP 로
+  못 넣기 때문. 덕분에 **새 외형은 에셋을 폴더에 넣기만 하면 후보에 추가**된다.
+- 스킨 에셋 2개는 **PNG `.meta` 의 guid 를 읽어 스크립트로 생성**했다(멱등). Single 모드
+  스프라이트 참조 형식 `{fileID: 21300000, guid: ..., type: 3}` 그대로.
+- 생성 시 `OnEnable` 에서 무작위로 하나를 고른다(유저 확정: 프로토타입은 랜덤). 추후 캐릭터별
+  테이블을 파싱하면 `SetSkin()` 으로 지정만 하면 되고 이 구조는 안 바뀐다.
+- `Character_Template` 의 `UnitCombat.flipSpriteToFaceMovement` 를 **껐다** — 좌우 프레임이
+  따로 있으므로 `flipX` 로 한 번 더 뒤집으면 왼쪽 스프라이트가 오른쪽을 보게 된다.
+
+### 겪은 함정
+
+1. **`update_component` 의 enum 은 문자열 이름으로 넣어야 한다**(UI-6 에서 발견한 것과 동일).
+2. **비활성 오브젝트 안쪽은 경로로 접근이 안 된다.** `HUD_Tactics/Info/HpBack` 작업은
+   **패널을 잠깐 활성화 → 작업 → 다시 비활성화**로 처리했다(Edit mode 에선 스크립트가 안 돌아
+   부작용 없음). `Character_Template` 처럼 루트가 비활성인 것은 `get_scenes_hierarchy` 의
+   `instanceId` 를 같은 턴에 쓰는 방법밖에 없다.
+3. **형제 순서를 앞으로 보내는 MCP 도구가 없다.** `HpGhost` 를 `HpFill` 앞에 두려고,
+   `HpGhost` 를 만든 뒤 **`HpFill`(과 `HpPercentLabel`)을 밖으로 뺐다가 다시 넣어** 맨 뒤로
+   보냈다. UI-6 의 `TacticsButton` 때와 같은 수법.
+
+### 확인된 것
+- `Assets/Refresh` → `recompile_scripts` 에러·경고 0, 콘솔 에러 0.
+- 씬 저장 1회. YAML 재검증: `frontInterceptRange: 14` / `canRetaliate: 1` /
+  `retaliateChaseRange: 8` / `skinResourceFolder: Skins` / `flipSpriteToFaceMovement: 0` /
+  `RallyOverlay` Canvas `m_OverrideSorting: 1`, `m_SortingOrder: -1` / `HpGhost` 2개
+  (로스터 행 템플릿 + 전술 지침 창) / `UiDragBar` 1개.
+- 스킨 에셋 임포트 에러 0. 프레임 수: Angel idle 4·walk 5·attack 5·ranged 5 (방향별),
+  LastSanctuary idle 4·walk 6·attack 6 (방향별).
+- 자식 순서: `HpBack/HpGhost → HpFill → HpPercentLabel`.
+
+### 아직 확인 못 한 것 (유저가 볼 것)
+- **플레이 모드 미검증** (§11-5).
+- **캐릭터 크기**: PPU 50 · 프레임 높이 99~140px 이라 캐릭터가 화면에서 **2.0~2.8 타일** 높이가
+  된다(몬스터는 1타일, 14절의 기존 캐릭터는 2타일). 유저가 정한 임포트 설정이라 **일부러 안
+  건드렸다** — 크기를 바꾸려면 각 PNG `.meta` 의 `spritePixelsToUnits` 만 고치면 된다
+  (2타일로 맞추려면 Angel 69 / LastSanctuary 66 근처).
+- **모션별 캔버스 높이가 다르다** — Angel 은 공격 프레임(103~105px)이 대기(125~138px)보다
+  낮아서 때릴 때 캐릭터가 살짝 작아 보인다. 원화 자체의 자세 차이로 보이지만 어색하면 알려줄 것.
+- **전방 인터셉트 수치**(14 / 1.5 / 4 타일, 0.5초 갱신)는 임의값 — 실제로 전방이 너무 멀리
+  나가거나 반응이 느리면 인스펙터에서 조정할 것.
+- **잔상 색·시간**(0.35초 붙들기, 0.7/초 감소, 연한 분홍)도 임의값.
+
+### 씬 변경 여부
+있음. `RallyOverlay` 신규 + 마커 2개 이동, `HpGhost` 2개 신규, `RetreatBar` 에 `UiDragBar`,
+`Character_Template` 에 `CharacterAnimator` + `flipSpriteToFaceMovement` 끔. 저장 1회.
+커밋: 스크립트 `bb59829` / 스킨·애니메이션·아트 `8e681b8` / 씬 `a8cf443` / 폰트 `fc2965d`.
+
+### 씬반영요청 목록
+없음.
