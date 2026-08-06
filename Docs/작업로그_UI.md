@@ -508,3 +508,128 @@ Handle` 신설(+ 기존 `List` reparent), `HUD_Log` 앵커·위치 변경. 저�
 
 ### 씬반영요청 목록
 없음.
+
+---
+
+## UI-6. 전술 지침 UI + 전술에 따른 전투 AI 재구성 (2026-08-06)
+
+### 무엇을 / 왜
+
+유저 요청: 목업 `라스트 생추어리/UI/Last Sanctuary 전술 지침 UI.html` 을 참고해 전술 지침
+팝업을 만들고, **설정한 전술이 실제 인게임 AI 로직에 반영**되게 할 것. 목업의 캐릭터 정보
+칸(체력/마나/스태미나/능력치)은 요구대로 줄여서 **일러스트 자리(비워둠) · 이름 · 강화 횟수(LV)
+· 현재 체력 %** 만 남겼다.
+
+**핵심 제약 두 가지 (유저가 명시)**
+1. **전술 지침 창은 캐릭터를 선택하지 않는다.** 선택은 `UnitSelector`(월드 클릭)와 로스터만
+   한다. 창은 `UnitSelector.OnSelectionChanged` 를 구독해 따라가기만 한다.
+2. **창이 `HUD_Roster` 를 가리면 안 된다.** 그래서 (a) 창을 x 400~1620 에 배치해 로스터
+   (x 16~376)와 우측 패널(x 1644~)을 피하고, (b) **전체 화면 모달 배경을 만들지 않았다** —
+   모달 `Image` 는 레이캐스트를 먹어 로스터 클릭을 막는다.
+
+이 둘 덕분에 **누르는 순서가 병렬**이 된다: 로스터 → 전술 지침이든, 전술 지침 → 로스터든
+언제나 "지금 선택된 캐릭터"가 편집 대상이고, 창이 열린 채로 로스터를 눌러도 실시간 전환된다.
+
+### 어떻게 — 데이터
+
+- [TacticalOrder.cs](Assets/_Project/Scripts/Combat/TacticalOrder.cs) — enum 6종 + 직렬화 클래스
+  + 표시 라벨. UI 문구와 요약문이 같은 문자열을 쓰도록 라벨을 여기 한 곳에 모았다.
+- [CharacterTactics.cs](Assets/_Project/Scripts/Combat/CharacterTactics.cs) — **캐릭터가 들고
+  다니는** 지침. 중앙 서비스(딕셔너리)로 안 만든 이유: 이 프로젝트는 캐릭터를
+  `Character_Template` 복제로 만들기 때문에(진행상황 5절) 컴포넌트로 두면 **템플릿 인스펙터
+  값이 곧 모든 신규 캐릭터의 기본 지침**이 되고, 죽거나 새로 생겨도 항목 관리가 필요 없다.
+
+### 어떻게 — AI (요청받은 4가지 공격 유형)
+
+전부 `UnitCombat` 의 인스펙터 값이다(= `Character_Template` 에서 고치면 전원 적용).
+
+| 유형 | 동작 | 인스펙터 값(기본) |
+|---|---|---|
+| 근거리 | 기존 공격 그대로 | `attackRange` |
+| 원거리 | 히트 스캔 단일 타격(투사체 없음) | `rangedRangeTiles` 5 |
+| 마법 | 사거리 밴드 안의 대상에 정사각 범위 피해 | `magicMinRangeTiles` 2 / `magicMaxRangeTiles` 6 / `magicAreaTiles` 2(=2x2) / `magicSafeRadiusTiles` 1 |
+| 치유 | **적을 안 노리고** 다친 아군을 회복 | `healRangeTiles` 3 / `healPercentOfAttack` 100(=공격력 수치만큼) |
+
+- 마법의 "1의 범위 안에 있는 적은 공격 불가"는 **두 겹**으로 구현했다 — 타겟 후보 필터에서
+  안전 반경 안의 적을 빼고(`BuildTargetFilter`), 범위 피해를 넣을 때도 한 번 더 제외한다
+  (`PerformMagicSplash`). 그리고 적이 안전 반경 안까지 붙으면 `_backOff` 로 **거리를 벌린다** —
+  안 그러면 영영 못 때리고 그 자리에 서 있는다.
+- 원거리·마법은 `requireLineOfSight` 로 벽 너머 사격을 막는다(`GridPathfinder.HasLineOfSight`).
+- `EffectiveDetectRange = max(detectRange, 실제 사거리)` — 사거리가 인식 거리보다 길면
+  "때릴 수 있는데 못 보는" 모순이 생긴다.
+
+### 어떻게 — AI (나머지 항목, 맥락상 구성)
+
+- **포지션(전방/중위/후방)**: 유저 정의대로 **집결지 구역 기준 넥서스에서 먼 쪽 = 전방**.
+  `CharacterBehavior.PickSpotAround` 가 넥서스→구역중심 축을 잡고 구역을 축 방향으로 3등분해
+  해당 구간에서만 순찰 지점을 뽑는다. 집결지가 없을 땐 넥서스 방어 **원**의 반지름을 3등분한다
+  (원에서는 반지름이 곧 넥서스로부터의 거리라 같은 정의가 그대로 성립).
+- **공격 우선 대상**: `UnitRegistry.FindTargetBy`(신규). 기존 `FindTarget`(몬스터의 `UnitKind`
+  우선순위, 웨이브 기획서 p13)은 **손대지 않았다** — 판정 축이 달라서 한 함수에 섞으면 몬스터
+  타겟팅까지 흔들린다(진행상황 6절의 과거 버그와 같은 종류의 위험).
+- **공격 반응**: "대기"는 타겟을 잡되 쫓지 않고 자기 자리로 돌아간다(`_holdingGround`).
+- **후퇴 판단 기준**: 체력 % 이하 → `UnitCombat.SetCombatSuppressed(true)` + 넥서스 근처로
+  물러남. 복귀는 기준 + `retreatRecoverMargin`(15%) 이상 — 여유가 없으면 기준선에서
+  후퇴/복귀가 매 프레임 뒤집힌다. 로스터 `Duty` 에 "후퇴" 표시 추가.
+- **비전투 우선 행동**: 사냥 = 기존 동작, 탐색 = 사냥 안 함(안개 해제만), **건설 = 건설
+  시스템이 없어 실질적으로 "자리 지키며 대기"**. 치유 유형은 사냥하지 않는다.
+- **웨이브 반응**: "즉시 방어" = 기존 동작(웨이브 타임에 사냥 타겟을 놓는다),
+  "우선 행동 중시" = 진군 구간까지 정찰/사냥을 유지하다 목적지에 닿으면 합류. 전투(Battle)가
+  시작되면 어느 쪽이든 합류한다 — 그때까지 안 오면 넥서스가 빈다.
+
+### 어떻게 — 하이라키 (§10 H-1: MCP 로 직접 생성)
+
+`UI_Root/HUD_Tactics` 이하 전부 MCP 로 만들었다(스크립트 런타임 생성 없음). 구조:
+`Header`(제목/부제/닫기) · `Info`(일러스트 자리·이름·LV·체력%) · `Col1`(교전 설정) ·
+`Col2`(전투 행동) · `Col3`(비전투·웨이브) · `Footer`(초기화/닫기). 기본 **비활성**.
+`HUD_Actions/Buttons` 의 집결지 버튼 **아래**에 `TacticsButton` 을 넣어 토글한다.
+
+- **버튼·텍스트는 기존 오브젝트를 `duplicate_gameobject` 로 복제해서 만들었다** — 새로 만든
+  TMP 에는 네오둥근모 폰트 참조가 안 붙기 때문(§10 H-4 가 말하는 `HudFontApplier` 안전망은
+  **실제로는 존재하지 않는다**). 버튼은 `HUD_Actions/Buttons/RallyButton`, 텍스트는
+  `HUD_Roster/Title` 을 원본으로 썼다. 24-3절이 쓴 방법과 같다.
+- 반복 배치는 `GridLayoutGroup` 에 맡겨 자식의 `RectTransform` 을 일일이 안 넣게 했다.
+
+### 겪은 함정
+
+1. **새 `.cs` 파일은 `recompile_scripts` 만으로는 안 잡힌다** — 먼저
+   `execute_menu_item("Assets/Refresh")` 로 임포트해야 한다. 안 하면 새 타입이 전부
+   `CS0246 could not be found` 로 뜬다(실제로 14개 에러를 봤다).
+2. **`update_component` 의 enum 필드는 "인덱스"로 해석된다.** TMP 의
+   `m_VerticalAlignment: 512`(실제 enum 값)를 넣으면 `Enum index 512 is out of range` 로
+   실패한다. **문자열 이름**(`"Middle"`, `"Left"`, `"Right"`, `"Top"`)을 넣어야 한다.
+3. **`duplicate_gameobject` 는 항상 부모의 맨 뒤에 붙는다** — 형제 순서를 지정하는 인자가 없다.
+   집결지 버튼 아래에 넣으려고, 뒤에 와야 할 `Upgrade` 를 `reparent_gameobject` 로 밖에
+   뺐다가 다시 넣어 맨 뒤로 보내는 식으로 순서를 맞췄다.
+4. **`Slider` 를 쓰지 않고 +/- 버튼으로 갔다** — `Slider.fillRect`/`handleRect` 는 오브젝트
+   참조라 MCP 로 넣을 수 없다(진행상황 8절 4번). 참조가 필요 없는 구성으로 우회.
+5. 비활성 오브젝트(`Character_Template`)는 여전히 경로/이름으로 조회가 안 된다 —
+   `get_scenes_hierarchy` 의 `instanceId` 를 같은 턴에 써서 `CharacterTactics` 를 붙였다.
+
+### 확인된 것
+- `Assets/Refresh` → `recompile_scripts` 에러·경고 0, 콘솔 에러 0.
+- 씬 저장 후 YAML 재검증: `Character_Template` 의 `UnitCombat` 에 전술 사거리 8개 필드가
+  전부 들어갔고(`rangedRangeTiles: 5` / `magicMinRangeTiles: 2` / `magicMaxRangeTiles: 6` /
+  `magicSafeRadiusTiles: 1` / `magicAreaTiles: 2` / `healRangeTiles: 3` /
+  `healPercentOfAttack: 100` / `requireLineOfSight: 1`), `CharacterTactics.order` 블록도
+  기본 지침(중위·근거리·가장 가까운 적·추격·사냥·즉시 방어·후퇴 35%)으로 직렬화됨.
+- 버튼 순서: 캐릭터 생성 → 집결지 설정 → **전술 지침** → 강화.
+
+### 아직 확인 못 한 것 (유저가 볼 것)
+- **플레이 모드 미검증** (§11-5 원칙). 특히: 창이 실제로 로스터를 안 가리는지, 옵션 버튼
+  하이라이트가 맞게 도는지, 마법의 거리 벌리기가 자연스러운지, 치유 캐릭터가 아군을 제대로
+  따라다니는지.
+- **레이아웃 수치는 눈으로 못 봤다** — 1920x1080 기준 계산으로만 배치했다. 글자가 넘치거나
+  칸이 비면 인스펙터에서 `RectTransform` 을 직접 조정할 것(그래서 하이라키에 실물로 만들었다).
+- **치유 유형은 밸런스 미검증** — 회복량 = 공격력 수치라 성장한 캐릭터가 매우 강한 힐러가 된다.
+  `healPercentOfAttack` 로 조절 가능.
+- **"건물 건설"은 실동작이 없다**(건설 시스템 미구현). 지금은 대기로 동작하며 버튼 라벨에도
+  "(미구현·대기)"라고 표기해뒀다.
+
+### 씬 변경 여부
+있음. `UI_Root/HUD_Tactics` 신규 생성, `HUD_Actions` 에 버튼 추가 + 높이 164→212,
+`Character_Template` 에 `CharacterTactics` 추가 + `UnitCombat` 전술 필드 기본값. 저장 1회.
+커밋 분리: 스크립트(`643ff31`) / 씬(`09d797e`) / 폰트 아틀라스(`cbd678d`).
+
+### 씬반영요청 목록
+없음.
