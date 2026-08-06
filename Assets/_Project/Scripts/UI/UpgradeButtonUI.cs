@@ -1,16 +1,18 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-using LastSanctuary.Resource;
-using LastSanctuary.Units;
 
 namespace LastSanctuary.UI
 {
     /// <summary>
-    /// 강화 버튼. 캐릭터를 선택하면 활성화되고, 누르면 에너지를 소비해 능력치를 성장시킨다.
+    /// "캐릭터 성장" 버튼. <see cref="ActionPanel"/> 의 전술 지침 버튼과 완전히 같은 역할이다 —
+    /// 캐릭터를 직접 강화하지 않고 <see cref="CharacterGrowthPanel"/> 을 열고 닫기만 한다
+    /// (유저 확정: "전술 지침이랑 같은 로직으로"). 실제 강화(에너지 소비 + 능력치 성장)는
+    /// 그 창의 "강화하기" 버튼이 맡는다 — 버튼 두 개가 같은 일을 하지 않게 하려는 것
+    /// (준수사항 §10 H-3).
     ///
-    /// 규칙 판단은 전부 <see cref="CharacterUpgradeService"/> 에 있고 이 컴포넌트는
-    /// "언제 눌릴 수 있는지"와 "라벨에 무엇을 쓸지"만 다룬다.
+    /// 이전에는 이 버튼이 직접 <see cref="Units.CharacterUpgradeService.TryUpgrade"/> 를 불렀지만,
+    /// 유저가 강화창을 요청하면서 그 역할이 창의 버튼으로 옮겨갔다.
     /// </summary>
     [RequireComponent(typeof(Button))]
     public class UpgradeButtonUI : MonoBehaviour
@@ -19,48 +21,34 @@ namespace LastSanctuary.UI
         [Tooltip("버튼 라벨. 비워두면 자식에서 TMP 텍스트를 찾아 쓴다")]
         [SerializeField] TMP_Text label;
 
-        [Header("활성화 조건")]
-        [Tooltip("에너지가 부족하면 선택했더라도 버튼을 비활성으로 둔다. " +
-                 "끄면 선택만으로 활성화되고, 눌러도 부족하면 아무 일도 일어나지 않는다")]
-        [SerializeField] bool requireAffordable = true;
+        [Header("문구")]
+        [SerializeField] string idleText = "캐릭터 성장";
+        [SerializeField] string openText = "캐릭터 성장 닫기";
 
-        [Tooltip("켜면 선택된 캐릭터가 없을 때 버튼을 아예 숨긴다(기본은 회색으로 비활성)")]
-        [SerializeField] bool hideWhenNoSelection = false;
-
-        [Header("라벨")]
-        [Tooltip("라벨에 강화 비용을 표시한다. {0} 자리에 비용이 들어간다")]
-        [SerializeField] bool showCostOnLabel = true;
-        [SerializeField] string costFormat = "강화 {0}";
-
-        [Tooltip("선택된 캐릭터가 없을 때 라벨에 쓸 문구")]
-        [SerializeField] string noSelectionLabel = "강화";
+        [Header("색")]
+        [SerializeField] Color buttonNormal = new Color(0.13f, 0.17f, 0.22f, 0.95f);
+        [SerializeField] Color buttonOn = new Color(0.16f, 0.42f, 0.38f, 0.98f);
+        [SerializeField] Color buttonOff = new Color(0.10f, 0.11f, 0.13f, 0.85f);
 
         Button _button;
-        UnitSelector _selector;
-        CharacterUpgradeService _upgrades;
-        ResourceManager _resources;
-
-        // 마지막으로 라벨/활성상태에 반영한 값. 바뀔 때만 갱신한다.
-        CharacterUnit _shownUnit;
-        int _shownCost = -1;
-        bool _shownInteractable;
+        Image _background;
+        CharacterGrowthPanel _panel;
+        bool _shownOpen;
 
         void Awake()
         {
             _button = GetComponent<Button>();
+            _background = GetComponent<Image>();
             if (label == null) label = GetComponentInChildren<TMP_Text>();
         }
 
         void Start()
         {
-            _selector = UnitSelector.Instance;
-            _upgrades = CharacterUpgradeService.Instance;
-            _resources = ResourceManager.Instance;
-
-            if (_selector == null)
-                Debug.LogWarning("[UpgradeButton] UnitSelector 를 찾지 못했습니다.", this);
-            if (_upgrades == null)
-                Debug.LogWarning("[UpgradeButton] CharacterUpgradeService 를 찾지 못했습니다.", this);
+            // 강화창은 버튼을 누르기 전까지 비활성이므로 Instance(=Awake 에서 설정)가 아직 없을 수
+            // 있다. 비활성 오브젝트까지 포함해 직접 찾는다(TacticalOrderPanel 과 같은 패턴).
+            _panel = FindAnyObjectByType<CharacterGrowthPanel>(FindObjectsInactive.Include);
+            if (_panel == null)
+                Debug.LogWarning("[GrowthButton] CharacterGrowthPanel 을 찾지 못했습니다.", this);
 
             _button.onClick.AddListener(HandleClick);
             RefreshNow();
@@ -71,55 +59,40 @@ namespace LastSanctuary.UI
             if (_button != null) _button.onClick.RemoveListener(HandleClick);
         }
 
-        /// <summary>
-        /// 선택 상태와 보유 에너지 둘 다 수시로 변하므로 매 프레임 확인하되,
-        /// 실제로 바뀐 것이 있을 때만 버튼/라벨을 건드린다.
-        /// </summary>
         void Update()
         {
-            CharacterUnit unit = _selector != null ? _selector.Selected : null;
-            int cost = unit != null && _upgrades != null ? _upgrades.CostFor(unit) : -1;
-            bool interactable = unit != null &&
-                                (!requireAffordable || (_upgrades != null && _upgrades.CanUpgrade(unit)));
+            if (_panel == null)
+                _panel = FindAnyObjectByType<CharacterGrowthPanel>(FindObjectsInactive.Include);
 
-            if (ReferenceEquals(unit, _shownUnit) && cost == _shownCost &&
-                interactable == _shownInteractable)
-                return;
-
-            _shownUnit = unit;
-            _shownCost = cost;
-            _shownInteractable = interactable;
-            Apply(unit, cost, interactable);
+            bool open = _panel != null && _panel.IsOpen;
+            if (open == _shownOpen) return;
+            Apply(open);
         }
 
         void RefreshNow()
         {
-            _shownCost = -2;    // 다음 Update 가 무조건 갱신하도록
-            Update();
+            _shownOpen = !( _panel != null && _panel.IsOpen );   // 다음 Update 가 무조건 갱신하도록
+            Apply(_panel != null && _panel.IsOpen);
         }
 
-        void Apply(CharacterUnit unit, int cost, bool interactable)
+        void Apply(bool open)
         {
-            if (hideWhenNoSelection && _button.gameObject.activeSelf != (unit != null))
-                _button.gameObject.SetActive(unit != null);
+            _shownOpen = open;
+            _button.interactable = _panel != null;
 
-            _button.interactable = interactable;
+            if (_background != null)
+                _background.color = _panel == null ? buttonOff : (open ? buttonOn : buttonNormal);
 
-            if (label == null) return;
-            label.text = unit != null && showCostOnLabel
-                ? string.Format(costFormat, cost)
-                : noSelectionLabel;
+            if (label != null) label.text = open ? openText : idleText;
         }
 
         void HandleClick()
         {
-            if (_selector == null || _upgrades == null) return;
+            if (_panel == null)
+                _panel = FindAnyObjectByType<CharacterGrowthPanel>(FindObjectsInactive.Include);
 
-            CharacterUnit unit = _selector.Selected;
-            if (unit == null) return;
-
-            _upgrades.TryUpgrade(unit);
-            RefreshNow();   // 비용이 올라갔으니 라벨을 즉시 갱신한다
+            _panel?.Toggle();
+            RefreshNow();
         }
     }
 }

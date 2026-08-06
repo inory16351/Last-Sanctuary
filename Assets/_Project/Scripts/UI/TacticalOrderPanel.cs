@@ -134,6 +134,10 @@ namespace LastSanctuary.UI
 
         public void SetOpen(bool open)
         {
+            // 캐릭터 성장 창과 동시에 열리면 화면 같은 자리에 겹친다(둘 다 HUD_Tactics 와 같은
+            // 위치·크기) — 유저 확정: 이 창을 열면 캐릭터 성장 창은 자동으로 닫힌다.
+            if (open) CharacterGrowthPanel.Instance?.Close();
+
             gameObject.SetActive(open);
             if (open) RebindToSelection();   // 열릴 때 지금 선택을 즉시 반영
         }
