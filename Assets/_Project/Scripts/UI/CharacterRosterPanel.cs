@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -29,6 +30,13 @@ namespace LastSanctuary.UI
     ///   - <b>사망 처리</b>: <see cref="DamageableUnit.OnDied"/> 를 행마다 구독해 <b>즉시</b> 회색으로 바꾼다.
     ///   - <b>그 외(이름·능력치·행동·선택 표시·강화 가능 여부)</b>: <see cref="refreshInterval"/> 마다
     ///     한 번씩, 살아있는 행만 — 매 프레임 전수 조회를 피하기 위한 것이다(준수사항 U-D10).
+    ///
+    /// <b>정렬(유저 요청)</b>: 목록은 항상 <b>현재 체력 %가 낮은 캐릭터가 위, 높은 캐릭터가
+    /// 아래</b>로 정렬된다 — 지금 신경 써야 할 캐릭터가 스크롤 없이 바로 보이게 하기 위함이다.
+    /// 사망한 캐릭터는 체력 0%지만 "지금 신경 쓸 대상"이 아니라서 예외로 **항상 맨 아래**에
+    /// 둔다(살아있는 캐릭터들보다 뒤). <see cref="Row"/> 객체와 캐릭터의 실제 매칭
+    /// (구독·데이터)은 전혀 안 바뀐다 — <see cref="ReorderRows"/> 가 화면에 보이는 **순서만**
+    /// (`SetSiblingIndex`) 매 갱신마다 다시 계산한다.
     /// </summary>
     public class CharacterRosterPanel : MonoBehaviour
     {
@@ -210,6 +218,7 @@ namespace LastSanctuary.UI
 
             AppendNewCharacters();
             RefreshValues();
+            ReorderRows();
         }
 
         // ------------------------------------------------------------------
@@ -419,6 +428,10 @@ namespace LastSanctuary.UI
             // 눌리지 않게 즉시 막는다.
             if (row.SelectButton != null) row.SelectButton.interactable = false;
             if (row.UpgradeButton != null) row.UpgradeButton.interactable = false;
+
+            // 사망은 맨 아래로 내려가야 하는 순서 변경이라, 다음 폴링(최대 refreshInterval)
+            // 까지 기다리지 않고 그 자리에서 바로 다시 정렬한다.
+            ReorderRows();
         }
 
         /// <summary>죽은 캐릭터의 행을 회색으로 — "확실하게 죽었다"는 걸 알아볼 수 있게 한다.</summary>
@@ -540,6 +553,29 @@ namespace LastSanctuary.UI
                             : "강화";
                 }
             }
+        }
+
+        /// <summary>
+        /// 화면에 보이는 행 순서를 "체력 % 낮은 순(사망은 맨 아래)"으로 다시 맞춘다.
+        /// <see cref="Row"/> 와 캐릭터의 매칭(구독·데이터)은 그대로 두고 <c>SetSiblingIndex</c>
+        /// 로 <see cref="listRoot"/> 안의 표시 순서만 바꾼다 — <c>VerticalLayoutGroup</c> 이
+        /// 형제 인덱스 순으로 배치하므로 이것만으로 목록이 다시 정렬된다.
+        ///
+        /// HP 비율은 새로 계산하지 않고 <see cref="Row.HpFill"/> 의 <c>fillAmount</c> 를 그대로
+        /// 읽는다 — <see cref="ApplyHp"/> 가 이미 그 값을 최신 체력 비율로 유지하고 있어서
+        /// 중복 계산이 필요 없다. 동률(같은 %)일 때는 <c>GetInstanceID()</c> 로 순서를 고정해서,
+        /// 매 갱신마다 동률 캐릭터들의 순서가 이유 없이 뒤바뀌며 깜빡이는 것을 막는다.
+        /// </summary>
+        void ReorderRows()
+        {
+            var active = _rows.Where(r => r.Root.activeSelf)
+                              .OrderBy(r => r.IsDead ? 1 : 0)                                   // 산 사람 먼저
+                              .ThenBy(r => r.IsDead ? 0f : (r.HpFill != null ? r.HpFill.fillAmount : 0f))
+                              .ThenBy(r => r.Unit != null ? r.Unit.GetInstanceID() : 0)         // 동률 순서 고정
+                              .ToList();
+
+            for (int i = 0; i < active.Count; i++)
+                active[i].Root.transform.SetSiblingIndex(i);
         }
 
         /// <summary>"지금 뭐 하는 중인지" 한 단어. 전투가 자율 이동보다 우선이라 먼저 검사한다.</summary>
