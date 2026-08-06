@@ -88,9 +88,30 @@ namespace LastSanctuary.Units
 
         Transform _root;
         readonly List<MonsterUnit> _alive = new List<MonsterUnit>();
+        bool _spawning;
+
+        Coroutine _reinforceCoroutine;
+        bool _hasPendingReinforcements;
+        int _currentEnragePercent = 100;
 
         public IReadOnlyList<MonsterUnit> Alive => _alive;
         public int AliveCount { get { Prune(); return _alive.Count; } }
+
+        /// <summary>스폰 루틴이 아직 마리를 다 내보내지 않았으면 true. "전멸 판정"은 이게 꺼진 뒤에만 유효하다.</summary>
+        public bool IsSpawning => _spawning;
+
+        /// <summary>전투 중 증원이 더 오기로 예정돼 있으면 true. "전멸 판정"은 이게 꺼진 뒤에만 유효하다 —
+        /// 안 그러면 증원 사이의 잠깐 조용한 틈에 웨이브가 조기 종료돼버린다.</summary>
+        public bool HasPendingReinforcements => _hasPendingReinforcements;
+
+        /// <summary>웨이브가 광폭화 상태일 때 남은 몬스터 전체에 능력치 배율(%)을 적용한다.</summary>
+        public void SetEnragePercent(int percent)
+        {
+            _currentEnragePercent = percent;
+            Prune();
+            for (int i = 0; i < _alive.Count; i++)
+                _alive[i].SetEnragePercent(percent);
+        }
 
         void Start()
         {
@@ -126,13 +147,91 @@ namespace LastSanctuary.Units
                 _root.SetParent(transform, false);
             }
 
+            StopReinforcements();
+            _currentEnragePercent = 100;
+
             StopAllCoroutines();
+            _spawning = true;
             StartCoroutine(SpawnRoutine());
+        }
+
+        /// <summary>
+        /// 전투 중 웨이브 테이블의 reinforceCount/reinforceIntervalSeconds 만큼 몬스터를 계속 흘려보낸다.
+        /// WaveManager 가 Battle 시작 시 호출한다 — "광폭화가 거의 안 걸린다"(웨이브를 너무 쉽게,
+        /// 빨리 정리해버린다)는 피드백으로 추가했다. 웨이브 타이머(<paramref name="battleDuration"/>)가
+        /// 끝나기 전까지만 흘려보내고, 그 이후(광폭화)에는 더 늘리지 않는다 — 광폭화는 이미 능력치
+        /// 배율로 압박하므로 마리 수까지 계속 늘리면 과하다.
+        /// </summary>
+        public void BeginReinforcements(int wave, float battleDuration)
+        {
+            StopReinforcements();
+            if (waveDefinitions == null || !waveDefinitions.TryGetWave(wave, out WaveMonsterComposition comp))
+                return;
+            if (comp.reinforceCount <= 0 || comp.reinforceIntervalSeconds <= 0f) return;
+
+            _reinforceCoroutine = StartCoroutine(ReinforcementRoutine(wave, comp, battleDuration));
+        }
+
+        /// <summary>예정된 증원을 모두 취소한다. 웨이브가 끝나거나(조기 클리어·광폭화 클리어) 패배하면 부른다.</summary>
+        public void StopReinforcements()
+        {
+            if (_reinforceCoroutine != null) StopCoroutine(_reinforceCoroutine);
+            _reinforceCoroutine = null;
+            _hasPendingReinforcements = false;
+        }
+
+        IEnumerator ReinforcementRoutine(int wave, WaveMonsterComposition comp, float battleDuration)
+        {
+            _hasPendingReinforcements = true;
+            var rng = new System.Random(seed + wave * 104729 + 13);
+            float elapsed = 0f;
+
+            // 다음 간격이 웨이브 타이머 안에 들어갈 때까지만 돈다 — 그래야 타이머가 끝나는
+            // 순간에 맞춰 "더 올 증원 없음"이 되고, 그 직전에 이미 다 잡았다면 조기 클리어도
+            // (증원 사이의 마지막 빈 틈에서) 그대로 성립한다.
+            while (elapsed + comp.reinforceIntervalSeconds <= battleDuration)
+            {
+                yield return new WaitForSeconds(comp.reinforceIntervalSeconds);
+                elapsed += comp.reinforceIntervalSeconds;
+                SpawnReinforcementBatch(wave, comp, rng);
+            }
+
+            _hasPendingReinforcements = false;
+            _reinforceCoroutine = null;
+        }
+
+        /// <summary>증원 한 무리 — 근거리/원거리를 절반씩(보스 없음) 기존 웨이브 배율 그대로 스폰한다.</summary>
+        void SpawnReinforcementBatch(int wave, WaveMonsterComposition comp, System.Random rng)
+        {
+            if (balance == null) return;
+
+            int meleeN = comp.reinforceCount / 2;
+            int rangedN = comp.reinforceCount - meleeN;
+
+            var queue = new List<(MonsterDefinitionSO def, MonsterUnit template)>();
+            AppendToQueue(queue, meleeSlot, meleeN);
+            AppendToQueue(queue, rangedSlot, rangedN);
+            if (queue.Count == 0) return;
+
+            List<Vector3Int> gates = BuildSpawnGates();
+            for (int i = 0; i < queue.Count; i++)
+            {
+                Vector3Int gate = gates.Count > 0 ? gates[rng.Next(gates.Count)] : Vector3Int.zero;
+                SpawnOne(queue[i].def, queue[i].template, gate, comp.statPercent, comp.statPercent, rng);
+            }
+
+            // 지금 광폭화 중이었다면(이론상 드묾 — 증원은 Battle 구간에서만 돌지만, 안전하게)
+            // 방금 온 증원도 곧바로 같은 배율을 받는다.
+            if (_currentEnragePercent != 100) SetEnragePercent(_currentEnragePercent);
+
+            Debug.Log($"[MonsterSpawner] 웨이브 {wave} 증원 · {queue.Count}마리 (근거리{meleeN}/원거리{rangedN})", this);
         }
 
         public void ClearAll()
         {
+            StopReinforcements();
             StopAllCoroutines();
+            _spawning = false;
             for (int i = 0; i < _alive.Count; i++)
                 if (_alive[i] != null) Destroy(_alive[i].gameObject);
             _alive.Clear();
@@ -187,6 +286,8 @@ namespace LastSanctuary.Units
 
                 if (spawnInterval > 0f) yield return new WaitForSeconds(spawnInterval);
             }
+
+            _spawning = false;
         }
 
         /// <summary>정의+템플릿이 채워진 슬롯을 count 마리만큼 스폰 대기열에 넣는다.</summary>

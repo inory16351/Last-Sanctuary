@@ -18,17 +18,21 @@ namespace LastSanctuary.Units
         [Tooltip("체력 보정(%). 100 이면 보정 없음")]
         [SerializeField] int hpPercent = 100;
 
+        /// <summary>광폭화 배율(%). 100 이면 보정 없음. 웨이브 타이머가 끝나도 처치가 안 되면 오른다.</summary>
+        int enragePercent = 100;
+
         public MonsterDefinitionSO Definition => definition;
         public StatBlock Stats => stats;
         public MonsterTier Tier => definition != null ? definition.tier : MonsterTier.Normal;
 
         public override int MaxHp =>
             Balance != null
-                ? BalanceConfigSO.ScaleByPercent(Balance.MaxHp(stats.hp), hpPercent)
+                ? BalanceConfigSO.ScaleByPercent(
+                      BalanceConfigSO.ScaleByPercent(Balance.MaxHp(stats.hp), hpPercent), enragePercent)
                 : 0;
 
         public override int DefenseStat => stats.defense;
-        public override int AttackStat => stats.attack;
+        public override int AttackStat => BalanceConfigSO.ScaleByPercent(stats.attack, enragePercent);
         protected override int RegenStat => stats.regen;
 
         public override Faction Faction => Faction.Cancer;
@@ -40,8 +44,12 @@ namespace LastSanctuary.Units
             definition = def;
             stats = scaledStats;
             hpPercent = def != null ? def.hpPercent : 100;
+            enragePercent = 100;
             SetupHealth(balance);
         }
+
+        /// <summary>WaveManager 가 광폭화 진행 중 매초 호출해 능력치 배율을 올린다.</summary>
+        public void SetEnragePercent(int percent) => enragePercent = Mathf.Max(100, percent);
 
         protected override void OnDeath()
         {
@@ -54,7 +62,7 @@ namespace LastSanctuary.Units
         {
             if (Balance == null) return stats.ToString();
             return $"{(definition != null ? definition.displayName : name)} [{Tier}] " +
-                   $"{stats} → HP {MaxHp} · 타격 {Balance.Attack(stats.attack)} · " +
+                   $"{stats} → HP {MaxHp} · 타격 {Balance.Attack(AttackStat)} · " +
                    $"피해감소 {Balance.DefenseReductionPercent(stats.defense)}%";
         }
     }

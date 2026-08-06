@@ -24,6 +24,7 @@ namespace LastSanctuary.UI
         [SerializeField] Color normalColor = new Color(0.45f, 0.95f, 0.78f, 1f);
         [SerializeField] Color battleColor = new Color(0.98f, 0.72f, 0.35f, 1f);
         [SerializeField] Color defeatColor = new Color(0.96f, 0.42f, 0.42f, 1f);
+        [SerializeField] Color enrageColor = new Color(0.92f, 0.18f, 0.35f, 1f);
 
         [Tooltip("남은 시간이 이 값 아래로 내려가면 타이머가 붉게 바뀐다(초)")]
         [Min(0f)] [SerializeField] float urgentSeconds = 10f;
@@ -108,6 +109,19 @@ namespace LastSanctuary.UI
                 return;
             }
 
+            // 웨이브 타이머가 끝났는데 몬스터가 남아있는 상태 — 숫자 대신 경고 배너를 보여준다.
+            // (다음 대기시간은 이 구간에서도 뒤에서 이미 흐르고 있지만, 처치가 끝나기 전까지는 표시하지 않는다)
+            if (phase == WavePhase.Enrage)
+            {
+                if (_shownSeconds != -4)
+                {
+                    _shownSeconds = -4;
+                    timerLabel.text = "광폭화!";
+                    timerLabel.color = enrageColor;
+                }
+                return;
+            }
+
             int seconds = Mathf.Max(0, Mathf.CeilToInt(_wave.PhaseRemaining));
             if (seconds == _shownSeconds) return;
 
@@ -128,6 +142,7 @@ namespace LastSanctuary.UI
             WavePhase.Preparation => "정비",
             WavePhase.Marching    => "진군",
             WavePhase.Battle      => "전투",
+            WavePhase.Enrage      => "광폭화",
             WavePhase.Defeat      => "패배",
             _                     => phase.ToString(),
         };

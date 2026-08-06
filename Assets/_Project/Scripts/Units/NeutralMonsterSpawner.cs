@@ -67,6 +67,10 @@ namespace LastSanctuary.Units
         readonly Dictionary<NeutralMonsterDefinitionSO, List<NeutralMonsterUnit>> _alive =
             new Dictionary<NeutralMonsterDefinitionSO, List<NeutralMonsterUnit>>();
 
+        /// <summary>종별 등장 거리 상한(체비셰프) — 한 단계 위 종의 등장 거리 하한. 최상위 종은 무한대.</summary>
+        readonly Dictionary<NeutralMonsterDefinitionSO, float> _maxDistanceByDef =
+            new Dictionary<NeutralMonsterDefinitionSO, float>();
+
         void Start()
         {
             _rng = new System.Random(seed);
@@ -77,10 +81,43 @@ namespace LastSanctuary.Units
             foreach (NeutralSpawnEntry e in spawnTable)
                 if (e.definition != null) _alive[e.definition] = new List<NeutralMonsterUnit>();
 
+            BuildMaxDistanceTable();
+
             // 시작할 때는 상한까지 한 번에 채운다 — 리스폰이 아니라 최초 서식이므로 몰려도 티가 안 난다.
             RestockAll(fillToCapImmediately: true);
             StartCoroutine(RestockLoop());
         }
+
+        /// <summary>
+        /// 각 종이 등장 가능한 거리의 상한을 구한다 — "부터 나타날 수 있다"(하한)만 있던 것을,
+        /// 한 단계 위 종의 하한을 이 종의 상한으로 삼아 종마다 자기 구간(고리)을 갖게 한다
+        /// (유저 요청: "역겨운 덩어리 1은 15~100 타일 구간에서만 등장"). 최상위 종은 위가 없으니
+        /// 무한대로 둔다 — 예전처럼 "더 멀리서도 계속 나타난다".
+        /// </summary>
+        void BuildMaxDistanceTable()
+        {
+            _maxDistanceByDef.Clear();
+            if (spawnTable == null) return;
+
+            foreach (NeutralSpawnEntry mine in spawnTable)
+            {
+                if (mine.definition == null) continue;
+                float min = mine.definition.MinDistanceFromNexus;
+                float upper = float.PositiveInfinity;
+
+                foreach (NeutralSpawnEntry other in spawnTable)
+                {
+                    if (other.definition == null || other.definition == mine.definition) continue;
+                    float otherMin = other.definition.MinDistanceFromNexus;
+                    if (otherMin > min && otherMin < upper) upper = otherMin;
+                }
+
+                _maxDistanceByDef[mine.definition] = upper;
+            }
+        }
+
+        float MaxDistanceFor(NeutralMonsterDefinitionSO def) =>
+            _maxDistanceByDef.TryGetValue(def, out float v) ? v : float.PositiveInfinity;
 
         IEnumerator RestockLoop()
         {
@@ -130,7 +167,9 @@ namespace LastSanctuary.Units
                 return;
             }
 
-            if (!TryFindSpawnCell(entry.definition, out Vector3Int cell)) return;
+            float minDist = entry.definition.MinDistanceFromNexus;
+            float maxDist = MaxDistanceFor(entry.definition);
+            if (!TryFindSpawnCell(entry.definition, minDist, maxDist, out Vector3Int cell)) return;
 
             Vector3 pos = mapGenerator != null
                 ? mapGenerator.CellCenterWorld(cell)
@@ -144,38 +183,41 @@ namespace LastSanctuary.Units
             var ai = unit.GetComponent<UnitCombat>();
             if (ai != null)
             {
-                if (entry.definition.aggressive)
-                {
-                    // 선공형만 전투 AI를 켠다 — 적은 캐릭터뿐이고(넥서스로 전진하지 않음),
-                    // 서식지 밖으로 멀리 쫓아가지 않도록 정의된 leash 를 그대로 쓴다.
-                    ai.Configure(entry.definition.detectRange, entry.definition.attackRange,
-                                 entry.definition.moveSpeedTiles, entry.definition.attacksPerSecond,
-                                 advance: false, priority: new[] { UnitKind.Character },
-                                 leash: entry.definition.leashRangeTiles);
-                    ai.SetHome(unit.transform.position);
-                }
-                else
-                {
-                    // 비선공 개체는 전투 능력이 없는 사냥감이다 — AI 자체를 꺼서
-                    // 어떤 상황에서도 스스로 공격하지 않게 한다.
-                    ai.enabled = false;
-                }
+                // 선공형은 캐릭터를 노리고, 비선공형은 SetCanAcquireTargets(false) 로 아예
+                // 적을 인식하지 못하게 한다 — 둘 다 이동(배회)은 하되, 무해한 개체는 절대
+                // 스스로 싸우지 않는다. 서식지 밖으로 멀리 쫓아가지 않도록 leash 도 그대로 쓴다.
+                ai.Configure(entry.definition.detectRange, entry.definition.attackRange,
+                             entry.definition.moveSpeedTiles, entry.definition.attacksPerSecond,
+                             advance: false,
+                             priority: entry.definition.aggressive
+                                 ? new[] { UnitKind.Character }
+                                 : System.Array.Empty<UnitKind>(),
+                             leash: entry.definition.leashRangeTiles);
+                ai.SetCanAcquireTargets(entry.definition.aggressive);
+                ai.SetHome(unit.transform.position);
             }
+
+            // 배회 — 자기 등장 구간(고리) 안에서 자유롭게 돌아다닌다(유저 요청).
+            var wander = unit.gameObject.GetComponent<NeutralMonsterWander>();
+            if (wander == null) wander = unit.gameObject.AddComponent<NeutralMonsterWander>();
+            wander.Init(minDist, maxDist);
 
             PruneAndGet(entry.definition).Add(unit);
         }
 
         /// <summary>
-        /// 넥서스(셀 (0,0)) 기준 정의된 최소거리 이상 + 배치 가능한 칸을 무작위로 찾는다.
-        /// "부터 나타날 수 있다"는 하한만 있으므로 상한은 맵 절반 크기로 자연히 제한된다.
+        /// 넥서스(셀 (0,0)) 기준 정의된 최소거리 이상, 그리고 <paramref name="maxDist"/> 이하(유한하면)인
+        /// 배치 가능한 칸을 무작위로 찾는다. 상한이 무한대(최상위 종)면 예전처럼
+        /// "더 멀리서도 계속 나타난다".
         /// </summary>
-        bool TryFindSpawnCell(NeutralMonsterDefinitionSO def, out Vector3Int result)
+        bool TryFindSpawnCell(NeutralMonsterDefinitionSO def, float minDist, float maxDist, out Vector3Int result)
         {
-            float minDist = def.MinDistanceFromNexus;
             int maxHalf = mapGenerator != null && mapGenerator.Config != null
                 ? Mathf.Max(mapGenerator.Config.MapSize.x, mapGenerator.Config.MapSize.y) / 2
                 : Mathf.CeilToInt(minDist) + placementSearchRadius;
             int outerRadius = Mathf.Clamp(Mathf.CeilToInt(minDist) + placementSearchRadius, 1, Mathf.Max(1, maxHalf));
+            if (!float.IsPositiveInfinity(maxDist))
+                outerRadius = Mathf.Max(Mathf.CeilToInt(minDist) + 1, Mathf.Min(outerRadius, Mathf.CeilToInt(maxDist)));
 
             const int Attempts = 24;
             for (int i = 0; i < Attempts; i++)
@@ -196,7 +238,8 @@ namespace LastSanctuary.Units
 
                 if (mapGenerator.TryFindPlaceableNear(candidate, placementFallbackRadius, null,
                                                        out Vector3Int placeable) &&
-                    ChebyshevDistance(placeable) >= minDist)
+                    ChebyshevDistance(placeable) >= minDist &&
+                    ChebyshevDistance(placeable) <= maxDist)
                 {
                     result = placeable;
                     return true;

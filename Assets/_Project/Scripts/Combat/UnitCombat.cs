@@ -55,6 +55,10 @@ namespace LastSanctuary.Combat
                  "몬스터는 꺼서 항상 지도 전체가 밝혀진 것처럼 공격한다")]
         [SerializeField] bool respectFogOfWar = false;
 
+        [Tooltip("끄면 적을 인식/공격하지 않는다 — 이동(귀환 지점 추적)만 하는 무해한 유닛에 쓴다. " +
+                 "(예: 비선공 중립 몬스터가 배회는 하되 절대 싸우지 않게)")]
+        [SerializeField] bool canAcquireTargets = true;
+
         [Header("회피")]
         [Tooltip("서로 겹치지 않게 밀어내는 반경(타일). 0 이면 겹침 허용")]
         [Min(0f)] [SerializeField] float separationRadius = 0.55f;
@@ -182,6 +186,9 @@ namespace LastSanctuary.Combat
             if (priority != null && priority.Length > 0) targetPriority = priority;
             if (leash >= 0f) leashRange = leash;
         }
+
+        /// <summary>무해한 유닛(비선공 중립 몬스터 등)에 써서 적을 인식/공격하지 못하게 한다.</summary>
+        public void SetCanAcquireTargets(bool value) => canAcquireTargets = value;
 
         /// <summary>
         /// 귀환 지점을 지정한다. 전진하지 않는 유닛(캐릭터·포탑)은 타겟이 없으면
@@ -326,6 +333,12 @@ namespace LastSanctuary.Combat
 
         void AcquireTargetIfNeeded()
         {
+            if (!canAcquireTargets)
+            {
+                _target = null;
+                return;
+            }
+
             if (_huntOverrideTarget != null)
             {
                 if (!_huntOverrideTarget.IsAlive)

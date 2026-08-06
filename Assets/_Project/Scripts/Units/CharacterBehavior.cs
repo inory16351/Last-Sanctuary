@@ -75,9 +75,10 @@ namespace LastSanctuary.Units
         [Tooltip("목표에 이 거리 안으로 들어오면 도착으로 친다(타일)")]
         [Min(0.2f)] [SerializeField] float arriveDistance = 1.2f;
 
-        [Header("중립 몬스터 사냥 (정찰 중)")]
-        [Tooltip("정찰(Scout) 중 이 거리 안에 중립 몬스터가 있으면 정찰을 멈추고 사냥한다(타일). " +
-                 "웨이브 몬스터와 달리 넥서스로 오지 않으므로 캐릭터가 직접 찾아가야 마주친다")]
+        [Header("중립 몬스터 사냥 (대기시간 · 진군 중)")]
+        [Tooltip("대기시간이나 진군 중 이 거리 안에 중립 몬스터가 있으면 하던 일을 멈추고 사냥한다(타일). " +
+                 "웨이브 몬스터와 달리 넥서스로 오지 않으므로 캐릭터가 직접 찾아가야 마주친다. " +
+                 "웨이브 타임(전투·광폭화)에는 웨이브 몬스터가 우선이라 사냥하지 않는다")]
         [Min(0f)] [SerializeField] float huntDetectRange = 10f;
 
         [Header("디버그")]
@@ -127,20 +128,16 @@ namespace LastSanctuary.Units
         {
             if (_self == null || !_self.IsAlive) return;
 
+            // 웨이브 타임(전투·광폭화)이 시작되면 사냥 중이던 중립 몬스터보다 웨이브 몬스터를
+            // 우선한다 — 사냥 타겟을 놓아 UnitCombat 의 일반 진영 타겟팅(가장 가까운 웨이브
+            // 몬스터)이 대신 잡게 한다(유저 요청: "웨이브 타임에는 웨이브 몬스터 우선 처리").
+            if (_combat.IsHunting && IsWaveTimePhase()) _combat.ClearHuntTarget();
+
             // 교전 중에는 UnitCombat 에 맡기고 목적지를 건드리지 않는다
             // (사냥 중인 중립 몬스터도 이 시점엔 이미 Target 으로 잡혀 있다).
             if (_combat.Target != null && _combat.Target.IsAlive) return;
 
             CharacterDuty baseline = CurrentDuty();   // Scout(대기시간) 또는 Guard(그 외)
-
-            // 정찰 중에만 먼저 조우한 중립 몬스터를 사냥하러 간다 — 웨이브 몬스터는
-            // 넥서스로 전진해오지만 중립 몬스터는 서식지에 머물러 있으므로, 캐릭터가
-            // 직접 찾아가야만 마주친다(기획 요청: "탐색 중 조우 시 사냥, 에너지 획득").
-            if (baseline == CharacterDuty.Scout && TryFindHuntPrey(out DamageableUnit prey))
-            {
-                _combat.SetHuntTarget(prey);
-                return;
-            }
 
             // 집결지는 "방어" 를 대신한다 — 정찰(대기시간) 중에는 반영하지 않는다.
             // baseline 이 Guard 로 바뀌는 시점이 곧 웨이브 소환 직후이므로(클래스 doc 참조),
@@ -149,6 +146,19 @@ namespace LastSanctuary.Units
             bool hasRally = baseline == CharacterDuty.Guard &&
                             UI.RallyPointService.TryGetRallyPoint(_character, out rallyCenter);
             CharacterDuty duty = hasRally ? CharacterDuty.Rally : baseline;
+
+            // 대기시간·진군 중에는 먼저 조우한 중립 몬스터를 사냥하러 간다 — 웨이브 몬스터는
+            // 넥서스로 전진해오지만 중립 몬스터는 서식지에 머물러 있으므로, 캐릭터가
+            // 직접 찾아가야만 마주친다(기획 요청: "탐색 중 조우 시 사냥, 에너지 획득"). 다만
+            // 방어·집결 중(=진군)에는 지금 모여야 할 구역(집결지가 있으면 그 구역, 없으면 넥서스
+            // 주변 방어 반경) 밖까지 쫓아가면 대열이 흐트러진다는 피드백으로, 그 구역 안에
+            // 있는 사냥감만 본다 — 정찰 중에는 원래대로 구역 제한 없이 캐릭터 주변만 본다.
+            // 웨이브 타임에는 위에서 이미 걸러지므로 여기서는 phase 만 보면 된다.
+            if (!IsWaveTimePhase() && TryFindHuntPrey(duty, rallyCenter, out DamageableUnit prey))
+            {
+                _combat.SetHuntTarget(prey);
+                return;
+            }
 
             if (duty != _duty)
             {
@@ -177,6 +187,11 @@ namespace LastSanctuary.Units
             _waveManager != null && _waveManager.Phase == WavePhase.Preparation
                 ? CharacterDuty.Scout
                 : CharacterDuty.Guard;
+
+        /// <summary>웨이브 몬스터가 우선인 구간(전투·광폭화) — 이 동안은 중립 몬스터를 사냥하지 않는다.</summary>
+        bool IsWaveTimePhase() =>
+            _waveManager != null &&
+            (_waveManager.Phase == WavePhase.Battle || _waveManager.Phase == WavePhase.Enrage);
 
         void PickDestination()
         {
@@ -276,11 +291,41 @@ namespace LastSanctuary.Units
             return true;
         }
 
-        /// <summary>주변에서 사냥할 만한(살아있는) 중립 몬스터를 찾는다. 가장 가까운 것을 고른다.</summary>
-        bool TryFindHuntPrey(out DamageableUnit prey)
+        /// <summary>
+        /// 주변에서 사냥할 만한(살아있는) 중립 몬스터를 찾는다. 가장 가까운 것을 고른다.
+        ///
+        /// 정찰(Scout) 중에는 원래대로 구역 제한 없이 캐릭터 주변만 본다 — 어차피 안 밝혀진
+        /// 지역으로 널리 돌아다니는 임무라 "구역"이라는 개념이 없다.
+        /// 방어·집결(Guard/Rally) 중에는 사냥감이 지금 모여야 할 구역(집결지가 있으면 그
+        /// 구역, 없으면 넥서스 방어 반경) 안에 있을 때만 쫓는다 — 안 그러면 구역 밖까지
+        /// 쫓아가버려 대열이 흐트러진다(유저 피드백).
+        /// </summary>
+        bool TryFindHuntPrey(CharacterDuty duty, Vector3 rallyCenter, out DamageableUnit prey)
         {
             prey = null;
             if (huntDetectRange <= 0f) return false;
+
+            Vector3 zoneCenter;
+            float zoneHalfExtent;
+            bool zoneSquare;
+            switch (duty)
+            {
+                case CharacterDuty.Rally:
+                    zoneCenter = rallyCenter;
+                    zoneHalfExtent = RallyAreaSize() * 0.5f;
+                    zoneSquare = true;
+                    break;
+                case CharacterDuty.Guard:
+                    zoneCenter = NexusPosition();
+                    zoneHalfExtent = guardRadius;
+                    zoneSquare = false;
+                    break;
+                default:   // Scout — 구역 제한 없음
+                    zoneCenter = transform.position;
+                    zoneHalfExtent = float.PositiveInfinity;
+                    zoneSquare = false;
+                    break;
+            }
 
             float bestSqr = huntDetectRange * huntDetectRange;
             var all = UnitRegistry.All;
@@ -291,11 +336,24 @@ namespace LastSanctuary.Units
 
                 float sqr = (u.transform.position - transform.position).sqrMagnitude;
                 if (sqr > bestSqr) continue;
+                if (!IsInsideZone(u.transform.position, zoneCenter, zoneHalfExtent, zoneSquare)) continue;
 
                 bestSqr = sqr;
                 prey = u;
             }
             return prey != null;
+        }
+
+        static bool IsInsideZone(Vector3 pos, Vector3 center, float halfExtent, bool square)
+        {
+            if (float.IsPositiveInfinity(halfExtent)) return true;
+
+            if (square)
+            {
+                Vector3 d = pos - center;
+                return Mathf.Abs(d.x) <= halfExtent && Mathf.Abs(d.y) <= halfExtent;
+            }
+            return Vector2.Distance(pos, center) <= halfExtent;
         }
 
         /// <summary>그 월드 지점이 걸어갈 수 있는 칸인지 (맵 안 + 벽·구조물 아님).</summary>

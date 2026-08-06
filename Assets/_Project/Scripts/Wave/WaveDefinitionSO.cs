@@ -13,6 +13,16 @@ namespace LastSanctuary.Wave
 
         [Tooltip("이 웨이브의 몬스터 능력치 배율(%, 정수). 표의 wave_mon_abil_per(0.6~2.63) × 100")]
         [Min(0)] public int statPercent;
+
+        [Tooltip("전투 중 증원이 오는 간격(초). 표에 없던 값 — \"광폭화가 거의 안 걸린다\" 는 " +
+                 "피드백으로 새로 추가했다. meleeCount+rangedCount+bossCount(기본 마리 수)의 20%를 " +
+                 "ceil 해서 증원 수로, 28-웨이브번호를 15~28 사이로 clamp 해서 간격으로 임의 계산했다 " +
+                 "(웨이브가 오를수록 더 자주·많이 온다) — 밸런스가 안 맞으면 이 표만 고치면 된다")]
+        [Min(0)] public float reinforceIntervalSeconds;
+
+        [Tooltip("증원 한 번에 오는 마리 수(근거리/원거리 절반씩, 보스는 포함하지 않는다). " +
+                 "0이면 이 웨이브는 증원이 오지 않는다")]
+        [Min(0)] public int reinforceCount;
     }
 
     /// <summary>

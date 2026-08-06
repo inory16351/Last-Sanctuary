@@ -15,7 +15,7 @@ MonoBehaviour:
   monId: 1001
   displayName: 역겨운 덩어리 1
   template: {fileID: 0}
-  spawnRangeTiles: 1
+  spawnRangeTiles: 15
   minEnergy: 5
   maxEnergy: 10
   attackStat: 0

@@ -47,8 +47,10 @@ namespace LastSanctuary.UI
         [SerializeField] Color rowNormal = new Color(0.10f, 0.12f, 0.16f, 0.70f);
         [SerializeField] Color rowSelected = new Color(0.13f, 0.28f, 0.26f, 0.90f);
 
-        [Tooltip("HP 가 이 비율 아래로 내려가면 막대가 붉게 바뀐다")]
-        [Range(0f, 1f)] [SerializeField] float lowHpRatio = 0.35f;
+        [Tooltip("체력 막대 색이 이 비율에서 중간(노랑)이 되고, 위/아래로 초록/빨강 쪽으로 부드럽게 바뀐다. " +
+                 "칸이 좁아 막대 길이만으로는 조금씩 줄어드는 게 눈에 잘 안 띄어서, 색으로도 남은 %를 " +
+                 "가늠할 수 있게 한다(유저 피드백: 체력바가 게이지로 안 줄어드는 것처럼 보인다)")]
+        [Range(0.01f, 0.99f)] [SerializeField] float lowHpRatio = 0.35f;
 
         [Header("사망 표시 (웨이브가 끝날 때까지 행을 남겨둔다)")]
         [Tooltip("사망한 캐릭터의 행 배경색")]
@@ -78,6 +80,7 @@ namespace LastSanctuary.UI
             public TMP_Text Duty;
             public TMP_Text Stats;
             public Image HpFill;
+            public TMP_Text HpPercentLabel;
             public Button UpgradeButton;
             public TMP_Text UpgradeLabel;
 
@@ -331,6 +334,9 @@ namespace LastSanctuary.UI
             {
                 Transform fill = hpBack.Find("HpFill");
                 if (fill != null) row.HpFill = fill.GetComponent<Image>();
+
+                Transform percentLabel = hpBack.Find("HpPercentLabel");
+                if (percentLabel != null) row.HpPercentLabel = percentLabel.GetComponent<TMP_Text>();
             }
 
             Transform upgrade = clone.Find("RowUpgrade");
@@ -356,14 +362,34 @@ namespace LastSanctuary.UI
             return row;
         }
 
-        /// <summary>HP 바 채움·색만 즉시 반영한다. <see cref="DamageableUnit.OnHpChanged"/> 구독 콜백.</summary>
+        /// <summary>HP 바 채움·색·숫자 %를 즉시 반영한다. <see cref="DamageableUnit.OnHpChanged"/> 구독 콜백.</summary>
         void ApplyHp(Row row, int current, int max)
         {
             if (row.IsDead || row.HpFill == null) return;   // 사망 처리 후에는 덮어쓰지 않는다
 
             float ratio = max > 0 ? (float)current / max : 0f;
             row.HpFill.fillAmount = ratio;
-            row.HpFill.color = ratio <= lowHpRatio ? HudTheme.BarHpLow : HudTheme.BarHp;
+            row.HpFill.color = HpGaugeColor(ratio);
+
+            // 막대 길이만으로는 몇 % 줄었는지 눈으로 정확히 재기 어렵다는 피드백 —
+            // 현재 체력을 0~100% 정수로 환산해 막대 위에 숫자로도 그대로 보여준다.
+            if (row.HpPercentLabel != null)
+                row.HpPercentLabel.text = $"{Mathf.RoundToInt(ratio * 100f)}%";
+        }
+
+        /// <summary>
+        /// 체력 비율에 맞춰 초록 → 노랑 → 빨강으로 부드럽게 보간한다.
+        /// 막대 자체는 항상 <see cref="ApplyHp"/> 에서 fillAmount 로 줄어들고 있었지만,
+        /// 로스터 칸이 좁아 몇 % 줄어든 게 눈에 잘 안 띄어서 "그냥 맞을 때 빨갛게 반짝인다"로
+        /// 보인다는 피드백이 있었다 — 색으로도 남은 %를 가늠할 수 있게 3단 그라디언트로 바꿨다.
+        /// </summary>
+        Color HpGaugeColor(float ratio)
+        {
+            ratio = Mathf.Clamp01(ratio);
+            float mid = lowHpRatio;
+            return ratio >= mid
+                ? Color.Lerp(HudTheme.BarHpMid, HudTheme.BarHp, (ratio - mid) / (1f - mid))
+                : Color.Lerp(HudTheme.BarHpLow, HudTheme.BarHpMid, ratio / mid);
         }
 
         /// <summary>
@@ -409,6 +435,7 @@ namespace LastSanctuary.UI
                 row.HpFill.fillAmount = 1f;
                 row.HpFill.color = deadBarColor;
             }
+            if (row.HpPercentLabel != null) row.HpPercentLabel.text = string.Empty;
 
             if (row.UpgradeLabel != null) row.UpgradeLabel.text = "강화";
         }

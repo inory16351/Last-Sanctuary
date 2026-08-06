@@ -29,6 +29,7 @@ namespace LastSanctuary.UI
 
         public static readonly Color BarBack      = new Color(0.16f, 0.05f, 0.07f, 0.90f);
         public static readonly Color BarHp        = new Color(0.40f, 0.85f, 0.52f, 1f);
+        public static readonly Color BarHpMid     = new Color(0.90f, 0.78f, 0.32f, 1f);
         public static readonly Color BarHpLow     = new Color(0.92f, 0.38f, 0.38f, 1f);
 
         public static readonly Color ButtonNormal = new Color(0.13f, 0.17f, 0.22f, 0.95f);
