@@ -85,6 +85,9 @@ namespace LastSanctuary.UI
         /// <summary>집결지 구역의 한 변 길이(타일). 마커 범위 표시와 실제 순찰 반경이 공유하는 값.</summary>
         public float RallyAreaSize => rallyAreaSize;
 
+        /// <summary>마커·범위를 담는 컨테이너 이름. HUD 보다 뒤에 그려지도록 sortingOrder 를 낮춘 Canvas.</summary>
+        const string OverlayName = "RallyOverlay";
+
         public static RallyPointService Instance { get; private set; }
 
         /// <summary>지금 맵 클릭을 기다리는 중인지.</summary>
@@ -111,10 +114,21 @@ namespace LastSanctuary.UI
             //  마커 모체는 비활성이므로 이 차이가 중요하다.)
             GameObject canvas = GameObject.Find("UI_Root");
 
-            if (markerTemplate == null && canvas != null)
-                markerTemplate = canvas.transform.Find("RallyMarkerTemplate") as RectTransform;
-            if (rangeTemplate == null && canvas != null)
-                rangeTemplate = canvas.transform.Find("RallyRangeTemplate") as RectTransform;
+            // 마커·범위는 HUD 패널 아래(뒤)에 그려야 해서 별도 컨테이너
+            // `UI_Root/RallyOverlay` 안에 있다 — 유저 피드백: "집결지 표시 위에 다른 UI 가
+            // 있을 때 그 UI 를 가리면 안 된다". 그 컨테이너는 sortingOrder 를 낮춘 Canvas 라
+            // 형제 순서와 무관하게 항상 HUD 보다 뒤에 그려진다.
+            // 예전 위치(UI_Root 직속)에 그대로 있는 씬도 계속 돌아가게 두 곳을 다 본다.
+            Transform overlay = canvas != null ? canvas.transform.Find(OverlayName) : null;
+            Transform lookupRoot = overlay != null ? overlay : canvas?.transform;
+
+            if (markerTemplate == null && lookupRoot != null)
+                markerTemplate = lookupRoot.Find("RallyMarkerTemplate") as RectTransform;
+            if (rangeTemplate == null && lookupRoot != null)
+                rangeTemplate = lookupRoot.Find("RallyRangeTemplate") as RectTransform;
+
+            // 컨테이너가 있으면 복제본도 그 안에 넣는다(그래야 같이 뒤로 깔린다).
+            if (markerParent == null && overlay != null) markerParent = overlay as RectTransform;
 
             if (markerParent == null)
                 markerParent = (markerTemplate != null ? markerTemplate.parent

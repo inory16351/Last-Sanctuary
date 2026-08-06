@@ -152,10 +152,34 @@ namespace LastSanctuary.Combat
             _lastCombatTime = Time.time;
         }
 
+        /// <summary>
+        /// 마지막으로 나를 때린 상대. 비선공 유닛의 <b>반격</b> 판정에 쓴다 —
+        /// "비선공"은 <b>먼저</b> 공격하지 않는다는 뜻이지 맞고도 가만히 있는다는 뜻이 아니다
+        /// (유저 정의). <see cref="UnitCombat"/> 가 이 값을 보고 반격 대상을 잡는다.
+        ///
+        /// 죽은 상대는 자동으로 비워진다 — 시체를 계속 때리려 드는 걸 막는다.
+        /// </summary>
+        public DamageableUnit LastAttacker
+        {
+            get
+            {
+                if (_lastAttacker != null && !_lastAttacker.IsAlive) _lastAttacker = null;
+                return _lastAttacker;
+            }
+        }
+
+        /// <summary>마지막으로 맞은 시각. 반격을 언제까지 유지할지 판단하는 데 쓴다.</summary>
+        public float LastAttackedTime { get; private set; } = float.NegativeInfinity;
+
+        DamageableUnit _lastAttacker;
+
         /// <summary>공격자의 공격력 능력치를 받아 피해를 계산해 적용한다.</summary>
         public void TakeDamageFrom(DamageableUnit attacker)
         {
             if (!IsAlive || balance == null || attacker == null) return;
+
+            _lastAttacker = attacker;
+            LastAttackedTime = Time.time;
 
             OnAnyAttack?.Invoke(attacker, this);
             ApplyDamage(balance.Damage(attacker.AttackStat, DefenseStat));

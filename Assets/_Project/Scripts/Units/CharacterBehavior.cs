@@ -85,6 +85,22 @@ namespace LastSanctuary.Units
                  "웨이브 타임(전투·광폭화)에는 웨이브 몬스터가 우선이라 사냥하지 않는다")]
         [Min(0f)] [SerializeField] float huntDetectRange = 10f;
 
+        [Header("전방 포지션 — 적극 방어 (인터셉트)")]
+        [Tooltip("전방 포지션 캐릭터가 '막으러 나가는' 판정 거리(타일). 구역 중심에서 이 거리 안에 " +
+                 "웨이브 몬스터가 들어오면, 순찰을 멈추고 그 적과 구역 사이를 가로막는다. " +
+                 "0 이면 전방도 그냥 구역 앞쪽을 순찰만 한다")]
+        [Min(0f)] [SerializeField] float frontInterceptRange = 14f;
+
+        [Tooltip("가로막을 때 구역 경계에서 적 쪽으로 더 나가는 거리(타일). 클수록 앞으로 나선다")]
+        [Min(0f)] [SerializeField] float frontInterceptOvershoot = 1.5f;
+
+        [Tooltip("가로막는 동안 목줄에 더해주는 여유(타일). 구역 밖으로 나서는 만큼 " +
+                 "목줄도 늘려야 그 자리에서 실제로 교전할 수 있다")]
+        [Min(0f)] [SerializeField] float frontInterceptLeashBonus = 4f;
+
+        [Tooltip("가로막는 위치를 다시 계산하는 주기(초). 적이 움직이므로 순찰보다 자주 갱신한다")]
+        [Min(0.1f)] [SerializeField] float frontInterceptRepick = 0.5f;
+
         [Header("후퇴 (전술 지침의 '후퇴 판단 기준')")]
         [Tooltip("후퇴 기준 + 이 여유(%)만큼 회복되면 다시 전투에 복귀한다. 여유가 0이면 " +
                  "기준선 근처에서 후퇴/복귀를 무한히 반복하며 덜덜 떤다")]
@@ -213,8 +229,7 @@ namespace LastSanctuary.Units
             if (duty != _duty)
             {
                 _duty = duty;
-                if (duty == CharacterDuty.Rally) PickRallySpot(rallyCenter);
-                else PickDestination();
+                PickZoneSpot(duty, rallyCenter);
                 return;
             }
 
@@ -225,10 +240,89 @@ namespace LastSanctuary.Units
             // (UnitCombat 은 목표에 닿으면 Idle 로 멈추고 스스로 돌아다니지 않는다) — 방어와
             // 똑같이 구역 안에서 계속 순찰 지점을 다시 고르게 해서 고쳤다.
             if (arrived || _combat.DestinationUnreachable || Time.time >= _repickTime)
+                PickZoneSpot(duty, rallyCenter);
+        }
+
+        // ------------------------------------------------------------------
+        // 목적지 선택 — 전방 포지션의 "가로막기"가 순찰보다 우선한다
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// 지금 임무에 맞는 목적지를 고른다.
+        ///
+        /// <b>전방 포지션은 순찰보다 "가로막기"가 먼저다</b>(유저 요청: "전방 포지션이 적극적으로
+        /// 방어해야 한다"). 구역 근처까지 다가온 웨이브 몬스터가 있으면, 구역 안을 어슬렁거리는
+        /// 대신 <b>그 적과 구역 사이</b>로 나가 선다 — 뒤에 있는 중위·후방 캐릭터에게 적이
+        /// 닿기 전에 먼저 걸리게 하려는 것이다. 적이 없으면 평소대로 구역 앞쪽(포지션 구간)을
+        /// 순찰한다. <b>공격 유형(근거리·원거리·마법·치유)은 이 판정에 관여하지 않는다</b> —
+        /// 전열을 정하는 건 포지션이고, 공격 방식은 그대로 유지된다.
+        /// </summary>
+        void PickZoneSpot(CharacterDuty duty, Vector3 rallyCenter)
+        {
+            if (duty != CharacterDuty.Scout && _position == TacticalPosition.Front)
             {
-                if (duty == CharacterDuty.Rally) PickRallySpot(rallyCenter);
-                else PickDestination();
+                bool rally = duty == CharacterDuty.Rally;
+                Vector3 center = rally ? rallyCenter : NexusPosition();
+                float half = rally ? RallyAreaSize() * 0.5f : guardRadius;
+                float leash = rally ? rallyLeash : guardLeash;
+
+                if (TryPickInterceptSpot(center, half, leash)) return;
             }
+
+            if (duty == CharacterDuty.Rally) PickRallySpot(rallyCenter);
+            else PickDestination();
+        }
+
+        /// <summary>
+        /// 구역으로 다가오는 웨이브 몬스터를 가로막는 자리를 잡는다.
+        /// 자리는 <b>구역 중심에서 그 적 방향으로 구역 경계 + 여유만큼</b> 나간 지점 —
+        /// 적이 구역에 들어오는 길목이다. 적이 움직이므로 <see cref="frontInterceptRepick"/>
+        /// 주기로 계속 다시 잡는다.
+        ///
+        /// 대상은 <b>웨이브 몬스터(Cancer 진영)만</b>이다. 중립 몬스터까지 막으러 나가면
+        /// 전방 캐릭터가 사냥감을 쫓아 구역을 비우게 된다(24-5절에서 고친 그 문제와 같다).
+        /// </summary>
+        bool TryPickInterceptSpot(Vector3 center, float halfExtent, float leash)
+        {
+            if (frontInterceptRange <= 0f) return false;
+
+            DamageableUnit threat = null;
+            float bestSqr = frontInterceptRange * frontInterceptRange;
+
+            var all = UnitRegistry.All;
+            for (int i = 0; i < all.Count; i++)
+            {
+                DamageableUnit u = all[i];
+                if (u == null || !u.IsAlive) continue;
+                if (u.Faction != Faction.Cancer) continue;
+
+                // "구역에 얼마나 가까운가"로 고른다 — 나에게 가까운 적이 아니라
+                // 지키는 구역을 위협하는 적을 막아야 한다.
+                float sqr = ((Vector2)(u.transform.position - center)).sqrMagnitude;
+                if (sqr > bestSqr) continue;
+
+                bestSqr = sqr;
+                threat = u;
+            }
+            if (threat == null) return false;
+
+            Vector2 toThreat = (Vector2)(threat.transform.position - center);
+            Vector2 dir = toThreat.sqrMagnitude > 0.01f ? toThreat.normalized : Vector2.up;
+
+            // 적이 이미 구역 안까지 들어왔으면 그 앞을 막는 게 의미가 없다 — 적 쪽으로 붙는다.
+            float outward = Mathf.Min(halfExtent + frontInterceptOvershoot, toThreat.magnitude);
+            Vector3 spot = center + (Vector3)(dir * outward);
+
+            // 벽에 박힌 자리면 중심 쪽으로 조금씩 당겨보며 설 수 있는 곳을 찾는다.
+            for (int step = 0; step < 4 && !IsWalkable(spot); step++)
+                spot = center + (Vector3)(dir * (outward * (1f - 0.25f * (step + 1))));
+
+            if (!IsWalkable(spot)) return false;
+
+            _destination = spot;
+            _repickTime = Time.time + frontInterceptRepick;
+            _combat.SetHome(_destination, leash + halfExtent + frontInterceptLeashBonus);
+            return true;
         }
 
         // ------------------------------------------------------------------

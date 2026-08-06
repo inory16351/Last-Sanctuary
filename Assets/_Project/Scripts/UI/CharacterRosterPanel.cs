@@ -38,11 +38,13 @@ namespace LastSanctuary.UI
     /// (구독·데이터)은 전혀 안 바뀐다 — <see cref="ReorderRows"/> 가 화면에 보이는 **순서만**
     /// (`SetSiblingIndex`) 매 갱신마다 다시 계산한다.
     ///
-    /// <b>체력바 애니메이션(유저 요청)</b>: "몬스터에게 맞으면 실제로 깎이는 게 보였으면
-    /// 좋겠다"(격투 게임 체력바처럼) — 그래서 HP 가 바뀌어도 <c>fillAmount</c> 를 즉시
-    /// 스냅하지 않고, 목표값(<see cref="Row.HpRatioTarget"/>)과 화면에 보이는 값
-    /// (<see cref="Row.HpRatioDisplayed"/>)을 나눠서 <see cref="AnimateHpBars"/> 가 매
-    /// 프레임(폴링 주기와 무관하게) <c>MoveTowards</c> 로 서서히 따라가게 한다. 능력치 표시
+    /// <b>체력바 — 철권식 잔상(유저 요청, 2차)</b>: 처음엔 <c>fillAmount</c> 자체를 목표치까지
+    /// 서서히 줄였는데(그게 "실제로 깎이는" 느낌일 거라 봤다), 그러면 <b>맞는 순간에는 아무
+    /// 변화가 없고</b> 막대가 뒤늦게 스르륵 줄어들 뿐이라 오히려 안 보인다는 피드백을 받았다
+    /// ("깎인 부분이 없어지는 게 시각적으로 보여야 한다"). 지금은 두 겹이다 —
+    /// <see cref="Row.HpFill"/> 은 실제 체력을 <b>즉시</b> 반영하고, 그 <b>뒤</b>에 깔린
+    /// <see cref="Row.HpGhost"/> 가 맞기 직전 값을 잠깐 붙들었다가 서서히 사라진다
+    /// (계산은 <see cref="HpGhostBar"/>). 능력치 표시
     /// (근접해서 보는 상세 스탯)와 캐릭터별 강화 버튼은 이 카드에서 뺐다 — 능력치 텍스트는
     /// 체력바가 커진 자리를 대신 채우고(숫자 % 를 더 잘 보이게), 강화는 추후 별도 UI로
     /// 다시 만든다는 전제로 제거했다(전체 강화는 HUD_Actions 의 기존 버튼으로 여전히 가능).
@@ -80,11 +82,15 @@ namespace LastSanctuary.UI
         [Tooltip("사망한 캐릭터의 이름 글자색")]
         [SerializeField] Color deadTextColor = new Color(0.5f, 0.5f, 0.52f, 1f);
 
-        [Header("체력바 애니메이션 (유저 요청 — 실제로 깎이는 게 보이게)")]
-        [Tooltip("체력바가 목표 값(실제 체력)을 따라가는 속도(비율/초, 1.0 = 가득 찬 막대가 " +
-                 "1초에 다 빈다). 맞는 순간 즉시 스냅되지 않고 서서히 줄어드는 걸 보여주려는 것이라 " +
-                 "너무 크게 잡으면(예: 10 이상) 스냅과 차이가 안 느껴진다. 0이면 애니메이션 없이 즉시 반영")]
-        [Min(0f)] [SerializeField] float hpDrainSpeed = 1.6f;
+        [Header("체력바 잔상 (철권식 — 깎인 구간이 눈에 보이게)")]
+        [Tooltip("맞은 직후 '방금 깎인 구간'을 잔상 막대로 그대로 붙들고 있는 시간(초)")]
+        [Min(0f)] [SerializeField] float ghostHoldSeconds = 0.35f;
+
+        [Tooltip("붙들기가 끝난 뒤 잔상이 줄어드는 속도(비율/초). 1.0 = 가득 찬 막대가 1초에 다 빈다")]
+        [Min(0.05f)] [SerializeField] float ghostDrainSpeed = 0.7f;
+
+        [Tooltip("잔상 막대 색. 본 막대보다 밝고 붉은 쪽이 '방금 깎였다'로 잘 읽힌다")]
+        [SerializeField] Color ghostColor = new Color(1f, 0.85f, 0.85f, 0.95f);
 
         [Header("카메라")]
         [Tooltip("행을 누르면 카메라를 그 캐릭터 위치로 옮긴다")]
@@ -102,6 +108,10 @@ namespace LastSanctuary.UI
             public TMP_Text Name;
             public TMP_Text Duty;
             public Image HpFill;
+
+            /// <summary>본 막대 <b>뒤</b>에 깔리는 잔상 막대. 방금 깎인 구간을 잠깐 남긴다.</summary>
+            public Image HpGhost;
+
             public TMP_Text HpPercentLabel;
 
             /// <summary>살아있는 동안만 유효. 죽은 뒤에는 멤버를 다시 읽지 않는다(파괴된 오브젝트라서).</summary>
@@ -121,12 +131,12 @@ namespace LastSanctuary.UI
             /// <summary>죽기 직전에 찍어둔 이름 — 죽은 뒤에는 이 값만 쓴다(Unit.name 을 다시 못 읽어서).</summary>
             public string CachedName;
 
-            /// <summary>실제 최신 체력 비율. <see cref="ApplyHp"/>(이벤트 콜백)가 즉시 갱신한다.</summary>
+            /// <summary>실제 최신 체력 비율. <see cref="ApplyHp"/>(이벤트 콜백)가 즉시 갱신하고,
+            /// 본 막대(<see cref="HpFill"/>)도 그 자리에서 바로 이 값으로 바뀐다.</summary>
             public float HpRatioTarget;
 
-            /// <summary>화면에 지금 보여주고 있는 체력 비율. <see cref="AnimateHpBars"/> 가 매 프레임
-            /// <see cref="HpRatioTarget"/> 을 향해 서서히 따라간다 — "실제로 깎이는" 느낌을 만든다.</summary>
-            public float HpRatioDisplayed;
+            /// <summary>잔상 막대 계산기. 깎인 구간을 잠깐 남겼다가 서서히 지운다.</summary>
+            public readonly HpGhostBar Ghost = new HpGhostBar();
         }
 
         readonly List<Row> _rows = new List<Row>();
@@ -221,9 +231,9 @@ namespace LastSanctuary.UI
 
         void Update()
         {
-            // 체력바 애니메이션은 폴링 주기(refreshInterval)와 무관하게 매 프레임 진행해야
-            // 부드럽다 — "실제로 깎이는" 느낌이 목적이라 0.2초 단위로 뚝뚝 끊기면 의미가 없다.
-            AnimateHpBars(Time.unscaledDeltaTime);
+            // 잔상은 폴링 주기(refreshInterval)와 무관하게 매 프레임 진행해야 부드럽다 —
+            // 0.2초 단위로 뚝뚝 끊기면 연출로서 의미가 없다.
+            AnimateGhostBars(Time.unscaledDeltaTime);
 
             if (Time.unscaledTime < _nextRefresh) return;
             _nextRefresh = Time.unscaledTime + refreshInterval;
@@ -337,10 +347,12 @@ namespace LastSanctuary.UI
             unit.OnHpChanged += row.HpHandler;
             unit.OnDied += row.DiedHandler;
 
-            // 재구성/재활용 직후엔 애니메이션 없이 바로 스냅한다 — 안 그러면 새로 물린
-            // 캐릭터의 체력바가 0에서부터 차오르는 것처럼 보인다.
-            row.HpRatioTarget = row.HpRatioDisplayed =
-                unit.MaxHp > 0 ? (float)unit.CurrentHp / unit.MaxHp : 0f;
+            // 재구성/재활용 직후엔 잔상도 애니메이션 없이 바로 스냅한다 — 안 그러면 새로 물린
+            // 캐릭터의 잔상이 이전 캐릭터 값에서부터 줄어드는 것처럼 보인다.
+            row.HpRatioTarget = unit.MaxHp > 0 ? (float)unit.CurrentHp / unit.MaxHp : 0f;
+            row.Ghost.HoldSeconds = ghostHoldSeconds;
+            row.Ghost.DrainPerSecond = ghostDrainSpeed;
+            row.Ghost.Snap(row.HpRatioTarget);
             ApplyDisplayedHp(row);
 
             ApplyAliveAppearance(row);
@@ -367,6 +379,10 @@ namespace LastSanctuary.UI
                 Transform fill = hpBack.Find("HpFill");
                 if (fill != null) row.HpFill = fill.GetComponent<Image>();
 
+                // 잔상은 본 막대 뒤에 그려져야 하므로 하이라키에서 HpFill 보다 앞 형제여야 한다.
+                Transform ghost = hpBack.Find("HpGhost");
+                if (ghost != null) row.HpGhost = ghost.GetComponent<Image>();
+
                 Transform percentLabel = hpBack.Find("HpPercentLabel");
                 if (percentLabel != null) row.HpPercentLabel = percentLabel.GetComponent<TMP_Text>();
             }
@@ -385,49 +401,58 @@ namespace LastSanctuary.UI
         }
 
         /// <summary>
-        /// 목표 체력 비율만 갱신한다. <see cref="DamageableUnit.OnHpChanged"/> 구독 콜백 —
-        /// 여기서 <c>fillAmount</c> 를 바로 바꾸지 않는다. 즉시 스냅하면 "몬스터에게 맞을 때마다
-        /// 실제로 깎이는" 느낌이 안 나고 순간이동처럼 보인다(유저 피드백) — 화면에 보이는 값은
-        /// <see cref="AnimateHpBars"/> 가 매 프레임 이 목표를 향해 서서히 따라간다.
+        /// <see cref="DamageableUnit.OnHpChanged"/> 구독 콜백. <b>본 막대는 여기서 즉시 바뀐다.</b>
+        ///
+        /// 예전에는 <c>fillAmount</c> 를 목표치까지 서서히 줄였는데(그게 "실제로 깎이는" 느낌을
+        /// 줄 거라 봤다), 그러면 <b>맞는 순간에는 아무 변화가 없고</b> 뒤늦게 스르륵 줄어들 뿐이라
+        /// 오히려 안 보인다는 피드백을 받았다. 지금은 격투 게임식으로 갈랐다 — 본 막대는 즉시
+        /// 떨어지고, "방금 깎인 구간"은 뒤에 깔린 잔상 막대(<see cref="Row.HpGhost"/>)가 잠깐
+        /// 남겼다가 지운다.
         /// </summary>
         void ApplyHp(Row row, int current, int max)
         {
             if (row.IsDead) return;   // 사망 처리 후에는 건드리지 않는다
+
             row.HpRatioTarget = max > 0 ? (float)current / max : 0f;
+            row.Ghost.SetActual(row.HpRatioTarget);
+            ApplyDisplayedHp(row);
         }
 
         /// <summary>
-        /// 화면에 보이는 체력 비율을 목표치로 서서히 이동시킨다. 폴링 주기(refreshInterval)와
-        /// 무관하게 매 프레임 불러야 애니메이션이 부드럽다 — <see cref="Update"/> 맨 앞에서 호출.
+        /// 잔상 막대만 매 프레임 진행시킨다(본 막대는 이미 즉시 반영돼 있다).
+        /// 폴링 주기와 무관하게 <see cref="Update"/> 맨 앞에서 호출한다.
         /// </summary>
-        void AnimateHpBars(float dt)
+        void AnimateGhostBars(float dt)
         {
             for (int i = 0; i < _rows.Count; i++)
             {
                 Row row = _rows[i];
-                if (row.IsDead || row.HpFill == null) continue;
-                if (Mathf.Approximately(row.HpRatioDisplayed, row.HpRatioTarget)) continue;
+                if (row.IsDead || row.HpGhost == null) continue;
 
-                row.HpRatioDisplayed = hpDrainSpeed > 0f
-                    ? Mathf.MoveTowards(row.HpRatioDisplayed, row.HpRatioTarget, hpDrainSpeed * dt)
-                    : row.HpRatioTarget;
-
-                ApplyDisplayedHp(row);
+                if (row.Ghost.Tick(row.HpRatioTarget, dt))
+                    row.HpGhost.fillAmount = row.Ghost.Value;
             }
         }
 
-        /// <summary>지금 <see cref="Row.HpRatioDisplayed"/> 값 그대로 막대 채움·색·숫자 %를 그린다.</summary>
+        /// <summary>지금 실제 체력 비율 그대로 막대 채움·색·숫자 %를 그린다.</summary>
         void ApplyDisplayedHp(Row row)
         {
-            if (row.HpFill == null) return;
+            if (row.HpFill != null)
+            {
+                row.HpFill.fillAmount = row.HpRatioTarget;
+                row.HpFill.color = HpGaugeColor(row.HpRatioTarget);
+            }
 
-            row.HpFill.fillAmount = row.HpRatioDisplayed;
-            row.HpFill.color = HpGaugeColor(row.HpRatioDisplayed);
+            if (row.HpGhost != null)
+            {
+                row.HpGhost.fillAmount = row.Ghost.Value;
+                row.HpGhost.color = ghostColor;
+            }
 
             // 막대 길이만으로는 몇 % 줄었는지 눈으로 정확히 재기 어렵다는 피드백 —
             // 현재 체력을 0~100% 정수로 환산해 막대 위에 숫자로도 그대로 보여준다.
             if (row.HpPercentLabel != null)
-                row.HpPercentLabel.text = $"{Mathf.RoundToInt(row.HpRatioDisplayed * 100f)}%";
+                row.HpPercentLabel.text = $"{Mathf.RoundToInt(row.HpRatioTarget * 100f)}%";
         }
 
         /// <summary>
@@ -482,14 +507,16 @@ namespace LastSanctuary.UI
             if (row.Duty != null) { row.Duty.text = "사망"; row.Duty.color = deadTextColor; }
 
             // 비어서(투명) 안 보이는 것보다, 꽉 찬 회색 막대가 "사망"을 훨씬 눈에 띄게 알려준다.
-            // 죽음은 애니메이션으로 서서히 보여줄 상태가 아니라 즉시 확정이라 목표·표시값을
-            // 둘 다 여기서 바로 맞춘다(AnimateHpBars 는 어차피 IsDead 행을 건너뛴다).
-            row.HpRatioTarget = row.HpRatioDisplayed = 1f;
+            // 죽음은 연출로 서서히 보여줄 상태가 아니라 즉시 확정이라 여기서 바로 맞춘다
+            // (AnimateGhostBars 는 어차피 IsDead 행을 건너뛴다).
+            row.HpRatioTarget = 1f;
+            row.Ghost.Snap(1f);
             if (row.HpFill != null)
             {
                 row.HpFill.fillAmount = 1f;
                 row.HpFill.color = deadBarColor;
             }
+            if (row.HpGhost != null) row.HpGhost.fillAmount = 0f;   // 잔상은 사망 표시에 방해만 된다
             if (row.HpPercentLabel != null) row.HpPercentLabel.text = string.Empty;
         }
 

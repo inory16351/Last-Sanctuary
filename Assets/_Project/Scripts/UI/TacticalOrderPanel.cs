@@ -67,7 +67,10 @@ namespace LastSanctuary.UI
 
         // 값이 계속 바뀌는 표시들
         TMP_Text _nameText, _levelText, _hpPercentText, _hintText, _summaryText, _retreatValueText;
-        Image _hpFill, _retreatBarFill;
+        Image _hpFill, _retreatBarFill, _hpGhost;
+
+        /// <summary>깎인 구간을 잠깐 남겨두는 잔상 값. <see cref="HpGhostBar"/> 가 관리한다.</summary>
+        readonly HpGhostBar _ghost = new HpGhostBar();
 
         UnitSelector _selector;
         CharacterUnit _unit;
@@ -109,6 +112,11 @@ namespace LastSanctuary.UI
 
             // 선택된 캐릭터가 죽어 파괴됐으면 놓는다.
             if (_unit != null && !_unit.IsAlive) Bind(null);
+
+            // 잔상은 갱신 주기와 무관하게 매 프레임 진행해야 부드럽다.
+            if (_hpGhost != null && _ghost.Tick(_unit != null ? _unit.HpRatio : 0f,
+                                                Time.unscaledDeltaTime))
+                _hpGhost.fillAmount = _ghost.Value;
 
             if (Time.unscaledTime < _nextRefresh) return;
             _nextRefresh = Time.unscaledTime + refreshInterval;
@@ -168,6 +176,11 @@ namespace LastSanctuary.UI
             _unit = unit != null && unit.IsAlive ? unit : null;
             _tactics = _unit != null ? _unit.GetComponent<CharacterTactics>() : null;
 
+            // 다른 캐릭터로 바뀌었으면 잔상은 애니메이션 없이 바로 맞춘다 —
+            // 안 그러면 새로 고른 캐릭터의 체력이 이전 캐릭터 값에서 줄어드는 것처럼 보인다.
+            _ghost.Snap(_unit != null ? _unit.HpRatio : 0f);
+            if (_hpGhost != null) _hpGhost.fillAmount = _ghost.Value;
+
             if (_unit != null && _tactics == null)
                 Debug.LogWarning($"[Tactics] {_unit.name} 에 CharacterTactics 가 없습니다. " +
                                  "Character_Template 에 컴포넌트를 붙여야 지침을 바꿀 수 있습니다.", _unit);
@@ -223,6 +236,7 @@ namespace LastSanctuary.UI
                 if (_levelText != null) _levelText.text = "LV.-";
                 if (_hpPercentText != null) _hpPercentText.text = "-";
                 if (_hpFill != null) _hpFill.fillAmount = 0f;
+                if (_hpGhost != null) { _ghost.Snap(0f); _hpGhost.fillAmount = 0f; }
                 return;
             }
 
@@ -235,9 +249,11 @@ namespace LastSanctuary.UI
             if (_hpPercentText != null) _hpPercentText.text = $"{Mathf.RoundToInt(ratio * 100f)}%";
             if (_hpFill != null)
             {
+                // 본 막대는 즉시 반영한다 — 깎이는 걸 보여주는 건 잔상 막대의 몫이다.
                 _hpFill.fillAmount = ratio;
                 _hpFill.color = HpGaugeColor(ratio);
             }
+            _ghost.SetActual(ratio);
         }
 
         /// <summary>로스터와 같은 3단 그라디언트(초록 → 노랑 → 빨강)를 쓴다.</summary>
@@ -265,6 +281,14 @@ namespace LastSanctuary.UI
             _summaryText = FindText("Col3/Summary/Text");
             _retreatValueText = FindText("Col2/RetreatValue");
             _retreatBarFill = FindImage("Col2/RetreatBar/Fill");
+            _hpGhost = FindImage("Info/HpBack/HpGhost");
+
+            // 후퇴 기준 막대 — 눌러서/끌어서 1% 단위로 고른다. 아래 ± 버튼(5% 단위)은 그대로 둔다:
+            // 막대는 대충 잡을 때, 버튼은 정확히 맞출 때 쓰라는 것.
+            var dragBar = transform.Find("Col2/RetreatBar")?.GetComponent<UiDragBar>();
+            if (dragBar != null)
+                dragBar.OnValueChanged += ratio =>
+                    Set(t => t.SetRetreatHpPercent(Mathf.RoundToInt(ratio * 100f)));
 
             // 공격 유형
             AddOption("Col1/Type/Melee",  () => Set(t => t.SetAttackType(TacticalAttackType.Melee)),

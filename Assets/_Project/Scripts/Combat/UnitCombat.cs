@@ -55,9 +55,20 @@ namespace LastSanctuary.Combat
                  "몬스터는 꺼서 항상 지도 전체가 밝혀진 것처럼 공격한다")]
         [SerializeField] bool respectFogOfWar = false;
 
-        [Tooltip("끄면 적을 인식/공격하지 않는다 — 이동(귀환 지점 추적)만 하는 무해한 유닛에 쓴다. " +
-                 "(예: 비선공 중립 몬스터가 배회는 하되 절대 싸우지 않게)")]
+        [Tooltip("끄면 스스로 적을 찾아 먼저 공격하지 않는다 — 비선공 유닛(중립 몬스터 등)에 쓴다. " +
+                 "맞았을 때의 반격은 아래 canRetaliate 가 따로 결정한다")]
         [SerializeField] bool canAcquireTargets = true;
+
+        [Tooltip("비선공(canAcquireTargets 꺼짐) 유닛이 <b>맞으면 때린 상대에게 반격</b>할지. " +
+                 "유저 정의: '비선공'은 먼저 공격하지 않는다는 뜻이지 맞고도 가만히 있는다는 뜻이 아니다. " +
+                 "공격력이 0이면 반격해봐야 의미가 없으므로 자동으로 반격하지 않는다")]
+        [SerializeField] bool canRetaliate = true;
+
+        [Tooltip("마지막으로 맞은 뒤 이 시간(초) 동안 반격 대상을 유지한다. 지나면 원래대로 돌아간다")]
+        [Min(0.5f)] [SerializeField] float retaliateMemorySeconds = 8f;
+
+        [Tooltip("반격 대상을 쫓아갈 수 있는 최대 거리(타일). 이 밖으로 도망가면 포기한다")]
+        [Min(0.5f)] [SerializeField] float retaliateChaseRange = 8f;
 
         // ------------------------------------------------------------------
         // 전술 지침 (캐릭터 전용). CharacterTactics 가 UI 값으로 덮어쓴다.
@@ -301,6 +312,13 @@ namespace LastSanctuary.Combat
         /// <summary>지금 사냥 타겟을 쫓는 중인지 (일반 진영 전투와 구분해서 보고 싶을 때 사용).</summary>
         public bool IsHunting => _huntOverrideTarget != null && _huntOverrideTarget.IsAlive;
 
+        /// <summary>
+        /// 공격(또는 치유)을 실제로 한 번 수행한 순간. 공격 모션을 재생할 타이밍을
+        /// <see cref="CharacterAnimator"/> 가 이걸로 받는다 — 애니메이터가 매 프레임 상태를
+        /// 추측하는 대신 "지금 때렸다"는 사실 하나만 알면 되게 하려는 것.
+        /// </summary>
+        public event System.Action OnAttackPerformed;
+
         /// <summary>귀환 지점에 도착했는지.</summary>
         public bool IsAtHome(float tolerance = 0.5f) =>
             Vector2.Distance(transform.position, _homePosition) <= tolerance;
@@ -439,11 +457,10 @@ namespace LastSanctuary.Combat
 
         void AcquireTargetIfNeeded()
         {
-            if (!canAcquireTargets || _combatSuppressed)
-            {
-                _target = null;
-                return;
-            }
+            if (_combatSuppressed) { _target = null; return; }
+
+            // 비선공 유닛 — 스스로 적을 찾지는 않지만, 맞았으면 때린 상대에게 반격한다.
+            if (!canAcquireTargets) { _target = FindRetaliationTarget(); return; }
 
             // 치유 유형은 적을 아예 노리지 않는다 — "공격 대신 회복"이 이 유형의 정의다.
             if (attackType == TacticalAttackType.Heal) { AcquireHealTarget(); return; }
@@ -488,6 +505,29 @@ namespace LastSanctuary.Combat
             }
 
             _target = found;
+        }
+
+        /// <summary>
+        /// 비선공 유닛의 반격 대상. "비선공"은 <b>먼저</b> 공격하지 않는다는 뜻이지 맞고도
+        /// 가만히 있는다는 뜻이 아니다(유저 정의) — 맞았으면 때린 상대를 되받아친다.
+        ///
+        /// 반격을 그만두는 조건 셋: 공격력이 0(때려봐야 의미 없음) · 마지막으로 맞은 지
+        /// <see cref="retaliateMemorySeconds"/> 초 경과 · 상대가 <see cref="retaliateChaseRange"/>
+        /// 밖으로 벗어남. 셋 중 하나라도 걸리면 타겟을 놓고 원래의 무해한 상태로 돌아간다
+        /// (그래야 배회하던 중립 몬스터가 캐릭터를 맵 끝까지 쫓아가지 않는다).
+        /// </summary>
+        DamageableUnit FindRetaliationTarget()
+        {
+            if (!canRetaliate || _self == null || _self.AttackStat <= 0) return null;
+            if (Time.time - _self.LastAttackedTime > retaliateMemorySeconds) return null;
+
+            DamageableUnit attacker = _self.LastAttacker;
+            if (attacker == null || !attacker.IsAlive) return null;
+
+            float chase = Mathf.Max(retaliateChaseRange, EffectiveAttackRange);
+            if (Vector2.Distance(attacker.transform.position, transform.position) > chase) return null;
+
+            return attacker;
         }
 
         /// <summary>
@@ -665,6 +705,8 @@ namespace LastSanctuary.Combat
                     _target.TakeDamageFrom(_self);
                     break;
             }
+
+            OnAttackPerformed?.Invoke();
         }
 
         /// <summary>
