@@ -37,6 +37,15 @@ namespace LastSanctuary.UI
     /// 둔다(살아있는 캐릭터들보다 뒤). <see cref="Row"/> 객체와 캐릭터의 실제 매칭
     /// (구독·데이터)은 전혀 안 바뀐다 — <see cref="ReorderRows"/> 가 화면에 보이는 **순서만**
     /// (`SetSiblingIndex`) 매 갱신마다 다시 계산한다.
+    ///
+    /// <b>체력바 애니메이션(유저 요청)</b>: "몬스터에게 맞으면 실제로 깎이는 게 보였으면
+    /// 좋겠다"(격투 게임 체력바처럼) — 그래서 HP 가 바뀌어도 <c>fillAmount</c> 를 즉시
+    /// 스냅하지 않고, 목표값(<see cref="Row.HpRatioTarget"/>)과 화면에 보이는 값
+    /// (<see cref="Row.HpRatioDisplayed"/>)을 나눠서 <see cref="AnimateHpBars"/> 가 매
+    /// 프레임(폴링 주기와 무관하게) <c>MoveTowards</c> 로 서서히 따라가게 한다. 능력치 표시
+    /// (근접해서 보는 상세 스탯)와 캐릭터별 강화 버튼은 이 카드에서 뺐다 — 능력치 텍스트는
+    /// 체력바가 커진 자리를 대신 채우고(숫자 % 를 더 잘 보이게), 강화는 추후 별도 UI로
+    /// 다시 만든다는 전제로 제거했다(전체 강화는 HUD_Actions 의 기존 버튼으로 여전히 가능).
     /// </summary>
     public class CharacterRosterPanel : MonoBehaviour
     {
@@ -68,8 +77,14 @@ namespace LastSanctuary.UI
                  "꽉 찬 회색 막대가 '사망'을 훨씬 눈에 띄게 알려준다")]
         [SerializeField] Color deadBarColor = new Color(0.42f, 0.42f, 0.45f, 0.9f);
 
-        [Tooltip("사망한 캐릭터의 이름·능력치 글자색")]
+        [Tooltip("사망한 캐릭터의 이름 글자색")]
         [SerializeField] Color deadTextColor = new Color(0.5f, 0.5f, 0.52f, 1f);
+
+        [Header("체력바 애니메이션 (유저 요청 — 실제로 깎이는 게 보이게)")]
+        [Tooltip("체력바가 목표 값(실제 체력)을 따라가는 속도(비율/초, 1.0 = 가득 찬 막대가 " +
+                 "1초에 다 빈다). 맞는 순간 즉시 스냅되지 않고 서서히 줄어드는 걸 보여주려는 것이라 " +
+                 "너무 크게 잡으면(예: 10 이상) 스냅과 차이가 안 느껴진다. 0이면 애니메이션 없이 즉시 반영")]
+        [Min(0f)] [SerializeField] float hpDrainSpeed = 1.6f;
 
         [Header("카메라")]
         [Tooltip("행을 누르면 카메라를 그 캐릭터 위치로 옮긴다")]
@@ -86,11 +101,8 @@ namespace LastSanctuary.UI
             public Button SelectButton;
             public TMP_Text Name;
             public TMP_Text Duty;
-            public TMP_Text Stats;
             public Image HpFill;
             public TMP_Text HpPercentLabel;
-            public Button UpgradeButton;
-            public TMP_Text UpgradeLabel;
 
             /// <summary>살아있는 동안만 유효. 죽은 뒤에는 멤버를 다시 읽지 않는다(파괴된 오브젝트라서).</summary>
             public CharacterUnit Unit;
@@ -106,9 +118,15 @@ namespace LastSanctuary.UI
             /// <summary>사망 확정 여부. true 가 되면 폴링 갱신(RefreshValues)에서 건드리지 않는다.</summary>
             public bool IsDead;
 
-            /// <summary>죽기 직전에 찍어둔 표시값 — 죽은 뒤에는 이 값만 쓴다.</summary>
+            /// <summary>죽기 직전에 찍어둔 이름 — 죽은 뒤에는 이 값만 쓴다(Unit.name 을 다시 못 읽어서).</summary>
             public string CachedName;
-            public string CachedStats;
+
+            /// <summary>실제 최신 체력 비율. <see cref="ApplyHp"/>(이벤트 콜백)가 즉시 갱신한다.</summary>
+            public float HpRatioTarget;
+
+            /// <summary>화면에 지금 보여주고 있는 체력 비율. <see cref="AnimateHpBars"/> 가 매 프레임
+            /// <see cref="HpRatioTarget"/> 을 향해 서서히 따라간다 — "실제로 깎이는" 느낌을 만든다.</summary>
+            public float HpRatioDisplayed;
         }
 
         readonly List<Row> _rows = new List<Row>();
@@ -123,7 +141,6 @@ namespace LastSanctuary.UI
         readonly HashSet<CharacterUnit> _dead = new HashSet<CharacterUnit>();
 
         UnitSelector _selector;
-        CharacterUpgradeService _upgrades;
         CameraRigController _cameraRig;
         WaveManager _waveManager;
         float _nextRefresh;
@@ -131,7 +148,6 @@ namespace LastSanctuary.UI
         void Start()
         {
             _selector = UnitSelector.Instance;
-            _upgrades = CharacterUpgradeService.Instance;
             _cameraRig = FindAnyObjectByType<CameraRigController>();
             _waveManager = FindAnyObjectByType<WaveManager>();
 
@@ -205,11 +221,14 @@ namespace LastSanctuary.UI
 
         void Update()
         {
+            // 체력바 애니메이션은 폴링 주기(refreshInterval)와 무관하게 매 프레임 진행해야
+            // 부드럽다 — "실제로 깎이는" 느낌이 목적이라 0.2초 단위로 뚝뚝 끊기면 의미가 없다.
+            AnimateHpBars(Time.unscaledDeltaTime);
+
             if (Time.unscaledTime < _nextRefresh) return;
             _nextRefresh = Time.unscaledTime + refreshInterval;
 
             if (_selector == null) _selector = UnitSelector.Instance;
-            if (_upgrades == null) _upgrades = CharacterUpgradeService.Instance;
             if (_waveManager == null)
             {
                 _waveManager = FindAnyObjectByType<WaveManager>();
@@ -318,7 +337,12 @@ namespace LastSanctuary.UI
             unit.OnHpChanged += row.HpHandler;
             unit.OnDied += row.DiedHandler;
 
-            ApplyHp(row, unit.CurrentHp, unit.MaxHp);
+            // 재구성/재활용 직후엔 애니메이션 없이 바로 스냅한다 — 안 그러면 새로 물린
+            // 캐릭터의 체력바가 0에서부터 차오르는 것처럼 보인다.
+            row.HpRatioTarget = row.HpRatioDisplayed =
+                unit.MaxHp > 0 ? (float)unit.CurrentHp / unit.MaxHp : 0f;
+            ApplyDisplayedHp(row);
+
             ApplyAliveAppearance(row);
         }
 
@@ -335,7 +359,6 @@ namespace LastSanctuary.UI
                 SelectButton = clone.GetComponent<Button>(),
                 Name = FindText(clone, "Name"),
                 Duty = FindText(clone, "Duty"),
-                Stats = FindText(clone, "Stats"),
             };
 
             Transform hpBack = clone.Find("HpBack");
@@ -348,19 +371,9 @@ namespace LastSanctuary.UI
                 if (percentLabel != null) row.HpPercentLabel = percentLabel.GetComponent<TMP_Text>();
             }
 
-            Transform upgrade = clone.Find("RowUpgrade");
-            if (upgrade != null)
-            {
-                row.UpgradeButton = upgrade.GetComponent<Button>();
-                row.UpgradeLabel = FindText(upgrade, "Label");
-            }
-
             // 람다가 row 를 잡아두므로 행이 다른 캐릭터로 바뀌어도 항상 지금 물린 캐릭터를 쓴다.
             if (row.SelectButton != null)
                 row.SelectButton.onClick.AddListener(() => SelectRow(row));
-
-            if (row.UpgradeButton != null)
-                row.UpgradeButton.onClick.AddListener(() => UpgradeRow(row));
 
             // 핸들러도 같은 이유로 row 를 닫아 두고 한 번만 만든다 — 구독/해제할 때마다 새
             // 델리게이트를 만들면 구독 해제(-=)가 다른 인스턴스를 지우려다 실패한다
@@ -371,19 +384,50 @@ namespace LastSanctuary.UI
             return row;
         }
 
-        /// <summary>HP 바 채움·색·숫자 %를 즉시 반영한다. <see cref="DamageableUnit.OnHpChanged"/> 구독 콜백.</summary>
+        /// <summary>
+        /// 목표 체력 비율만 갱신한다. <see cref="DamageableUnit.OnHpChanged"/> 구독 콜백 —
+        /// 여기서 <c>fillAmount</c> 를 바로 바꾸지 않는다. 즉시 스냅하면 "몬스터에게 맞을 때마다
+        /// 실제로 깎이는" 느낌이 안 나고 순간이동처럼 보인다(유저 피드백) — 화면에 보이는 값은
+        /// <see cref="AnimateHpBars"/> 가 매 프레임 이 목표를 향해 서서히 따라간다.
+        /// </summary>
         void ApplyHp(Row row, int current, int max)
         {
-            if (row.IsDead || row.HpFill == null) return;   // 사망 처리 후에는 덮어쓰지 않는다
+            if (row.IsDead) return;   // 사망 처리 후에는 건드리지 않는다
+            row.HpRatioTarget = max > 0 ? (float)current / max : 0f;
+        }
 
-            float ratio = max > 0 ? (float)current / max : 0f;
-            row.HpFill.fillAmount = ratio;
-            row.HpFill.color = HpGaugeColor(ratio);
+        /// <summary>
+        /// 화면에 보이는 체력 비율을 목표치로 서서히 이동시킨다. 폴링 주기(refreshInterval)와
+        /// 무관하게 매 프레임 불러야 애니메이션이 부드럽다 — <see cref="Update"/> 맨 앞에서 호출.
+        /// </summary>
+        void AnimateHpBars(float dt)
+        {
+            for (int i = 0; i < _rows.Count; i++)
+            {
+                Row row = _rows[i];
+                if (row.IsDead || row.HpFill == null) continue;
+                if (Mathf.Approximately(row.HpRatioDisplayed, row.HpRatioTarget)) continue;
+
+                row.HpRatioDisplayed = hpDrainSpeed > 0f
+                    ? Mathf.MoveTowards(row.HpRatioDisplayed, row.HpRatioTarget, hpDrainSpeed * dt)
+                    : row.HpRatioTarget;
+
+                ApplyDisplayedHp(row);
+            }
+        }
+
+        /// <summary>지금 <see cref="Row.HpRatioDisplayed"/> 값 그대로 막대 채움·색·숫자 %를 그린다.</summary>
+        void ApplyDisplayedHp(Row row)
+        {
+            if (row.HpFill == null) return;
+
+            row.HpFill.fillAmount = row.HpRatioDisplayed;
+            row.HpFill.color = HpGaugeColor(row.HpRatioDisplayed);
 
             // 막대 길이만으로는 몇 % 줄었는지 눈으로 정확히 재기 어렵다는 피드백 —
             // 현재 체력을 0~100% 정수로 환산해 막대 위에 숫자로도 그대로 보여준다.
             if (row.HpPercentLabel != null)
-                row.HpPercentLabel.text = $"{Mathf.RoundToInt(ratio * 100f)}%";
+                row.HpPercentLabel.text = $"{Mathf.RoundToInt(row.HpRatioDisplayed * 100f)}%";
         }
 
         /// <summary>
@@ -417,17 +461,13 @@ namespace LastSanctuary.UI
             {
                 _dead.Add(row.Unit);
                 row.CachedName = row.Unit.name;
-                StatBlock s = row.Unit.Stats;
-                row.CachedStats = $"체{s.hp} 공{s.attack} 방{s.defense} 회{s.regen}";
             }
 
             ApplyDeadAppearance(row);
 
-            // 선택·강화 대상에서 확실히 빼둔다. UnitSelector 도 다음 프레임에 스스로
-            // 선택을 놓지만(죽은 유닛은 IsAlive 가 false), 그 전에 우리 쪽 버튼이라도
-            // 눌리지 않게 즉시 막는다.
+            // 선택 대상에서 확실히 빼둔다. UnitSelector 도 다음 프레임에 스스로 선택을
+            // 놓지만(죽은 유닛은 IsAlive 가 false), 그 전에 행이라도 눌리지 않게 즉시 막는다.
             if (row.SelectButton != null) row.SelectButton.interactable = false;
-            if (row.UpgradeButton != null) row.UpgradeButton.interactable = false;
 
             // 사망은 맨 아래로 내려가야 하는 순서 변경이라, 다음 폴링(최대 refreshInterval)
             // 까지 기다리지 않고 그 자리에서 바로 다시 정렬한다.
@@ -439,18 +479,18 @@ namespace LastSanctuary.UI
         {
             if (row.Background != null) row.Background.color = rowDead;
             if (row.Name != null) { row.Name.text = row.CachedName; row.Name.color = deadTextColor; }
-            if (row.Stats != null) { row.Stats.text = row.CachedStats; row.Stats.color = deadTextColor; }
             if (row.Duty != null) { row.Duty.text = "사망"; row.Duty.color = deadTextColor; }
 
             // 비어서(투명) 안 보이는 것보다, 꽉 찬 회색 막대가 "사망"을 훨씬 눈에 띄게 알려준다.
+            // 죽음은 애니메이션으로 서서히 보여줄 상태가 아니라 즉시 확정이라 목표·표시값을
+            // 둘 다 여기서 바로 맞춘다(AnimateHpBars 는 어차피 IsDead 행을 건너뛴다).
+            row.HpRatioTarget = row.HpRatioDisplayed = 1f;
             if (row.HpFill != null)
             {
                 row.HpFill.fillAmount = 1f;
                 row.HpFill.color = deadBarColor;
             }
             if (row.HpPercentLabel != null) row.HpPercentLabel.text = string.Empty;
-
-            if (row.UpgradeLabel != null) row.UpgradeLabel.text = "강화";
         }
 
         /// <summary>행이 재활용될 때 이전 사망 표시(회색)를 지우고 정상 색으로 되돌린다.</summary>
@@ -458,10 +498,8 @@ namespace LastSanctuary.UI
         {
             if (row.Background != null) row.Background.color = rowNormal;
             if (row.Name != null) row.Name.color = HudTheme.TextMain;
-            if (row.Stats != null) row.Stats.color = HudTheme.TextDim;
             if (row.Duty != null) row.Duty.color = HudTheme.TextDim;
             if (row.SelectButton != null) row.SelectButton.interactable = true;
-            if (row.UpgradeButton != null) row.UpgradeButton.interactable = true;
         }
 
         static TMP_Text FindText(Transform parent, string childName)
@@ -494,24 +532,6 @@ namespace LastSanctuary.UI
             else _cameraRig.FocusOn(unit.transform.position);
         }
 
-        void UpgradeRow(Row row)
-        {
-            if (row.IsDead || row.Unit == null || !row.Unit.IsAlive) return;
-            if (_upgrades == null) _upgrades = CharacterUpgradeService.Instance;
-            if (_upgrades == null) return;
-
-            // 강화 대상이 곧 선택 대상이 되도록 맞춰준다 — 우측 강화 버튼과 헷갈리지 않게.
-            _selector?.Select(row.Unit);
-
-            int cost = _upgrades.CostFor(row.Unit);
-            if (_upgrades.TryUpgrade(row.Unit))
-                HudLog.Add($"{row.Unit.name} 강화 (−{cost})", HudLogKind.Good);
-            else
-                HudLog.Add($"강화 실패 — 에너지 {cost} 필요", HudLogKind.Warn);
-
-            RefreshValues();
-        }
-
         // ------------------------------------------------------------------
 
         void RefreshValues()
@@ -528,30 +548,13 @@ namespace LastSanctuary.UI
 
                 if (row.Name != null) row.Name.text = unit.name;
 
-                if (row.Stats != null)
-                {
-                    StatBlock s = unit.Stats;
-                    row.Stats.text = $"체{s.hp} 공{s.attack} 방{s.defense} 회{s.regen}" +
-                                     (unit.UpgradeCount > 0 ? $"  +{unit.UpgradeCount}" : string.Empty);
-                }
-
-                // HP 바는 여기서 건드리지 않는다 — OnHpChanged 구독(ApplyHp)이 즉시 반영한다.
-                // 폴링과 이벤트가 같은 값을 이중으로 쓰면 순서에 따라 잠깐 어긋나 보일 수 있다.
+                // HP 바는 여기서 건드리지 않는다 — ApplyHp(즉시)+AnimateHpBars(매 프레임)가 반영한다.
+                // 폴링과 애니메이션이 같은 값을 이중으로 쓰면 순서에 따라 잠깐 어긋나 보일 수 있다.
 
                 if (row.Duty != null) row.Duty.text = DutyTextOf(unit);
 
                 if (row.Background != null)
                     row.Background.color = ReferenceEquals(unit, selected) ? rowSelected : rowNormal;
-
-                if (row.UpgradeButton != null)
-                {
-                    bool can = _upgrades != null && _upgrades.CanUpgrade(unit);
-                    row.UpgradeButton.interactable = can;
-                    if (row.UpgradeLabel != null)
-                        row.UpgradeLabel.text = _upgrades != null
-                            ? $"강화 {_upgrades.CostFor(unit)}"
-                            : "강화";
-                }
             }
         }
 
