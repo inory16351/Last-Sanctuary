@@ -40,7 +40,8 @@ namespace LastSanctuary.CameraControl
                  "(캐릭터 선택 등 클릭 조작과 공존시키기 위함)")]
         [Min(0f)] [SerializeField] float dragThresholdPixels = 4f;
 
-        [Tooltip("UI 위에서 시작한 드래그는 무시. 하단 HUD·캐릭터 관리 창과 충돌 방지")]
+        [Tooltip("UI 위에서 시작한 드래그·스크롤은 무시. 하단 HUD·캐릭터 관리 창과 충돌 방지 " +
+                 "(예: HUD_Roster 목록을 마우스 휠/트랙패드로 스크롤할 때 게임 화면이 같이 줌되던 문제)")]
         [SerializeField] bool ignoreDragOverUI = true;
 
         [Header("관성")]
@@ -283,6 +284,12 @@ namespace LastSanctuary.CameraControl
 
             float raw = mouse.scroll.ReadValue().y;
             if (Mathf.Approximately(raw, 0f)) return;
+
+            // HUD_Roster 목록처럼 마우스 휠/트랙패드로 스크롤하는 UI 위에서는 그 스크롤을
+            // 카메라 줌으로 가져가지 않는다 — HandleDragPan 이 드래그 시작 시점에 UI 를
+            // 거르는 것과 같은 이유(§ignoreDragOverUI). 줌은 매 프레임 값을 새로 읽으므로
+            // "시작 시점"이 아니라 지금 이 프레임에 포인터가 UI 위에 있는지를 바로 검사한다.
+            if (ignoreDragOverUI && IsPointerOverUI()) return;
 
             // 플랫폼에 따라 한 칸이 120 또는 1 로 들어온다. 둘 다 처리.
             float notches = raw / 120f;
