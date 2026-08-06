@@ -59,6 +59,42 @@ namespace LastSanctuary.Combat
                  "(예: 비선공 중립 몬스터가 배회는 하되 절대 싸우지 않게)")]
         [SerializeField] bool canAcquireTargets = true;
 
+        // ------------------------------------------------------------------
+        // 전술 지침 (캐릭터 전용). CharacterTactics 가 UI 값으로 덮어쓴다.
+        // 몬스터는 이 값을 아무도 안 건드리므로 기본값(근거리·가장 가까운 적·추격) 그대로 돌아간다.
+        // 아래 숫자는 전부 인스펙터에서 조정하는 값이다 — Character_Template 에서 고치면
+        // 새로 생성되는 캐릭터 전원에게 적용된다(진행상황 5절).
+        // ------------------------------------------------------------------
+
+        [Header("전술 — 공격 유형")]
+        [Tooltip("근거리: 기존 공격 그대로 / 원거리: 히트 스캔 / 마법: 정사각 범위 / 치유: 아군 회복")]
+        [SerializeField] TacticalAttackType attackType = TacticalAttackType.Melee;
+
+        [Tooltip("원거리 히트 스캔 사거리(타일). 투사체 없이 즉시 적중한다")]
+        [Min(0.5f)] [SerializeField] float rangedRangeTiles = 5f;
+
+        [Tooltip("마법 최소 사거리(타일). 이보다 가까운 적은 노리지 않고 거리를 벌린다")]
+        [Min(0f)] [SerializeField] float magicMinRangeTiles = 2f;
+
+        [Tooltip("마법 최대 사거리(타일)")]
+        [Min(0.5f)] [SerializeField] float magicMaxRangeTiles = 6f;
+
+        [Tooltip("자기 주변 이 반경(타일) 안에 있는 적은 마법으로 때릴 수 없다 " +
+                 "(범위 공격이 자기 발밑에서 터지지 않게 하는 안전 반경)")]
+        [Min(0f)] [SerializeField] float magicSafeRadiusTiles = 1f;
+
+        [Tooltip("마법 착탄 범위의 한 변(타일). 2 면 2x2 정사각")]
+        [Min(0.5f)] [SerializeField] float magicAreaTiles = 2f;
+
+        [Tooltip("치유 사거리(타일)")]
+        [Min(0.5f)] [SerializeField] float healRangeTiles = 3f;
+
+        [Tooltip("치유량 = 공격력 × 이 퍼센트 ÷ 100. 100 이면 '공격력 수치만큼' 회복시킨다")]
+        [Min(0)] [SerializeField] int healPercentOfAttack = 100;
+
+        [Tooltip("원거리·마법은 벽 너머의 적을 못 때리게 한다. 끄면 벽을 관통한다")]
+        [SerializeField] bool requireLineOfSight = true;
+
         [Header("회피")]
         [Tooltip("서로 겹치지 않게 밀어내는 반경(타일). 0 이면 겹침 허용")]
         [Min(0f)] [SerializeField] float separationRadius = 0.55f;
@@ -105,6 +141,28 @@ namespace LastSanctuary.Combat
         // "이 상대를 지금 공격하라"고 외부에서 지정하는 타겟. 설정돼 있으면 일반 탐색보다
         // 우선한다 — CharacterBehavior 가 이 훅으로 사냥을 건다.
         DamageableUnit _huntOverrideTarget;
+
+        // ── 전술 지침 런타임 상태 ────────────────────────────────────────────
+        // 직렬화하지 않는다 — 지침의 정본은 CharacterTactics 이고, 여기 값은 그것이
+        // Start 와 변경 시마다 밀어 넣는 사본이다(두 곳에 저장하면 어긋난다).
+
+        /// <summary>전술 타겟 규칙(거리·강함·체력)을 쓸지. <see cref="ApplyTactics"/> 가 켠다 = 캐릭터.</summary>
+        bool _tacticalTargeting;
+
+        TacticalTargetPriority _targetMode = TacticalTargetPriority.Nearest;
+        TacticalAttackReaction _reaction = TacticalAttackReaction.Chase;
+
+        /// <summary>후퇴 중 — 타겟을 잡지도 공격하지도 않는다. <c>CharacterBehavior</c> 가 켠다.</summary>
+        bool _combatSuppressed;
+
+        /// <summary>마법 최소 사거리 안으로 적이 들어와 거리를 벌리는 중.</summary>
+        bool _backOff;
+
+        /// <summary>"사거리에 들어올 때까지 대기" 반응으로 타겟을 쫓지 않고 자리를 지키는 중.</summary>
+        bool _holdingGround;
+
+        /// <summary>마법 범위 공격 대상 임시 버퍼. 프레임마다 새 리스트를 만들지 않으려고 정적으로 둔다.</summary>
+        static readonly List<DamageableUnit> _splashScratch = new List<DamageableUnit>(16);
 
         // 벽 슬라이딩 시 좌/우 중 어느 쪽을 먼저 시도할지. 유닛마다 고정해서
         // 같은 장애물 앞에서 여러 유닛이 서로 다른 방향으로 흩어지게 한다.
@@ -248,6 +306,54 @@ namespace LastSanctuary.Combat
             Vector2.Distance(transform.position, _homePosition) <= tolerance;
 
         // ------------------------------------------------------------------
+        // 전술 지침 반영 (CharacterTactics 전용 진입점)
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// 전술 지침을 반영한다. <see cref="Configure"/>(스포너가 몬스터 정의값을 넣는 경로)와
+        /// 겹치지 않게 별도 메서드로 뒀다 — 캐릭터는 <c>Configure</c> 를 부르지 않으므로
+        /// 두 경로가 서로의 값을 덮어쓸 일이 없다.
+        /// </summary>
+        public void ApplyTactics(TacticalAttackType type, TacticalTargetPriority mode,
+                                 TacticalAttackReaction reaction)
+        {
+            attackType = type;
+            _targetMode = mode;
+            _reaction = reaction;
+            _tacticalTargeting = true;
+
+            // 공격 유형이 바뀌면 사거리 자체가 달라지므로, 들고 있던 타겟은 버리고 다시 고른다.
+            _target = null;
+            _backOff = false;
+            _nextRetargetTime = 0f;
+        }
+
+        /// <summary>후퇴 중처럼 "지금은 싸우지 않는다"를 켜고 끈다 (<c>CharacterBehavior</c> 가 호출).</summary>
+        public void SetCombatSuppressed(bool value)
+        {
+            if (_combatSuppressed == value) return;
+            _combatSuppressed = value;
+            if (value) { _target = null; _huntOverrideTarget = null; _backOff = false; }
+        }
+
+        public TacticalAttackType AttackType => attackType;
+
+        /// <summary>지금 공격 유형에서 실제로 때릴 수 있는 거리(타일).</summary>
+        public float EffectiveAttackRange => attackType switch
+        {
+            TacticalAttackType.Ranged => rangedRangeTiles,
+            TacticalAttackType.Magic  => magicMaxRangeTiles,
+            TacticalAttackType.Heal   => healRangeTiles,
+            _                         => attackRange,
+        };
+
+        /// <summary>
+        /// 실제 인식 거리. 사거리가 인식 거리보다 길면(원거리 5 / 마법 6 vs 인식 7 이하) 때릴 수
+        /// 있는 적을 못 보는 모순이 생기므로 둘 중 큰 값을 쓴다.
+        /// </summary>
+        public float EffectiveDetectRange => Mathf.Max(detectRange, EffectiveAttackRange);
+
+        // ------------------------------------------------------------------
 
         void Update()
         {
@@ -333,11 +439,14 @@ namespace LastSanctuary.Combat
 
         void AcquireTargetIfNeeded()
         {
-            if (!canAcquireTargets)
+            if (!canAcquireTargets || _combatSuppressed)
             {
                 _target = null;
                 return;
             }
+
+            // 치유 유형은 적을 아예 노리지 않는다 — "공격 대신 회복"이 이 유형의 정의다.
+            if (attackType == TacticalAttackType.Heal) { AcquireHealTarget(); return; }
 
             if (_huntOverrideTarget != null)
             {
@@ -363,12 +472,13 @@ namespace LastSanctuary.Combat
             if (!targetInvalid && Time.time < _nextRetargetTime) return;
             _nextRetargetTime = Time.time + RetargetInterval;
 
-            System.Func<DamageableUnit, bool> visibilityFilter = null;
-            if (respectFogOfWar && _fog != null && _fog.IsReady)
-                visibilityFilter = enemy => _fog.IsVisibleWorld(enemy.transform.position);
+            System.Func<DamageableUnit, bool> filter = BuildTargetFilter();
 
-            DamageableUnit found = UnitRegistry.FindTarget(
-                transform.position, _self.Faction, detectRange, targetPriority, visibilityFilter);
+            DamageableUnit found = _tacticalTargeting
+                ? UnitRegistry.FindTargetBy(transform.position, _self.Faction, EffectiveDetectRange,
+                                            _targetMode, filter)
+                : UnitRegistry.FindTarget(transform.position, _self.Faction, detectRange,
+                                          targetPriority, filter);
 
             // 목줄 밖의 적은 쫓지 않는다 (전진하지 않는 유닛에만 적용)
             if (found != null && !advanceToObjective && leashRange > 0f)
@@ -380,14 +490,99 @@ namespace LastSanctuary.Combat
             _target = found;
         }
 
+        /// <summary>
+        /// 타겟 후보를 거르는 조건을 한 벌로 묶는다. 안개(기존 규칙)에 더해, 전술 공격 유형이
+        /// 요구하는 조건(원거리·마법의 시야선, 마법의 최소 사거리)을 여기서 같이 본다 —
+        /// "때릴 수 없는 적을 타겟으로 잡고 계속 걸어가는" 상태를 애초에 안 만들기 위함이다.
+        /// </summary>
+        System.Func<DamageableUnit, bool> BuildTargetFilter()
+        {
+            bool useFog = respectFogOfWar && _fog != null && _fog.IsReady;
+            bool needLos = requireLineOfSight && _pathfinder != null &&
+                           (attackType == TacticalAttackType.Ranged || attackType == TacticalAttackType.Magic);
+            bool needMinRange = attackType == TacticalAttackType.Magic && magicMinRangeTiles > 0f;
+
+            if (!useFog && !needLos && !needMinRange) return null;
+
+            return enemy =>
+            {
+                if (useFog && !_fog.IsVisibleWorld(enemy.transform.position)) return false;
+
+                if (needMinRange)
+                {
+                    float d = Vector2.Distance(enemy.transform.position, transform.position);
+                    // 안전 반경 안에 있으면 아예 후보에서 뺀다. 다만 "지금 붙어 있는 적"까지
+                    // 완전히 무시하면 마법사가 자기를 때리는 적을 못 보고 가만히 서 있게 되므로,
+                    // 그 상황은 DecideState 의 거리 벌리기(_backOff)가 대신 처리한다.
+                    if (d < Mathf.Max(magicSafeRadiusTiles, magicMinRangeTiles)) return false;
+                }
+
+                if (needLos && !_pathfinder.HasLineOfSight(transform.position, enemy.transform.position))
+                    return false;
+
+                return true;
+            };
+        }
+
+        /// <summary>
+        /// 치유 유형의 "타겟" — 사거리 안에서 가장 많이 다친 아군. 없으면 타겟 없음(귀환/순찰).
+        /// 적 타겟과 같은 <see cref="_target"/> 슬롯을 쓰기 때문에, 이동·상태 판정
+        /// (<see cref="DecideState"/>/<see cref="Act"/>)을 그대로 재사용할 수 있다 —
+        /// 실제 "때리기"만 <see cref="TryAttack"/> 에서 회복으로 갈린다.
+        /// </summary>
+        void AcquireHealTarget()
+        {
+            bool targetInvalid = _target == null || !_target.IsAlive || _target.HpRatio >= 1f;
+            if (!targetInvalid && Time.time < _nextRetargetTime) return;
+            _nextRetargetTime = Time.time + RetargetInterval;
+
+            DamageableUnit found = UnitRegistry.FindWoundedAlly(
+                transform.position, _self.Faction, EffectiveDetectRange, _self);
+
+            // 아군이라도 목줄 밖까지 쫓아가면 대열이 흐트러진다 — 적 타겟과 같은 규칙을 적용한다.
+            if (found != null && !advanceToObjective && leashRange > 0f &&
+                Vector2.Distance(found.transform.position, _homePosition) > leashRange)
+                found = null;
+
+            _target = found;
+        }
+
         void DecideState()
         {
+            _backOff = false;
+            _holdingGround = false;
+
             if (_target != null && _target.IsAlive)
             {
                 float dist = Vector2.Distance(transform.position, _target.transform.position);
-                _state = dist <= attackRange + TargetRadius(_target)
-                    ? CombatState.Attack
-                    : CombatState.Chase;
+
+                // 마법: 안전 반경 안까지 붙은 적은 때릴 수 없다(유저 규칙: "1의 범위 안에 있는
+                // 적은 공격 불가"). 가만히 있으면 영영 못 치므로 거리를 벌린다.
+                if (attackType == TacticalAttackType.Magic && dist < magicSafeRadiusTiles)
+                {
+                    _backOff = true;
+                    _state = CombatState.Chase;
+                    return;
+                }
+
+                if (dist <= EffectiveAttackRange + TargetRadius(_target))
+                {
+                    _state = CombatState.Attack;
+                    return;
+                }
+
+                // "적이 사거리 내에 들어올 때까지 대기" — 쫓아가지 않고 자기 자리를 지킨다.
+                // 몬스터(advanceToObjective)에는 적용하지 않는다.
+                if (_reaction == TacticalAttackReaction.HoldGround && !advanceToObjective)
+                {
+                    _holdingGround = true;
+                    _state = Vector2.Distance(transform.position, _homePosition) > 0.3f
+                        ? CombatState.Chase       // 자리로 돌아가는 것도 이동으로 취급
+                        : CombatState.Idle;
+                    return;
+                }
+
+                _state = CombatState.Chase;
                 return;
             }
 
@@ -408,10 +603,7 @@ namespace LastSanctuary.Combat
                     break;
 
                 case CombatState.Chase:
-                    Vector3 dest = _target != null && _target.IsAlive
-                        ? _target.transform.position
-                        : _homePosition;
-                    MoveToDestination(dest, dt);
+                    MoveToDestination(ChaseDestination(), dt);
                     break;
 
                 case CombatState.Advance:
@@ -422,8 +614,29 @@ namespace LastSanctuary.Combat
 
         // ------------------------------------------------------------------
 
+        /// <summary>
+        /// <see cref="CombatState.Chase"/> 일 때 실제로 향할 지점.
+        /// 세 갈래다 — 평소엔 타겟 쪽, 마법이 너무 붙었으면 <b>반대</b> 쪽, 대기 반응이거나
+        /// 타겟이 없으면 자기 자리로.
+        /// </summary>
+        Vector3 ChaseDestination()
+        {
+            bool hasTarget = _target != null && _target.IsAlive;
+
+            if (_backOff && hasTarget)
+            {
+                Vector2 away = (Vector2)(transform.position - _target.transform.position);
+                if (away.sqrMagnitude < 0.0001f) away = Vector2.right;   // 완전히 겹친 경우
+                float back = Mathf.Max(magicMinRangeTiles, magicSafeRadiusTiles + 1f);
+                return transform.position + (Vector3)(away.normalized * back);
+            }
+
+            return hasTarget && !_holdingGround ? _target.transform.position : _homePosition;
+        }
+
         void TryAttack()
         {
+            if (_combatSuppressed) return;
             if (Time.time < _nextAttackTime) return;
 
             float aps = attacksPerSecond > 0f
@@ -435,7 +648,56 @@ namespace LastSanctuary.Combat
 
             // 공격한 쪽도 전투 상태로 기록해야 재생 대기 시간이 갱신된다.
             _self.MarkCombatAction();
-            _target.TakeDamageFrom(_self);
+
+            switch (attackType)
+            {
+                case TacticalAttackType.Heal:
+                    PerformHeal();
+                    break;
+
+                case TacticalAttackType.Magic:
+                    PerformMagicSplash();
+                    break;
+
+                // 근거리와 원거리는 "즉시 단일 타격"으로 동일하다 — 다른 건 사거리뿐이다
+                // (원거리 = 히트 스캔, 투사체를 날리지 않는다).
+                default:
+                    _target.TakeDamageFrom(_self);
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// 마법 — 타겟 지점을 중심으로 한 정사각 범위 안의 적을 전부 때린다.
+        /// 자기 주변 <see cref="magicSafeRadiusTiles"/> 안에 있는 적은 범위에 걸려도 제외한다
+        /// (유저 규칙: "1의 범위 안에 있는 적은 공격 불가").
+        /// </summary>
+        void PerformMagicSplash()
+        {
+            Vector3 center = _target.transform.position;
+            UnitRegistry.CollectEnemiesInBox(center, magicAreaTiles * 0.5f, _self.Faction, _splashScratch);
+
+            float safeSqr = magicSafeRadiusTiles * magicSafeRadiusTiles;
+            Vector3 myPos = transform.position;
+
+            for (int i = 0; i < _splashScratch.Count; i++)
+            {
+                DamageableUnit u = _splashScratch[i];
+                if (u == null || !u.IsAlive) continue;
+                if (((Vector2)(u.transform.position - myPos)).sqrMagnitude < safeSqr) continue;
+                u.TakeDamageFrom(_self);
+            }
+        }
+
+        /// <summary>치유 — 공격력 수치(×퍼센트)만큼 아군을 회복시킨다.</summary>
+        void PerformHeal()
+        {
+            if (_self.Balance == null) return;
+
+            int amount = _self.Balance.Attack(_self.AttackStat) * healPercentOfAttack / 100;
+            if (amount <= 0) return;
+
+            _target.Heal(amount);
         }
 
         void AdvanceToObjective(float dt)
@@ -633,10 +895,17 @@ namespace LastSanctuary.Combat
             if (!drawGizmos) return;
 
             Gizmos.color = new Color(1f, 0.85f, 0.2f, 0.6f);
-            Gizmos.DrawWireSphere(transform.position, detectRange);
+            Gizmos.DrawWireSphere(transform.position, EffectiveDetectRange);
 
             Gizmos.color = new Color(1f, 0.25f, 0.2f, 0.9f);
-            Gizmos.DrawWireSphere(transform.position, attackRange);
+            Gizmos.DrawWireSphere(transform.position, EffectiveAttackRange);
+
+            // 마법의 안전 반경 — 이 안의 적은 못 때린다(거리를 벌린다).
+            if (attackType == TacticalAttackType.Magic && magicSafeRadiusTiles > 0f)
+            {
+                Gizmos.color = new Color(0.8f, 0.4f, 1f, 0.7f);
+                Gizmos.DrawWireSphere(transform.position, magicSafeRadiusTiles);
+            }
 
             if (!advanceToObjective && leashRange > 0f)
             {

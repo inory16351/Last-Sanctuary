@@ -12,6 +12,10 @@ namespace LastSanctuary.Units
         Scout,   // 정찰 — 대기시간 동안 미탐사 지역으로 나가 전장을 밝힌다
         Guard,   // 방어 — 웨이브에 대비해 넥서스 주변을 돈다
         Rally,   // 집결 — 웨이브 소환 이후, 넥서스 대신 지정된 집결지 구역을 지킨다
+
+        /// <summary>후퇴 — 전술 지침의 "후퇴 판단 기준" 이하로 체력이 떨어져 넥서스로 물러난 상태.
+        /// 다른 모든 임무보다 우선하며, 회복될 때까지 싸우지 않는다.</summary>
+        Retreat,
     }
 
     /// <summary>
@@ -81,6 +85,14 @@ namespace LastSanctuary.Units
                  "웨이브 타임(전투·광폭화)에는 웨이브 몬스터가 우선이라 사냥하지 않는다")]
         [Min(0f)] [SerializeField] float huntDetectRange = 10f;
 
+        [Header("후퇴 (전술 지침의 '후퇴 판단 기준')")]
+        [Tooltip("후퇴 기준 + 이 여유(%)만큼 회복되면 다시 전투에 복귀한다. 여유가 0이면 " +
+                 "기준선 근처에서 후퇴/복귀를 무한히 반복하며 덜덜 떤다")]
+        [Range(0, 50)] [SerializeField] int retreatRecoverMargin = 15;
+
+        [Tooltip("후퇴 시 물러나 대기할 지점 — 넥서스로부터의 반경(타일)")]
+        [Min(0.5f)] [SerializeField] float retreatRadius = 3f;
+
         [Header("디버그")]
         [SerializeField] bool drawGizmos = true;
 
@@ -100,8 +112,37 @@ namespace LastSanctuary.Units
         float _repickTime;
         System.Random _rng;
 
+        // ── 전술 지침 (CharacterTactics 가 밀어 넣는다. 여기선 직렬화하지 않는다) ────
+        TacticalPosition _position = TacticalPosition.Mid;
+        TacticalNonCombat _nonCombat = TacticalNonCombat.Hunt;
+        TacticalWaveReaction _waveReaction = TacticalWaveReaction.DefendNow;
+        int _retreatHpPercent;
+        bool _retreating;
+
         public CharacterDuty Duty => _duty;
         public Vector3 Destination => _destination;
+
+        /// <summary>지금 후퇴 중인지 (로스터 표시·디버그용).</summary>
+        public bool IsRetreating => _retreating;
+
+        /// <summary>
+        /// 전술 지침을 반영한다. <see cref="CharacterTactics"/> 만 호출한다 —
+        /// 지침의 정본은 그쪽이고 여기는 사본이다.
+        /// </summary>
+        public void ApplyTactics(TacticalPosition position, TacticalNonCombat nonCombat,
+                                 TacticalWaveReaction waveReaction, int retreatHpPercent)
+        {
+            bool positionChanged = _position != position;
+
+            _position = position;
+            _nonCombat = nonCombat;
+            _waveReaction = waveReaction;
+            _retreatHpPercent = Mathf.Clamp(retreatHpPercent, 0, 100);
+
+            // 포지션이 바뀌면 지금 서 있는 자리가 더 이상 맞지 않으므로 즉시 다시 고른다.
+            // (다음 재추첨까지 최대 6초를 기다리면 UI 를 눌러도 아무 반응이 없어 보인다)
+            if (positionChanged) _repickTime = 0f;
+        }
 
         void Awake()
         {
@@ -128,10 +169,19 @@ namespace LastSanctuary.Units
         {
             if (_self == null || !_self.IsAlive) return;
 
+            // 후퇴 판단이 가장 먼저다 — 다른 어떤 임무보다 우선한다.
+            UpdateRetreatState();
+            if (_retreating) { TickRetreat(); return; }
+
             // 웨이브 타임(전투·광폭화)이 시작되면 사냥 중이던 중립 몬스터보다 웨이브 몬스터를
             // 우선한다 — 사냥 타겟을 놓아 UnitCombat 의 일반 진영 타겟팅(가장 가까운 웨이브
             // 몬스터)이 대신 잡게 한다(유저 요청: "웨이브 타임에는 웨이브 몬스터 우선 처리").
-            if (_combat.IsHunting && IsWaveTimePhase()) _combat.ClearHuntTarget();
+            //
+            // 전술 지침 "우선 행동 중시"(FinishCurrent)를 고른 캐릭터는 예외다 — 하던 사냥을
+            // 마치고 합류하는 것이 그 선택지의 정의이므로 여기서 놓지 않는다.
+            if (_combat.IsHunting && IsWaveTimePhase() &&
+                _waveReaction == TacticalWaveReaction.DefendNow)
+                _combat.ClearHuntTarget();
 
             // 교전 중에는 UnitCombat 에 맡기고 목적지를 건드리지 않는다
             // (사냥 중인 중립 몬스터도 이 시점엔 이미 Target 으로 잡혀 있다).
@@ -183,10 +233,111 @@ namespace LastSanctuary.Units
 
         // ------------------------------------------------------------------
 
-        CharacterDuty CurrentDuty() =>
-            _waveManager != null && _waveManager.Phase == WavePhase.Preparation
-                ? CharacterDuty.Scout
-                : CharacterDuty.Guard;
+        /// <summary>
+        /// 전술 지침을 반영한 "지금의 기본 임무". 두 축이 섞인다:
+        ///
+        ///   <b>비전투 우선 행동</b> — 대기시간에 무엇을 할지.
+        ///     사냥/탐색은 돌아다녀야 하므로 정찰(Scout), 건설은 자리를 지켜야 하므로 방어(Guard).
+        ///     <i>건설 시스템이 아직 없어서</i> "건물 건설"은 실질적으로 "대기"로 동작한다.
+        ///
+        ///   <b>웨이브 반응</b> — 웨이브가 시작될 때 하던 일을 마칠지.
+        ///     "즉시 방어"는 소환되는 순간 바로 Guard 로 넘어가고(기존 동작),
+        ///     "우선 행동 중시"는 진군(Marching) 구간까지는 정찰을 유지했다가
+        ///     목적지에 닿으면 합류한다. 전투(Battle)가 시작되면 어느 쪽이든 합류한다 —
+        ///     그때까지 안 돌아오면 넥서스가 비어버린다.
+        /// </summary>
+        CharacterDuty CurrentDuty()
+        {
+            if (_waveManager == null) return CharacterDuty.Guard;
+
+            if (_waveManager.Phase == WavePhase.Preparation) return PreparationDuty();
+
+            if (_waveReaction == TacticalWaveReaction.FinishCurrent &&
+                _waveManager.Phase == WavePhase.Marching &&
+                _duty == CharacterDuty.Scout &&
+                Vector2.Distance(transform.position, _destination) > arriveDistance)
+                return CharacterDuty.Scout;
+
+            return CharacterDuty.Guard;
+        }
+
+        /// <summary>대기시간에 무엇을 할지 — 비전투 우선 행동에 따라 갈린다.</summary>
+        CharacterDuty PreparationDuty() =>
+            _nonCombat == TacticalNonCombat.Build
+                ? CharacterDuty.Guard      // 건설 미구현 → 자리를 지키며 대기
+                : CharacterDuty.Scout;     // 사냥·탐색 둘 다 돌아다녀야 성립한다
+
+        // ------------------------------------------------------------------
+        // 후퇴 — 전술 지침의 "후퇴 판단 기준"
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// 체력이 기준 이하면 후퇴 상태로, 기준 + 여유 이상으로 회복되면 복귀로 전환한다.
+        /// 여유(<see cref="retreatRecoverMargin"/>)를 두는 이유는 기준선 바로 위아래에서
+        /// 후퇴/복귀가 매 프레임 뒤집히는 것을 막기 위함이다(히스테리시스).
+        /// </summary>
+        void UpdateRetreatState()
+        {
+            if (_retreatHpPercent <= 0) { SetRetreating(false); return; }
+
+            float percent = _self.HpRatio * 100f;
+
+            if (!_retreating && percent <= _retreatHpPercent) SetRetreating(true);
+            else if (_retreating && percent >= Mathf.Min(100, _retreatHpPercent + retreatRecoverMargin))
+                SetRetreating(false);
+        }
+
+        void SetRetreating(bool value)
+        {
+            if (_retreating == value) return;
+            _retreating = value;
+
+            // 후퇴 중에는 적을 아예 인식하지 않는다 — 안 그러면 물러나는 길에 마주친 적을
+            // 다시 쫓아가느라 영영 못 빠져나온다.
+            _combat.SetCombatSuppressed(value);
+
+            if (value)
+            {
+                _combat.ClearHuntTarget();
+                _duty = CharacterDuty.Retreat;
+                PickRetreatSpot();
+            }
+            else
+            {
+                _repickTime = 0f;   // 복귀 — 다음 프레임에 원래 임무의 목적지를 다시 고른다
+            }
+        }
+
+        /// <summary>후퇴 중 유지 — 넥서스 근처에 도착했으면 그 자리에 머문다.</summary>
+        void TickRetreat()
+        {
+            _duty = CharacterDuty.Retreat;
+
+            bool arrived = Vector2.Distance(transform.position, _destination) <= arriveDistance;
+            if (arrived || _combat.DestinationUnreachable || Time.time >= _repickTime)
+                PickRetreatSpot();
+        }
+
+        void PickRetreatSpot()
+        {
+            Vector3 nexus = NexusPosition();
+            Vector3 candidate = nexus;
+
+            for (int attempt = 0; attempt < GuardSpotAttempts; attempt++)
+            {
+                double angle = _rng.NextDouble() * System.Math.PI * 2.0;
+                float radius = retreatRadius * (float)_rng.NextDouble();
+                candidate = nexus + new Vector3(Mathf.Cos((float)angle) * radius,
+                                                Mathf.Sin((float)angle) * radius, 0f);
+                if (IsWalkable(candidate)) break;
+            }
+
+            _destination = candidate;
+            _repickTime = Time.time + 3f;
+
+            // 목줄을 넉넉히 줘야 넥서스까지 오는 길이 막히지 않는다(전투는 어차피 꺼져 있다).
+            _combat.SetHome(_destination, retreatRadius + guardRadius);
+        }
 
         /// <summary>웨이브 몬스터가 우선인 구간(전투·광폭화) — 이 동안은 중립 몬스터를 사냥하지 않는다.</summary>
         bool IsWaveTimePhase() =>
@@ -249,22 +400,35 @@ namespace LastSanctuary.Units
         /// </summary>
         bool PickSpotAround(Vector3 center, float halfExtent, float extraLeash, bool square)
         {
+            // 전방/중위/후방은 "넥서스에서 얼마나 먼가"로 정의된다(유저 규칙).
+            // 정사각 구역(집결지)에서는 넥서스 → 집결지 중심 방향이 그 축이 되고,
+            // 원형 구역(넥서스 방어)에서는 반지름 자체가 곧 넥서스로부터의 거리라 축이 필요 없다.
+            Vector3 nexus = NexusPosition();
+            Vector2 axis = (Vector2)(center - nexus);
+            axis = axis.sqrMagnitude > 0.01f ? axis.normalized : Vector2.up;
+            Vector2 perpendicular = new Vector2(-axis.y, axis.x);
+
+            GetPositionBand(out float bandLow, out float bandHigh);
+
             for (int attempt = 0; attempt < GuardSpotAttempts; attempt++)
             {
                 Vector3 candidate;
                 if (square)
                 {
-                    // "n×n 구역" 요청을 그대로 반영 — 정사각 안에서 균등하게 뽑는다.
-                    float dx = Mathf.Lerp(-halfExtent, halfExtent, (float)_rng.NextDouble());
-                    float dy = Mathf.Lerp(-halfExtent, halfExtent, (float)_rng.NextDouble());
-                    candidate = center + new Vector3(dx, dy, 0f);
+                    // "n×n 구역" 요청을 그대로 반영하되, 넥서스 축 방향으로는 포지션 구간
+                    // 안에서만 뽑는다 — 전방이면 구역의 바깥쪽 1/3, 후방이면 넥서스 쪽 1/3.
+                    float along = Mathf.Lerp(bandLow, bandHigh, (float)_rng.NextDouble()) * halfExtent;
+                    float side = Mathf.Lerp(-1f, 1f, (float)_rng.NextDouble()) * halfExtent;
+                    candidate = center + (Vector3)(axis * along + perpendicular * side);
                 }
                 else
                 {
-                    float minR = Mathf.Min(2f, halfExtent * 0.5f);
-                    double angle = _rng.NextDouble() * System.Math.PI * 2.0;
-                    float radius = Mathf.Lerp(minR, halfExtent, (float)_rng.NextDouble());
+                    // 원형(넥서스 방어) — 구간 [-1,1] 을 반지름 비율 [0,1] 로 옮긴다.
+                    // 넥서스 위에 정확히 겹치지 않도록 최소 8% 는 띄운다.
+                    float t = Mathf.Lerp(bandLow, bandHigh, (float)_rng.NextDouble());
+                    float radius = Mathf.Lerp(0.08f, 1f, (t + 1f) * 0.5f) * halfExtent;
 
+                    double angle = _rng.NextDouble() * System.Math.PI * 2.0;
                     candidate = center + new Vector3(
                         Mathf.Cos((float)angle) * radius,
                         Mathf.Sin((float)angle) * radius,
@@ -292,6 +456,20 @@ namespace LastSanctuary.Units
         }
 
         /// <summary>
+        /// 포지션(전방/중위/후방)이 구역 안에서 차지하는 구간. -1 = 넥서스에 가장 가까운 끝,
+        /// +1 = 가장 먼 끝. 세 구간이 겹치지 않게 1/3 씩 나눈다.
+        /// </summary>
+        void GetPositionBand(out float low, out float high)
+        {
+            switch (_position)
+            {
+                case TacticalPosition.Front: low =  0.34f; high =  1.00f; break;
+                case TacticalPosition.Back:  low = -1.00f; high = -0.34f; break;
+                default:                     low = -0.33f; high =  0.33f; break;
+            }
+        }
+
+        /// <summary>
         /// 주변에서 사냥할 만한(살아있는) 중립 몬스터를 찾는다. 가장 가까운 것을 고른다.
         ///
         /// 정찰(Scout) 중에는 원래대로 구역 제한 없이 캐릭터 주변만 본다 — 어차피 안 밝혀진
@@ -304,6 +482,13 @@ namespace LastSanctuary.Units
         {
             prey = null;
             if (huntDetectRange <= 0f) return false;
+
+            // 전술 지침 — "중립 몬스터 사냥"을 고른 캐릭터만 사냥한다.
+            // 탐색(Explore)은 안개 해제가, 건설(Build)은 자리 지키기가 목적이므로 사냥하지 않는다.
+            if (_nonCombat != TacticalNonCombat.Hunt) return false;
+
+            // 치유 유형은 애초에 적을 때리지 않는다 — 사냥감을 잡아봐야 쫓아가기만 한다.
+            if (_combat.AttackType == TacticalAttackType.Heal) return false;
 
             Vector3 zoneCenter;
             float zoneHalfExtent;

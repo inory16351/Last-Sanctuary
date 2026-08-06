@@ -584,18 +584,27 @@ namespace LastSanctuary.UI
         /// <summary>"지금 뭐 하는 중인지" 한 단어. 전투가 자율 이동보다 우선이라 먼저 검사한다.</summary>
         static string DutyTextOf(CharacterUnit unit)
         {
+            var behavior = unit.GetComponent<CharacterBehavior>();
+
+            // 후퇴는 전투보다 먼저 본다 — 후퇴 중에는 타겟을 잡지 않으므로 아래 교전 판정에
+            // 걸리지 않지만, 순서를 명시해 두는 편이 의도가 분명하다.
+            if (behavior != null && behavior.IsRetreating) return "후퇴";
+
             var combat = unit.GetComponent<UnitCombat>();
             if (combat != null && combat.Target != null && combat.Target.IsAlive)
+            {
+                if (combat.AttackType == TacticalAttackType.Heal) return "치유";
                 return combat.IsHunting ? "사냥" : "교전";
+            }
 
-            var behavior = unit.GetComponent<CharacterBehavior>();
             if (behavior == null) return "-";
 
             return behavior.Duty switch
             {
-                CharacterDuty.Scout => "정찰",
-                CharacterDuty.Rally => "집결",
-                _                   => "방어",
+                CharacterDuty.Scout   => "정찰",
+                CharacterDuty.Rally   => "집결",
+                CharacterDuty.Retreat => "후퇴",
+                _                     => "방어",
             };
         }
     }

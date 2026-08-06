@@ -23,12 +23,18 @@ namespace LastSanctuary.UI
         [SerializeField] TMP_Text rallyLabel;
         [SerializeField] Image rallyBackground;
 
+        [SerializeField] Button tacticsButton;
+        [SerializeField] TMP_Text tacticsLabel;
+        [SerializeField] Image tacticsBackground;
+
         [Header("문구")]
         [SerializeField] string createFormat = "캐릭터 생성 {0}";
         [SerializeField] string createAtLimit = "인원 상한";
         [SerializeField] string rallyIdle = "집결지 설정";
         [SerializeField] string rallyPicking = "맵을 클릭 (Esc 취소)";
         [SerializeField] string rallyClear = "집결지 해제 (우클릭)";
+        [SerializeField] string tacticsIdle = "전술 지침";
+        [SerializeField] string tacticsOpen = "전술 지침 닫기";
 
         [Header("색")]
         [SerializeField] Color buttonNormal = new Color(0.13f, 0.17f, 0.22f, 0.95f);
@@ -38,24 +44,34 @@ namespace LastSanctuary.UI
         CharacterCreationService _creation;
         RallyPointService _rally;
 
+        /// <summary>전술 지침 창. <b>평소 비활성</b>이라 이름/타입 조회에 비활성 포함이 필요하다.</summary>
+        TacticalOrderPanel _tacticsPanel;
+
         // 마지막으로 화면에 반영한 값. 바뀔 때만 갱신한다.
         int _shownCost = int.MinValue;
         bool _shownCanCreate;
         bool _shownPicking;
         bool _shownHasRally;
+        bool _shownTacticsOpen;
 
         void Start()
         {
             _creation = CharacterCreationService.Instance;
             _rally = RallyPointService.Instance;
 
+            // 전술 지침 창은 버튼을 누르기 전까지 비활성이므로 Instance(=Awake 에서 설정)가
+            // 아직 없다. 비활성 오브젝트까지 포함해 직접 찾는다.
+            _tacticsPanel = FindAnyObjectByType<TacticalOrderPanel>(FindObjectsInactive.Include);
+
             // MCP 로는 씬 오브젝트 참조를 인스펙터에 넣을 수 없어서(진행상황 8절 4번),
             // 비어 있으면 이름으로 찾는다.
             Resolve("Buttons/CreateButton", ref createButton, ref createBackground, ref createLabel);
             Resolve("Buttons/RallyButton", ref rallyButton, ref rallyBackground, ref rallyLabel);
+            Resolve("Buttons/TacticsButton", ref tacticsButton, ref tacticsBackground, ref tacticsLabel);
 
             if (createButton != null) createButton.onClick.AddListener(HandleCreate);
             if (rallyButton != null) rallyButton.onClick.AddListener(HandleRally);
+            if (tacticsButton != null) tacticsButton.onClick.AddListener(HandleTactics);
 
             if (_creation == null)
                 Debug.LogWarning("[Actions] CharacterCreationService 를 찾지 못했습니다. " +
@@ -99,10 +115,40 @@ namespace LastSanctuary.UI
             Refresh(force: true);
         }
 
+        /// <summary>
+        /// 전술 지침 창을 연다/닫는다. 창은 캐릭터를 선택하지 않는다 — 선택은 로스터와
+        /// 월드 클릭이 하고, 창은 그 선택을 따라간다(<see cref="TacticalOrderPanel"/> 클래스 doc).
+        /// 그래서 선택된 캐릭터가 없어도 열 수 있다.
+        /// </summary>
+        void HandleTactics()
+        {
+            if (_tacticsPanel == null)
+                _tacticsPanel = FindAnyObjectByType<TacticalOrderPanel>(FindObjectsInactive.Include);
+
+            _tacticsPanel?.Toggle();
+            Refresh(force: true);
+        }
+
         void Refresh(bool force)
         {
             RefreshCreate(force);
             RefreshRally(force);
+            RefreshTactics(force);
+        }
+
+        void RefreshTactics(bool force)
+        {
+            if (tacticsButton == null) return;
+
+            bool open = _tacticsPanel != null && _tacticsPanel.IsOpen;
+            if (!force && open == _shownTacticsOpen) return;
+            _shownTacticsOpen = open;
+
+            tacticsButton.interactable = _tacticsPanel != null;
+            if (tacticsBackground != null)
+                tacticsBackground.color = _tacticsPanel == null ? buttonOff
+                                        : (open ? buttonOn : buttonNormal);
+            if (tacticsLabel != null) tacticsLabel.text = open ? tacticsOpen : tacticsIdle;
         }
 
         void RefreshCreate(bool force)

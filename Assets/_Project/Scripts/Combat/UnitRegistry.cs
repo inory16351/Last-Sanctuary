@@ -76,6 +76,113 @@ namespace LastSanctuary.Combat
             return best;
         }
 
+        /// <summary>
+        /// 전술 지침의 "공격 우선 대상"(<see cref="TacticalTargetPriority"/>)대로 적 하나를 고른다.
+        ///
+        /// <see cref="FindTarget"/> 을 고치지 않고 따로 둔 이유: 저쪽은 몬스터가 쓰는
+        /// "종류 우선순위(<see cref="UnitKind"/> 배열)" 규칙이고(웨이브 기획서 p13), 이쪽은
+        /// 캐릭터가 쓰는 "거리·강함·체력" 규칙이라 판정 축 자체가 다르다. 한 함수에 섞으면
+        /// 몬스터 타겟팅까지 같이 흔들린다(진행상황 6절의 과거 버그와 같은 종류의 위험).
+        /// </summary>
+        public static DamageableUnit FindTargetBy(Vector3 from, Faction myFaction, float maxRangeTiles,
+                                                  TacticalTargetPriority mode,
+                                                  System.Func<DamageableUnit, bool> filter = null)
+        {
+            float maxSqr = maxRangeTiles * maxRangeTiles;
+            Faction enemy = myFaction.Opposite();
+
+            DamageableUnit best = null;
+            float bestScore = 0f;
+            float bestSqr = 0f;
+
+            for (int i = 0; i < _units.Count; i++)
+            {
+                DamageableUnit u = _units[i];
+                if (u == null || !u.IsAlive) continue;
+                if (u.Faction != enemy) continue;
+                if (filter != null && !filter(u)) continue;
+
+                float sqr = (u.transform.position - from).sqrMagnitude;
+                if (sqr > maxSqr) continue;
+
+                // 점수는 "클수록 좋다"로 통일한다 — 거리 기준은 부호만 뒤집으면 되고,
+                // 새 기준을 추가할 때도 비교 코드를 안 건드려도 된다.
+                float score = mode switch
+                {
+                    TacticalTargetPriority.Strongest => u.AttackStat,
+                    TacticalTargetPriority.Farthest  => sqr,
+                    TacticalTargetPriority.Weakest   => -u.CurrentHp,
+                    _                                => -sqr,   // Nearest
+                };
+
+                // 동률(같은 공격력·같은 체력)이면 가까운 쪽을 고른다 — 안 그러면 등록 순서에
+                // 따라 멀리 있는 적을 붙잡고 계속 걸어가는 이상한 그림이 나온다.
+                if (best != null && (score < bestScore || (score == bestScore && sqr >= bestSqr))) continue;
+
+                best = u;
+                bestScore = score;
+                bestSqr = sqr;
+            }
+            return best;
+        }
+
+        /// <summary>
+        /// 사거리 안에서 가장 많이 다친 아군을 찾는다 (치유 유형 캐릭터용).
+        /// 체력 비율이 가장 낮은 대상을 고르고, 같으면 가까운 쪽을 고른다.
+        /// <paramref name="exclude"/> 는 보통 자기 자신 — 자기만 계속 치유하는 걸 막는 데 쓴다.
+        /// </summary>
+        public static DamageableUnit FindWoundedAlly(Vector3 from, Faction faction, float maxRangeTiles,
+                                                     DamageableUnit exclude = null,
+                                                     bool includeSelfIfWounded = true)
+        {
+            float maxSqr = maxRangeTiles * maxRangeTiles;
+
+            DamageableUnit best = null;
+            float bestRatio = 1f;      // 만피는 후보가 아니다
+            float bestSqr = 0f;
+
+            for (int i = 0; i < _units.Count; i++)
+            {
+                DamageableUnit u = _units[i];
+                if (u == null || !u.IsAlive) continue;
+                if (u.Faction != faction) continue;
+                if (!includeSelfIfWounded && ReferenceEquals(u, exclude)) continue;
+
+                float ratio = u.HpRatio;
+                if (ratio >= 1f) continue;
+
+                float sqr = (u.transform.position - from).sqrMagnitude;
+                if (sqr > maxSqr) continue;
+
+                if (best != null && (ratio > bestRatio || (ratio == bestRatio && sqr >= bestSqr))) continue;
+
+                best = u;
+                bestRatio = ratio;
+                bestSqr = sqr;
+            }
+            return best;
+        }
+
+        /// <summary>
+        /// 한 지점을 중심으로 한 <b>정사각</b> 범위 안의 적을 모은다 (마법 범위 공격용).
+        /// 셀 격자가 아니라 월드 좌표 기준이라 사거리·범위 값을 소수로 둬도 그대로 동작한다.
+        /// </summary>
+        public static void CollectEnemiesInBox(Vector3 center, float halfExtentTiles, Faction myFaction,
+                                               List<DamageableUnit> into)
+        {
+            into.Clear();
+            Faction enemy = myFaction.Opposite();
+
+            for (int i = 0; i < _units.Count; i++)
+            {
+                DamageableUnit u = _units[i];
+                if (u == null || !u.IsAlive || u.Faction != enemy) continue;
+
+                Vector3 d = u.transform.position - center;
+                if (Mathf.Abs(d.x) <= halfExtentTiles && Mathf.Abs(d.y) <= halfExtentTiles) into.Add(u);
+            }
+        }
+
         /// <summary>특정 진영·종류의 유닛을 하나 찾는다 (넥서스 위치 조회 등).</summary>
         public static DamageableUnit FindFirst(Faction faction, UnitKind kind)
         {
