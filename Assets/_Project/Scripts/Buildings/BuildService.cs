@@ -27,11 +27,10 @@ namespace LastSanctuary.Buildings
         public float Progress;
 
         /// <summary>
-        /// 이번 프레임에 이 자리를 맡기로 한 캐릭터 수 — 현장에 도착했는지와 무관하다.
-        /// 배정을 고르게 하려고 센다. 도착 여부까지 따지면 <b>멀리 있는 한 자리에 전원이
-        /// 몰려도</b> 아무도 "일꾼"으로 안 잡혀 계속 같은 자리만 고르게 된다.
+        /// 이 자리를 맡은 캐릭터. <b>한 자리에는 한 명만 붙는다</b>(유저 확정) —
+        /// 배정은 <see cref="BuildService.AssignedSiteFor"/> 가 정한다.
         /// </summary>
-        public int Builders;
+        public Units.CharacterBehavior Builder;
 
         /// <summary>이 자리를 찍을 때 실제로 낸 비용. 취소 시 그대로 환불한다.</summary>
         public int PaidCost;
@@ -89,6 +88,13 @@ namespace LastSanctuary.Buildings
         [SerializeField] bool logChanges = true;
 
         readonly List<BuildSite> _sites = new List<BuildSite>();
+
+        /// <summary>이번 프레임의 배정에서 아직 자리를 안 맡은 캐릭터들 (매번 다시 채운다).</summary>
+        readonly List<Units.CharacterBehavior> _freeWorkers = new List<Units.CharacterBehavior>();
+
+        /// <summary>배정을 마지막으로 계산한 프레임. 프레임당 한 번만 돌게 한다.</summary>
+        int _assignFrame = -1;
+
         readonly List<RectTransform> _overlays = new List<RectTransform>();
 
         Camera _camera;
@@ -398,40 +404,109 @@ namespace LastSanctuary.Buildings
         // ------------------------------------------------------------------
 
         /// <summary>
-        /// 이 캐릭터가 맡을 만한 예정지를 고른다. <b>일꾼이 적은 곳 → 가까운 곳</b> 순이다 —
-        /// 거리만 보면 전원이 같은 자리에 몰려 다른 예정지가 영영 안 지어진다.
+        /// 이 캐릭터가 맡은 예정지. 없으면 null.
+        ///
+        /// <b>배정은 캐릭터가 아니라 여기서 정한다</b>(유저 확정) — 캐릭터마다 스스로 가까운
+        /// 자리를 고르면 같은 자리에 여럿이 붙거나(한 자리에는 한 명만 붙는 규칙 위반) 반대로
+        /// 아무도 안 맡는 자리가 생긴다. 전체를 한 번에 보고 <b>예정지마다 지금 가장 적합한
+        /// 캐릭터 한 명</b>을 붙인다.
+        ///
+        /// <b>적합도 순서</b>: ① 전술 우선 행동이 "건물 건설"인 캐릭터가 먼저, ② 그다음 거리순.
+        /// 전담이 아닌 캐릭터는 자기 <c>AssistBuildRange</c> 안의 자리만 후보로 본다.
+        ///
+        /// 계산은 <b>프레임당 한 번</b>만 돈다. 캐릭터들의 Update 순서를 알 수 없으므로
+        /// 첫 호출이 계산을 끌고 나머지는 그 결과를 읽는다(실행 순서에 의존하지 않게).
         /// </summary>
-        public BuildSite FindSiteFor(Vector3 from, float maxDistance)
+        public BuildSite AssignedSiteFor(Units.CharacterBehavior worker)
         {
-            BuildSite best = null;
-            int bestBuilders = int.MaxValue;
-            float bestSqr = float.PositiveInfinity;
-            float limitSqr = maxDistance > 0f ? maxDistance * maxDistance : float.PositiveInfinity;
+            if (worker == null || _sites.Count == 0) return null;
+
+            if (_assignFrame != Time.frameCount)
+            {
+                _assignFrame = Time.frameCount;
+                AssignBuilders();
+            }
 
             for (int i = 0; i < _sites.Count; i++)
-            {
-                BuildSite s = _sites[i];
-                float sqr = ((Vector2)(s.Center - from)).sqrMagnitude;
-                if (sqr > limitSqr) continue;
-
-                if (s.Builders > bestBuilders) continue;
-                if (s.Builders == bestBuilders && sqr >= bestSqr) continue;
-
-                best = s;
-                bestBuilders = s.Builders;
-                bestSqr = sqr;
-            }
-            return best;
-        }
-
-        /// <summary>이 자리를 맡기로 했다고 알린다 (도착 여부와 무관 — 배정을 고르게 하기 위한 것).</summary>
-        public void NoteAssigned(BuildSite site)
-        {
-            if (site != null) site.Builders++;
+                if (_sites[i].Builder == worker) return _sites[i];
+            return null;
         }
 
         /// <summary>
-        /// 현장에서 <paramref name="seconds"/> 만큼 일한다. 여러 캐릭터가 붙으면 그만큼 빨라진다.
+        /// 예정지마다 캐릭터 한 명씩 붙인다.
+        ///
+        /// <b>이미 맡고 있던 배정은 그대로 둔다</b> — 매 프레임 최적을 새로 뽑으면 거리가
+        /// 비슷한 두 캐릭터가 서로 자리를 뺏어 둘 다 오가기만 하고 아무것도 안 지어진다.
+        /// 맡고 있던 캐릭터가 죽거나 전투에 휘말리는 등 더 이상 일할 수 없게 됐을 때만
+        /// 자리를 놓고, 그 자리는 남은 후보 중 최적자에게 넘어간다.
+        /// </summary>
+        void AssignBuilders()
+        {
+            _freeWorkers.Clear();
+            var units = UnitRegistry.All;
+            for (int i = 0; i < units.Count; i++)
+            {
+                DamageableUnit u = units[i];
+                if (u == null || !u.IsAlive || u.Kind != UnitKind.Character) continue;
+
+                var worker = u.GetComponent<Units.CharacterBehavior>();
+                if (worker != null && worker.CanTakeBuildOrder) _freeWorkers.Add(worker);
+            }
+
+            // 유지되는 배정은 후보 목록에서 빼둔다(한 명이 두 자리를 맡지 않게).
+            for (int i = 0; i < _sites.Count; i++)
+            {
+                BuildSite s = _sites[i];
+                if (s.Builder == null) continue;
+                if (!_freeWorkers.Remove(s.Builder)) s.Builder = null;
+            }
+
+            // 남은 자리 × 남은 후보 중 가장 적합한 짝부터 차례로 붙인다.
+            while (_freeWorkers.Count > 0)
+            {
+                BuildSite bestSite = null;
+                Units.CharacterBehavior bestWorker = null;
+                bool bestDedicated = false;
+                float bestSqr = float.PositiveInfinity;
+
+                for (int i = 0; i < _sites.Count; i++)
+                {
+                    BuildSite s = _sites[i];
+                    if (s.Builder != null) continue;
+
+                    for (int w = 0; w < _freeWorkers.Count; w++)
+                    {
+                        Units.CharacterBehavior worker = _freeWorkers[w];
+                        bool dedicated = worker.BuildDedicated;
+                        float range = worker.AssistBuildRange;
+                        float sqr = ((Vector2)(s.Center - worker.transform.position)).sqrMagnitude;
+
+                        // 전담이 아니면 눈앞(도와줄 만한 거리)의 자리만 맡는다.
+                        if (!dedicated && (range <= 0f || sqr > range * range)) continue;
+
+                        if (bestWorker != null)
+                        {
+                            if (bestDedicated && !dedicated) continue;
+                            if (bestDedicated == dedicated && sqr >= bestSqr) continue;
+                        }
+
+                        bestSite = s;
+                        bestWorker = worker;
+                        bestDedicated = dedicated;
+                        bestSqr = sqr;
+                    }
+                }
+
+                if (bestWorker == null) break;   // 더 붙일 짝이 없다
+
+                bestSite.Builder = bestWorker;
+                _freeWorkers.Remove(bestWorker);
+            }
+        }
+
+        /// <summary>
+        /// 현장에서 <paramref name="seconds"/> 만큼 일한다. 한 자리에는 한 명만 붙으므로
+        /// 사람이 늘어도 빨라지지 않는다 — 대신 여러 자리를 동시에 지을 수 있다.
         /// 완성되면 즉시 건물을 세우고 예정지를 없앤다.
         /// </summary>
         public void Contribute(BuildSite site, float seconds)
@@ -499,10 +574,6 @@ namespace LastSanctuary.Buildings
 
         void UpdateOverlay()
         {
-            // 다음 프레임의 배정을 위해 일꾼 수를 매 프레임 초기화한다
-            // (캐릭터들이 Update 에서 다시 채운다).
-            for (int i = 0; i < _sites.Count; i++) _sites[i].Builders = 0;
-
             if (overlayParent == null || siteTemplate == null) return;
             if (_camera == null) _camera = Camera.main;
             if (_camera == null) return;

@@ -46,13 +46,24 @@ namespace LastSanctuary.Units
         float _repickTime;
         bool _initialized;
 
-        void Awake()
-        {
-            _combat = GetComponent<UnitCombat>();
+        void Awake() => EnsureReady();
 
-            // 스포너가 AddComponent 직후 같은 프레임에서 곧바로 Init() 을 부른다 —
-            // Start() 는 다음 프레임에야 돌기 때문에 그때까지 기다리면 _rng/_map 이
-            // null 인 채로 PickDestination() 이 불려 NRE 가 난다. Awake 에서 미리 채워둔다.
+        /// <summary>
+        /// 참조·난수를 준비한다. <b>Awake·Init·Update 세 곳에서 모두 부른다</b>(여러 번 불려도
+        /// 안전하다) — 이 컴포넌트는 스포너가 <c>AddComponent</c> 로 붙이고 곧바로
+        /// <see cref="Init"/> 을 부르기 때문에, 초기화를 어느 한 콜백에만 두면 그 콜백이 아직
+        /// 안 돈 상태에서 <see cref="PickDestination"/> 이 불려 <c>_rng</c> NRE 가 난다.
+        ///
+        /// 24-6절이 "Start → Awake 이동" 으로 고쳤다고 기록했지만 25-6절에서 재발이 확인됐고,
+        /// 28-4절에서도 여전히 매 프레임 NRE 가 쏟아지고 있었다. <b>어느 콜백이 먼저 도는지
+        /// 추론하는 대신 세 곳에서 다 부르는 것</b>이 이 함정의 확실한 대책이다 — 런타임에
+        /// 동적으로 붙는 컴포넌트에는 이 패턴을 기본으로 쓸 것.
+        /// </summary>
+        void EnsureReady()
+        {
+            if (_rng != null) return;
+
+            _combat = GetComponent<UnitCombat>();
             _map = FindAnyObjectByType<MapGenerator>();
             _rng = new System.Random(GetInstanceID());
             _destination = transform.position;
@@ -61,6 +72,7 @@ namespace LastSanctuary.Units
         /// <summary>스포너가 스폰 직후 호출한다 — 이 개체가 등장할 수 있는 거리 구간(체비셰프)을 넘겨준다.</summary>
         public void Init(float minRadius, float maxRadius)
         {
+            EnsureReady();
             _minRadius = Mathf.Max(0f, minRadius);
 
             // 상한이 무한대(최상위 종)면 유한한 값으로 바꿔둔다 — Mathf.Lerp(min, Infinity, t) 는
@@ -78,6 +90,7 @@ namespace LastSanctuary.Units
         void Update()
         {
             if (!_initialized) return;
+            EnsureReady();
 
             // 교전 중(선공 개체가 캐릭터를 쫓는 중)이면 손대지 않는다 — 전투가 항상 우선이다.
             if (_combat.Target != null && _combat.Target.IsAlive) return;

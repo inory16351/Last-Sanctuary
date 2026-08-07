@@ -149,7 +149,7 @@ namespace LastSanctuary.Combat
         }
 
         void Spawn(Vector3 from, Vector3 to, float duration, DamageableUnit shooter,
-                   Sprite sprite, bool isFlash = false)
+                   Sprite sprite, bool isFlash = false, float scale = BoltScale)
         {
             Transform tr = _pool.Count > 0 ? _pool.Pop() : NewProjectile();
             var sr = tr.GetComponent<SpriteRenderer>();
@@ -167,7 +167,7 @@ namespace LastSanctuary.Combat
             }
 
             tr.position = from;
-            tr.localScale = Vector3.one * BoltScale;
+            tr.localScale = Vector3.one * scale;
             tr.rotation = isFlash ? Quaternion.identity : AimAt(to - from);
             tr.gameObject.SetActive(true);
 

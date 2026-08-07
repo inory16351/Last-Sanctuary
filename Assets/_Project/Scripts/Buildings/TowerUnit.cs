@@ -153,8 +153,17 @@ namespace LastSanctuary.Buildings
             Debug.Log($"[Tower] {(definition != null ? definition.displayName : name)} 파괴됨", this);
             OnDestroyed?.Invoke(this);
 
+            // 파괴 연출이 있으면 그게 끝난 뒤에 지운다. 연출 도중에도 발판은 계속 막고 있는데,
+            // 무너지는 잔해를 몬스터가 통과해 지나가면 어색하기 때문이다.
             // 발판 반납은 OnDisable 에서 일어난다 — Destroy 가 그걸 부른다.
-            Destroy(gameObject);
+            var anim = GetComponent<TowerAnimator>();
+            float delay = anim != null ? anim.PlayDestroy() : 0f;
+            if (delay <= 0f) { Destroy(gameObject); return; }
+
+            // 시체가 계속 맞아 OnDeath 가 다시 불리거나, 죽은 포탑이 계속 쏘는 것을 막는다.
+            var combat = GetComponent<UnitCombat>();
+            if (combat != null) combat.enabled = false;
+            Destroy(gameObject, delay);
         }
     }
 }

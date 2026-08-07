@@ -187,8 +187,19 @@ namespace LastSanctuary.Units
         /// 24-6절의 <c>NeutralMonsterWander</c> 가 겪은 것과 완전히 같은 종류의 버그이고 고치는
         /// 방법도 같다(초기화를 Awake 로 옮긴다 — Awake 는 프레임 중간에 태어나도 그 즉시 돈다).
         /// </summary>
-        void Awake()
+        void Awake() => EnsureReady();
+
+        /// <summary>
+        /// 참조·난수를 준비한다. <b>Awake·Start·Update 세 곳에서 모두 부른다</b>(여러 번 불려도
+        /// 안전하다). 27-9절이 초기화를 Start 에서 Awake 로 옮겼는데도 28-4절에서 같은 NRE
+        /// (<c>_rng</c> null)가 다시 확인됐다 — <b>어느 콜백이 먼저 도는지 추론하는 대신
+        /// 쓰기 직전에 확인하는 것</b>이 이 함정의 확실한 대책이다. 런타임에 동적으로 생성·부착
+        /// 되는 컴포넌트에는 이 패턴을 기본으로 쓸 것(<c>NeutralMonsterWander</c> 도 동일).
+        /// </summary>
+        void EnsureReady()
         {
+            if (_rng != null) return;
+
             _combat = GetComponent<UnitCombat>();
             _self = GetComponent<DamageableUnit>();
             _character = GetComponent<CharacterUnit>();
@@ -204,12 +215,14 @@ namespace LastSanctuary.Units
 
         void Start()
         {
+            EnsureReady();
             _duty = CurrentDuty();
             PickDestination();
         }
 
         void Update()
         {
+            EnsureReady();
             if (_self == null || !_self.IsAlive) return;
 
             // 후퇴 판단이 가장 먼저다 — 다른 어떤 임무보다 우선한다.
@@ -475,14 +488,30 @@ namespace LastSanctuary.Units
         // 건설 — "캐릭터가 알아서 판단해서" 짓는다 (유저 요청)
         // ------------------------------------------------------------------
 
+        /// <summary>전술 우선 행동이 "건물 건설"인가 — 건설 전담 캐릭터다.</summary>
+        public bool BuildDedicated => _nonCombat == TacticalNonCombat.Build;
+
+        /// <summary>전담이 아닌 캐릭터가 그래도 도우러 가는 거리(타일). 0 이면 안 간다.</summary>
+        public float AssistBuildRange => assistBuildRange;
+
         /// <summary>
-        /// 지금 맡을 만한 건설 예정지가 있으면 그쪽으로 가고, 도착했으면 짓는다.
+        /// 지금 건설을 맡을 수 있는 상태인가 — <see cref="Buildings.BuildService"/> 가
+        /// 건설자를 고를 때 후보 조건으로 쓴다. <see cref="Update"/> 가 <see cref="TryBuild"/>
+        /// 까지 내려오는 조건(살아있고, 후퇴 중이 아니고, 웨이브 타임이 아니고, 교전 중이
+        /// 아니다)과 같아야 한다 — 어긋나면 일 못 하는 캐릭터에게 자리가 배정된 채 묶인다.
+        /// </summary>
+        public bool CanTakeBuildOrder =>
+            _self != null && _self.IsAlive && !_retreating && !IsWaveTimePhase() &&
+            (_combat == null || _combat.Target == null || !_combat.Target.IsAlive);
+
+        /// <summary>
+        /// 맡은 건설 예정지가 있으면 그쪽으로 가고, 도착했으면 짓는다.
         ///
-        /// <b>누가 가는가</b> — 전술 지침의 비전투 우선 행동이 <see cref="TacticalNonCombat.Build"/>
-        /// (건물 건설)인 캐릭터는 <b>맵 어디의 예정지든</b> 맡는다(= 건설 전담).
-        /// 다른 우선 행동(사냥·탐색)을 고른 캐릭터도 <see cref="assistBuildRange"/> 안에 예정지가
-        /// 있으면 도와준다 — 눈앞에서 짓고 있는데 지나쳐 사냥하러 가면 이상하기 때문이다.
-        /// 이것이 유저가 요청한 "전술의 우선 행동 건설과 연동" 이다.
+        /// <b>누가 가는지는 여기서 정하지 않는다</b>(유저 확정) —
+        /// <see cref="Buildings.BuildService.AssignedSiteFor"/> 가 전체를 보고
+        /// <b>예정지마다 지금 가장 적합한 캐릭터 한 명</b>을 붙인다(전담 우선 → 거리순).
+        /// 캐릭터마다 스스로 고르면 같은 자리에 여럿이 몰리는데, 이제 <b>한 자리에는 한
+        /// 명만</b> 붙는다.
         ///
         /// <b>언제 가는가</b> — 웨이브 타임(전투·광폭화)이 아닐 때만이다. 호출부에서 이미
         /// 걸러지므로 여기서는 다시 확인하지 않는다.
@@ -490,17 +519,11 @@ namespace LastSanctuary.Units
         bool TryBuild()
         {
             Buildings.BuildService svc = Buildings.BuildService.Instance;
-            if (svc == null || svc.PendingSites.Count == 0) return false;
+            if (svc == null) return false;
 
-            bool dedicated = _nonCombat == TacticalNonCombat.Build;
-            if (!dedicated && assistBuildRange <= 0f) return false;
-
-            // 전담이면 거리 제한 없음(0 = 무제한).
-            Buildings.BuildSite site = svc.FindSiteFor(transform.position,
-                                                       dedicated ? 0f : assistBuildRange);
+            Buildings.BuildSite site = svc.AssignedSiteFor(this);
             if (site == null) return false;
 
-            svc.NoteAssigned(site);
             _duty = CharacterDuty.Build;
 
             // 목적지는 현장 한 곳으로 고정한다. UnitCombat 은 귀환 지점에 도착하면 멈추므로
