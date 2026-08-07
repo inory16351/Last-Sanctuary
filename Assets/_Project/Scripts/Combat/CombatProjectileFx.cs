@@ -31,6 +31,16 @@ namespace LastSanctuary.Combat
         const string BoltCancerResourcePath = "Fx/Projectile_Bolt_Cancer";
         const string FlashCancerResourcePath = "Fx/Projectile_Flash_Cancer";
 
+        /// <summary>
+        /// 포탑(<see cref="UnitKind.Tower"/>) 전용 탄환 — <c>Tower_Asset</c> 의 공격 프레임에
+        /// 그려져 있던 붉은 레이저를 오려내 만든 것이다(진행상황 27-11절). 원화에는 빔이
+        /// <b>아래-오른쪽으로 고정</b>돼 있었으므로 그대로 두면 포탑이 어느 방향을 쏘든 같은
+        /// 방향으로만 빔이 보인다 — 오려서 여기로 넘기면 <see cref="AimAt"/> 이 실제 방향으로
+        /// 돌려준다. 이것도 형태가 +X 를 향하므로 회전 로직은 그대로다.
+        /// </summary>
+        const string BoltTowerResourcePath = "Fx/Projectile_Bolt_Tower";
+        const string FlashTowerResourcePath = "Fx/Projectile_Flash_Tower";
+
         /// <summary>탄환 속도(월드 유닛/초). 사거리 5타일을 0.2초쯤에 지나가는 값.</summary>
         const float Speed = 26f;
 
@@ -39,6 +49,9 @@ namespace LastSanctuary.Combat
 
         /// <summary>원화가 큰 편이라(74px ≈ 1.5유닛) 줄여서 쓴다.</summary>
         const float BoltScale = 0.55f;
+
+        /// <summary>포탑 레이저는 유닛이 쏘는 탄환보다 굵고 길어야 "포대" 느낌이 난다.</summary>
+        const float TowerBoltScale = 0.85f;
 
         /// <summary>시전 섬광이 머무는 시간(초).</summary>
         const float FlashSeconds = 0.12f;
@@ -49,6 +62,8 @@ namespace LastSanctuary.Combat
         Sprite _flash;
         Sprite _boltCancer;
         Sprite _flashCancer;
+        Sprite _boltTower;
+        Sprite _flashTower;
 
         struct Shot
         {
@@ -86,6 +101,8 @@ namespace LastSanctuary.Combat
             _flash = Resources.Load<Sprite>(FlashResourcePath);
             _boltCancer = Resources.Load<Sprite>(BoltCancerResourcePath);
             _flashCancer = Resources.Load<Sprite>(FlashCancerResourcePath);
+            _boltTower = Resources.Load<Sprite>(BoltTowerResourcePath);
+            _flashTower = Resources.Load<Sprite>(FlashTowerResourcePath);
 
             if (_bolt == null)
                 Debug.LogWarning($"[Fx] Resources/{BoltResourcePath} 를 찾지 못했습니다. " +
@@ -110,13 +127,17 @@ namespace LastSanctuary.Combat
             float dist = ((Vector2)(to - from)).magnitude;
             if (dist < 0.01f) return;
 
-            // 진영별로 다른 색의 탄환을 쓴다 — 난전 중에 누가 쏜 것인지 구분되게.
+            // 포탑은 전용 레이저를(원화에서 오려낸 것), 그 외엔 진영별 색으로 구분한다.
+            bool tower = attacker.Kind == UnitKind.Tower;
             bool cancer = attacker.Faction == Faction.Cancer;
-            Sprite bolt = cancer && _boltCancer != null ? _boltCancer : _bolt;
-            Sprite flash = cancer && _flashCancer != null ? _flashCancer : _flash;
+            Sprite bolt = tower && _boltTower != null ? _boltTower
+                        : cancer && _boltCancer != null ? _boltCancer : _bolt;
+            Sprite flash = tower && _flashTower != null ? _flashTower
+                         : cancer && _flashCancer != null ? _flashCancer : _flash;
+            float scale = tower && _boltTower != null ? TowerBoltScale : BoltScale;
 
-            Spawn(from, to, Mathf.Min(MaxLifetime, dist / Speed), attacker, bolt);
-            if (flash != null) Spawn(from, from, FlashSeconds, attacker, flash, isFlash: true);
+            Spawn(from, to, Mathf.Min(MaxLifetime, dist / Speed), attacker, bolt, scale: scale);
+            if (flash != null) Spawn(from, from, FlashSeconds, attacker, flash, isFlash: true, scale: scale);
         }
 
         /// <summary>유닛의 몸통 중심. 발밑 피벗이라 <c>transform.position</c> 은 바닥이다.</summary>

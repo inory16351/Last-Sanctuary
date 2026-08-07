@@ -1,0 +1,66 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7b31d4c0a9e2f4e4b8c60517d3a92411, type: 3}
+  m_Name: Skin_Tower
+  m_EditorClassIdentifier: 
+  displayName: 감시 포탑
+  framesPerSecond: 10
+  attackFramesPerSecond: 14
+  destroyFramesPerSecond: 12
+  idle:
+  - {fileID: 21300000, guid: 5cc76e4613f4e36bbd6a4fa27a319b9b, type: 3}
+  - {fileID: 21300000, guid: f742c3dfde947eab1fd30c634a820429, type: 3}
+  - {fileID: 21300000, guid: 9f0a3156d468dbbf1b5fe7c686c88d76, type: 3}
+  - {fileID: 21300000, guid: 82bca197bcc0d2ed6b511ed2b959e5f3, type: 3}
+  - {fileID: 21300000, guid: 1133a1c2841b768685c7368cf43b82ee, type: 3}
+  - {fileID: 21300000, guid: bd5eb94b616a35f1237bb9e01e15aac7, type: 3}
+  - {fileID: 21300000, guid: 88c052e007ebddb628301827d57ff354, type: 3}
+  - {fileID: 21300000, guid: 33464d35ad8bc0b4ca4d50fec581803b, type: 3}
+  - {fileID: 21300000, guid: 194fa722879a267de3190e2639cc6aab, type: 3}
+  - {fileID: 21300000, guid: 7f7d7a437b4e69b5ea6fd2f716b104b0, type: 3}
+  - {fileID: 21300000, guid: 9fb8f4a98408d0b387c45b49b1cd20dc, type: 3}
+  - {fileID: 21300000, guid: e314d497bb44f55cdf7e16dc4f7f67f1, type: 3}
+  - {fileID: 21300000, guid: cb68202bf68b2ad6bb6c110ac651694f, type: 3}
+  attack:
+  - {fileID: 21300000, guid: f8c3e736d2c55680bd238aae7cd6226c, type: 3}
+  - {fileID: 21300000, guid: 0542e9833f0c872d55dcb8b0b1f5ba0e, type: 3}
+  - {fileID: 21300000, guid: 7db43e4340c617635bf7078658a8a445, type: 3}
+  - {fileID: 21300000, guid: 0d7c50c8d3b821e6371303d3ca934043, type: 3}
+  - {fileID: 21300000, guid: e08d8cda62597e6370e32a0a5bc8602a, type: 3}
+  - {fileID: 21300000, guid: 957c75399f4628fb374488116e38c954, type: 3}
+  - {fileID: 21300000, guid: 817ff1514a003ddbdc4ba668bea8bcbd, type: 3}
+  - {fileID: 21300000, guid: 77a32f97f5999201a437e4c184f9e76d, type: 3}
+  - {fileID: 21300000, guid: adef7905e9f06415cabb6f1ff3d24dcc, type: 3}
+  - {fileID: 21300000, guid: 0a5dd78b6a9fe098586c7260dd53308a, type: 3}
+  - {fileID: 21300000, guid: d7fb4a863fd7d0dd14671889c893f24c, type: 3}
+  - {fileID: 21300000, guid: 4517ca619dafb570342f18c145f4696e, type: 3}
+  - {fileID: 21300000, guid: 1e88012acabc268319518b6bab0bc1b8, type: 3}
+  - {fileID: 21300000, guid: 84fbe6a5fe6a6b191e1b3d6457fda502, type: 3}
+  - {fileID: 21300000, guid: e449115a94e461f548ce9a32b07b26ca, type: 3}
+  - {fileID: 21300000, guid: f83561504cf61358e884eab7433f1292, type: 3}
+  destroy:
+  - {fileID: 21300000, guid: b3256dcede70737e976a19cc74ccdddd, type: 3}
+  - {fileID: 21300000, guid: eb93d269dbae84bd6a6c8be773cebf70, type: 3}
+  - {fileID: 21300000, guid: 823790dbe6dc3e1116f197b351586c33, type: 3}
+  - {fileID: 21300000, guid: 2397ded29f16087bd2feb4a75376af65, type: 3}
+  - {fileID: 21300000, guid: 4e3922470f032e750ebed37fc73501cb, type: 3}
+  - {fileID: 21300000, guid: 395a984499ec3f7e8ef47d82e3659838, type: 3}
+  - {fileID: 21300000, guid: 062ac27010731d0c9684559cf51fad2a, type: 3}
+  - {fileID: 21300000, guid: ad5254a9da13063719e97c6be42a816c, type: 3}
+  - {fileID: 21300000, guid: 9c6c110fcf3f56df44fe533aaaa262df, type: 3}
+  - {fileID: 21300000, guid: 896de91676d67f496d0136d4ced26a9d, type: 3}
+  - {fileID: 21300000, guid: 13f29b71a6566afaa27a0c37d790f977, type: 3}
+  - {fileID: 21300000, guid: e422c69135b60837104aeea945b4067d, type: 3}
+  - {fileID: 21300000, guid: 3ad033143d4937bc60b27291d7c77ce4, type: 3}
+  - {fileID: 21300000, guid: 9970521048b6deebfe5d7e506f996c94, type: 3}
+  - {fileID: 21300000, guid: 313987c5a5d70e26125ed5bd65001d56, type: 3}
+  - {fileID: 21300000, guid: 6c512d39040bef2e07fb0a3df59702ee, type: 3}
