@@ -549,6 +549,15 @@ namespace LastSanctuary.Combat
                 if (d > leashRange) found = null;
             }
 
+            // 아무도 못 찾았으면 "나를 때린 상대" 를 본다 — <b>선공 유닛도 맞으면 반격한다</b>
+            // (유저 정의: "중립 몬스터는 언제든 공격받으면 반격해야 한다").
+            // 이게 없으면 인식 범위(detectRange)나 목줄 밖에서 맞을 때 가만히 서서 맞기만 한다 —
+            // 원거리 캐릭터가 사거리 밖에서 쏘는 상황이 정확히 그렇다. 반격 경로가
+            // 비선공(canAcquireTargets=false) 유닛에만 붙어 있어서 생긴 구멍이었다.
+            // 무한정 쫓지 않는 것은 FindRetaliationTarget 이 이미 보장한다
+            // (공격력 0 · 8초 경과 · retaliateChaseRange 밖이면 놓는다).
+            if (found == null) found = FindRetaliationTarget();
+
             _target = found;
         }
 
