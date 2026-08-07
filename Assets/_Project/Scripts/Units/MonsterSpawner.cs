@@ -64,11 +64,39 @@ namespace LastSanctuary.Units
         [SerializeField] MapGenerator mapGenerator;
 
         [Header("스폰 규칙")]
-        [Tooltip("몬스터 간 등장 간격(초). 기획서 기준 0.5초")]
+        [Tooltip("소환 주기를 자동으로 계산할 수 없을 때(웨이브 타이머 정보가 없을 때) 쓰는 " +
+                 "고정 간격(초). 평소에는 아래 '소환 주기 자동 계산' 이 이 값을 대신한다")]
         [Min(0f)] [SerializeField] float spawnInterval = 0.5f;
 
-        [Tooltip("맵 가장자리에서 안쪽으로 몇 칸 지점에 스폰할지")]
+        [Tooltip("맵 가장자리에서 안쪽으로 몇 칸 지점에 소환 포탈을 놓을지")]
         [Min(0)] [SerializeField] int edgeInset = 2;
+
+        [Header("소환 포탈 (맵 가장자리의 랜덤 지점)")]
+        [Tooltip("한 웨이브에 열리는 포탈 개수의 최솟값")]
+        [Range(1, 4)] [SerializeField] int minPortalsPerWave = 1;
+
+        [Tooltip("한 웨이브에 열리는 포탈 개수의 최댓값. 포탈이 몇 개든 그 웨이브의 " +
+                 "총 개체수는 표대로 같다 — 나뉘어 들어올 뿐이다")]
+        [Range(1, 4)] [SerializeField] int maxPortalsPerWave = 4;
+
+        [Tooltip("포탈 하나가 차지하는 정사각 구역의 한 변(타일). 이 구역 안에서 몬스터가 나온다")]
+        [Range(1, 9)] [SerializeField] int portalAreaTiles = 3;
+
+        [Header("소환 주기 자동 계산")]
+        [Tooltip("켜면 '마지막으로 소환된 몬스터가 웨이브 타이머 종료 직전에 넥서스에 닿도록' " +
+                 "이동속도·포탈 거리로 간격을 역산한다. 끄면 위의 고정 spawnInterval 을 쓴다")]
+        [SerializeField] bool autoSpawnInterval = true;
+
+        [Tooltip("마지막 몬스터가 웨이브 타이머 종료보다 이만큼 먼저 도착하게 여유를 둔다(초). " +
+                 "0 이면 도착과 동시에 타이머가 끝나 매 웨이브가 광폭화로 넘어간다 — " +
+                 "마지막 무리를 정리할 시간을 남기려고 기본값을 둔다")]
+        [Min(0f)] [SerializeField] float arrivalMarginSeconds = 8f;
+
+        [Tooltip("벽을 피해 돌아가는 만큼 실제 이동거리가 직선거리보다 길다. 그 보정 배수")]
+        [Range(1f, 2f)] [SerializeField] float pathDetourFactor = 1.15f;
+
+        [Tooltip("자동 계산된 간격의 하한/상한(초). 물량이 아주 많거나 적을 때 극단값을 막는다")]
+        [SerializeField] Vector2 spawnIntervalClamp = new Vector2(0.35f, 15f);
 
         [Header("웨이브 배율 (퍼센트 · 정수)")]
         [Tooltip("WaveManager 가 소환할 때마다 덮어쓴다. 스포너 단독 테스트 시의 기본값")]
@@ -94,6 +122,15 @@ namespace LastSanctuary.Units
         bool _hasPendingReinforcements;
         int _currentEnragePercent = 100;
 
+        /// <summary>이번 웨이브에 열린 포탈들. 초기 소환과 증원이 같은 포탈을 쓴다.</summary>
+        readonly List<Vector3Int> _portals = new List<Vector3Int>();
+
+        /// <summary>WaveManager 가 알려준 이번 웨이브의 전투 타이머 길이(초). 0 이면 모름.</summary>
+        float _battleDuration;
+
+        /// <summary>이번 웨이브에 열린 포탈 중심 셀. 미니맵 등에서 표시하고 싶으면 이걸 읽으면 된다.</summary>
+        public IReadOnlyList<Vector3Int> CurrentPortals => _portals;
+
         public IReadOnlyList<MonsterUnit> Alive => _alive;
         public int AliveCount { get { Prune(); return _alive.Count; } }
 
@@ -103,6 +140,15 @@ namespace LastSanctuary.Units
         /// <summary>전투 중 증원이 더 오기로 예정돼 있으면 true. "전멸 판정"은 이게 꺼진 뒤에만 유효하다 —
         /// 안 그러면 증원 사이의 잠깐 조용한 틈에 웨이브가 조기 종료돼버린다.</summary>
         public bool HasPendingReinforcements => _hasPendingReinforcements;
+
+        /// <summary>
+        /// 그 웨이브에 보스가 나오는지 — <b>표를 보고</b> 판단한다.
+        /// 배경음악(<c>BgmService</c>)·보스 체력바(<c>BossHealthPanel</c>)가 "보스가 실제로
+        /// 스폰되기 전"에도 알아야 해서 살아있는 유닛이 아니라 웨이브 표를 근거로 쓴다.
+        /// </summary>
+        public bool IsBossWave(int wave) =>
+            waveDefinitions != null &&
+            waveDefinitions.TryGetWave(wave, out WaveMonsterComposition c) && c.bossCount > 0;
 
         /// <summary>웨이브가 광폭화 상태일 때 남은 몬스터 전체에 능력치 배율(%)을 적용한다.</summary>
         public void SetEnragePercent(int percent)
@@ -125,6 +171,17 @@ namespace LastSanctuary.Units
         {
             waveNumber = Mathf.Max(1, wave);
             SpawnWave();
+        }
+
+        /// <summary>
+        /// 웨이브 번호와 <b>그 웨이브의 전투 타이머 길이</b>를 함께 받아 소환한다.
+        /// 타이머 길이를 알아야 "마지막 몬스터가 타이머 종료 직전에 넥서스에 닿는" 소환 주기를
+        /// 역산할 수 있다(<see cref="ResolveSpawnInterval"/>).
+        /// </summary>
+        public void SpawnWave(int wave, float battleDuration)
+        {
+            _battleDuration = Mathf.Max(0f, battleDuration);
+            SpawnWave(wave);
         }
 
         /// <summary>현재 스폰 테이블대로 한 무리를 생성한다.</summary>
@@ -213,12 +270,11 @@ namespace LastSanctuary.Units
             AppendToQueue(queue, rangedSlot, rangedN);
             if (queue.Count == 0) return;
 
-            List<Vector3Int> gates = BuildSpawnGates();
+            // 증원도 이번 웨이브에 이미 열려 있는 포탈에서 나온다 — 도중에 새 방향이
+            // 생기면 플레이어가 대비해둔 전열이 의미를 잃는다.
             for (int i = 0; i < queue.Count; i++)
-            {
-                Vector3Int gate = gates.Count > 0 ? gates[rng.Next(gates.Count)] : Vector3Int.zero;
-                SpawnOne(queue[i].def, queue[i].template, gate, comp.statPercent, comp.statPercent, rng);
-            }
+                SpawnOne(queue[i].def, queue[i].template, PortalAt(i),
+                         comp.statPercent, comp.statPercent, rng);
 
             // 지금 광폭화 중이었다면(이론상 드묾 — 증원은 Battle 구간에서만 돌지만, 안전하게)
             // 방금 온 증원도 곧바로 같은 배율을 받는다.
@@ -242,7 +298,7 @@ namespace LastSanctuary.Units
         IEnumerator SpawnRoutine()
         {
             var rng = new System.Random(seed + waveNumber * 7919);
-            List<Vector3Int> gates = BuildSpawnGates();
+            BuildWavePortals(waveNumber, rng);
 
             int hpScale, atkScale;
             var queue = new List<(MonsterDefinitionSO def, MonsterUnit template)>();
@@ -273,21 +329,89 @@ namespace LastSanctuary.Units
                 (queue[i], queue[j]) = (queue[j], queue[i]);
             }
 
-            Debug.Log($"[MonsterSpawner] 웨이브 {waveNumber} 시작 · {queue.Count}마리 · " +
-                      $"체력 {hpScale}% 공격 {atkScale}% · 게이트 {gates.Count}개", this);
+            float interval = ResolveSpawnInterval(queue.Count);
 
+            Debug.Log($"[MonsterSpawner] 웨이브 {waveNumber} 시작 · {queue.Count}마리 · " +
+                      $"체력 {hpScale}% 공격 {atkScale}% · 포탈 {_portals.Count}개 · " +
+                      $"소환 주기 {interval:0.##}초 (총 {interval * Mathf.Max(0, queue.Count - 1):0.#}초에 걸쳐 등장)",
+                      this);
+
+            // 포탈이 여러 개면 한 마리씩 돌아가며 배정한다 — 무작위로 뽑으면 한 포탈에
+            // 몰리는 웨이브가 생겨 "방향을 갈라 놓는다"는 목적이 흐려진다.
             for (int i = 0; i < queue.Count; i++)
             {
-                Vector3Int gate = gates.Count > 0
-                    ? gates[rng.Next(gates.Count)]
-                    : Vector3Int.zero;
+                SpawnOne(queue[i].def, queue[i].template, PortalAt(i), hpScale, atkScale, rng);
 
-                SpawnOne(queue[i].def, queue[i].template, gate, hpScale, atkScale, rng);
-
-                if (spawnInterval > 0f) yield return new WaitForSeconds(spawnInterval);
+                if (interval > 0f) yield return new WaitForSeconds(interval);
             }
 
             _spawning = false;
+        }
+
+        /// <summary>
+        /// 이번 웨이브의 소환 주기(초).
+        ///
+        /// <b>목표</b>(유저 요청): 마지막으로 소환된 몬스터가 <b>웨이브 타이머가 끝날 무렵</b>
+        /// 넥서스에 닿는다. 그래야 전투 시간 내내 몬스터가 끊이지 않고 흘러 들어온다.
+        ///
+        /// <b>계산</b> — 웨이브 타이머는 "첫 전투가 벌어진 순간"부터 돈다(진행상황 11절).
+        /// 첫 몬스터는 <c>t=0</c> 에 나와 <c>가장 가까운 포탈의 이동시간</c> 뒤에 닿고,
+        /// 마지막 몬스터는 <c>(N-1)×간격</c> 에 나와 <c>가장 먼 포탈의 이동시간</c> 뒤에 닿는다.
+        /// 둘이 만나야 하므로:
+        /// <code>
+        /// (N-1)×간격 + 이동_최대 = 이동_최소 + 전투시간 - 여유
+        /// 간격 = (전투시간 - 여유 - (이동_최대 - 이동_최소)) / (N-1)
+        /// </code>
+        /// <paramref name="count"/> 가 1 이하이거나 전투시간을 모르면 고정값으로 돌아간다.
+        /// </summary>
+        float ResolveSpawnInterval(int count)
+        {
+            if (!autoSpawnInterval || count <= 1 || _battleDuration <= 0f) return spawnInterval;
+
+            float speed = ReferenceMoveSpeed();
+            if (speed <= 0f) return spawnInterval;
+
+            float travelMin = float.PositiveInfinity;
+            float travelMax = 0f;
+            Vector3 nexus = CellCenter(mapGenerator != null ? mapGenerator.CenterCell : Vector3Int.zero);
+
+            for (int i = 0; i < _portals.Count; i++)
+            {
+                float d = Vector2.Distance(CellCenter(_portals[i]), nexus) * pathDetourFactor;
+                float t = d / speed;
+                travelMin = Mathf.Min(travelMin, t);
+                travelMax = Mathf.Max(travelMax, t);
+            }
+            if (float.IsPositiveInfinity(travelMin)) { travelMin = 0f; travelMax = 0f; }
+
+            float window = _battleDuration - arrivalMarginSeconds - (travelMax - travelMin);
+            float interval = window / (count - 1);
+
+            return Mathf.Clamp(interval,
+                               Mathf.Max(0f, spawnIntervalClamp.x),
+                               Mathf.Max(spawnIntervalClamp.x, spawnIntervalClamp.y));
+        }
+
+        /// <summary>
+        /// 소환 주기 계산의 기준이 되는 이동속도(타일/초) — 이번 웨이브 <b>본대</b>(근거리·원거리)의
+        /// 느린 쪽을 쓴다. 보스는 웨이브당 한 마리뿐이고 훨씬 느려서(1.4) 기준으로 삼으면
+        /// 전체 소환이 과하게 촘촘해진다.
+        /// </summary>
+        float ReferenceMoveSpeed()
+        {
+            float speed = 0f;
+            if (meleeSlot.definition != null) speed = meleeSlot.definition.moveSpeedTiles;
+            if (rangedSlot.definition != null)
+                speed = speed > 0f ? Mathf.Min(speed, rangedSlot.definition.moveSpeedTiles)
+                                   : rangedSlot.definition.moveSpeedTiles;
+
+            if (speed <= 0f && spawnTable != null)
+                foreach (MonsterSpawnEntry e in spawnTable)
+                    if (e.definition != null)
+                        speed = speed > 0f ? Mathf.Min(speed, e.definition.moveSpeedTiles)
+                                           : e.definition.moveSpeedTiles;
+
+            return speed;
         }
 
         /// <summary>정의+템플릿이 채워진 슬롯을 count 마리만큼 스폰 대기열에 넣는다.</summary>
@@ -299,7 +423,7 @@ namespace LastSanctuary.Units
             for (int i = 0; i < count; i++) queue.Add((entry.definition, tpl));
         }
 
-        void SpawnOne(MonsterDefinitionSO def, MonsterUnit template, Vector3Int gateCell,
+        void SpawnOne(MonsterDefinitionSO def, MonsterUnit template, Vector3Int portalCell,
                       int hpScale, int atkScale, System.Random rng)
         {
             if (template == null)
@@ -309,14 +433,17 @@ namespace LastSanctuary.Units
                 return;
             }
 
-            // 게이트 주변에서 빈 칸을 찾아 겹치지 않게 배치
-            Vector3Int cell = gateCell;
+            // 포탈 구역(portalAreaTiles 정사각) 안의 아무 칸에서 나온다.
+            // 구역은 통째로 비어 있는 것이 이미 확인됐지만(IsPortalAreaClear), 포탈을
+            // 못 찾아 폴백으로 잡힌 자리일 수도 있어 배치 판정은 그대로 한 번 더 한다.
+            Vector3Int cell = portalCell;
             if (mapGenerator != null)
             {
-                var jitter = new Vector3Int(gateCell.x + rng.Next(-2, 3),
-                                            gateCell.y + rng.Next(-2, 3), 0);
+                int half = Mathf.Max(0, portalAreaTiles / 2);
+                var jitter = new Vector3Int(portalCell.x + rng.Next(-half, half + 1),
+                                            portalCell.y + rng.Next(-half, half + 1), 0);
                 if (!mapGenerator.TryFindPlaceableNear(jitter, 8, null, out cell))
-                    cell = gateCell;
+                    cell = portalCell;
             }
 
             MonsterUnit unit = Instantiate(template, CellCenter(cell),
@@ -336,35 +463,121 @@ namespace LastSanctuary.Units
             if (ai != null)
             {
                 ai.Configure(def.detectRange, def.attackRange, def.moveSpeedTiles,
-                             def.attacksPerSecond, advance: true, priority: def.TargetPriority);
+                             def.attacksPerSecond, advance: true, priority: def.TargetPriority,
+                             type: def.attackType);
                 ai.SetHome(unit.transform.position);
             }
 
             _alive.Add(unit);
         }
 
-        /// <summary>상하좌우 네 변의 중앙 부근을 스폰 게이트로 삼는다(맵 생성기가 뚫어둔 통로).</summary>
-        List<Vector3Int> BuildSpawnGates()
+        /// <summary>
+        /// 이번 웨이브의 소환 포탈을 새로 뽑는다 (유저 요청, 27절).
+        ///
+        /// 예전에는 네 변의 <b>정중앙</b> 네 곳이 고정 게이트였고 매 웨이브 그 넷을 모두 썼다.
+        /// 이제는:
+        ///   · 개수 = <see cref="minPortalsPerWave"/>~<see cref="maxPortalsPerWave"/> 랜덤(1~4)
+        ///   · 위치 = 맵 가장자리의 <b>완전한 랜덤 지점</b>
+        ///   · 크기 = <see cref="portalAreaTiles"/> 한 변의 정사각 구역(기본 3x3) — 그 안에서 나온다
+        ///
+        /// <b>변은 겹치지 않게 고른다.</b> 포탈을 나누는 목적이 "몬스터의 진군 방향을 갈라
+        /// 전술적 재미를 준다"는 것이라, 같은 변에 두 개가 몰리면 그 의미가 없어진다.
+        /// 그래서 네 변을 섞어 앞에서부터 필요한 개수만 쓴다(최대 4 = 한 변에 하나씩).
+        ///
+        /// <b>총 개체수는 포탈 수와 무관하다</b> — 웨이브 표의 마리 수를 포탈에 나눠 배분할 뿐이다.
+        /// </summary>
+        void BuildWavePortals(int wave, System.Random rng)
         {
-            var gates = new List<Vector3Int>();
+            _portals.Clear();
+
             if (mapGenerator == null || mapGenerator.Config == null)
             {
-                gates.Add(Vector3Int.zero);
-                return gates;
+                _portals.Add(Vector3Int.zero);
+                return;
             }
+
+            int want = Mathf.Clamp(rng.Next(Mathf.Min(minPortalsPerWave, maxPortalsPerWave),
+                                            Mathf.Max(minPortalsPerWave, maxPortalsPerWave) + 1), 1, 4);
+
+            // 네 변(0=하 1=상 2=좌 3=우)을 섞어 앞에서부터 want 개만 쓴다.
+            var edges = new List<int> { 0, 1, 2, 3 };
+            for (int i = edges.Count - 1; i > 0; i--)
+            {
+                int j = rng.Next(i + 1);
+                (edges[i], edges[j]) = (edges[j], edges[i]);
+            }
+
+            for (int i = 0; i < want; i++)
+                if (TryPickPortalOnEdge(edges[i], rng, out Vector3Int portal))
+                    _portals.Add(portal);
+
+            // 네 변 전부 실패하는 지형은 사실상 없지만, 그래도 하나는 있어야 소환이 된다.
+            if (_portals.Count == 0) _portals.Add(mapGenerator.CenterCell);
+        }
+
+        /// <summary>
+        /// 한 변 위의 랜덤 지점에서 <see cref="portalAreaTiles"/> 정사각 구역이 통째로 비어 있는
+        /// 자리를 찾는다. 가장자리는 벽 밀도가 높아 한 번에 성공하지 못하는 경우가 흔하므로,
+        /// 변을 따라 여러 번 다시 굴려보고 그래도 없으면 안쪽으로 조금씩 들어가며 찾는다.
+        /// </summary>
+        bool TryPickPortalOnEdge(int edge, System.Random rng, out Vector3Int portal)
+        {
+            portal = default;
 
             Vector2Int size = mapGenerator.Config.MapSize;
             Vector2Int org = mapGenerator.Config.Origin;
-            int mx = org.x + size.x / 2;
-            int my = org.y + size.y / 2;
-            int inset = Mathf.Clamp(edgeInset, 0, Mathf.Min(size.x, size.y) / 2 - 1);
+            int half = Mathf.Max(0, portalAreaTiles / 2);
 
-            gates.Add(new Vector3Int(mx, org.y + inset, 0));                 // 하
-            gates.Add(new Vector3Int(mx, org.y + size.y - 1 - inset, 0));    // 상
-            gates.Add(new Vector3Int(org.x + inset, my, 0));                 // 좌
-            gates.Add(new Vector3Int(org.x + size.x - 1 - inset, my, 0));    // 우
-            return gates;
+            // 구역 전체가 맵 안에 들어와야 하므로 가장자리에서 최소 half 만큼은 띄운다.
+            int baseInset = Mathf.Clamp(Mathf.Max(edgeInset, half + 1),
+                                        half + 1, Mathf.Min(size.x, size.y) / 2 - 1);
+
+            const int AlongAttempts = 24;    // 변을 따라 다시 굴려보는 횟수
+            const int DepthSteps = 12;       // 안쪽으로 들어가며 시도하는 단계 수
+
+            for (int depth = 0; depth < DepthSteps; depth++)
+            {
+                int inset = baseInset + depth * Mathf.Max(1, portalAreaTiles);
+
+                for (int a = 0; a < AlongAttempts; a++)
+                {
+                    // 변을 따르는 좌표는 코너를 피해 [half+1, size-half-2] 안에서 완전 랜덤.
+                    int alongMin = half + 1;
+                    int alongMax = (edge <= 1 ? size.x : size.y) - half - 2;
+                    if (alongMax <= alongMin) return false;
+                    int along = rng.Next(alongMin, alongMax + 1);
+
+                    Vector3Int c = edge switch
+                    {
+                        0 => new Vector3Int(org.x + along, org.y + inset, 0),                  // 하
+                        1 => new Vector3Int(org.x + along, org.y + size.y - 1 - inset, 0),     // 상
+                        2 => new Vector3Int(org.x + inset, org.y + along, 0),                  // 좌
+                        _ => new Vector3Int(org.x + size.x - 1 - inset, org.y + along, 0),     // 우
+                    };
+
+                    if (!IsPortalAreaClear(c)) continue;
+
+                    portal = c;
+                    return true;
+                }
+            }
+            return false;
         }
+
+        /// <summary>포탈 구역이 통째로 배치 가능한지(맵 안 + 벽·구조물 아님).</summary>
+        bool IsPortalAreaClear(Vector3Int center)
+        {
+            int half = Mathf.Max(0, portalAreaTiles / 2);
+            for (int dy = -half; dy <= half; dy++)
+                for (int dx = -half; dx <= half; dx++)
+                    if (!mapGenerator.IsCellPlaceable(new Vector3Int(center.x + dx, center.y + dy, 0)))
+                        return false;
+            return true;
+        }
+
+        /// <summary>순번 <paramref name="index"/> 번째 몬스터가 나올 포탈 (포탈들을 돌아가며 씀).</summary>
+        Vector3Int PortalAt(int index) =>
+            _portals.Count > 0 ? _portals[index % _portals.Count] : Vector3Int.zero;
 
         Vector3 CellCenter(Vector3Int cell) =>
             mapGenerator != null
@@ -373,11 +586,13 @@ namespace LastSanctuary.Units
 
         void Prune() => _alive.RemoveAll(m => m == null || !m.IsAlive);
 
+        /// <summary>이번 웨이브에 실제로 열린 포탈 구역을 그린다 (플레이 중에만 값이 있다).</summary>
         void OnDrawGizmosSelected()
         {
             Gizmos.color = Color.magenta;
-            foreach (Vector3Int g in BuildSpawnGates())
-                Gizmos.DrawWireSphere(CellCenter(g), 1.5f);
+            float side = Mathf.Max(1, portalAreaTiles);
+            for (int i = 0; i < _portals.Count; i++)
+                Gizmos.DrawWireCube(CellCenter(_portals[i]), new Vector3(side, side, 0.1f));
         }
     }
 }

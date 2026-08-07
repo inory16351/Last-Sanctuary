@@ -30,6 +30,10 @@ namespace LastSanctuary.Combat
         [Tooltip("이 범위 안이면 공격한다")]
         [Min(0.2f)] [SerializeField] float attackRange = 1.2f;
 
+        [Tooltip("절대 움직이지 않는 유닛(포탑 등). 이동속도 0 은 '설정 안 함'으로 처리되어 " +
+                 "밸런스 기본 속도로 폴백하므로, 고정 구조물은 반드시 이 값을 켜야 한다")]
+        [SerializeField] bool immobile = false;
+
         [Header("이동")]
         [Tooltip("초당 이동 타일 수. 0 이하면 BalanceConfig 의 기본값을 쓴다")]
         [SerializeField] float moveSpeedTiles = 0f;
@@ -243,9 +247,18 @@ namespace LastSanctuary.Combat
             _nextRetargetTime = Time.time + Random.Range(0f, RetargetInterval);
         }
 
-        /// <summary>스포너가 정의값으로 파라미터를 덮어쓸 때 사용.</summary>
+        /// <summary>
+        /// 스포너가 정의값으로 파라미터를 덮어쓸 때 사용.
+        ///
+        /// <paramref name="type"/> 를 주면 공격 유형까지 정의 테이블에서 받는다.
+        /// 유형별 사거리 필드(<see cref="rangedRangeTiles"/> 등)도 <paramref name="attack"/> 로
+        /// 같이 맞춘다 — 안 그러면 <see cref="EffectiveAttackRange"/> 가 유형별 필드를 보므로
+        /// 정의 테이블의 <c>attackRange</c> 가 조용히 무시된다.
+        /// (캐릭터는 이 경로를 쓰지 않는다 — 전술 지침이 <see cref="ApplyTactics"/> 로 넣는다.)
+        /// </summary>
         public void Configure(float detect, float attack, float speed, float aps,
-                              bool advance, UnitKind[] priority, float leash = -1f)
+                              bool advance, UnitKind[] priority, float leash = -1f,
+                              TacticalAttackType? type = null)
         {
             detectRange = detect;
             attackRange = attack;
@@ -254,10 +267,38 @@ namespace LastSanctuary.Combat
             advanceToObjective = advance;
             if (priority != null && priority.Length > 0) targetPriority = priority;
             if (leash >= 0f) leashRange = leash;
+
+            if (type.HasValue)
+            {
+                attackType = type.Value;
+                switch (attackType)
+                {
+                    case TacticalAttackType.Ranged: rangedRangeTiles = attack; break;
+                    case TacticalAttackType.Magic:  magicMaxRangeTiles = attack; break;
+                    case TacticalAttackType.Heal:   healRangeTiles = attack; break;
+                }
+            }
         }
 
         /// <summary>무해한 유닛(비선공 중립 몬스터 등)에 써서 적을 인식/공격하지 못하게 한다.</summary>
         public void SetCanAcquireTargets(bool value) => canAcquireTargets = value;
+
+        /// <summary>
+        /// 절대 움직이지 않는 유닛(포탑 등)으로 만든다.
+        ///
+        /// <b>이동속도 0 으로는 부족하다</b> — <see cref="CurrentSpeed"/> 는 0 을 "설정 안 함"
+        /// 으로 보고 <see cref="BalanceConfigSO.moveSpeedTilesPerSecond"/> 로 폴백하기 때문에,
+        /// 켜지 않으면 포탑이 사거리 밖의 적을 쫓아 걸어다닌다.
+        /// </summary>
+        public void SetImmobile(bool value) => immobile = value;
+
+        /// <summary>범위 공격(마법 유형)의 판정 크기를 테이블 값으로 맞춘다 (포탑의 Splash).</summary>
+        public void ConfigureSplash(float areaTiles, float minRange = 0f, float safeRadius = 0f)
+        {
+            magicAreaTiles = Mathf.Max(0.5f, areaTiles);
+            magicMinRangeTiles = Mathf.Max(0f, minRange);
+            magicSafeRadiusTiles = Mathf.Max(0f, safeRadius);
+        }
 
         /// <summary>
         /// 귀환 지점을 지정한다. 전진하지 않는 유닛(캐릭터·포탑)은 타겟이 없으면
@@ -403,6 +444,10 @@ namespace LastSanctuary.Combat
         bool EscapeIfEmbedded(float dt)
         {
             if (_mapGenerator == null) return false;
+
+            // 고정 구조물은 자기 발판을 스스로 "막힌 칸"으로 등록하므로 항상 갇힌 것처럼
+            // 보인다 — 빼내려 들면 지어놓은 자리에서 기어나온다.
+            if (immobile) return false;
 
             Vector3Int cell = _mapGenerator.WorldToCell(transform.position);
             if (!_mapGenerator.IsCellBlocked(cell)) return false;
@@ -642,12 +687,13 @@ namespace LastSanctuary.Combat
                     TryAttack();
                     break;
 
+                // 고정 구조물(포탑)은 상태 계산만 하고 이동은 하지 않는다.
                 case CombatState.Chase:
-                    MoveToDestination(ChaseDestination(), dt);
+                    if (!immobile) MoveToDestination(ChaseDestination(), dt);
                     break;
 
                 case CombatState.Advance:
-                    AdvanceToObjective(dt);
+                    if (!immobile) AdvanceToObjective(dt);
                     break;
             }
         }

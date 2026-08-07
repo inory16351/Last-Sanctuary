@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a8fe4b6d44b693340bbda8a750e3d46d, type: 3}
   m_Name: MapGenConfig
   m_EditorClassIdentifier: 
-  seed: -267387357
+  seed: -527220177
   sizeMode: 1
   chunkCount: {x: 3, y: 2}
   mapSizeTiles: {x: 320, y: 320}

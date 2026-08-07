@@ -37,6 +37,11 @@ namespace LastSanctuary.Units
         [Min(1)] public int hpPercent = 100;
 
         [Header("전투 파라미터 (타일)")]
+        [Tooltip("공격 방식. Ranged/Magic 이면 UnitCombat 이 사거리를 attackRange 로 맞추고, " +
+                 "CombatProjectileFx 가 탄환 연출을 그려준다(피해는 예전과 똑같이 히트 스캔으로 즉시).\n" +
+                 "몬스터는 Configure() 로만 값을 받으므로, 여기 적어두면 템플릿을 손대지 않아도 반영된다")]
+        public TacticalAttackType attackType = TacticalAttackType.Melee;
+
         [Min(0.5f)] public float detectRange = 7f;
         [Min(0.2f)] public float attackRange = 1.2f;
         [Min(0.05f)] public float attacksPerSecond = 0.8f;

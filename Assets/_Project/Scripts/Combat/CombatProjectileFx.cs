@@ -26,6 +26,11 @@ namespace LastSanctuary.Combat
         const string BoltResourcePath = "Fx/Projectile_Bolt";
         const string FlashResourcePath = "Fx/Projectile_Flash";
 
+        /// <summary>암세포(웨이브 몬스터) 진영 전용 탄환. 같은 그림을 색만 바꿔 만든 것이라
+        /// 형태(+X 를 향하는 길쭉한 탄환)가 같고 <see cref="AimAt"/> 회전 로직이 그대로 통한다.</summary>
+        const string BoltCancerResourcePath = "Fx/Projectile_Bolt_Cancer";
+        const string FlashCancerResourcePath = "Fx/Projectile_Flash_Cancer";
+
         /// <summary>탄환 속도(월드 유닛/초). 사거리 5타일을 0.2초쯤에 지나가는 값.</summary>
         const float Speed = 26f;
 
@@ -42,6 +47,8 @@ namespace LastSanctuary.Combat
 
         Sprite _bolt;
         Sprite _flash;
+        Sprite _boltCancer;
+        Sprite _flashCancer;
 
         struct Shot
         {
@@ -77,6 +84,8 @@ namespace LastSanctuary.Combat
             _instance = this;
             _bolt = Resources.Load<Sprite>(BoltResourcePath);
             _flash = Resources.Load<Sprite>(FlashResourcePath);
+            _boltCancer = Resources.Load<Sprite>(BoltCancerResourcePath);
+            _flashCancer = Resources.Load<Sprite>(FlashCancerResourcePath);
 
             if (_bolt == null)
                 Debug.LogWarning($"[Fx] Resources/{BoltResourcePath} 를 찾지 못했습니다. " +
@@ -101,8 +110,13 @@ namespace LastSanctuary.Combat
             float dist = ((Vector2)(to - from)).magnitude;
             if (dist < 0.01f) return;
 
-            Spawn(from, to, Mathf.Min(MaxLifetime, dist / Speed), attacker, false);
-            if (_flash != null) Spawn(from, from, FlashSeconds, attacker, true);
+            // 진영별로 다른 색의 탄환을 쓴다 — 난전 중에 누가 쏜 것인지 구분되게.
+            bool cancer = attacker.Faction == Faction.Cancer;
+            Sprite bolt = cancer && _boltCancer != null ? _boltCancer : _bolt;
+            Sprite flash = cancer && _flashCancer != null ? _flashCancer : _flash;
+
+            Spawn(from, to, Mathf.Min(MaxLifetime, dist / Speed), attacker, bolt);
+            if (flash != null) Spawn(from, from, FlashSeconds, attacker, flash, isFlash: true);
         }
 
         /// <summary>유닛의 몸통 중심. 발밑 피벗이라 <c>transform.position</c> 은 바닥이다.</summary>
@@ -113,12 +127,13 @@ namespace LastSanctuary.Combat
             return unit.transform.position;
         }
 
-        void Spawn(Vector3 from, Vector3 to, float duration, DamageableUnit shooter, bool isFlash)
+        void Spawn(Vector3 from, Vector3 to, float duration, DamageableUnit shooter,
+                   Sprite sprite, bool isFlash = false)
         {
             Transform tr = _pool.Count > 0 ? _pool.Pop() : NewProjectile();
             var sr = tr.GetComponent<SpriteRenderer>();
 
-            sr.sprite = isFlash ? _flash : _bolt;
+            sr.sprite = sprite;
             // 섬광은 알파를 깎으며 사라지므로, 풀에서 다시 꺼내 쓸 때 되돌려놔야 한다.
             sr.color = Color.white;
 

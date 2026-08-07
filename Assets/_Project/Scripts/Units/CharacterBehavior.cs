@@ -13,6 +13,10 @@ namespace LastSanctuary.Units
         Guard,   // 방어 — 웨이브에 대비해 넥서스 주변을 돈다
         Rally,   // 집결 — 웨이브 소환 이후, 넥서스 대신 지정된 집결지 구역을 지킨다
 
+        /// <summary>건설 — 플레이어가 찍어둔 건설 예정지로 가서 건물을 짓는 중.
+        /// 웨이브 타임(전투·광폭화)에는 잡히지 않는다 — 그때는 싸우는 게 먼저다.</summary>
+        Build,
+
         /// <summary>후퇴 — 전술 지침의 "후퇴 판단 기준" 이하로 체력이 떨어져 넥서스로 물러난 상태.
         /// 다른 모든 임무보다 우선하며, 회복될 때까지 싸우지 않는다.</summary>
         Retreat,
@@ -84,6 +88,18 @@ namespace LastSanctuary.Units
                  "웨이브 몬스터와 달리 넥서스로 오지 않으므로 캐릭터가 직접 찾아가야 마주친다. " +
                  "웨이브 타임(전투·광폭화)에는 웨이브 몬스터가 우선이라 사냥하지 않는다")]
         [Min(0f)] [SerializeField] float huntDetectRange = 10f;
+
+        [Header("건설 (플레이어가 찍어둔 예정지)")]
+        [Tooltip("이 거리 안까지 들어가면 건설 작업이 진행된다(타일)")]
+        [Min(0.5f)] [SerializeField] float buildWorkRange = 1.8f;
+
+        [Tooltip("건설 중 적을 쫓을 수 있는 거리(타일). 짧게 둬야 현장을 지킨다")]
+        [Min(1f)] [SerializeField] float buildLeash = 5f;
+
+        [Tooltip("전술 우선 행동이 '건물 건설'이 아닌 캐릭터가 그래도 도와주러 가는 거리(타일). " +
+                 "0 이면 건설 전담(우선 행동 = 건물 건설) 캐릭터만 짓는다.\n" +
+                 "'건물 건설'을 고른 캐릭터는 이 값과 무관하게 맵 어디의 예정지든 맡는다")]
+        [Min(0f)] [SerializeField] float assistBuildRange = 22f;
 
         [Header("전방 포지션 — 적극 방어 (인터셉트)")]
         [Tooltip("전방 포지션 캐릭터가 '막으러 나가는' 판정 거리(타일). 구역 중심에서 이 거리 안에 " +
@@ -220,6 +236,12 @@ namespace LastSanctuary.Units
             // 주변 방어 반경) 밖까지 쫓아가면 대열이 흐트러진다는 피드백으로, 그 구역 안에
             // 있는 사냥감만 본다 — 정찰 중에는 원래대로 구역 제한 없이 캐릭터 주변만 본다.
             // 웨이브 타임에는 위에서 이미 걸러지므로 여기서는 phase 만 보면 된다.
+            // 건설이 사냥·정찰보다 앞이다 — 예정지는 플레이어가 직접 찍은 <b>명시적인 지시</b>고
+            // 사냥·정찰은 할 일이 없을 때의 기본 행동이다. 웨이브 타임(전투·광폭화)에는
+            // 아예 시도하지 않는다 — 그때는 싸우는 게 먼저다(유저 요청: "건설 타이밍은
+            // 캐릭터가 알아서 판단").
+            if (!IsWaveTimePhase() && TryBuild()) return;
+
             if (!IsWaveTimePhase() && TryFindHuntPrey(duty, rallyCenter, out DamageableUnit prey))
             {
                 _combat.SetHuntTarget(prey);
@@ -331,8 +353,8 @@ namespace LastSanctuary.Units
         /// 전술 지침을 반영한 "지금의 기본 임무". 두 축이 섞인다:
         ///
         ///   <b>비전투 우선 행동</b> — 대기시간에 무엇을 할지.
-        ///     사냥/탐색은 돌아다녀야 하므로 정찰(Scout), 건설은 자리를 지켜야 하므로 방어(Guard).
-        ///     <i>건설 시스템이 아직 없어서</i> "건물 건설"은 실질적으로 "대기"로 동작한다.
+        ///     사냥/탐색은 돌아다녀야 하므로 정찰(Scout), 건설은 예정지가 없을 때만 여기까지 와서
+        ///     자리를 지킨다(Guard) — 실제 건설 판정은 <see cref="TryBuild"/> 가 더 앞에서 한다.
         ///
         ///   <b>웨이브 반응</b> — 웨이브가 시작될 때 하던 일을 마칠지.
         ///     "즉시 방어"는 소환되는 순간 바로 Guard 로 넘어가고(기존 동작),
@@ -355,10 +377,15 @@ namespace LastSanctuary.Units
             return CharacterDuty.Guard;
         }
 
-        /// <summary>대기시간에 무엇을 할지 — 비전투 우선 행동에 따라 갈린다.</summary>
+        /// <summary>
+        /// 대기시간에 무엇을 할지 — 비전투 우선 행동에 따라 갈린다.
+        /// "건물 건설"은 실제 건설 판정이 <see cref="TryBuild"/> 에서 먼저 일어나므로,
+        /// 여기까지 왔다는 건 <b>지을 예정지가 없다</b>는 뜻이다 — 그때는 넥서스 근처를
+        /// 지키며 대기한다(정찰하러 멀리 나갔다가 예정지가 생기면 늦게 도착한다).
+        /// </summary>
         CharacterDuty PreparationDuty() =>
             _nonCombat == TacticalNonCombat.Build
-                ? CharacterDuty.Guard      // 건설 미구현 → 자리를 지키며 대기
+                ? CharacterDuty.Guard
                 : CharacterDuty.Scout;     // 사냥·탐색 둘 다 돌아다녀야 성립한다
 
         // ------------------------------------------------------------------
@@ -431,6 +458,52 @@ namespace LastSanctuary.Units
 
             // 목줄을 넉넉히 줘야 넥서스까지 오는 길이 막히지 않는다(전투는 어차피 꺼져 있다).
             _combat.SetHome(_destination, retreatRadius + guardRadius);
+        }
+
+        // ------------------------------------------------------------------
+        // 건설 — "캐릭터가 알아서 판단해서" 짓는다 (유저 요청)
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// 지금 맡을 만한 건설 예정지가 있으면 그쪽으로 가고, 도착했으면 짓는다.
+        ///
+        /// <b>누가 가는가</b> — 전술 지침의 비전투 우선 행동이 <see cref="TacticalNonCombat.Build"/>
+        /// (건물 건설)인 캐릭터는 <b>맵 어디의 예정지든</b> 맡는다(= 건설 전담).
+        /// 다른 우선 행동(사냥·탐색)을 고른 캐릭터도 <see cref="assistBuildRange"/> 안에 예정지가
+        /// 있으면 도와준다 — 눈앞에서 짓고 있는데 지나쳐 사냥하러 가면 이상하기 때문이다.
+        /// 이것이 유저가 요청한 "전술의 우선 행동 건설과 연동" 이다.
+        ///
+        /// <b>언제 가는가</b> — 웨이브 타임(전투·광폭화)이 아닐 때만이다. 호출부에서 이미
+        /// 걸러지므로 여기서는 다시 확인하지 않는다.
+        /// </summary>
+        bool TryBuild()
+        {
+            Buildings.BuildService svc = Buildings.BuildService.Instance;
+            if (svc == null || svc.PendingSites.Count == 0) return false;
+
+            bool dedicated = _nonCombat == TacticalNonCombat.Build;
+            if (!dedicated && assistBuildRange <= 0f) return false;
+
+            // 전담이면 거리 제한 없음(0 = 무제한).
+            Buildings.BuildSite site = svc.FindSiteFor(transform.position,
+                                                       dedicated ? 0f : assistBuildRange);
+            if (site == null) return false;
+
+            svc.NoteAssigned(site);
+            _duty = CharacterDuty.Build;
+
+            // 목적지는 현장 한 곳으로 고정한다. UnitCombat 은 귀환 지점에 도착하면 멈추므로
+            // 매 프레임 다시 찍을 필요가 없고, 다시 찍으면 경로가 계속 초기화된다.
+            if ((_destination - site.Center).sqrMagnitude > 0.01f)
+            {
+                _destination = site.Center;
+                _combat.SetHome(_destination, buildLeash);
+            }
+
+            if (Vector2.Distance(transform.position, site.Center) <= buildWorkRange)
+                svc.Contribute(site, Time.deltaTime);
+
+            return true;
         }
 
         /// <summary>웨이브 몬스터가 우선인 구간(전투·광폭화) — 이 동안은 중립 몬스터를 사냥하지 않는다.</summary>
@@ -655,6 +728,7 @@ namespace LastSanctuary.Units
             {
                 CharacterDuty.Scout => new Color(0.4f, 1f, 0.6f, 0.9f),
                 CharacterDuty.Rally => new Color(1f, 0.95f, 0.5f, 0.9f),
+                CharacterDuty.Build => new Color(1f, 0.6f, 0.25f, 0.9f),
                 _                   => new Color(0.4f, 0.7f, 1f, 0.9f),
             };
             Gizmos.DrawLine(transform.position, _destination);

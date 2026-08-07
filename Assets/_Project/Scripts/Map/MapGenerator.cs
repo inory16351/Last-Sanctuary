@@ -216,13 +216,43 @@ namespace LastSanctuary.Map
             foreach (Vector3Int c in cells) _structureBlockedCells.Remove(c);
         }
 
-        /// <summary>중심 셀 기준 한 변 footprintTiles 칸의 정사각 영역을 나열한다.</summary>
+        /// <summary>
+        /// 중심 셀 기준 한 변 footprintTiles 칸의 정사각 영역을 나열한다.
+        /// <b>홀수 발판 전용</b>이다 — 짝수(2x2 등)는 중심이 칸이 아니라 네 칸이 만나는
+        /// 꼭짓점이라 "중심 칸" 이라는 개념 자체가 없다. 짝수 발판은
+        /// <see cref="FootprintCellsFrom"/> 로 좌하단 칸을 기준으로 나열할 것.
+        /// </summary>
         public static IEnumerable<Vector3Int> FootprintCells(Vector3Int center, int footprintTiles)
         {
             int half = Mathf.Max(1, footprintTiles) / 2;
             for (int dy = -half; dy <= half; dy++)
                 for (int dx = -half; dx <= half; dx++)
                     yield return new Vector3Int(center.x + dx, center.y + dy, 0);
+        }
+
+        /// <summary>
+        /// <paramref name="minCell"/>(좌하단 칸)에서 시작하는 한 변 <paramref name="size"/> 칸의
+        /// 정사각 영역. 짝·홀 발판 모두 정확하다 — 2x2 포탑처럼 짝수 발판을 쓰는 건물은
+        /// 이쪽을 쓴다(<see cref="LastSanctuary.Buildings.BuildService"/>).
+        /// </summary>
+        public static IEnumerable<Vector3Int> FootprintCellsFrom(Vector3Int minCell, int size)
+        {
+            int n = Mathf.Max(1, size);
+            for (int dy = 0; dy < n; dy++)
+                for (int dx = 0; dx < n; dx++)
+                    yield return new Vector3Int(minCell.x + dx, minCell.y + dy, 0);
+        }
+
+        /// <summary>
+        /// 좌하단 칸이 <paramref name="minCell"/> 인 <paramref name="size"/>x<paramref name="size"/>
+        /// 영역의 <b>월드 중심</b>. 짝수 발판이면 칸 중심이 아니라 칸 경계 위에 놓인다.
+        /// </summary>
+        public Vector3 FootprintCenterWorld(Vector3Int minCell, int size)
+        {
+            int n = Mathf.Max(1, size);
+            Vector3 a = CellCenterWorld(minCell);
+            Vector3 b = CellCenterWorld(new Vector3Int(minCell.x + n - 1, minCell.y + n - 1, 0));
+            return (a + b) * 0.5f;
         }
 
         /// <summary>월드 좌표 → 셀. 이동 충돌 판정처럼 위치 기반 조회가 필요한 곳에서 쓴다.</summary>

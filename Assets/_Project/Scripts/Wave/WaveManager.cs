@@ -184,7 +184,9 @@ namespace LastSanctuary.Wave
             SetPhase(WavePhase.Marching,
                      $"웨이브 {_waveNumber} 몬스터 소환 · 첫 전투까지 웨이브 타이머 대기");
 
-            if (monsterSpawner != null) monsterSpawner.SpawnWave(_waveNumber);
+            // 전투 타이머 길이를 함께 넘긴다 — 스포너가 "마지막 몬스터가 타이머 종료 직전에
+            // 넥서스에 닿도록" 소환 주기를 역산하는 데 쓴다(진행상황 27절).
+            if (monsterSpawner != null) monsterSpawner.SpawnWave(_waveNumber, battleSeconds);
             else Debug.LogError("[WaveManager] Monster Spawner 가 연결되지 않았습니다.", this);
 
             OnWaveSpawned?.Invoke(_waveNumber);

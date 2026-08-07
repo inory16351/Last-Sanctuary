@@ -14,142 +14,142 @@ MonoBehaviour:
   m_EditorClassIdentifier:
   waves:
   - waveNumber: 1
-    meleeCount: 3
-    rangedCount: 3
+    meleeCount: 4
+    rangedCount: 4
     bossCount: 0
-    statPercent: 60
-    reinforceIntervalSeconds: 27
-    reinforceCount: 2
+    statPercent: 50
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
   - waveNumber: 2
-    meleeCount: 3
-    rangedCount: 3
+    meleeCount: 5
+    rangedCount: 5
     bossCount: 0
-    statPercent: 70
-    reinforceIntervalSeconds: 26
-    reinforceCount: 2
+    statPercent: 65
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
   - waveNumber: 3
-    meleeCount: 5
-    rangedCount: 5
-    bossCount: 0
-    statPercent: 80
-    reinforceIntervalSeconds: 25
-    reinforceCount: 2
-  - waveNumber: 4
-    meleeCount: 5
-    rangedCount: 5
-    bossCount: 0
-    statPercent: 90
-    reinforceIntervalSeconds: 24
-    reinforceCount: 2
-  - waveNumber: 5
-    meleeCount: 6
-    rangedCount: 6
-    bossCount: 0
-    statPercent: 110
-    reinforceIntervalSeconds: 23
-    reinforceCount: 3
-  - waveNumber: 6
     meleeCount: 7
     rangedCount: 7
     bossCount: 0
-    statPercent: 118
-    reinforceIntervalSeconds: 22
-    reinforceCount: 3
-  - waveNumber: 7
-    meleeCount: 8
-    rangedCount: 8
+    statPercent: 90
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
+  - waveNumber: 4
+    meleeCount: 9
+    rangedCount: 9
     bossCount: 0
-    statPercent: 126
-    reinforceIntervalSeconds: 21
-    reinforceCount: 4
-  - waveNumber: 8
-    meleeCount: 10
-    rangedCount: 10
-    bossCount: 0
-    statPercent: 134
-    reinforceIntervalSeconds: 20
-    reinforceCount: 4
-  - waveNumber: 9
-    meleeCount: 10
-    rangedCount: 10
-    bossCount: 0
-    statPercent: 142
-    reinforceIntervalSeconds: 19
-    reinforceCount: 4
-  - waveNumber: 10
-    meleeCount: 6
-    rangedCount: 6
-    bossCount: 1
-    statPercent: 160
-    reinforceIntervalSeconds: 18
-    reinforceCount: 3
-  - waveNumber: 11
-    meleeCount: 11
-    rangedCount: 11
-    bossCount: 0
-    statPercent: 168
-    reinforceIntervalSeconds: 17
-    reinforceCount: 5
-  - waveNumber: 12
-    meleeCount: 11
-    rangedCount: 11
-    bossCount: 0
-    statPercent: 176
-    reinforceIntervalSeconds: 16
-    reinforceCount: 5
-  - waveNumber: 13
+    statPercent: 120
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
+  - waveNumber: 5
     meleeCount: 12
     rangedCount: 12
     bossCount: 0
-    statPercent: 184
-    reinforceIntervalSeconds: 15
-    reinforceCount: 5
-  - waveNumber: 14
+    statPercent: 170
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
+  - waveNumber: 6
+    meleeCount: 11
+    rangedCount: 11
+    bossCount: 0
+    statPercent: 210
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
+  - waveNumber: 7
+    meleeCount: 12
+    rangedCount: 12
+    bossCount: 0
+    statPercent: 250
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
+  - waveNumber: 8
     meleeCount: 13
     rangedCount: 13
     bossCount: 0
-    statPercent: 192
-    reinforceIntervalSeconds: 15
-    reinforceCount: 6
-  - waveNumber: 15
+    statPercent: 300
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
+  - waveNumber: 9
+    meleeCount: 14
+    rangedCount: 14
+    bossCount: 0
+    statPercent: 340
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
+  - waveNumber: 10
+    meleeCount: 7
+    rangedCount: 7
+    bossCount: 1
+    statPercent: 430
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
+  - waveNumber: 11
+    meleeCount: 13
+    rangedCount: 13
+    bossCount: 0
+    statPercent: 460
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
+  - waveNumber: 12
+    meleeCount: 14
+    rangedCount: 14
+    bossCount: 0
+    statPercent: 500
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
+  - waveNumber: 13
+    meleeCount: 14
+    rangedCount: 14
+    bossCount: 0
+    statPercent: 540
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
+  - waveNumber: 14
     meleeCount: 15
     rangedCount: 15
     bossCount: 0
-    statPercent: 213
-    reinforceIntervalSeconds: 15
-    reinforceCount: 6
+    statPercent: 580
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
+  - waveNumber: 15
+    meleeCount: 17
+    rangedCount: 17
+    bossCount: 0
+    statPercent: 660
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
   - waveNumber: 16
     meleeCount: 15
     rangedCount: 15
     bossCount: 0
-    statPercent: 221
-    reinforceIntervalSeconds: 15
-    reinforceCount: 6
+    statPercent: 690
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
   - waveNumber: 17
     meleeCount: 16
     rangedCount: 16
     bossCount: 0
-    statPercent: 229
-    reinforceIntervalSeconds: 15
-    reinforceCount: 7
+    statPercent: 730
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
   - waveNumber: 18
-    meleeCount: 16
-    rangedCount: 16
+    meleeCount: 17
+    rangedCount: 17
     bossCount: 0
-    statPercent: 237
-    reinforceIntervalSeconds: 15
-    reinforceCount: 7
+    statPercent: 770
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
   - waveNumber: 19
     meleeCount: 18
     rangedCount: 18
     bossCount: 0
-    statPercent: 245
-    reinforceIntervalSeconds: 15
-    reinforceCount: 8
+    statPercent: 820
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
   - waveNumber: 20
-    meleeCount: 13
-    rangedCount: 13
+    meleeCount: 12
+    rangedCount: 12
     bossCount: 1
-    statPercent: 263
-    reinforceIntervalSeconds: 15
-    reinforceCount: 6
+    statPercent: 900
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0

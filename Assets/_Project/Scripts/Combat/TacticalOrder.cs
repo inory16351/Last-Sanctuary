@@ -62,7 +62,10 @@ namespace LastSanctuary.Combat
         /// <summary>탐색 — 전장의 안개 해제 우선(사냥하지 않는다).</summary>
         Explore,
 
-        /// <summary>건물 건설 — 포탑·방어 시설 우선. <b>건설 시스템이 아직 없어 대기(자리 유지)로 동작한다.</b></summary>
+        /// <summary>건물 건설 — 플레이어가 찍어둔 건설 예정지를 <b>맵 어디에 있든</b> 맡아
+        /// 짓는다(건설 전담). 지을 곳이 없으면 넥서스 주변을 지키며 대기한다.
+        /// 다른 우선 행동을 고른 캐릭터도 가까운 예정지는 도와준다 —
+        /// <c>CharacterBehavior.assistBuildRange</c> 참조.</summary>
         Build,
     }
 

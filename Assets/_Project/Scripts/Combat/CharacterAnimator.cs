@@ -42,9 +42,15 @@ namespace LastSanctuary.Combat
         [Tooltip("어떤 스킨이 뽑혔는지 콘솔에 남긴다")]
         [SerializeField] bool logSkinChoice = false;
 
-        /// <summary>Resources 조회는 비싸므로 폴더당 한 번만 읽는다.</summary>
-        static CharacterSkinSO[] _skinCache;
-        static string _skinCacheFolder;
+        /// <summary>
+        /// Resources 조회는 비싸므로 폴더당 한 번만 읽는다.
+        ///
+        /// <b>폴더별로 따로 캐시한다</b> — 캐릭터(<c>Skins</c>)와 몬스터(<c>MonsterSkins</c>)가
+        /// 서로 다른 폴더를 쓰는데, "마지막 폴더 하나"만 기억하면 캐릭터·몬스터가 번갈아
+        /// 스폰될 때마다 <c>Resources.LoadAll</c> 이 다시 도는 캐시 스래싱이 생긴다.
+        /// </summary>
+        static readonly System.Collections.Generic.Dictionary<string, CharacterSkinSO[]> _skinCache =
+            new System.Collections.Generic.Dictionary<string, CharacterSkinSO[]>();
 
         SpriteRenderer _sprite;
         UnitCombat _combat;
@@ -184,7 +190,7 @@ namespace LastSanctuary.Combat
 
         static CharacterSkinSO[] LoadSkins(string folder)
         {
-            if (_skinCache != null && _skinCacheFolder == folder) return _skinCache;
+            if (_skinCache.TryGetValue(folder, out CharacterSkinSO[] cached)) return cached;
 
             var loaded = Resources.LoadAll<CharacterSkinSO>(folder);
             var usable = new System.Collections.Generic.List<CharacterSkinSO>(loaded.Length);
@@ -193,19 +199,15 @@ namespace LastSanctuary.Combat
 
             if (usable.Count == 0)
                 Debug.LogWarning($"[Anim] Resources/{folder} 에서 쓸 수 있는 CharacterSkinSO 를 " +
-                                 "찾지 못했습니다. 캐릭터가 스프라이트 없이 보일 수 있습니다.");
+                                 "찾지 못했습니다. 유닛이 스프라이트 없이 보일 수 있습니다.");
 
-            _skinCache = usable.ToArray();
-            _skinCacheFolder = folder;
-            return _skinCache;
+            CharacterSkinSO[] result = usable.ToArray();
+            _skinCache[folder] = result;
+            return result;
         }
 
         /// <summary>플레이 모드를 다시 시작할 때 캐시가 남지 않게 (도메인 리로드 off 대비).</summary>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetCache()
-        {
-            _skinCache = null;
-            _skinCacheFolder = null;
-        }
+        static void ResetCache() => _skinCache.Clear();
     }
 }

@@ -20,6 +20,7 @@ MonoBehaviour:
   defenseStat: 2
   regenStat: 0
   hpPercent: 100
+  attackType: 0
   detectRange: 7
   attackRange: 1.2
   attacksPerSecond: 0.8

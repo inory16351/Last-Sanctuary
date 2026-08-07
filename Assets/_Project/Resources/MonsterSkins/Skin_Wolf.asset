@@ -1,0 +1,57 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a517e511b352f46488ffa35edf32295d, type: 3}
+  m_Name: Skin_Wolf
+  m_EditorClassIdentifier: 
+  displayName: 늑대형 암세포
+  framesPerSecond: 10
+  attackFramesPerSecond: 14
+  idleRight:
+  - {fileID: 21300000, guid: 8c6614f17ab44b141b2909a54e2bdb3a, type: 3}
+  - {fileID: 21300000, guid: dad8e8667e8a1ff45a8771d1e1e2b4bd, type: 3}
+  - {fileID: 21300000, guid: 10b694aa9c21c634f8f6f3eb3d61c678, type: 3}
+  - {fileID: 21300000, guid: 4c0b7a2d9aa478f4386079ad2d791b77, type: 3}
+  idleLeft:
+  - {fileID: 21300000, guid: fc2b8f3f85f27e444acac76e150fe0f2, type: 3}
+  - {fileID: 21300000, guid: 15bc525eec220244eb72cc1dd93cda6c, type: 3}
+  - {fileID: 21300000, guid: 3d0d3f28726d90640a9f46fdacb6de61, type: 3}
+  - {fileID: 21300000, guid: d3ef584bea7a86946895aea77c574503, type: 3}
+  walkRight:
+  - {fileID: 21300000, guid: 1e24200944fec3c44aee1aa2aefe6896, type: 3}
+  - {fileID: 21300000, guid: 64d707fee880a0f418dfa9828bdca2b8, type: 3}
+  - {fileID: 21300000, guid: 515ffa15f1b56874aa5205ff6e371e0d, type: 3}
+  - {fileID: 21300000, guid: bae8c71435987554c8d06b1fd785501f, type: 3}
+  - {fileID: 21300000, guid: e5d64c2b3fbe4d545b4779346c9df6f1, type: 3}
+  - {fileID: 21300000, guid: bd377bc16f38ebf49a8af36f7067554a, type: 3}
+  walkLeft:
+  - {fileID: 21300000, guid: ab3d2ec602a635048a01ced460c80131, type: 3}
+  - {fileID: 21300000, guid: 3797db39e338d49469cd8abd293dca01, type: 3}
+  - {fileID: 21300000, guid: 946d03a89896c5349be1d3f08d08d0a7, type: 3}
+  - {fileID: 21300000, guid: 1317b59f23cff9341a0dd7cb0ce8c1ca, type: 3}
+  - {fileID: 21300000, guid: b6ed9ad49de4d2241b2d0db63b98eb3e, type: 3}
+  - {fileID: 21300000, guid: 714368629ae39c442814dfc1f80b921d, type: 3}
+  attackRight:
+  - {fileID: 21300000, guid: 579b6c067e9b8714a9a35aad60fa393d, type: 3}
+  - {fileID: 21300000, guid: 5fa9f9bf4e22c9e438a8195595cc43a7, type: 3}
+  - {fileID: 21300000, guid: 4a65ba2cb43851246a2b70211bb20e8d, type: 3}
+  - {fileID: 21300000, guid: bb13cb8239eaa4a408f041fb83798dbd, type: 3}
+  - {fileID: 21300000, guid: 76cbad0e88d90dc4aac0fd9784e16829, type: 3}
+  - {fileID: 21300000, guid: 34c1f100aabcbfa4b9936a3dccd61d20, type: 3}
+  attackLeft:
+  - {fileID: 21300000, guid: 6947a5e9f290df34fab02877d4141f0b, type: 3}
+  - {fileID: 21300000, guid: 4052a3093dd9e7d48ad1e87ff3689359, type: 3}
+  - {fileID: 21300000, guid: 97e54698e3defcf43b3497aeabb19c0b, type: 3}
+  - {fileID: 21300000, guid: cdd57550d4ed799418d2cd0d16e58ea2, type: 3}
+  - {fileID: 21300000, guid: e0fb8e20885a71341a29ade0f389d194, type: 3}
+  - {fileID: 21300000, guid: 13c58c0e6fe1a4f498c27ebf99938507, type: 3}
+  rangedRight: []
+  rangedLeft: []
