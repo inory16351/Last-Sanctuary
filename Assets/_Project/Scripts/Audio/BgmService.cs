@@ -24,8 +24,12 @@ namespace LastSanctuary.Audio
     ///      들어가도 Safe Haven 이 처음부터 튀지 않고 그대로 이어진다. 단계가 여러 번
     ///      바뀌어도 <b>목표 곡이 바뀔 때만</b> 전환이 일어난다.
     ///
-    /// <b>전환은 크로스페이드</b>다. <see cref="AudioSource"/> 두 개를 번갈아 쓰면서 하나는
-    /// 올리고 하나는 내린다 — 곡이 뚝 끊기고 다음 곡이 시작하는 것보다 훨씬 자연스럽다.
+    /// <b>전환은 등강도(equal-power) 크로스페이드</b>다. <see cref="AudioSource"/> 두 개를 번갈아
+    /// 쓰면서 하나는 올리고 하나는 내리는데, 단순 선형(1−t / t)이 아니라 사인·코사인 곡선을 쓴다 —
+    /// 선형으로 섞으면 중간 지점(t=0.5)에서 두 볼륨의 합이 1이 아니라 √2/2(≈0.71)로 오목하게
+    /// 꺼져 들려서 "부자연스럽게 순간적으로 조용해졌다 커진다"는 인상을 준다. sin/cos 은 그 합이
+    /// 항상 1로 일정해 체감 음량이 전환 내내 매끄럽다(오디오 믹싱의 표준 기법).
+    /// 게임을 막 시작했을 때도 예외 없이 이 크로스페이드를 타므로 첫 곡도 뚝 튀지 않고 페이드 인 된다.
     ///
     /// <b>왜 곡을 이름(문자열)으로 읽는가</b> — <c>AudioClip</c> 은 오브젝트 참조라 MCP 로
     /// 씬 인스펙터에 넣을 수 없다(진행상황 8절 4번). <c>Resources/Bgm/</c> 아래에 두고
@@ -106,7 +110,9 @@ namespace LastSanctuary.Audio
             }
 
             _wave.OnPhaseChanged += HandlePhaseChanged;
-            Apply(ClipForPhase(_wave.Phase), instant: true);
+            // 시작 곡도 즉시 스냅하지 않고 크로스페이드를 태운다 — Idle 채널은 처음부터
+            // 무음(0)이라 결과적으로 첫 곡이 조용히 페이드 인 되는 것과 같다.
+            Apply(ClipForPhase(_wave.Phase));
         }
 
         void OnDestroy()
@@ -114,13 +120,13 @@ namespace LastSanctuary.Audio
             if (_wave != null) _wave.OnPhaseChanged -= HandlePhaseChanged;
         }
 
-        void HandlePhaseChanged(WavePhase phase) => Apply(ClipForPhase(phase), instant: false);
+        void HandlePhaseChanged(WavePhase phase) => Apply(ClipForPhase(phase));
 
         void Update()
         {
             // 단계가 안 바뀌어도 보스 등장 여부가 늦게 확정될 수 있으므로(예: 표를 못 읽는
             // 구성) 매 프레임 목표 곡을 한 번 더 확인한다. 목표가 그대로면 아무 일도 안 한다.
-            if (_wave != null) Apply(ClipForPhase(_wave.Phase), instant: false);
+            if (_wave != null) Apply(ClipForPhase(_wave.Phase));
 
             TickCrossfade();
         }
@@ -162,7 +168,7 @@ namespace LastSanctuary.Audio
 
         // ------------------------------------------------------------------
 
-        void Apply(AudioClip next, bool instant)
+        void Apply(AudioClip next)
         {
             if (next == _current) return;       // ★ 같은 곡이면 절대 다시 시작하지 않는다
             _current = next;
@@ -170,7 +176,7 @@ namespace LastSanctuary.Audio
             if (logTrackChanges)
                 Debug.Log($"[BGM] → {(next != null ? next.name : "(정지)")}", this);
 
-            if (instant || crossfadeSeconds <= 0f)
+            if (crossfadeSeconds <= 0f)
             {
                 Idle.Stop();
                 Active.clip = next;
@@ -181,7 +187,7 @@ namespace LastSanctuary.Audio
                 return;
             }
 
-            // 다음 곡을 놀고 있는 채널에 얹고, 두 채널의 볼륨을 서로 반대로 굴린다.
+            // 다음 곡을 놀고 있는 채널에 얹고, 두 채널의 볼륨을 등강도 곡선으로 서로 반대로 굴린다.
             AudioSource incoming = Idle;
             incoming.clip = next;
             incoming.volume = 0f;
@@ -192,15 +198,23 @@ namespace LastSanctuary.Audio
             _fading = true;
         }
 
+        /// <summary>
+        /// 등강도(equal-power) 크로스페이드 — sin/cos 곡선을 쓴다.
+        /// t 구간 내내 <c>sin²+cos²=1</c> 이 성립해 두 채널의 "체감 파워(음량 제곱)" 합이
+        /// 항상 일정하게 유지된다. 단순 선형(1-t/t)은 그 합이 중간에서 √2/2 로 꺼져
+        /// 전환 도중 순간적으로 조용해졌다 커지는 것처럼 들리는 게 오디오 믹싱에서 잘 알려진
+        /// 부작용이다 — 유저가 요청한 "자연스러운 전환"에는 이 곡선이 표준 답이다.
+        /// </summary>
         void TickCrossfade()
         {
             if (!_fading) return;
 
             _fade += Time.unscaledDeltaTime / Mathf.Max(0.01f, crossfadeSeconds);
             float t = Mathf.Clamp01(_fade);
+            float angle = t * Mathf.PI * 0.5f;
 
-            Active.volume = volume * t;
-            Idle.volume = volume * (1f - t);
+            Active.volume = volume * Mathf.Sin(angle);
+            Idle.volume = volume * Mathf.Cos(angle);
 
             if (t < 1f) return;
 

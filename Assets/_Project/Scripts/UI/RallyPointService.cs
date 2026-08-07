@@ -21,13 +21,13 @@ namespace LastSanctuary.UI
     /// 마커는 <see cref="markerTemplate"/> 하나를 복제해서 쓴다 — 오브젝트는 MCP 로
     /// 하이라키에 만들고 반복되는 것만 스크립트가 복제한다는 규칙(준수사항 §10 H-2).
     ///
-    /// <b>범위 표시</b>: 집결지는 점이 아니라 <see cref="RallyAreaSize"/> 만큼의 정사각 구역이다
-    /// (<see cref="CharacterBehavior"/> 가 그 구역 안에서 경계 순찰한다). 그래서 마커(점)뿐 아니라
-    /// 그 구역 크기를 그대로 보여주는 반투명 사각형도 같이 그린다 — 지정 모드로 들어가면 마우스를
-    /// 따라 <b>미리보기</b>가 뜨고, 실제로 찍으면 그 자리에 <b>고정</b>된다. 이 클래스가
-    /// <see cref="RallyAreaSize"/> 의 정본이다 — <c>CharacterBehavior</c> 는 실제 순찰 반경을 정할 때
-    /// 이 값을 그대로 읽어간다(화면에 보이는 범위와 실제 순찰 범위가 항상 같아야 하므로, 값을
-    /// 두 곳에 따로 두지 않는다).
+    /// <b>범위 표시</b>: 집결지는 점이 아니라 <see cref="RallyAreaSize"/> 지름의 <b>원형</b> 구역이다
+    /// (<see cref="CharacterBehavior"/> 가 그 구역 안에서 경계 순찰한다 — 유저 요청으로 사각형에서
+    /// 원형으로 바꿨다). 그래서 마커(점)뿐 아니라 그 구역 크기를 그대로 보여주는 반투명 원도 같이
+    /// 그린다 — 지정 모드로 들어가면 마우스를 따라 <b>미리보기</b>가 뜨고, 실제로 찍으면 그 자리에
+    /// <b>고정</b>된다. 이 클래스가 <see cref="RallyAreaSize"/> 의 정본이다 — <c>CharacterBehavior</c> 는
+    /// 실제 순찰 반경을 정할 때 이 값을 그대로 읽어간다(화면에 보이는 범위와 실제 순찰 범위가
+    /// 항상 같아야 하므로, 값을 두 곳에 따로 두지 않는다).
     /// </summary>
     public class RallyPointService : MonoBehaviour
     {
@@ -40,7 +40,7 @@ namespace LastSanctuary.UI
         [Min(0)] [SerializeField] int snapSearchRadius = 6;
 
         [Header("범위 (임시값 — 기획 확정 전)")]
-        [Tooltip("집결지 구역의 한 변 길이(타일). CharacterBehavior 의 실제 순찰 범위도 " +
+        [Tooltip("집결지 원형 구역의 지름(타일). CharacterBehavior 의 실제 순찰 범위도 " +
                  "이 값을 그대로 쓴다 — 화면에 보이는 범위와 실제 동작이 항상 일치하게")]
         [Min(2f)] [SerializeField] float rallyAreaSize = 10f;
 
@@ -48,7 +48,7 @@ namespace LastSanctuary.UI
         [Tooltip("집결지 위치에 표시할 점 마커의 원본. UI_Root 아래 비활성 오브젝트")]
         [SerializeField] RectTransform markerTemplate;
 
-        [Tooltip("집결지 구역을 나타내는 사각형의 원본. UI_Root 아래 비활성 오브젝트")]
+        [Tooltip("집결지 구역을 나타내는 원의 원본(RallyRange 스프라이트). UI_Root 아래 비활성 오브젝트")]
         [SerializeField] RectTransform rangeTemplate;
 
         [Tooltip("마커·범위를 그릴 캔버스. 비워두면 markerTemplate 의 부모를 쓴다")]
@@ -390,8 +390,8 @@ namespace LastSanctuary.UI
         }
 
         /// <summary>
-        /// 마커 하나(점 또는 범위 사각형)를 화면 위치·크기·투명도까지 갱신한다.
-        /// 범위 사각형만 <paramref name="isRange"/> 로 표시해 매 프레임 실제 월드 크기로 다시 잰다 —
+        /// 마커 하나(점 또는 범위 원)를 화면 위치·크기·투명도까지 갱신한다.
+        /// 범위 원만 <paramref name="isRange"/> 로 표시해 매 프레임 실제 월드 크기로 다시 잰다 —
         /// 카메라 줌이 바뀌면 같은 10타일이 화면에서 차지하는 픽셀 크기도 바뀐다(진행상황 §11,
         /// 월드 공간 UI는 줌에 따라 크기가 튄다). 점 마커는 고정 픽셀 크기라 크기 갱신이 필요 없다.
         /// </summary>
@@ -439,10 +439,11 @@ namespace LastSanctuary.UI
         }
 
         /// <summary>
-        /// 월드 공간에서 <paramref name="worldSize"/>(정사각 한 변, 타일=월드 유닛) 만큼의 크기가
+        /// 월드 공간에서 <paramref name="worldSize"/>(원의 지름, 타일=월드 유닛) 만큼의 크기가
         /// 지금 카메라·캔버스 스케일에서 화면 상 몇 로컬 유닛인지 계산한다. 카메라 줌·해상도·
-        /// CanvasScaler 배율을 전부 자동으로 반영한다 — 두 모서리를 각각 스크린 → 캔버스 로컬
-        /// 좌표로 변환해서 차이를 재는 것이라, 그 사이의 모든 변환 단계가 자동으로 상쇄된다.
+        /// CanvasScaler 배율을 전부 자동으로 반영한다 — 정사각형 바운딩 박스의 두 모서리를 각각
+        /// 스크린 → 캔버스 로컬 좌표로 변환해서 차이를 재는 것이라, 그 사이의 모든 변환 단계가
+        /// 자동으로 상쇄된다. 결과는 원형 스프라이트가 정확히 이 지름으로 그려지도록 sizeDelta 에 쓰인다.
         /// </summary>
         Vector2 WorldSizeToLocalSize(Vector3 centerWorld, float worldSize)
         {

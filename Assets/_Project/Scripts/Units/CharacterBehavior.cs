@@ -176,23 +176,34 @@ namespace LastSanctuary.Units
             if (positionChanged) _repickTime = 0f;
         }
 
+        /// <summary>
+        /// <b>씬 참조·난수는 여기서(Awake) 준비한다 — Start 가 아니다.</b>
+        /// 캐릭터 생성 버튼(<c>CharacterCreationService</c>)으로 만든 캐릭터는 다른 오브젝트의
+        /// Update() 도중(= 이번 프레임의 Start 단계가 이미 지나간 뒤) 곧바로 Instantiate 되는데,
+        /// 이렇게 프레임 중간에 태어난 오브젝트는 Awake·OnEnable 은 그 즉시 돌지만 Start 는
+        /// 다음 프레임으로 밀린다 — 그런데 Update 는 그 프레임에 바로 불릴 수 있다(유니티의
+        /// 잘 알려진 함정). 그래서 Update 가 참조하는 <c>_rng</c>·<c>_map</c>·<c>_fog</c>·
+        /// <c>_waveManager</c> 를 Start 에 두면 그 첫 프레임에 전부 null 로 쓰여 NRE 가 난다 —
+        /// 24-6절의 <c>NeutralMonsterWander</c> 가 겪은 것과 완전히 같은 종류의 버그이고 고치는
+        /// 방법도 같다(초기화를 Awake 로 옮긴다 — Awake 는 프레임 중간에 태어나도 그 즉시 돈다).
+        /// </summary>
         void Awake()
         {
             _combat = GetComponent<UnitCombat>();
             _self = GetComponent<DamageableUnit>();
             _character = GetComponent<CharacterUnit>();
             _destination = transform.position;
-        }
 
-        void Start()
-        {
             _fog = FindAnyObjectByType<FogOfWarService>();
             _waveManager = FindAnyObjectByType<WaveManager>();
             _map = FindAnyObjectByType<MapGenerator>();
 
             // 캐릭터마다 다른 난수열을 써야 정찰 목표가 겹치지 않는다.
             _rng = new System.Random(GetInstanceID());
+        }
 
+        void Start()
+        {
             _duty = CurrentDuty();
             PickDestination();
         }
@@ -536,18 +547,18 @@ namespace LastSanctuary.Units
             return true;
         }
 
-        bool PickGuardSpot() => PickSpotAround(NexusPosition(), guardRadius, guardLeash, square: false);
+        bool PickGuardSpot() => PickSpotAround(NexusPosition(), guardRadius, guardLeash, directional: false);
 
         /// <summary>
         /// 집결지 구역 안에서 순찰 지점을 고른다. 방어(<see cref="PickGuardSpot"/>)와 로직은
-        /// 같고 표본 추출 방식만 다르다 — 방어는 넥서스 중심의 원, 집결은 "n×n 구역"이라는
-        /// 요청을 그대로 반영해 정사각 영역 안에서 균등하게 뽑는다.
+        /// 같고 표본 추출 방식만 다르다 — 방어는 넥서스 중심의 원에서 방향 구분 없이 뽑고,
+        /// 집결은 넥서스→집결지 축을 기준으로 전/중/후 포지션을 구분해 뽑는다(둘 다 원형 구역).
         /// </summary>
         bool PickRallySpot(Vector3 center) =>
-            PickSpotAround(center, RallyAreaSize() * 0.5f, rallyLeash, square: true);
+            PickSpotAround(center, RallyAreaSize() * 0.5f, rallyLeash, directional: true);
 
         /// <summary>
-        /// 집결지 구역 크기 — <see cref="UI.RallyPointService.RallyAreaSize"/> 를 그대로 읽는다.
+        /// 집결지 구역 크기(지름, 타일) — <see cref="UI.RallyPointService.RallyAreaSize"/> 를 그대로 읽는다.
         /// 미니맵·월드 오버레이에 보이는 범위 표시와 실제 순찰 범위가 항상 같아야 하므로,
         /// 서비스가 정본이고 여기서는 값을 복제해두지 않는다. 서비스가 없을 때만 폴백을 쓴다.
         /// </summary>
@@ -557,19 +568,20 @@ namespace LastSanctuary.Units
                 : rallyAreaSizeFallback;
 
         /// <summary>
-        /// 지정 중심 주변에서 순찰 지점을 하나 고른다. 벽·구조물에 걸린 칸은 버리고 다시
-        /// 굴린다 — 검사 없이 그대로 쓰면 순찰 지점이 벽 안에 박혀 캐릭터가 도달할 수 없는
-        /// 곳을 향해 벽에 붙어 멈춘 채 다음 재추첨까지 기다리게 된다.
+        /// 지정 중심 주변(반지름 <paramref name="halfExtent"/> 원형 구역)에서 순찰 지점을 하나
+        /// 고른다. 벽·구조물에 걸린 칸은 버리고 다시 굴린다 — 검사 없이 그대로 쓰면 순찰
+        /// 지점이 벽 안에 박혀 캐릭터가 도달할 수 없는 곳을 향해 벽에 붙어 멈춘 채 다음
+        /// 재추첨까지 기다리게 된다.
         ///
         /// 도착 후에도 이 메서드가 주기적으로 다시 불려야 한다 — <see cref="UnitCombat"/> 은
         /// 목적지에 닿으면 Idle 로 멈추고 스스로는 돌아다니지 않으므로, 여기서 새 지점을
         /// 계속 골라줘야 "경계 순찰"처럼 보인다(가만히 서 있는 것과의 차이).
         /// </summary>
-        bool PickSpotAround(Vector3 center, float halfExtent, float extraLeash, bool square)
+        bool PickSpotAround(Vector3 center, float halfExtent, float extraLeash, bool directional)
         {
             // 전방/중위/후방은 "넥서스에서 얼마나 먼가"로 정의된다(유저 규칙).
-            // 정사각 구역(집결지)에서는 넥서스 → 집결지 중심 방향이 그 축이 되고,
-            // 원형 구역(넥서스 방어)에서는 반지름 자체가 곧 넥서스로부터의 거리라 축이 필요 없다.
+            // 집결지(directional)에서는 넥서스 → 집결지 중심 방향이 그 축이 되고,
+            // 넥서스 방어(!directional)에서는 반지름 자체가 곧 넥서스로부터의 거리라 축이 필요 없다.
             Vector3 nexus = NexusPosition();
             Vector2 axis = (Vector2)(center - nexus);
             axis = axis.sqrMagnitude > 0.01f ? axis.normalized : Vector2.up;
@@ -580,17 +592,20 @@ namespace LastSanctuary.Units
             for (int attempt = 0; attempt < GuardSpotAttempts; attempt++)
             {
                 Vector3 candidate;
-                if (square)
+                if (directional)
                 {
-                    // "n×n 구역" 요청을 그대로 반영하되, 넥서스 축 방향으로는 포지션 구간
-                    // 안에서만 뽑는다 — 전방이면 구역의 바깥쪽 1/3, 후방이면 넥서스 쪽 1/3.
+                    // 집결지는 원형 구역이다(유저 요청). 축 방향(along)은 포지션 구간에서
+                    // 뽑되, 그 축과 수직인 폭(side)은 "반지름 halfExtent 원" 을 벗어나지
+                    // 않도록 피타고라스로 상한을 건다 — 사각형을 뽑고 잘라내는 대신, 처음부터
+                    // 원 안의 점만 나오도록 닫힌 형태로 계산한다(재시도 없이 항상 유효).
                     float along = Mathf.Lerp(bandLow, bandHigh, (float)_rng.NextDouble()) * halfExtent;
-                    float side = Mathf.Lerp(-1f, 1f, (float)_rng.NextDouble()) * halfExtent;
+                    float maxSide = Mathf.Sqrt(Mathf.Max(0f, halfExtent * halfExtent - along * along));
+                    float side = Mathf.Lerp(-1f, 1f, (float)_rng.NextDouble()) * maxSide;
                     candidate = center + (Vector3)(axis * along + perpendicular * side);
                 }
                 else
                 {
-                    // 원형(넥서스 방어) — 구간 [-1,1] 을 반지름 비율 [0,1] 로 옮긴다.
+                    // 방향 구분 없는 원형(넥서스 방어) — 구간 [-1,1] 을 반지름 비율 [0,1] 로 옮긴다.
                     // 넥서스 위에 정확히 겹치지 않도록 최소 8% 는 띄운다.
                     float t = Mathf.Lerp(bandLow, bandHigh, (float)_rng.NextDouble());
                     float radius = Mathf.Lerp(0.08f, 1f, (t + 1f) * 0.5f) * halfExtent;
@@ -659,23 +674,19 @@ namespace LastSanctuary.Units
 
             Vector3 zoneCenter;
             float zoneHalfExtent;
-            bool zoneSquare;
             switch (duty)
             {
                 case CharacterDuty.Rally:
                     zoneCenter = rallyCenter;
                     zoneHalfExtent = RallyAreaSize() * 0.5f;
-                    zoneSquare = true;
                     break;
                 case CharacterDuty.Guard:
                     zoneCenter = NexusPosition();
                     zoneHalfExtent = guardRadius;
-                    zoneSquare = false;
                     break;
                 default:   // Scout — 구역 제한 없음
                     zoneCenter = transform.position;
                     zoneHalfExtent = float.PositiveInfinity;
-                    zoneSquare = false;
                     break;
             }
 
@@ -688,7 +699,7 @@ namespace LastSanctuary.Units
 
                 float sqr = (u.transform.position - transform.position).sqrMagnitude;
                 if (sqr > bestSqr) continue;
-                if (!IsInsideZone(u.transform.position, zoneCenter, zoneHalfExtent, zoneSquare)) continue;
+                if (!IsInsideZone(u.transform.position, zoneCenter, zoneHalfExtent)) continue;
 
                 bestSqr = sqr;
                 prey = u;
@@ -696,17 +707,12 @@ namespace LastSanctuary.Units
             return prey != null;
         }
 
-        static bool IsInsideZone(Vector3 pos, Vector3 center, float halfExtent, bool square)
-        {
-            if (float.IsPositiveInfinity(halfExtent)) return true;
-
-            if (square)
-            {
-                Vector3 d = pos - center;
-                return Mathf.Abs(d.x) <= halfExtent && Mathf.Abs(d.y) <= halfExtent;
-            }
-            return Vector2.Distance(pos, center) <= halfExtent;
-        }
+        /// <summary>
+        /// 구역은 전부 원형이다(방어·집결 둘 다) — 넥서스 방어는 원래부터 원, 집결지도
+        /// 이번에 원형으로 바뀌었다(유저 요청). 그래서 판정은 중심까지 거리 하나면 된다.
+        /// </summary>
+        static bool IsInsideZone(Vector3 pos, Vector3 center, float halfExtent) =>
+            float.IsPositiveInfinity(halfExtent) || Vector2.Distance(pos, center) <= halfExtent;
 
         /// <summary>그 월드 지점이 걸어갈 수 있는 칸인지 (맵 안 + 벽·구조물 아님).</summary>
         bool IsWalkable(Vector3 worldPos) =>

@@ -25,9 +25,15 @@ namespace LastSanctuary.UI
     /// 점멸은 <b>웨이브 타이머가 돌기 시작하면</b>(= 첫 전투로 <see cref="WavePhase.Battle"/> 진입)
     /// 멈춘다. 그 시점부터는 이미 교전 중이라 경보가 의미 없다.
     ///
-    /// 소환 지점은 <see cref="MonsterSpawner.Alive"/> 를 읽어 위치를 뭉쳐서 구한다.
-    /// 스포너가 어느 게이트를 썼는지 따로 공개하지 않기 때문인데, 결과적으로 스포너 쪽
-    /// 코드를 건드리지 않아도 된다(스포너는 PROTO 브랜치 소유 — 준수사항 §2).
+    /// <b>소환 지점은 <see cref="MonsterSpawner.CurrentPortals"/> 를 그대로 읽는다</b>(27-6절에서
+    /// 추가된 실제 포탈 목록). 예전에는 이 API 가 없어서 "소환 직후 살아있는 몬스터 위치를
+    /// 뭉쳐서" 역산했는데, <c>MonsterSpawner.SpawnWave()</c> → <c>StartCoroutine(SpawnRoutine)</c>
+    /// 은 첫 <c>yield</c> 전까지(= 첫 몬스터 한 마리를 스폰할 때까지)만 동기 실행되므로, 이
+    /// <see cref="HandleWaveSpawned"/> 콜백이 불리는 시점엔 <b>포탈이 1~4개여도 몬스터는 항상
+    /// 딱 한 마리만 나와 있었다</b> — 그래서 포탈이 여러 개인 웨이브에서도 경보가 하나만 뜨는
+    /// 버그가 있었다(유저 리포트로 발견). <c>BuildWavePortals()</c> 는 스폰 코루틴의 첫 줄이라
+    /// 몬스터를 하나도 안 스폰한 시점에 이미 전체 포탈이 다 정해져 있으므로, 이 값을 직접 읽으면
+    /// 개수·정확한 위치 둘 다 항상 맞는다(살아있는 몬스터가 이동해서 위치가 달라지는 문제도 없다).
     ///
     /// ⚠️ 지형은 <see cref="MapGenerator.Walkable"/> 이 아니라 <see cref="MapGenerator.IsCellBlocked"/>
     /// (장애물 타일맵 기준)로 굽는다 — 자세한 이유는 <see cref="EnsureTexture"/> 참조.
@@ -59,9 +65,6 @@ namespace LastSanctuary.UI
 
         [Tooltip("점멸 주기(초). 이 시간의 절반은 켜지고 절반은 꺼진다")]
         [Min(0.1f)] [SerializeField] float spawnAlertBlinkPeriod = 0.8f;
-
-        [Tooltip("이 거리(타일) 안의 몬스터는 같은 소환 지점에서 나온 것으로 묶는다")]
-        [Min(1f)] [SerializeField] float spawnClusterRadius = 8f;
 
         MapGenerator _map;
         FogOfWarService _fog;
@@ -249,37 +252,18 @@ namespace LastSanctuary.UI
         // 소환 경보
         // ------------------------------------------------------------------
 
-        /// <summary>
-        /// 몬스터가 소환된 직후, 살아있는 몬스터들의 위치를 뭉쳐 소환 지점을 뽑는다.
-        /// (스포너가 게이트를 무작위로 고르므로 지점이 여러 개일 수 있다.)
-        /// </summary>
+        /// <summary>이번 웨이브에 실제로 열린 포탈 전부를 그대로 경보 지점으로 삼는다.</summary>
         void HandleWaveSpawned(int wave)
         {
             _spawnPoints.Clear();
             _alertActive = true;
 
             if (_spawner == null) _spawner = FindAnyObjectByType<MonsterSpawner>();
-            if (_spawner == null) return;
+            if (_spawner == null || _map == null) return;
 
-            float clusterSqr = spawnClusterRadius * spawnClusterRadius;
-            var alive = _spawner.Alive;
-
-            for (int i = 0; i < alive.Count; i++)
-            {
-                MonsterUnit m = alive[i];
-                if (m == null || !m.IsAlive) continue;
-
-                Vector3 p = m.transform.position;
-
-                bool merged = false;
-                for (int c = 0; c < _spawnPoints.Count; c++)
-                {
-                    if ((_spawnPoints[c] - p).sqrMagnitude > clusterSqr) continue;
-                    merged = true;
-                    break;
-                }
-                if (!merged) _spawnPoints.Add(p);
-            }
+            IReadOnlyList<Vector3Int> portals = _spawner.CurrentPortals;
+            for (int i = 0; i < portals.Count; i++)
+                _spawnPoints.Add(_map.CellCenterWorld(portals[i]));
 
             if (_spawnPoints.Count > 0)
                 HudLog.Add($"웨이브 {wave} 소환 — 미니맵 {_spawnPoints.Count}곳 경보", HudLogKind.Danger);
