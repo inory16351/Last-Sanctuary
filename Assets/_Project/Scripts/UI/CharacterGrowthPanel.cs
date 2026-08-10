@@ -117,6 +117,9 @@ namespace LastSanctuary.UI
 
         readonly HpGhostBar _ghost = new HpGhostBar();
 
+        /// <summary>침식 게이지 — 체력바가 보이는 곳엔 침식도 같이 보여야 한다(유저 확정).</summary>
+        readonly ErosionGaugeView _erosion = new ErosionGaugeView();
+
         /// <summary>이번 강화 1회로 오른 만큼만 들고 있다 — 다음 강화를 누르면 지우고 새로 채운다.</summary>
         readonly Dictionary<StatType, int> _delta = new Dictionary<StatType, int>();
 
@@ -276,6 +279,7 @@ namespace LastSanctuary.UI
                 _hpFill.color = HpGaugeColor(ratio);
             }
             _ghost.SetActual(ratio);
+            _erosion.Refresh(has ? _unit : null);
 
             RefreshPortrait(has);
             RefreshRows(has);
@@ -386,6 +390,7 @@ namespace LastSanctuary.UI
             _hintText = FindText("Info/Hint");
             _hpFill = FindImage("Info/HpBack/HpFill");
             _hpGhost = FindImage("Info/HpBack/HpGhost");
+            _erosion.Bind(transform, "Info/ErosionBack");
             _portraitSprite = FindImage("Info/Portrait/Sprite");
             _portraitHint = transform.Find("Info/Portrait/Hint")?.gameObject;
             _costText = FindText("Info/CostValue");

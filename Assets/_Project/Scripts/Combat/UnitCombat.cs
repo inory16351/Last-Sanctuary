@@ -170,6 +170,12 @@ namespace LastSanctuary.Combat
         /// <summary>후퇴 중 — 타겟을 잡지도 공격하지도 않는다. <c>CharacterBehavior</c> 가 켠다.</summary>
         bool _combatSuppressed;
 
+        /// <summary>공격 유형이 강제된 상태인지 (정신 이상 "혼란" 의 근거리 고정).</summary>
+        bool _attackTypeForced;
+
+        /// <summary>강제 전환 전의 공격 유형. 해제 시 이 값으로 되돌린다.</summary>
+        TacticalAttackType _attackTypeBeforeForce;
+
         /// <summary>마법 최소 사거리 안으로 적이 들어와 거리를 벌리는 중.</summary>
         bool _backOff;
 
@@ -200,6 +206,9 @@ namespace LastSanctuary.Combat
         float _stuckTimer;
         bool _destinationUnreachable;
 
+        // 갇힘 탈출 후보 재사용 버퍼 — 매 프레임 새로 할당하지 않는다.
+        readonly HashSet<Vector3Int> _embedRejectScratch = new HashSet<Vector3Int>();
+
         // 타겟 재탐색 간격. 매 프레임 전체를 훑지 않도록 분산시킨다.
         const float RetargetInterval = 0.2f;
 
@@ -217,6 +226,11 @@ namespace LastSanctuary.Combat
 
         // 이만큼 연속으로 경로 계산에 실패하면 목적지 자체를 못 가는 곳으로 판단한다.
         const int UnreachableAfterFailures = 3;
+
+        // 갇힘 탈출 시 "가장 가까운 빈 칸"을 몇 번까지 다시 찾아볼지 — 첫 후보가 벽 너머라 직선이
+        // 막혀 있으면 그 칸을 제외하고 다음으로 가까운 칸을 본다.
+        const int EmbedEscapeAttempts = 6;
+        const int EmbedEscapeSearchRadius = 8;
 
         public CombatState State => _state;
         public DamageableUnit Target => _target;
@@ -376,12 +390,57 @@ namespace LastSanctuary.Combat
         public void ApplyTactics(TacticalAttackType type, TacticalTargetPriority mode,
                                  TacticalAttackReaction reaction)
         {
-            attackType = type;
+            // 강제 유형(정신 이상 "혼란" 등)이 걸려 있는 동안에는 지침 값을 바로 반영하지 않고
+            // 보관만 한다 — 안 그러면 상태가 풀릴 때 되돌릴 원본을 잃어버린다.
+            if (_attackTypeForced) _attackTypeBeforeForce = type;
+            else attackType = type;
+
             _targetMode = mode;
             _reaction = reaction;
             _tacticalTargeting = true;
 
             // 공격 유형이 바뀌면 사거리 자체가 달라지므로, 들고 있던 타겟은 버리고 다시 고른다.
+            _target = null;
+            _backOff = false;
+            _nextRetargetTime = 0f;
+        }
+
+        /// <summary>
+        /// 공격 유형을 일시적으로 강제한다 — 정신 이상 "혼란"이 <b>근거리 공격</b>으로 바꾸는 데 쓴다
+        /// (유저 확정: "혼란의 공격 로직은 캐릭터가 자동으로 근거리 공격으로 바뀌도록").
+        ///
+        /// <b>왜 강제가 필요한가</b> — 혼란은 아군을 때리는 상태인데, 전술 공격 유형이 그대로면
+        /// 치유형 캐릭터는 아군을 <b>회복</b>시켜 버리고(치유 유형의 정의가 "아군 회복"이다),
+        /// 마법형은 <see cref="PerformMagicSplash"/> 가 <c>Opposite</c> 진영만 모으므로 아무에게도
+        /// 피해를 주지 못한다. 근거리로 고정하면 <see cref="TryAttack"/> 의 기본 경로
+        /// (<c>_target.TakeDamageFrom</c>)를 타서 대상이 아군이든 적이든 그대로 때린다.
+        ///
+        /// 원래 유형은 <see cref="ClearForcedAttackType"/> 에서 되돌린다. 강제 중에 전술 지침이
+        /// 바뀌면 <see cref="ApplyTactics"/> 가 새 값을 보관해 두었다가 해제 시점에 그 값으로 돌아간다.
+        /// </summary>
+        public void SetForcedAttackType(TacticalAttackType type)
+        {
+            if (!_attackTypeForced)
+            {
+                _attackTypeBeforeForce = attackType;
+                _attackTypeForced = true;
+            }
+
+            if (attackType == type) return;
+
+            attackType = type;
+            _target = null;
+            _backOff = false;
+            _nextRetargetTime = 0f;
+        }
+
+        /// <summary>강제 공격 유형을 풀고 원래(전술 지침) 유형으로 되돌린다.</summary>
+        public void ClearForcedAttackType()
+        {
+            if (!_attackTypeForced) return;
+
+            _attackTypeForced = false;
+            attackType = _attackTypeBeforeForce;
             _target = null;
             _backOff = false;
             _nextRetargetTime = 0f;
@@ -436,9 +495,22 @@ namespace LastSanctuary.Combat
         /// <summary>
         /// 유닛이 막힌 칸 안에 있으면 가장 가까운 빈 칸으로 밀어낸다.
         /// 스폰 위치가 나중에 막히는 경우(넥서스가 <c>Start</c> 에서 자기 발판 칸을
-        /// 등록하면 그 위에 있던 캐릭터가 갇힌다)가 실제로 있었고, 이 상태가 되면
-        /// <see cref="TryMoveTo"/> 의 모든 후보가 같은 막힌 칸이라 전부 실패해
-        /// 캐릭터가 그 자리에서 완전히 얼어붙는다.
+        /// 등록하면 그 위에 있던 캐릭터가 갇힌다, 또는 유닛이 서 있는 칸에 포탑을 지은 경우 —
+        /// <see cref="LastSanctuary.Buildings.BuildService"/> 의 배치 판정은 그 칸에 유닛이
+        /// 있는지는 보지 않는다)가 실제로 있었고, 이 상태가 되면 <see cref="TryMoveTo"/> 의
+        /// 모든 후보가 같은 막힌 칸이라 전부 실패해 캐릭터가 그 자리에서 완전히 얼어붙는다.
+        ///
+        /// <b>버그 수정(유저 리포트: "후퇴할 때 벽을 뚫는다")</b> — 아래에서 목표 지점까지
+        /// <c>Vector3.MoveTowards</c> 로 직선 이동하되 충돌 판정을 끈다. 이건 의도적이다:
+        /// 지금 서 있는 칸 자체가 막힌 칸이라, 한 걸음이라도 <see cref="IsBlocked"/> 를 거치면
+        /// (그 걸음이 아직 같은 칸 안이라) 매번 막혀서 영원히 못 빠져나온다. 문제는
+        /// <see cref="MapGenerator.TryFindPlaceableNear"/> 가 "가장 가까운 빈 칸"을 순수 거리로만
+        /// 찾는다는 것 — 그 칸이 벽 반대편이면 직선 탈출 경로가 벽·다른 포탑을 그대로 관통한다
+        /// (특히 후퇴 지점이 넥서스 주변 좁은 반경이라 포탑이 몰려 있어 실제로 자주 걸렸다).
+        /// 그래서 후보를 거리순으로 받아보되 <see cref="GridPathfinder.HasLineOfSight"/> 로
+        /// "직선 경로가 실제로 뚫려 있는지"까지 확인하고, 막혀 있으면 그 칸을 제외하고 다음으로
+        /// 가까운 칸을 다시 찾는다 — 탈출 자체(막힌 칸에서 첫걸음 떼기)는 그대로 충돌 무시를
+        /// 유지하면서, 그 직선이 다른 벽을 관통하지는 않게 보장한다.
         /// </summary>
         /// <returns>탈출 중이면 true — 이 프레임의 다른 이동은 건너뛴다.</returns>
         bool EscapeIfEmbedded(float dt)
@@ -452,16 +524,44 @@ namespace LastSanctuary.Combat
             Vector3Int cell = _mapGenerator.WorldToCell(transform.position);
             if (!_mapGenerator.IsCellBlocked(cell)) return false;
 
-            if (!_mapGenerator.TryFindPlaceableNear(cell, 8, null, out Vector3Int free))
-                return false;
+            if (!TryFindEscapeCell(cell, out Vector3Int free)) return false;
 
             // 충돌 판정을 무시하고 빈 칸 쪽으로 곧장 이동한다(이미 막힌 칸이므로
-            // 판정을 거치면 어디로도 못 간다).
+            // 판정을 거치면 어디로도 못 간다) — 다만 위에서 그 직선이 실제로 뚫려 있는지는
+            // 이미 확인했다.
             Vector3 goal = _mapGenerator.CellCenterWorld(free);
             float speed = CurrentSpeed();
             transform.position = Vector3.MoveTowards(transform.position, goal, speed * dt);
             FaceMovement(goal - transform.position);
             return true;
+        }
+
+        /// <summary>
+        /// <see cref="EscapeIfEmbedded"/> 가 쓸 탈출 목표 칸. 거리순으로 후보를 받아보다가,
+        /// 지금 위치에서 그 칸까지 직선이 실제로 뚫려 있는(<see cref="GridPathfinder.HasLineOfSight"/>)
+        /// 첫 번째 칸을 쓴다 — 벽 너머의 "가장 가까운 빈 칸"을 그대로 뚫고 가지 않기 위함이다.
+        /// 길찾기가 없는 유닛(<c>usePathfinding</c> 꺼짐)은 직선 확인을 할 수 없으므로 예전처럼
+        /// 첫 후보를 그대로 쓴다.
+        /// </summary>
+        bool TryFindEscapeCell(Vector3Int fromCell, out Vector3Int free)
+        {
+            _embedRejectScratch.Clear();
+
+            for (int attempt = 0; attempt < EmbedEscapeAttempts; attempt++)
+            {
+                if (!_mapGenerator.TryFindPlaceableNear(fromCell, EmbedEscapeSearchRadius,
+                                                        _embedRejectScratch.Contains, out free))
+                    return false;   // 반경 안에 (제외한 것 말고는) 더 이상 후보가 없다
+
+                if (_pathfinder == null ||
+                    _pathfinder.HasLineOfSight(transform.position, _mapGenerator.CellCenterWorld(free)))
+                    return true;
+
+                _embedRejectScratch.Add(free);
+            }
+
+            free = default;
+            return false;
         }
 
         /// <summary>
@@ -786,10 +886,16 @@ namespace LastSanctuary.Combat
             }
         }
 
-        /// <summary>치유 — 공격력 수치(×퍼센트)만큼 아군을 회복시킨다.</summary>
+        /// <summary>
+        /// 치유 — 공격력 수치(×퍼센트)만큼 아군을 회복시킨다.
+        /// 정신 이상 "이기심"에 걸린 대상은 치유를 거부한다(<see cref="DamageableUnit.AcceptsExternalHeal"/>) —
+        /// 그 상태의 정의가 "치유 불가(본인의 체력 재생 제외)" 라서, 재생 경로(<c>TickRegen</c>)는
+        /// 그대로 두고 <b>외부에서 넣는 회복</b>만 여기서 막는다.
+        /// </summary>
         void PerformHeal()
         {
             if (_self.Balance == null) return;
+            if (!_target.AcceptsExternalHeal) return;
 
             int amount = _self.Balance.Attack(_self.AttackStat) * healPercentOfAttack / 100;
             if (amount <= 0) return;

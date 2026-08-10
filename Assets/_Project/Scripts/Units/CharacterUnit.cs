@@ -19,16 +19,71 @@ namespace LastSanctuary.Units
         [Tooltip("업그레이드 횟수. 새 캐릭터 생성 시 이 범위를 참조한다(기획서 p9)")]
         [SerializeField] int upgradeCount;
 
+        /// <summary>
+        /// 정신 이상 "각성" 처럼 <b>능력치 전체에 일시적으로 걸리는 보정</b>(%).
+        /// 직렬화하지 않는다 — 임시 상태이고 정본은 <see cref="CharacterErosion"/> 이 들고 있다.
+        /// 여러 효과가 겹칠 수 있으므로 값을 덮어쓰지 않고 더한다(<see cref="AddStatPercentBonus"/>).
+        /// </summary>
+        int _statPercentBonus;
+
+        /// <summary>정신 이상 "이기심" — 외부 치유를 받지 못한다(자기 재생은 계속된다).</summary>
+        bool _externalHealBlocked;
+
         public StatBlock Stats => stats;
         public int UpgradeCount => upgradeCount;
 
-        public override int MaxHp => Balance != null ? Balance.MaxHp(stats.hp) : 0;
-        public override int DefenseStat => stats.defense;
-        public override int AttackStat => stats.attack;
-        protected override int RegenStat => stats.regen;
+        /// <summary>지금 걸려 있는 능력치 보정(%). 0 이면 보정 없음.</summary>
+        public int StatPercentBonus => _statPercentBonus;
+
+        /// <summary>
+        /// 보정이 반영된 실제 능력치. 몬스터의 <c>hpPercent</c> 와 같은 방식으로
+        /// <b>치환 공식에 넣기 전 원시 능력치에 먼저 곱하고 반올림</b>한다(진행상황 4절) —
+        /// 그래야 체력·타격 결과가 정수로 유지된다. 능력치 상한(<see cref="BalanceConfigSO.statMax"/>)도
+        /// 그대로 적용한다.
+        /// </summary>
+        public int EffectiveStat(StatType type)
+        {
+            int raw = stats[type];
+            if (_statPercentBonus == 0) return raw;
+
+            int scaled = Mathf.RoundToInt(raw * (100 + _statPercentBonus) / 100f);
+            int cap = Balance != null ? Balance.statMax : 100;
+            return Mathf.Clamp(scaled, 1, cap);
+        }
+
+        public override int MaxHp => Balance != null ? Balance.MaxHp(EffectiveStat(StatType.Hp)) : 0;
+        public override int DefenseStat => EffectiveStat(StatType.Defense);
+        public override int AttackStat => EffectiveStat(StatType.Attack);
+        protected override int RegenStat => EffectiveStat(StatType.Regen);
+
+        /// <summary>이기심 상태에서는 외부 치유를 거부한다 — 자기 체력 재생은 이 경로를 거치지 않는다.</summary>
+        public override bool AcceptsExternalHeal => !_externalHealBlocked;
 
         public override Faction Faction => Faction.Angel;
         public override UnitKind Kind => UnitKind.Character;
+
+        /// <summary>
+        /// 능력치 보정(%)을 더한다. 해제할 때는 같은 값을 음수로 넣는다 —
+        /// 그래야 여러 효과가 겹쳐도 서로의 값을 지우지 않는다.
+        ///
+        /// 최대 체력이 즉시 바뀌므로 <b>현재 체력 비율을 유지</b>한다. 보정이 걸릴 때 공짜 회복이
+        /// 되거나, 풀릴 때 최대 체력이 현재 체력보다 낮아져 값이 튀는 것을 막는다.
+        /// </summary>
+        public void AddStatPercentBonus(int deltaPercent)
+        {
+            if (deltaPercent == 0) return;
+
+            float ratio = HpRatio;
+            _statPercentBonus += deltaPercent;
+
+            SetupHealth(Balance, fillHp: false);
+            int target = Mathf.Clamp(Mathf.RoundToInt(MaxHp * ratio), 1, MaxHp);
+            if (target > CurrentHp) Heal(target - CurrentHp);
+            else if (target < CurrentHp) ApplyDamage(CurrentHp - target);
+        }
+
+        /// <summary>외부 치유 차단을 켜고 끈다 (정신 이상 "이기심").</summary>
+        public void SetExternalHealBlocked(bool value) => _externalHealBlocked = value;
 
         /// <summary>스포너가 복제 직후 호출해 능력치를 주입한다.</summary>
         public void Initialize(StatBlock rolled, BalanceConfigSO balance, int upgrades = 0)

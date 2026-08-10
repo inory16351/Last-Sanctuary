@@ -114,6 +114,9 @@ namespace LastSanctuary.UI
 
             public TMP_Text HpPercentLabel;
 
+            /// <summary>침식 게이지(막대 + 숫자). 하이라키에 없으면 조용히 비활성 상태로 남는다.</summary>
+            public readonly ErosionGaugeView Erosion = new ErosionGaugeView();
+
             /// <summary>살아있는 동안만 유효. 죽은 뒤에는 멤버를 다시 읽지 않는다(파괴된 오브젝트라서).</summary>
             public CharacterUnit Unit;
 
@@ -387,6 +390,10 @@ namespace LastSanctuary.UI
                 if (percentLabel != null) row.HpPercentLabel = percentLabel.GetComponent<TMP_Text>();
             }
 
+            // 침식 게이지는 체력바와 형제로 둔다(HpBack 아래) — 체력이 보이는 곳엔 침식도
+            // 같이 보여야 한다는 요구(유저 확정)를 행 단위로 만족시킨다.
+            row.Erosion.Bind(clone, "ErosionBack");
+
             // 람다가 row 를 잡아두므로 행이 다른 캐릭터로 바뀌어도 항상 지금 물린 캐릭터를 쓴다.
             if (row.SelectButton != null)
                 row.SelectButton.onClick.AddListener(() => SelectRow(row));
@@ -518,6 +525,9 @@ namespace LastSanctuary.UI
             }
             if (row.HpGhost != null) row.HpGhost.fillAmount = 0f;   // 잔상은 사망 표시에 방해만 된다
             if (row.HpPercentLabel != null) row.HpPercentLabel.text = string.Empty;
+
+            // 죽은 캐릭터의 침식 수치는 의미가 없다 — 비워서 회색 행과 톤을 맞춘다.
+            row.Erosion.Clear();
         }
 
         /// <summary>행이 재활용될 때 이전 사망 표시(회색)를 지우고 정상 색으로 되돌린다.</summary>
@@ -578,7 +588,19 @@ namespace LastSanctuary.UI
                 // HP 바는 여기서 건드리지 않는다 — ApplyHp(즉시)+AnimateHpBars(매 프레임)가 반영한다.
                 // 폴링과 애니메이션이 같은 값을 이중으로 쓰면 순서에 따라 잠깐 어긋나 보일 수 있다.
 
-                if (row.Duty != null) row.Duty.text = DutyTextOf(unit);
+                // 현재 상태 — 정신 이상이 발동 중이면 그 이름을 임무보다 먼저 보여준다
+                // (유저 확정: "로스터의 현재 상태에 정신 이상 상태 표기"). 색까지 바꿔서
+                // "지금 정상이 아니다"가 한눈에 보이게 한다.
+                if (row.Duty != null)
+                {
+                    CharacterErosion erosion = CharacterErosion.Of(unit);
+                    bool deranged = erosion != null && erosion.HasActive;
+
+                    row.Duty.text = deranged ? erosion.ActiveName : DutyTextOf(unit);
+                    row.Duty.color = deranged ? HudTheme.TextErosion : HudTheme.TextDim;
+                }
+
+                row.Erosion.Refresh(unit);
 
                 if (row.Background != null)
                     row.Background.color = ReferenceEquals(unit, selected) ? rowSelected : rowNormal;

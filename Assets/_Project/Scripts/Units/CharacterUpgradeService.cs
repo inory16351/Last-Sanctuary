@@ -107,6 +107,37 @@ namespace LastSanctuary.Units
         }
 
         /// <summary>
+        /// <b>자원을 쓰지 않고</b> 강화한다 — 정신 이상 "고조"(자원 소모 없이 강화됨)가 쓴다.
+        ///
+        /// 강화 횟수(<see cref="CharacterUnit.UpgradeCount"/>)는 정상적으로 오른다. 테이블의
+        /// "자원 소모는 없으니 자원 소모 값은 동일하게 상승" 이 정확히 이 동작이다 — 이 프로젝트는
+        /// 강화 비용을 별도 장부가 아니라 그 캐릭터의 강화 횟수에서 계산하므로(<see cref="CostFor"/>),
+        /// <see cref="CharacterUnit.ApplyUpgrade"/> 를 부르는 것만으로 "공짜로 강화됐지만 다음
+        /// 강화 비용은 그만큼 올라간다"가 그대로 성립한다.
+        /// </summary>
+        /// <returns>실제로 적용된 강화 횟수.</returns>
+        public int GrowFree(CharacterUnit unit, int times)
+        {
+            if (unit == null || !unit.IsAlive || times <= 0) return 0;
+
+            int applied = 0;
+            for (int i = 0; i < times; i++)
+            {
+                StatBlock before = unit.Stats;
+                StatBlock grown = Grow(before, unit.Balance);
+                unit.ApplyUpgrade(grown);
+                applied++;
+            }
+
+            if (logUpgrades)
+                Debug.Log($"[Upgrade] {unit.name} 무료 강화 {applied}회(정신 이상 고조) · " +
+                          $"누적 {unit.UpgradeCount}회 · 다음 비용 {CostFor(unit)}", unit);
+
+            OnUpgraded?.Invoke(unit, 0);
+            return applied;
+        }
+
+        /// <summary>
         /// 능력치 4종에 각각 독립적인 랜덤값을 더한다. 능력치 상한(기본 100)에서 잘린다.
         /// <see cref="StatBlock.Roll"/> 를 재사용해 "각 능력치에 균등 랜덤" 규칙이
         /// 캐릭터 생성과 성장에서 같은 코드로 유지되게 했다.

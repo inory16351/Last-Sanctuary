@@ -60,6 +60,17 @@ namespace LastSanctuary.Combat
         /// <summary>유닛 종류. 몬스터의 공격 우선순위 판정에 쓰인다.</summary>
         public abstract UnitKind Kind { get; }
 
+        /// <summary>
+        /// <b>외부에서 넣는 회복</b>(치유형 캐릭터 등)을 받을 수 있는지. 기본은 항상 true 이고,
+        /// 정신 이상 "이기심"에 걸린 캐릭터만 false 가 된다(<c>CharacterUnit</c> 에서 재정의).
+        ///
+        /// <see cref="Heal"/> 자체를 막지 않는 이유 — 체력 재생(<see cref="TickRegen"/>)도 같은
+        /// <see cref="Heal"/> 을 쓰는데, "이기심"은 <b>본인의 체력 재생은 계속된다</b>가 정의라서
+        /// 회복 지점을 막으면 안 된다. 그래서 외부 회복을 넣는 쪽(<c>UnitCombat.PerformHeal</c>)이
+        /// 이 값을 확인하고 스스로 물러나는 방식으로 갈랐다.
+        /// </summary>
+        public virtual bool AcceptsExternalHeal => true;
+
         // ------------------------------------------------------------------
 
         public BalanceConfigSO Balance => balance;

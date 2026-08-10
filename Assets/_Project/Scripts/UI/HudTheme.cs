@@ -32,6 +32,16 @@ namespace LastSanctuary.UI
         public static readonly Color BarHpMid     = new Color(0.90f, 0.78f, 0.32f, 1f);
         public static readonly Color BarHpLow     = new Color(0.92f, 0.38f, 0.38f, 1f);
 
+        // 침식(Erosion) 게이지 — 체력바 바로 아래에 나란히 놓이므로 색으로 확실히 갈라야 한다.
+        // 체력이 초록→노랑→빨강 계열이라, 침식은 겹치지 않는 보라→자홍 계열로 잡았다
+        // (침식이 차오르는 것 자체가 "정신이 잠식된다"는 표현이라 톤도 맞는다).
+        public static readonly Color BarErosionBack = new Color(0.08f, 0.05f, 0.12f, 0.90f);
+        public static readonly Color BarErosion     = new Color(0.55f, 0.36f, 0.86f, 1f);
+        public static readonly Color BarErosionHigh = new Color(0.95f, 0.30f, 0.78f, 1f);
+
+        /// <summary>정신 이상 상태 이름을 표시할 때의 글자색.</summary>
+        public static readonly Color TextErosion    = new Color(0.84f, 0.64f, 1f, 1f);
+
         public static readonly Color ButtonNormal = new Color(0.13f, 0.17f, 0.22f, 0.95f);
         public static readonly Color ButtonHover  = new Color(0.18f, 0.26f, 0.32f, 0.98f);
         public static readonly Color ButtonOn     = new Color(0.16f, 0.42f, 0.38f, 0.98f);

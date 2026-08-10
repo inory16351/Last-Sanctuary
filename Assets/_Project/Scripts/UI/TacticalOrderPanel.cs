@@ -72,6 +72,9 @@ namespace LastSanctuary.UI
         /// <summary>깎인 구간을 잠깐 남겨두는 잔상 값. <see cref="HpGhostBar"/> 가 관리한다.</summary>
         readonly HpGhostBar _ghost = new HpGhostBar();
 
+        /// <summary>침식 게이지 — 체력바가 보이는 곳엔 침식도 같이 보여야 한다(유저 확정).</summary>
+        readonly ErosionGaugeView _erosion = new ErosionGaugeView();
+
         UnitSelector _selector;
         CharacterUnit _unit;
         CharacterTactics _tactics;
@@ -241,6 +244,7 @@ namespace LastSanctuary.UI
                 if (_hpPercentText != null) _hpPercentText.text = "-";
                 if (_hpFill != null) _hpFill.fillAmount = 0f;
                 if (_hpGhost != null) { _ghost.Snap(0f); _hpGhost.fillAmount = 0f; }
+                _erosion.Refresh(null);
                 return;
             }
 
@@ -258,6 +262,7 @@ namespace LastSanctuary.UI
                 _hpFill.color = HpGaugeColor(ratio);
             }
             _ghost.SetActual(ratio);
+            _erosion.Refresh(_unit);
         }
 
         /// <summary>로스터와 같은 3단 그라디언트(초록 → 노랑 → 빨강)를 쓴다.</summary>
@@ -286,6 +291,7 @@ namespace LastSanctuary.UI
             _retreatValueText = FindText("Col2/RetreatValue");
             _retreatBarFill = FindImage("Col2/RetreatBar/Fill");
             _hpGhost = FindImage("Info/HpBack/HpGhost");
+            _erosion.Bind(transform, "Info/ErosionBack");
 
             // 후퇴 기준 막대 — 눌러서/끌어서 1% 단위로 고른다. 아래 ± 버튼(5% 단위)은 그대로 둔다:
             // 막대는 대충 잡을 때, 버튼은 정확히 맞출 때 쓰라는 것.

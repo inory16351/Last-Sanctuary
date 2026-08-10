@@ -151,11 +151,66 @@ namespace LastSanctuary.Units
         int _retreatHpPercent;
         bool _retreating;
 
+        /// <summary>정신 이상이 임무 판단을 가로챈 상태. <see cref="CharacterErosion"/> 만 설정한다.</summary>
+        MentalOverride _mental = MentalOverride.None;
+
         public CharacterDuty Duty => _duty;
         public Vector3 Destination => _destination;
 
         /// <summary>지금 후퇴 중인지 (로스터 표시·디버그용).</summary>
         public bool IsRetreating => _retreating;
+
+        /// <summary>지금 정신 이상이 임무를 가로채고 있는지 (로스터 표시·디버그용).</summary>
+        public MentalOverride Mental => _mental;
+
+        /// <summary>
+        /// 정신 이상의 행동 오버라이드를 켜고 끈다 (<see cref="CharacterErosion"/> 전용 진입점).
+        ///
+        /// <b>왜 여기서 후퇴 판단까지 끊는가</b> — 오버라이드가 걸리는 세 상태(혼란·공포·광분)는
+        /// 전부 "전술 지침을 따르지 않는 상태"이고, 후퇴 기준(<c>retreatHpPercent</c>)도 전술
+        /// 지침의 한 항목이다. 지침대로 후퇴해 버리면 <see cref="SetRetreating"/> 이
+        /// <c>ClearHuntTarget</c>·<c>SetCombatSuppressed</c> 를 불러 혼란·광분의 효과를 그 자리에서
+        /// 지워 버린다 — 그래서 오버라이드 중에는 후퇴 상태를 강제로 해제해 둔다.
+        /// 공포는 그 자체가 회피 상태라 후퇴 로직(<see cref="TickRetreat"/>)을 직접 재사용한다.
+        /// </summary>
+        public void SetMentalOverride(MentalOverride mode)
+        {
+            if (_mental == mode) return;
+
+            MentalOverride previous = _mental;
+            _mental = mode;
+
+            if (mode == MentalOverride.None)
+            {
+                // 정상 복귀 — 공포가 켜둔 전투 억제를 풀고, 다음 프레임에 원래 임무를 다시 고른다.
+                if (previous == MentalOverride.Flee)
+                {
+                    _retreating = false;
+                    _combat.SetCombatSuppressed(false);
+                }
+                _duty = CurrentDuty();
+                _repickTime = 0f;
+                return;
+            }
+
+            // 오버라이드 진입 — 지침에 따른 후퇴는 여기서 끝낸다(위 주석 참조).
+            _retreating = false;
+
+            if (mode == MentalOverride.Flee)
+            {
+                // 공포: 적을 인식하지 않고 넥서스 쪽으로 물러난다 = 기존 후퇴와 완전히 같은 동작.
+                _combat.SetCombatSuppressed(true);
+                _combat.ClearHuntTarget();
+                _duty = CharacterDuty.Retreat;
+                PickRetreatSpot();
+            }
+            else
+            {
+                // 혼란·광분: 싸우기는 한다 — 공포가 켜뒀을 수 있는 전투 억제만 확실히 풀어준다.
+                _combat.SetCombatSuppressed(false);
+                _repickTime = 0f;
+            }
+        }
 
         /// <summary>
         /// 전술 지침을 반영한다. <see cref="CharacterTactics"/> 만 호출한다 —
@@ -225,7 +280,11 @@ namespace LastSanctuary.Units
             EnsureReady();
             if (_self == null || !_self.IsAlive) return;
 
-            // 후퇴 판단이 가장 먼저다 — 다른 어떤 임무보다 우선한다.
+            // 정신 이상이 임무를 가로챈 상태가 후퇴보다도 먼저다 — 그 상태의 정의 자체가
+            // "전술 지침(후퇴 기준 포함)을 따르지 않는다" 이기 때문이다(SetMentalOverride 참조).
+            if (_mental != MentalOverride.None) { TickMentalOverride(); return; }
+
+            // 후퇴 판단이 그다음이다 — 다른 어떤 임무보다 우선한다.
             UpdateRetreatState();
             if (_retreating) { TickRetreat(); return; }
 
@@ -402,15 +461,13 @@ namespace LastSanctuary.Units
         }
 
         /// <summary>
-        /// 대기시간에 무엇을 할지 — 비전투 우선 행동에 따라 갈린다.
-        /// "건물 건설"은 실제 건설 판정이 <see cref="TryBuild"/> 에서 먼저 일어나므로,
-        /// 여기까지 왔다는 건 <b>지을 예정지가 없다</b>는 뜻이다 — 그때는 넥서스 근처를
-        /// 지키며 대기한다(정찰하러 멀리 나갔다가 예정지가 생기면 늦게 도착한다).
+        /// 대기시간에 무엇을 할지. "건물 건설"은 실제 건설 판정이 <see cref="TryBuild"/> 에서
+        /// 먼저 일어나므로, 여기까지 왔다는 건 <b>지을 예정지가 없다</b>는 뜻이다 —
+        /// 그때는 사냥·탐색 우선 행동과 똑같이 돌아다닌다(유저 요청: "건설 끝나고 대기 시간엔
+        /// 놀지 말고 사냥이나 정찰해야 한다"). 예정지가 생기면 다음 프레임 <see cref="TryBuild"/>
+        /// 가 바로 그쪽으로 되돌린다.
         /// </summary>
-        CharacterDuty PreparationDuty() =>
-            _nonCombat == TacticalNonCombat.Build
-                ? CharacterDuty.Guard
-                : CharacterDuty.Scout;     // 사냥·탐색 둘 다 돌아다녀야 성립한다
+        CharacterDuty PreparationDuty() => CharacterDuty.Scout;
 
         // ------------------------------------------------------------------
         // 후퇴 — 전술 지침의 "후퇴 판단 기준"
@@ -451,6 +508,26 @@ namespace LastSanctuary.Units
             {
                 _repickTime = 0f;   // 복귀 — 다음 프레임에 원래 임무의 목적지를 다시 고른다
             }
+        }
+
+        /// <summary>
+        /// 정신 이상 오버라이드가 걸린 동안의 유지 처리.
+        ///
+        /// 혼란·광분은 <b>목적지·타겟을 <see cref="CharacterErosion"/> 이 직접 밀어넣는다</b>
+        /// (아군 강제 타겟 / 적 방향으로 귀환 지점 이동) — 그래서 여기서는 아무것도 하지 않고
+        /// 평소 임무 판단이 그 값을 덮어쓰지 않게 비켜 주기만 한다. 두 곳에서 목적지를 쓰면
+        /// 서로 지워서 캐릭터가 제자리에서 흠칫거린다.
+        /// </summary>
+        void TickMentalOverride()
+        {
+            if (_mental == MentalOverride.Flee)
+            {
+                TickRetreat();     // 공포 = 회피. 도착·타임아웃마다 넥서스 주변을 다시 고른다
+                return;
+            }
+
+            // 혼란·광분 — 표시용 임무만 갱신해 둔다(로스터는 정신 이상 이름을 우선 표시한다).
+            _duty = _mental == MentalOverride.Charge ? CharacterDuty.Scout : CharacterDuty.Guard;
         }
 
         /// <summary>후퇴 중 유지 — 넥서스 근처에 도착했으면 그 자리에 머문다.</summary>
@@ -688,9 +765,13 @@ namespace LastSanctuary.Units
             prey = null;
             if (huntDetectRange <= 0f) return false;
 
-            // 전술 지침 — "중립 몬스터 사냥"을 고른 캐릭터만 사냥한다.
-            // 탐색(Explore)은 안개 해제가, 건설(Build)은 자리 지키기가 목적이므로 사냥하지 않는다.
-            if (_nonCombat != TacticalNonCombat.Hunt) return false;
+            // 전술 지침 — "중립 몬스터 사냥"을 고른 캐릭터는 당연히 사냥한다.
+            // 탐색(Explore)은 안개 해제가 목적이므로 사냥하지 않는다.
+            // 건설(Build)은 여기 도달했다는 것 자체가 "지금 지을 예정지가 없다"는 뜻이다
+            // (있었으면 Update 의 TryBuild 에서 이미 return 했다) — 노는 대신 사냥한다
+            // (유저 요청: "건설 끝나고 대기 시간엔 사냥이나 정찰해야 한다").
+            if (_nonCombat != TacticalNonCombat.Hunt && _nonCombat != TacticalNonCombat.Build)
+                return false;
 
             // 치유 유형은 애초에 적을 때리지 않는다 — 사냥감을 잡아봐야 쫓아가기만 한다.
             if (_combat.AttackType == TacticalAttackType.Heal) return false;

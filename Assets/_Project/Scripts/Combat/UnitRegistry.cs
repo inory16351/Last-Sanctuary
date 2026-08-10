@@ -148,6 +148,10 @@ namespace LastSanctuary.Combat
                 if (u.Faction != faction) continue;
                 if (!includeSelfIfWounded && ReferenceEquals(u, exclude)) continue;
 
+                // 치유를 거부하는 대상(정신 이상 "이기심")은 후보에서 뺀다 — 안 그러면 치유형
+                // 캐릭터가 "가장 많이 다친 아군"으로 그를 붙잡고 아무 효과 없이 서 있게 된다.
+                if (!u.AcceptsExternalHeal) continue;
+
                 float ratio = u.HpRatio;
                 if (ratio >= 1f) continue;
 
@@ -180,6 +184,56 @@ namespace LastSanctuary.Combat
 
                 Vector3 d = u.transform.position - center;
                 if (Mathf.Abs(d.x) <= halfExtentTiles && Mathf.Abs(d.y) <= halfExtentTiles) into.Add(u);
+            }
+        }
+
+        /// <summary>
+        /// 반경 안의 <b>같은 진영</b> 유닛 중 가장 가까운 하나 (정신 이상 "혼란" 의 아군 공격용).
+        /// <see cref="FindTarget"/> 계열은 <see cref="FactionExtensions.Opposite"/> 로 적을 찾으므로
+        /// 아군을 노리는 데는 쓸 수 없어 따로 둔다. <paramref name="exclude"/> 는 보통 자기 자신이다.
+        /// </summary>
+        public static DamageableUnit FindNearestAlly(Vector3 from, Faction faction, float maxRangeTiles,
+                                                     DamageableUnit exclude = null)
+        {
+            float maxSqr = maxRangeTiles * maxRangeTiles;
+
+            DamageableUnit best = null;
+            float bestSqr = float.MaxValue;
+
+            for (int i = 0; i < _units.Count; i++)
+            {
+                DamageableUnit u = _units[i];
+                if (u == null || !u.IsAlive || u.Faction != faction) continue;
+                if (ReferenceEquals(u, exclude)) continue;
+
+                float sqr = (u.transform.position - from).sqrMagnitude;
+                if (sqr > maxSqr || sqr >= bestSqr) continue;
+
+                best = u;
+                bestSqr = sqr;
+            }
+            return best;
+        }
+
+        /// <summary>
+        /// 반경(원형) 안의 <b>같은 진영</b> 유닛을 모은다 — 정신 이상의 광역 효과
+        /// (진정·우울의 침식 전이, 역겨움의 지속 피해)에 쓴다.
+        /// <see cref="CollectEnemiesInBox"/> 와 달리 원형이고 대상이 아군이다.
+        /// </summary>
+        public static void CollectAlliesInRadius(Vector3 center, float radiusTiles, Faction faction,
+                                                 DamageableUnit exclude, List<DamageableUnit> into)
+        {
+            into.Clear();
+            float maxSqr = radiusTiles * radiusTiles;
+
+            for (int i = 0; i < _units.Count; i++)
+            {
+                DamageableUnit u = _units[i];
+                if (u == null || !u.IsAlive || u.Faction != faction) continue;
+                if (ReferenceEquals(u, exclude)) continue;
+                if ((u.transform.position - center).sqrMagnitude > maxSqr) continue;
+
+                into.Add(u);
             }
         }
 
