@@ -775,3 +775,39 @@ Attack 6, 방향별). 둘 다 `spriteMode: 1`(Single) · 피벗 (0.5, 0) 발밑 
 
 ### 씬반영요청 목록
 없음.
+
+---
+
+## UI-8. 원거리 몬스터(Spitter) 스킨 좌우 재정렬 · 짤린 프레임 복구 · 전용 투사체 (2026-08-11)
+
+> 상세는 `진행상황.md` **30절**. 이 로그는 소유권·씬 변경 관점만 남긴다.
+> (참고: UI-7 이후 27~29절 작업은 이 로그에 기록되지 않고 `진행상황.md` 에만 남아 있다.)
+
+### 무엇을 했나
+1. **전투 로직은 멀쩡했다** — 플레이 모드로 실제 스폰된 개체를 조회해 `attackType: Ranged` /
+   `EffectiveAttackRange: 5` 를 확인했다(30-0절). "근거리로 변했다"는 증상의 원인은 전부 그림 쪽.
+2. **원본 팩의 `Left`/`Right` 이름이 모션마다 규칙이 달랐다**(Idle 둘 다 좌향 / Move 반전 /
+   RangedAttack 정상) → 걷기가 반대로 재생되던 "문워크". 좌향 하나를 기준으로 삼고 우향은
+   반전 생성하도록 스킨 전체를 다시 만들었다.
+3. **짤린 원본 프레임 처리** — `Move_Right_00` 은 이웃 프레임에서 결손부만 복구, 나머지 손상
+   프레임은 애초에 안 쓰는 쪽으로 소스를 골랐다.
+4. **공격 프레임에 구워진 침 줄기 제거** → 캔버스 236x104 → 150x106.
+5. **투사체를 원본 팩의 `Char/Projectile` 9프레임으로 교체**, `CombatProjectileFx` 에
+   다중 프레임 탄환 + 총구 오프셋 추가.
+
+### 소유권 (§2)
+- 수정: `Scripts/Combat/CombatProjectileFx.cs` (UI 소유),
+  `Resources/Fx/**` · `Resources/MonsterSkins/Ranged/Skin_Spitter.asset` (UI 소유),
+  `Art/Char_Asset/Char_Asset_Spitter/**` (PROTO 의 `Art/Units`·`Art/Tiles`·`Art/OrganicTilemap`
+  어디에도 해당하지 않는 경로 — 27-1·29-9절이 이미 이 브랜치에서 쓰던 자리).
+- **PROTO 소유는 한 파일도 안 건드렸다** — 특히 `Data/Units/Monster_Ranged.asset` 은 사거리가
+  이미 5라 그대로 뒀다. `Scripts/Units/Monster*`, `Scripts/Wave|Map|Fog|Build`, `Tools/` 무접촉.
+
+### 씬 변경 여부
+있음(저장 1회 + 검증용 원복 저장 1회, 커밋은 1개). `Monster_Ranged_Template` 의
+`UnitCombat.attackType` 을 Melee → **Ranged**. 그 외 변경 없음.
+검증용으로 `MonsterSpawner.spawnOnStart` 를 잠시 켰다가 **원복 후 저장까지 확인**했다.
+커밋: `b6edd99` (스크립트 · 아트 · 씬 한 커밋).
+
+### 씬반영요청 목록
+없음.
