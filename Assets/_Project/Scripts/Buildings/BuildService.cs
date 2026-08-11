@@ -528,7 +528,6 @@ namespace LastSanctuary.Buildings
             if (tower == null) return;
 
             _builtCount++;
-            tower.OnDestroyed += HandleTowerDestroyed;
 
             if (logChanges) Debug.Log($"[Build] {site.Definition.displayName} 완성 {site.MinCell}", this);
             HudLog.Add($"{site.Definition.displayName} 건설 완료", HudLogKind.Good);
@@ -555,17 +554,6 @@ namespace LastSanctuary.Buildings
             tower.gameObject.SetActive(true);
             tower.Initialize(site.Definition, site.MinCell, balance);
             return tower;
-        }
-
-        /// <summary>
-        /// 포탑이 파괴되면 건설 회차를 하나 되돌린다 — 부서질 때마다 비용만 계속 올라가면
-        /// 후반에 재건이 불가능해진다. (시트 Docs 의 "철거하면 회차도 되돌릴지 별도 결정 필요"
-        /// 항목에 대한 이 프로젝트의 답이다.)
-        /// </summary>
-        void HandleTowerDestroyed(TowerUnit tower)
-        {
-            tower.OnDestroyed -= HandleTowerDestroyed;
-            _builtCount = Mathf.Max(0, _builtCount - 1);
         }
 
         // ------------------------------------------------------------------
