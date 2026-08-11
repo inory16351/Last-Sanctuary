@@ -41,6 +41,21 @@ namespace LastSanctuary.Combat
         const string BoltTowerResourcePath = "Fx/Projectile_Bolt_Tower";
         const string FlashTowerResourcePath = "Fx/Projectile_Flash_Tower";
 
+        /// <summary>
+        /// 분비형 암세포(Spitter)가 뱉는 침 — <b>여러 장짜리</b> 탄환이다.
+        ///
+        /// 원본 아트팩이 공격 프레임과 <b>별도로</b> 투사체 9프레임을 갖고 있었는데(29-9절
+        /// 미결 26번), 그동안 쓰지 않고 천사 탄환을 색만 바꿔 날렸다. 그래서 몬스터가
+        /// 뱉는 그림과 날아가는 탄환이 서로 다른 물건으로 보였다. 이제 원본 투사체를
+        /// 그대로 쓴다 — 공격 프레임에 구워져 있던 침 줄기는 스킨 쪽에서 지웠으므로
+        /// 화면에 보이는 침은 <b>이 탄환 하나뿐</b>이다.
+        ///
+        /// 프레임은 비행 시간 전체에 고르게 펼친다(마지막 두 장이 흩어지는 그림이라
+        /// <b>목표에 닿는 순간 저절로 부서져 사라지는</b> 연출이 된다 — 별도 착탄 효과가 필요 없다).
+        /// </summary>
+        const string SpitFramePathFormat = "Fx/Projectile_Spit_{0:00}";
+        const int SpitFrameMax = 16;
+
         /// <summary>탄환 속도(월드 유닛/초). 사거리 5타일을 0.2초쯤에 지나가는 값.</summary>
         const float Speed = 26f;
 
@@ -53,6 +68,17 @@ namespace LastSanctuary.Combat
         /// <summary>포탑 레이저는 유닛이 쏘는 탄환보다 굵고 길어야 "포대" 느낌이 난다.</summary>
         const float TowerBoltScale = 0.85f;
 
+        /// <summary>침 원화가 182px(≈3.6유닛)로 아주 길어서 줄인다 — 한 타일 조금 넘는 덩어리.</summary>
+        const float SpitBoltScale = 0.35f;
+
+        /// <summary>
+        /// 탄환이 <b>몸 중심이 아니라 앞쪽(입/총구)에서</b> 출발하도록 밀어내는 거리 —
+        /// 스프라이트 가로 반지름에 이 비율을 곱한다. 0 이면 탄환이 몸 한가운데서 튀어나와
+        /// "뱉는다"로 안 읽힌다. 목표까지의 거리가 짧으면 그 40%를 넘지 않게 잘라
+        /// 붙어 있는 적을 지나쳐 생기지 않게 한다.
+        /// </summary>
+        const float MuzzleForwardRatio = 0.45f;
+
         /// <summary>시전 섬광이 머무는 시간(초).</summary>
         const float FlashSeconds = 0.12f;
 
@@ -64,6 +90,7 @@ namespace LastSanctuary.Combat
         Sprite _flashCancer;
         Sprite _boltTower;
         Sprite _flashTower;
+        Sprite[] _spitFrames;
 
         struct Shot
         {
@@ -74,6 +101,9 @@ namespace LastSanctuary.Combat
             public float Elapsed;
             public float Duration;
             public bool IsFlash;
+
+            /// <summary>여러 장짜리 탄환이면 비행 시간에 맞춰 넘길 프레임 목록. 아니면 null.</summary>
+            public Sprite[] Frames;
         }
 
         readonly List<Shot> _live = new List<Shot>();
@@ -103,10 +133,33 @@ namespace LastSanctuary.Combat
             _flashCancer = Resources.Load<Sprite>(FlashCancerResourcePath);
             _boltTower = Resources.Load<Sprite>(BoltTowerResourcePath);
             _flashTower = Resources.Load<Sprite>(FlashTowerResourcePath);
+            _spitFrames = LoadFrames(SpitFramePathFormat);
 
             if (_bolt == null)
                 Debug.LogWarning($"[Fx] Resources/{BoltResourcePath} 를 찾지 못했습니다. " +
                                  "원거리 공격에 탄환이 보이지 않습니다.");
+
+            // 침 탄환은 프레임이 몇 장 잡혔는지 남긴다 — 파일만 넣으면 되는 구조라
+            // "왜 예전 탄환이 그대로 날아가지?" 를 로그 한 줄로 바로 알 수 있게.
+            Debug.Log(_spitFrames != null
+                ? $"[Fx] 침 탄환 {_spitFrames.Length}프레임 로드"
+                : "[Fx] 침 탄환 프레임 없음 — 암세포는 예전 탄환(Projectile_Bolt_Cancer)을 씁니다");
+        }
+
+        /// <summary>
+        /// <c>Fx/이름_00, _01 …</c> 을 끊길 때까지 읽는다. 프레임을 늘리려면 파일만 더 넣으면 되고
+        /// 코드를 고칠 필요가 없다 — 이 프로젝트가 스킨·BGM 에 쓰는 방식과 같다.
+        /// </summary>
+        static Sprite[] LoadFrames(string format)
+        {
+            var list = new List<Sprite>();
+            for (int i = 0; i < SpitFrameMax; i++)
+            {
+                var s = Resources.Load<Sprite>(string.Format(format, i));
+                if (s == null) break;
+                list.Add(s);
+            }
+            return list.Count > 0 ? list.ToArray() : null;
         }
 
         void OnEnable() => DamageableUnit.OnAnyAttack += HandleAttack;
@@ -127,17 +180,30 @@ namespace LastSanctuary.Combat
             float dist = ((Vector2)(to - from)).magnitude;
             if (dist < 0.01f) return;
 
+            // 몸 중심이 아니라 앞쪽(입·총구)에서 나가게 민다.
+            from += MuzzleOffset(attacker, (to - from) / dist, dist);
+            dist = ((Vector2)(to - from)).magnitude;
+            if (dist < 0.01f) return;
+
             // 포탑은 전용 레이저를(원화에서 오려낸 것), 그 외엔 진영별 색으로 구분한다.
             bool tower = attacker.Kind == UnitKind.Tower;
             bool cancer = attacker.Faction == Faction.Cancer;
-            Sprite bolt = tower && _boltTower != null ? _boltTower
+            bool spit = cancer && !tower && _spitFrames != null;
+
+            Sprite[] frames = spit ? _spitFrames : null;
+            Sprite bolt = spit ? _spitFrames[0]
+                        : tower && _boltTower != null ? _boltTower
                         : cancer && _boltCancer != null ? _boltCancer : _bolt;
             Sprite flash = tower && _flashTower != null ? _flashTower
                          : cancer && _flashCancer != null ? _flashCancer : _flash;
-            float scale = tower && _boltTower != null ? TowerBoltScale : BoltScale;
+            float scale = spit ? SpitBoltScale
+                        : tower && _boltTower != null ? TowerBoltScale : BoltScale;
 
-            Spawn(from, to, Mathf.Min(MaxLifetime, dist / Speed), attacker, bolt, scale: scale);
-            if (flash != null) Spawn(from, from, FlashSeconds, attacker, flash, isFlash: true, scale: scale);
+            Spawn(from, to, Mathf.Min(MaxLifetime, dist / Speed), attacker, bolt,
+                  scale: scale, frames: frames);
+            if (flash != null)
+                Spawn(from, from, FlashSeconds, attacker, flash, isFlash: true,
+                      scale: spit ? BoltScale : scale);
         }
 
         /// <summary>유닛의 몸통 중심. 발밑 피벗이라 <c>transform.position</c> 은 바닥이다.</summary>
@@ -148,8 +214,23 @@ namespace LastSanctuary.Combat
             return unit.transform.position;
         }
 
+        /// <summary>
+        /// 발사 지점을 몸 중심에서 목표 쪽으로 밀어낼 양. 스프라이트 가로 반지름 기준이라
+        /// 유닛 크기에 자동으로 맞는다. 목표가 코앞이면 그 40%까지만 밀어 탄환이 적을
+        /// 지나쳐서 생기지 않게 한다.
+        /// </summary>
+        static Vector3 MuzzleOffset(DamageableUnit shooter, Vector3 dir, float dist)
+        {
+            var sr = shooter.GetComponent<SpriteRenderer>();
+            if (sr == null || sr.sprite == null) return Vector3.zero;
+
+            float forward = Mathf.Min(sr.bounds.extents.x * MuzzleForwardRatio, dist * 0.4f);
+            return dir * forward;
+        }
+
         void Spawn(Vector3 from, Vector3 to, float duration, DamageableUnit shooter,
-                   Sprite sprite, bool isFlash = false, float scale = BoltScale)
+                   Sprite sprite, bool isFlash = false, float scale = BoltScale,
+                   Sprite[] frames = null)
         {
             Transform tr = _pool.Count > 0 ? _pool.Pop() : NewProjectile();
             var sr = tr.GetComponent<SpriteRenderer>();
@@ -175,6 +256,7 @@ namespace LastSanctuary.Combat
             {
                 Tr = tr, Renderer = sr, From = from, To = to,
                 Elapsed = 0f, Duration = Mathf.Max(0.01f, duration), IsFlash = isFlash,
+                Frames = frames,
             });
         }
 
@@ -218,6 +300,15 @@ namespace LastSanctuary.Combat
                 else
                 {
                     s.Tr.position = Vector3.Lerp(s.From, s.To, t);
+
+                    // 여러 장짜리 탄환은 비행 시간 전체에 프레임을 고르게 펼친다 —
+                    // 거리가 멀수록 천천히 부서지고, 어느 거리에서든 도착하는 순간이
+                    // 마지막(흩어지는) 프레임이 된다.
+                    if (s.Frames != null)
+                    {
+                        int frame = Mathf.Clamp((int)(t * s.Frames.Length), 0, s.Frames.Length - 1);
+                        if (s.Renderer.sprite != s.Frames[frame]) s.Renderer.sprite = s.Frames[frame];
+                    }
                 }
 
                 _live[i] = s;
