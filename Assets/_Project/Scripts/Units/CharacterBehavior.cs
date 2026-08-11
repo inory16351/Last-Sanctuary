@@ -117,6 +117,19 @@ namespace LastSanctuary.Units
         [Tooltip("가로막는 위치를 다시 계산하는 주기(초). 적이 움직이므로 순찰보다 자주 갱신한다")]
         [Min(0.1f)] [SerializeField] float frontInterceptRepick = 0.5f;
 
+        [Header("중위·후방 포지션 — 사거리 지원")]
+        [Tooltip("구역 안에서 교전이 벌어졌을 때 지원하러 나서는 판정 거리(타일). " +
+                 "이 거리 안에 '지금 싸우고 있는' 적이 있으면 순찰을 멈추고 자기 최대 사거리 " +
+                 "지점으로 이동해 아군을 지원한다. 0 이면 예전처럼 구역 안을 순찰만 한다")]
+        [Min(0f)] [SerializeField] float supportRange = 14f;
+
+        [Tooltip("지원 위치를 다시 계산하는 주기(초)")]
+        [Min(0.1f)] [SerializeField] float supportRepick = 0.5f;
+
+        [Tooltip("중위 포지션이 전방 아군보다 얼마나 뒤에 설지(타일). " +
+                 "자기 최대 사거리를 넘지는 않는다 — 넘으면 자기가 못 때린다")]
+        [Min(0f)] [SerializeField] float midBehindGap = 1.5f;
+
         [Header("후퇴 (전술 지침의 '후퇴 판단 기준')")]
         [Tooltip("후퇴 기준 + 이 여유(%)만큼 회복되면 다시 전투에 복귀한다. 여유가 0이면 " +
                  "기준선 근처에서 후퇴/복귀를 무한히 반복하며 덜덜 떤다")]
@@ -282,11 +295,18 @@ namespace LastSanctuary.Units
 
             // 정신 이상이 임무를 가로챈 상태가 후퇴보다도 먼저다 — 그 상태의 정의 자체가
             // "전술 지침(후퇴 기준 포함)을 따르지 않는다" 이기 때문이다(SetMentalOverride 참조).
-            if (_mental != MentalOverride.None) { TickMentalOverride(); return; }
+            // 정신 이상·후퇴 중에는 전열 유지 거리를 풀어둔다 — 광분은 돌진이 정의고,
+            // 후퇴·공포는 아예 싸우지 않는다. 남겨두면 그 상태의 이동과 서로 당긴다.
+            if (_mental != MentalOverride.None)
+            {
+                _combat.SetStandoff(0f);
+                TickMentalOverride();
+                return;
+            }
 
             // 후퇴 판단이 그다음이다 — 다른 어떤 임무보다 우선한다.
             UpdateRetreatState();
-            if (_retreating) { TickRetreat(); return; }
+            if (_retreating) { _combat.SetStandoff(0f); TickRetreat(); return; }
 
             // 웨이브 타임(전투·광폭화)이 시작되면 사냥 중이던 중립 몬스터보다 웨이브 몬스터를
             // 우선한다 — 사냥 타겟을 놓아 UnitCombat 의 일반 진영 타겟팅(가장 가까운 웨이브
@@ -298,9 +318,16 @@ namespace LastSanctuary.Units
                 _waveReaction == TacticalWaveReaction.DefendNow)
                 _combat.ClearHuntTarget();
 
-            // 교전 중에는 UnitCombat 에 맡기고 목적지를 건드리지 않는다
+            // 교전 중에는 이동을 UnitCombat 에 맡기고 목적지를 건드리지 않는다
             // (사냥 중인 중립 몬스터도 이 시점엔 이미 Target 으로 잡혀 있다).
-            if (_combat.Target != null && _combat.Target.IsAlive) return;
+            // 다만 <b>얼마나 떨어져 싸울지</b>는 전술 포지션이 정하므로 그것만 밀어 넣는다 —
+            // 사냥이든 웨이브 전투든 같은 규칙이다(유저 요청: "사냥 중에도 전투 위치 고수").
+            if (_combat.Target != null && _combat.Target.IsAlive)
+            {
+                _combat.SetStandoff(StandoffFor(_combat.Target));
+                return;
+            }
+            _combat.SetStandoff(0f);
 
             CharacterDuty baseline = CurrentDuty();   // Scout(대기시간) 또는 Guard(그 외)
 
@@ -364,14 +391,19 @@ namespace LastSanctuary.Units
         /// </summary>
         void PickZoneSpot(CharacterDuty duty, Vector3 rallyCenter)
         {
-            if (duty != CharacterDuty.Scout && _position == TacticalPosition.Front)
+            if (duty != CharacterDuty.Scout)
             {
                 bool rally = duty == CharacterDuty.Rally;
                 Vector3 center = rally ? rallyCenter : NexusPosition();
                 float half = rally ? RallyAreaSize() * 0.5f : guardRadius;
                 float leash = rally ? rallyLeash : guardLeash;
 
-                if (TryPickInterceptSpot(center, half, leash)) return;
+                // 전방은 막으러 나가고, 중위·후방은 사거리에서 지원하러 붙는다.
+                // 둘 다 "구역 안을 어슬렁거리는" 순찰보다 앞선다.
+                bool moved = _position == TacticalPosition.Front
+                    ? TryPickInterceptSpot(center, half, leash)
+                    : TryPickSupportSpot(center, half, leash);
+                if (moved) return;
             }
 
             if (duty == CharacterDuty.Rally) PickRallySpot(rallyCenter);
@@ -428,6 +460,136 @@ namespace LastSanctuary.Units
             _repickTime = Time.time + frontInterceptRepick;
             _combat.SetHome(_destination, leash + halfExtent + frontInterceptLeashBonus);
             return true;
+        }
+
+        /// <summary>
+        /// 중위·후방 포지션이 <b>교전이 벌어진 쪽으로 사거리만큼 붙어 지원</b>하는 자리를 잡는다
+        /// (유저 요청: "후방·중위여도 집결지 내의 적이 공격받으면 최대 사거리에서 아군을 지원").
+        ///
+        /// 예전에는 중위·후방이 구역 안 자기 구간을 순찰하기만 해서, 전방이 앞에서 싸우는데도
+        /// <b>인식 범위 밖에 서 있으면 아예 참전하지 않았다.</b> 이제는 싸움이 벌어진 곳으로
+        /// 걸어가되 <see cref="StandoffFor"/> 가 정한 거리(후방=최대 사거리, 중위=전방 아군
+        /// 뒤)에서 멈춘다 — 거기까지 가면 <see cref="UnitCombat"/> 이 알아서 적을 잡는다.
+        ///
+        /// <b>"공격 받으면"</b> 은 <see cref="DamageableUnit.IsInCombat"/> 로 본다(때렸든 맞았든
+        /// 최근에 전투가 있었다는 뜻) — 그냥 지나가는 적까지 지원하러 나서면 중위·후방이
+        /// 구역을 비운다.
+        /// </summary>
+        bool TryPickSupportSpot(Vector3 center, float halfExtent, float leash)
+        {
+            if (supportRange <= 0f) return false;
+
+            DamageableUnit foe = null;
+            float bestSqr = supportRange * supportRange;
+
+            var all = UnitRegistry.All;
+            for (int i = 0; i < all.Count; i++)
+            {
+                DamageableUnit u = all[i];
+                if (u == null || !u.IsAlive) continue;
+                if (u.Faction != Faction.Cancer) continue;
+                if (!u.IsInCombat) continue;                                   // 아직 아무 일도 없는 적은 제외
+                if (!IsInsideZone(u.transform.position, center, halfExtent)) continue;
+
+                // 지원은 "싸움이 난 곳"으로 가는 것이므로 나에게 가까운 쪽부터 본다
+                // (가로막기와 달리 구역 중심 기준이 아니다 — 이미 구역 안의 적만 남았다).
+                float sqr = ((Vector2)(u.transform.position - transform.position)).sqrMagnitude;
+                if (sqr > bestSqr) continue;
+
+                bestSqr = sqr;
+                foe = u;
+            }
+            if (foe == null) return false;
+
+            Vector3 spot = StandSpotAgainst(foe, center);
+            if (!IsWalkable(spot)) return false;
+
+            _destination = spot;
+            _repickTime = Time.time + supportRepick;
+            _combat.SetHome(_destination, leash + halfExtent);
+            return true;
+        }
+
+        /// <summary>
+        /// 그 적을 상대로 설 자리 — 적에게서 <see cref="StandoffFor"/> 만큼 떨어진 지점.
+        ///
+        /// 방향은 <b>지금 내가 서 있는 쪽</b>을 유지한다(적 주위를 옆으로 돌지 않게).
+        /// 적과 겹쳐 있어 방향을 못 정하면 구역 중심 쪽으로 물러난다.
+        /// 벽에 박히면 적 쪽으로 조금씩 당겨보며 설 수 있는 자리를 찾는다.
+        /// </summary>
+        Vector3 StandSpotAgainst(DamageableUnit foe, Vector3 zoneCenter)
+        {
+            float stand = Mathf.Max(0.5f, StandoffFor(foe));
+
+            Vector2 away = (Vector2)(transform.position - foe.transform.position);
+            if (away.sqrMagnitude < 0.01f) away = (Vector2)(zoneCenter - foe.transform.position);
+            if (away.sqrMagnitude < 0.01f) away = Vector2.up;
+            away = away.normalized;
+
+            Vector3 spot = foe.transform.position + (Vector3)(away * stand);
+            for (int step = 0; step < 4 && !IsWalkable(spot); step++)
+                spot = foe.transform.position + (Vector3)(away * (stand * (1f - 0.25f * (step + 1))));
+
+            return spot;
+        }
+
+        /// <summary>
+        /// 전술 포지션에 따라 <b>그 적과 얼마나 떨어져 싸울지</b>(타일).
+        /// 웨이브 전투든 중립 몬스터 사냥이든 같은 규칙을 쓴다 —
+        /// 유저 요청: "사냥 중에도 아군과 함께 싸울 때는 전술 위치를 고수해야 한다".
+        ///
+        ///   전방 — 0. 적극적으로 붙는다(예전 동작 그대로).
+        ///   중위 — <b>전방 아군보다 한 발 뒤</b>(<see cref="midBehindGap"/>). 앞에 아무도
+        ///          없으면 후방과 같이 최대 사거리에서 지원한다.
+        ///   후방 — 자기 최대 사거리.
+        ///
+        /// 어느 경우든 <see cref="UnitCombat.SetStandoff"/> 가 자기 사거리로 잘라주므로
+        /// "사거리 밖에 서서 영영 못 때리는" 상태는 생기지 않는다. 근거리 유형은 최대
+        /// 사거리가 곧 접촉 거리라 후방이어도 결국 붙어서 싸운다 — 의도한 동작이다.
+        /// </summary>
+        float StandoffFor(DamageableUnit foe)
+        {
+            float range = _combat.EffectiveAttackRange;
+
+            switch (_position)
+            {
+                case TacticalPosition.Front:
+                    return 0f;
+
+                case TacticalPosition.Back:
+                    return range;
+
+                default:
+                    float front = FrontAllyDistanceTo(foe);
+                    return front >= 0f ? Mathf.Min(front + midBehindGap, range) : range;
+            }
+        }
+
+        /// <summary>
+        /// 그 적에게 <b>가장 가까이 붙어 있는 아군</b>까지의 거리(타일). 없으면 −1.
+        /// 넥서스는 제외한다 — 움직이지 않는 건물을 "전방 아군"으로 삼으면 중위가 넥서스
+        /// 뒤에 서 버린다. 포탑은 전열의 일부로 본다.
+        /// </summary>
+        float FrontAllyDistanceTo(DamageableUnit foe)
+        {
+            float best = -1f;
+            float limitSqr = supportRange * supportRange;
+
+            var all = UnitRegistry.All;
+            for (int i = 0; i < all.Count; i++)
+            {
+                DamageableUnit u = all[i];
+                if (u == null || !u.IsAlive || ReferenceEquals(u, _self)) continue;
+                if (u.Faction != Faction.Angel) continue;
+                if (u.Kind != UnitKind.Character && u.Kind != UnitKind.Tower) continue;
+
+                float sqr = ((Vector2)(u.transform.position - foe.transform.position)).sqrMagnitude;
+                if (sqr > limitSqr) continue;
+                if (best >= 0f && sqr >= best * best) continue;
+
+                best = Mathf.Sqrt(sqr);
+            }
+            return best;
         }
 
         // ------------------------------------------------------------------

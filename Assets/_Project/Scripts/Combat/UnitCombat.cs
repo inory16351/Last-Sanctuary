@@ -182,6 +182,19 @@ namespace LastSanctuary.Combat
         /// <summary>"사거리에 들어올 때까지 대기" 반응으로 타겟을 쫓지 않고 자리를 지키는 중.</summary>
         bool _holdingGround;
 
+        /// <summary>
+        /// 교전 중 타겟과 유지하려는 거리(타일). 0 이하면 예전처럼 타겟에 그대로 붙는다.
+        /// <c>CharacterBehavior</c> 가 전술 포지션(전방/중위/후방)에 따라 매 프레임 밀어 넣는다 —
+        /// 지침의 정본은 그쪽이므로 여기서는 직렬화하지 않는다.
+        /// </summary>
+        float _standoffTiles;
+
+        /// <summary>
+        /// 유지 거리 판정의 여유(타일). 0 이면 밀림(separation)에 밀릴 때마다 전진/후퇴가
+        /// 뒤집혀 제자리에서 덜덜 떤다.
+        /// </summary>
+        const float StandoffTolerance = 0.6f;
+
         /// <summary>마법 범위 공격 대상 임시 버퍼. 프레임마다 새 리스트를 만들지 않으려고 정적으로 둔다.</summary>
         static readonly List<DamageableUnit> _splashScratch = new List<DamageableUnit>(16);
 
@@ -456,6 +469,20 @@ namespace LastSanctuary.Combat
 
         public TacticalAttackType AttackType => attackType;
 
+        /// <summary>
+        /// 교전 중 타겟과 유지할 거리를 지정한다(타일). 0 이하면 해제 — 예전처럼 타겟에 붙는다.
+        ///
+        /// <b>왜 필요한가</b> — <see cref="CombatState.Chase"/> 는 타겟 위치로 곧장 걸어가므로,
+        /// 원거리·마법 캐릭터도 결국 "처음 사거리에 들어온 자리"에 서게 된다. 전열(전방/중위/
+        /// 후방)을 유지하려면 <b>얼마나 떨어져 설지</b>를 밖에서 정해줄 수 있어야 한다.
+        /// 자기 사거리 밖에 세우면 영영 못 때리므로 <see cref="EffectiveAttackRange"/> 로 자른다.
+        /// </summary>
+        public void SetStandoff(float tiles) =>
+            _standoffTiles = tiles <= 0f ? 0f : Mathf.Min(tiles, EffectiveAttackRange);
+
+        /// <summary>지금 유지하려는 교전 거리(타일). 0 이면 지정 없음.</summary>
+        public float Standoff => _standoffTiles;
+
         /// <summary>지금 공격 유형에서 실제로 때릴 수 있는 거리(타일).</summary>
         public float EffectiveAttackRange => attackType switch
         {
@@ -470,6 +497,21 @@ namespace LastSanctuary.Combat
         /// 있는 적을 못 보는 모순이 생기므로 둘 중 큰 값을 쓴다.
         /// </summary>
         public float EffectiveDetectRange => Mathf.Max(detectRange, EffectiveAttackRange);
+
+        /// <summary>
+        /// 이 거리보다 <b>가까우면 때릴 수 없다</b>(타일). 마법의 "자기 주변은 못 친다" 규칙이
+        /// 유일한 근원이고, 나머지 유형은 0 이다.
+        ///
+        /// <b>왜 프로퍼티로 뽑았나</b> — 예전에는 <see cref="DecideState"/> 가 안전 반경만,
+        /// <see cref="BuildTargetFilter"/> 는 안전 반경과 최소 사거리 둘 다를 보고 있어서
+        /// <b>두 판정이 서로 달랐다.</b> 그 틈(안전 반경 ~ 최소 사거리 사이)에 적이 들어오면
+        /// 상태는 Attack 인데 실제로는 아무도 못 때려 <b>제자리에서 공격 모션만 나왔다</b>
+        /// (유저 리포트). 한 곳에서 계산해 세 판정(타겟 선정·상태 결정·실제 타격)이 항상
+        /// 같은 선을 쓰게 했다.
+        /// </summary>
+        public float MinAttackDistance => attackType == TacticalAttackType.Magic
+            ? Mathf.Max(magicSafeRadiusTiles, magicMinRangeTiles)
+            : 0f;
 
         // ------------------------------------------------------------------
 
@@ -694,7 +736,7 @@ namespace LastSanctuary.Combat
             bool useFog = respectFogOfWar && _fog != null && _fog.IsReady;
             bool needLos = requireLineOfSight && _pathfinder != null &&
                            (attackType == TacticalAttackType.Ranged || attackType == TacticalAttackType.Magic);
-            bool needMinRange = attackType == TacticalAttackType.Magic && magicMinRangeTiles > 0f;
+            bool needMinRange = MinAttackDistance > 0f;
 
             if (!useFog && !needLos && !needMinRange) return null;
 
@@ -705,10 +747,12 @@ namespace LastSanctuary.Combat
                 if (needMinRange)
                 {
                     float d = Vector2.Distance(enemy.transform.position, transform.position);
-                    // 안전 반경 안에 있으면 아예 후보에서 뺀다. 다만 "지금 붙어 있는 적"까지
+                    // 못 때리는 거리 안에 있으면 아예 후보에서 뺀다. 다만 "지금 붙어 있는 적"까지
                     // 완전히 무시하면 마법사가 자기를 때리는 적을 못 보고 가만히 서 있게 되므로,
                     // 그 상황은 DecideState 의 거리 벌리기(_backOff)가 대신 처리한다.
-                    if (d < Mathf.Max(magicSafeRadiusTiles, magicMinRangeTiles)) return false;
+                    // 기준선은 MinAttackDistance 한 곳에서만 계산한다 — 예전에는 이 필터와
+                    // DecideState 가 서로 다른 선을 써서 그 사이 구간에 "공격 모션만 나오는" 틈이 있었다.
+                    if (d < MinAttackDistance) return false;
                 }
 
                 if (needLos && !_pathfinder.HasLineOfSight(transform.position, enemy.transform.position))
@@ -750,9 +794,18 @@ namespace LastSanctuary.Combat
             {
                 float dist = Vector2.Distance(transform.position, _target.transform.position);
 
-                // 마법: 안전 반경 안까지 붙은 적은 때릴 수 없다(유저 규칙: "1의 범위 안에 있는
-                // 적은 공격 불가"). 가만히 있으면 영영 못 치므로 거리를 벌린다.
-                if (attackType == TacticalAttackType.Magic && dist < magicSafeRadiusTiles)
+                // 때릴 수 없을 만큼 붙었으면(마법의 안전 반경·최소 사거리) 거리를 벌린다.
+                // 가만히 있으면 상태만 Attack 이고 실제로는 아무도 못 때리는 상태가 된다.
+                if (dist < MinAttackDistance)
+                {
+                    _backOff = true;
+                    _state = CombatState.Chase;
+                    return;
+                }
+
+                // 전열 유지 — 지정된 교전 거리보다 가까우면 그만큼 물러난다(후방·중위 포지션).
+                // 여유(StandoffTolerance)를 빼야 밀림에 밀릴 때마다 전진/후퇴가 뒤집히지 않는다.
+                if (_standoffTiles > 0f && dist < _standoffTiles - StandoffTolerance)
                 {
                     _backOff = true;
                     _state = CombatState.Chase;
@@ -817,22 +870,43 @@ namespace LastSanctuary.Combat
         Vector3 ChaseDestination()
         {
             bool hasTarget = _target != null && _target.IsAlive;
+            if (!hasTarget || _holdingGround) return _homePosition;
 
-            if (_backOff && hasTarget)
-            {
-                Vector2 away = (Vector2)(transform.position - _target.transform.position);
-                if (away.sqrMagnitude < 0.0001f) away = Vector2.right;   // 완전히 겹친 경우
-                float back = Mathf.Max(magicMinRangeTiles, magicSafeRadiusTiles + 1f);
-                return transform.position + (Vector3)(away.normalized * back);
-            }
+            float want = DesiredEngageDistance();
+            if (want <= 0f) return _target.transform.position;
 
-            return hasTarget && !_holdingGround ? _target.transform.position : _homePosition;
+            // 목적지를 <b>타겟 기준</b>으로 잡는다 — 예전에는 "내 위치에서 뒤로 N" 이라
+            // 매 프레임 목표가 같이 밀려나 끝없이 물러났다. 타겟에서 N 만큼 떨어진 점은
+            // 고정점이라 그 자리에 정확히 수렴한다.
+            Vector2 away = (Vector2)(transform.position - _target.transform.position);
+            if (away.sqrMagnitude < 0.0001f) away = Vector2.right;   // 완전히 겹친 경우
+            return _target.transform.position + (Vector3)(away.normalized * want);
+        }
+
+        /// <summary>
+        /// 지금 타겟과 두고 싶은 거리(타일). 0 이면 그대로 붙는다.
+        /// 못 때리는 최소 거리(<see cref="MinAttackDistance"/>)와 전열 유지 거리
+        /// (<see cref="SetStandoff"/>) 중 큰 쪽을 쓰되, <b>자기 사거리를 넘지 않게</b> 자른다 —
+        /// 사거리 밖에 서면 영영 못 때린다.
+        /// </summary>
+        float DesiredEngageDistance()
+        {
+            float min = MinAttackDistance;
+            float want = Mathf.Max(_standoffTiles, min > 0f ? min + StandoffTolerance : 0f);
+            return want <= 0f ? 0f : Mathf.Min(want, EffectiveAttackRange);
         }
 
         void TryAttack()
         {
             if (_combatSuppressed) return;
             if (Time.time < _nextAttackTime) return;
+
+            // 때릴 수 없는 거리면 <b>모션도 내지 않는다</b>. DecideState 가 이미 걸러주지만,
+            // 한 프레임 사이에 상대가 파고들 수 있어 여기서도 확인한다 — 이게 없으면
+            // "제자리에서 공격 모션만 나오고 아무 일도 안 일어나는" 상태가 눈에 보인다.
+            if (_target != null && MinAttackDistance > 0f &&
+                Vector2.Distance(transform.position, _target.transform.position) < MinAttackDistance)
+                return;
 
             float aps = attacksPerSecond > 0f
                 ? attacksPerSecond
@@ -868,6 +942,13 @@ namespace LastSanctuary.Combat
         /// 마법 — 타겟 지점을 중심으로 한 정사각 범위 안의 적을 전부 때린다.
         /// 자기 주변 <see cref="magicSafeRadiusTiles"/> 안에 있는 적은 범위에 걸려도 제외한다
         /// (유저 규칙: "1의 범위 안에 있는 적은 공격 불가").
+        ///
+        /// ⚠️ <b>타겟 자신은 따로 확인해서 때린다.</b>
+        /// <see cref="UnitRegistry.CollectEnemiesInBox"/> 는 <see cref="FactionExtensions.Opposite"/>
+        /// 진영만 모으는데, <see cref="SetHuntTarget"/> 으로 잡은 중립 몬스터는 그 진영이 아니다
+        /// (Angel 의 Opposite 는 Cancer 다). 그래서 <b>마법 캐릭터가 중립 몬스터를 사냥하면
+        /// 범위에 아무도 안 잡혀 피해가 0 이었고, 공격 모션만 무한히 반복됐다</b>(유저 리포트).
+        /// 29-3절이 정신 이상 "혼란"에서 같은 이유로 근거리를 강제한 것과 같은 종류의 함정이다.
         /// </summary>
         void PerformMagicSplash()
         {
@@ -876,14 +957,21 @@ namespace LastSanctuary.Combat
 
             float safeSqr = magicSafeRadiusTiles * magicSafeRadiusTiles;
             Vector3 myPos = transform.position;
+            bool hitTarget = false;
 
             for (int i = 0; i < _splashScratch.Count; i++)
             {
                 DamageableUnit u = _splashScratch[i];
                 if (u == null || !u.IsAlive) continue;
                 if (((Vector2)(u.transform.position - myPos)).sqrMagnitude < safeSqr) continue;
+
+                if (ReferenceEquals(u, _target)) hitTarget = true;
                 u.TakeDamageFrom(_self);
             }
+
+            if (!hitTarget && _target != null && _target.IsAlive &&
+                ((Vector2)(_target.transform.position - myPos)).sqrMagnitude >= safeSqr)
+                _target.TakeDamageFrom(_self);
         }
 
         /// <summary>
@@ -1103,11 +1191,20 @@ namespace LastSanctuary.Combat
             Gizmos.color = new Color(1f, 0.25f, 0.2f, 0.9f);
             Gizmos.DrawWireSphere(transform.position, EffectiveAttackRange);
 
-            // 마법의 안전 반경 — 이 안의 적은 못 때린다(거리를 벌린다).
-            if (attackType == TacticalAttackType.Magic && magicSafeRadiusTiles > 0f)
+            // 못 때리는 최소 거리 — 이 안의 적은 공격이 안 나간다(마법의 안전 반경·최소 사거리).
+            if (MinAttackDistance > 0f)
             {
                 Gizmos.color = new Color(0.8f, 0.4f, 1f, 0.7f);
-                Gizmos.DrawWireSphere(transform.position, magicSafeRadiusTiles);
+                Gizmos.DrawWireSphere(transform.position, MinAttackDistance);
+            }
+
+            // 전열 유지 거리 — 타겟에게서 이만큼 떨어져 싸우려 한다(후방·중위 포지션).
+            // 지금 그보다 붙어 있어 물러나는 중이면 밝게 표시한다.
+            if (Application.isPlaying && _target != null && _standoffTiles > 0f)
+            {
+                Gizmos.color = _backOff ? new Color(1f, 0.9f, 0.3f, 0.95f)
+                                        : new Color(0.4f, 1f, 0.8f, 0.5f);
+                Gizmos.DrawWireSphere(_target.transform.position, _standoffTiles);
             }
 
             if (!advanceToObjective && leashRange > 0f)
