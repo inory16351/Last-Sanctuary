@@ -16,7 +16,7 @@ MonoBehaviour:
   characterName: '비기오르'
   characterNameEn: 'Bigior'
   illustName: 'illust_Bigior'
-  skinAssetName: 'Skin_LastSanctuary'
+  skinAssetName: 'Skin_Bigior'
   stats:
     hp: 8
     attack: 6

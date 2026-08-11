@@ -12,21 +12,28 @@ import os, hashlib
 import openpyxl
 
 XLSX = r'C:\Project\라스트 생츄어리\데이터 테이블\캐릭터 테이블.xlsx'
-OUT_SKILL = r'C:\Project\Last Sanctuary\Assets\_Project\Resources\PassiveSkills'
-OUT_CHAR = r'C:\Project\Last Sanctuary\Assets\_Project\Resources\Characters'
+
+# ⚠ 예전에는 프로젝트 경로를 'C:\Project\Last Sanctuary' 로 박아뒀는데 실제 폴더는
+#   'C:\Project\Last-Sanctuary' 다(하이픈). 그대로 돌리면 엉뚱한 폴더를 새로 만들고
+#   진짜 에셋은 하나도 안 바뀐 채 "생성 완료" 만 찍혔다. 스크립트 위치에서 역산한다.
+_PROJECT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+OUT_SKILL = os.path.join(_PROJECT, 'Assets', '_Project', 'Resources', 'PassiveSkills')
+OUT_CHAR = os.path.join(_PROJECT, 'Assets', '_Project', 'Resources', 'Characters')
 
 SCRIPT_GUID_SKILL = '21498a0a43b4e824ea7e6db210ef2e29'   # PassiveSkillSO.cs
 SCRIPT_GUID_CHAR = 'bacf4f16746e56b4da254173d578cf4e'    # CharacterDefinitionSO.cs
 
-# 이번 구현에서 뺄 캐릭터 — 인게임 에셋 제작 중 (유저 지시 2026-08-11)
-EXCLUDE_CHARACTER_IDS = {9003}   # 프레이야
+# 뺄 캐릭터 — 지금은 없다.
+# 프레이야(9003)는 인게임 에셋 제작 중이라 빠져 있었으나 2026-08-11 임포트 완료
+# (Tools/char_asset_preyja_build.py → Skin_Preyja).
+EXCLUDE_CHARACTER_IDS = set()
 
-# 인게임 외형 임시 배정.
-# Char_Asset_Elin / Char_Asset_Bigior 는 아직 Unity 에 임포트되지 않아서,
-# 이미 있는 스킨 중 성격이 맞는 것을 임시로 붙인다. 실제 에셋이 들어오면 여기만 고치면 된다.
+# 인게임 외형 배정 — Resources/Skins/<이름>.asset 을 가리킨다.
+# 세 명 다 자기 원화가 임포트돼 있다(임시 배정이 아니다).
 SKIN_OVERRIDE = {
-    9001: 'Skin_Angel',            # 엘린 — 마법/치유형
-    9002: 'Skin_LastSanctuary',    # 비기오르 — 중장갑 탱커
+    9001: 'Skin_Elin',             # 엘린 — 마법/치유형
+    9002: 'Skin_Bigior',           # 비기오르 — 중장갑 탱커
+    9003: 'Skin_Preyja',           # 프레이야 — 근접/원거리 창
 }
 
 NARRATIVE = {

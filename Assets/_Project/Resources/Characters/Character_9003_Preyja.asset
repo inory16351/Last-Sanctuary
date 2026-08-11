@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bacf4f16746e56b4da254173d578cf4e, type: 3}
+  m_Name: Character_9003_Preyja
+  m_EditorClassIdentifier:
+  characterId: 9003
+  characterName: '프레이야'
+  characterNameEn: 'Preyja'
+  illustName: 'illust_Preyja'
+  skinAssetName: 'Skin_Preyja'
+  stats:
+    hp: 6
+    attack: 8
+    defense: 6
+    regen: 7
+    rangedAttack: 6
+    magic: 3
+    cure: 6
+    accuracy: 5
+    critical: 3
+    attackSpeed: 6
+    moveSpeed: 5
+    resistance: 73
+  passives:
+  - {fileID: 11400000, guid: abb0692ee90cf8d27055c0a2c549ec69, type: 2}
+  - {fileID: 11400000, guid: 3689b0101fbe972c132a0fbe771c5729, type: 2}
+  - {fileID: 11400000, guid: 0d82a2d661b44cdbb5cca4e67dcbbabf, type: 2}
+  narrative: '굶주린 자연살해세포. 표식이 사라진 것을 먼저 알아보고, 먹어치울수록 빨라진다.'

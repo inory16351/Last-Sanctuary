@@ -87,22 +87,27 @@ namespace LastSanctuary.Combat
                  "캐릭터 테이블에 치명피해 컬럼이 없기 때문")]
         [Min(1f)] public float criticalDamageMultiplier = 1.5f;
 
-        [Header("초당 공격 횟수  =  기본 + 공격속도 × 계수      (실수 유지 — 속도)")]
+        [Header("초당 공격 횟수  =  기본 + (한계 − 기본) × 공속 ÷ (공속 + 반감점)   (실수 유지 — 속도)")]
         [Tooltip("공속 능력치 0 일 때 초당 공격 횟수")]
-        [Min(0.05f)] public float attacksPerSecondBase = 0.5f;
+        [Min(0.05f)] public float attacksPerSecondBase = 0.6f;
 
-        [Min(0f)] public float attacksPerSecondPerStat = 0.1f;
+        [Tooltip("이 능력치에서 기본과 한계의 정확히 중간이 된다. " +
+                 "작을수록 초반에 빨리 오르고 뒤가 완만해진다")]
+        [Min(0.01f)] public float attacksPerSecondHalfStat = 50f;
 
-        [Tooltip("상한이 없으면 능력치 100 에서 초당 10회가 되어 게임이 붕괴한다")]
-        [Min(0.05f)] public float attacksPerSecondMax = 3f;
+        [Tooltip("점근 한계 — 능력치를 무한히 올려도 이 값에 닿지 않는다. " +
+                 "예전처럼 잘라내는 상한이 아니다")]
+        [Min(0.05f)] public float attacksPerSecondMax = 3.6f;
 
-        [Header("초당 이동 타일  =  기본 + 이동속도 × 계수      (실수 유지 — 속도)")]
+        [Header("초당 이동 타일  =  기본 + (한계 − 기본) × 이속 ÷ (이속 + 반감점)   (실수 유지 — 속도)")]
         [Tooltip("이속 능력치 0 일 때 초당 이동 타일. 웨이브 몬스터는 2.2타일/초")]
-        [Min(0.1f)] public float moveSpeedBase = 2f;
+        [Min(0.1f)] public float moveSpeedBase = 2.1f;
 
-        [Min(0f)] public float moveSpeedPerStat = 0.1f;
+        [Tooltip("이 능력치에서 기본과 한계의 정확히 중간이 된다")]
+        [Min(0.01f)] public float moveSpeedHalfStat = 50f;
 
-        [Min(0.1f)] public float moveSpeedMax = 5f;
+        [Tooltip("점근 한계 — 닿지 않는다")]
+        [Min(0.1f)] public float moveSpeedMax = 6f;
 
         [Header("저항력  →  침식 배율      (실수 유지 — 배율)")]
         [Tooltip("이 저항력이 배율 1.0(=변화 없음)의 기준점이다. " +
@@ -185,13 +190,37 @@ namespace LastSanctuary.Combat
 
         /// <summary>능력치 → 초당 공격 횟수. <b>실수 유지</b> (0.85회/초 같은 값이 필요하다).</summary>
         public float AttacksPerSecondOf(int attackSpeedStat) =>
-            Mathf.Min(attacksPerSecondMax,
-                      attacksPerSecondBase + Mathf.Max(0, attackSpeedStat) * attacksPerSecondPerStat);
+            SpeedCurve(attacksPerSecondBase, attacksPerSecondMax,
+                       attacksPerSecondHalfStat, attackSpeedStat);
 
         /// <summary>능력치 → 초당 이동 타일 수. <b>실수 유지</b>.</summary>
         public float MoveSpeedTilesOf(int moveSpeedStat) =>
-            Mathf.Min(moveSpeedMax,
-                      moveSpeedBase + Mathf.Max(0, moveSpeedStat) * moveSpeedPerStat);
+            SpeedCurve(moveSpeedBase, moveSpeedMax, moveSpeedHalfStat, moveSpeedStat);
+
+        /// <summary>
+        /// 공속·이속 공통 곡선. <c>기본 + (한계 − 기본) × 능력치 ÷ (능력치 + 반감점)</c>.
+        ///
+        /// <b>왜 하드 상한을 버렸나 (2026-08-11 개정, 유저 지시)</b> — 예전 식은
+        /// <c>기본 + 능력치 × 계수</c> 를 상한에서 <c>Min</c> 으로 잘라냈다. 그래서
+        /// <b>공속 능력치 40 · 이속 36 을 넘기면 능력치가 아무 일도 하지 않았다</b> —
+        /// 능력치 상한이 100 인데 그 절반도 못 쓰고 죽는 값이었고, 강화를 13회쯤 하면
+        /// 두 능력치에 투자하는 것이 완전히 헛수고가 됐다.
+        ///
+        /// 이 곡선은 <b>상한에 도달하지 않으면서 계속 증가</b>한다 — 능력치 100 이든 200 이든
+        /// 올린 만큼 반영되고, 그러면서도 한계값을 넘지 못하므로 "능력치 100 에서 초당 10회"
+        /// 같은 붕괴가 나지 않는다. 상한이 필요하다는 기존 판단과 100 초과도 반영돼야 한다는
+        /// 요구를 동시에 만족시키는 형태가 이것뿐이다.
+        ///
+        /// 반감점은 "이 능력치에서 기본과 한계의 정확히 중간"이라는 뜻이다(50 → 능력치 50).
+        /// 계수를 역산해 기존 캐릭터 값이 거의 안 바뀌게 잡았다
+        /// (엘린 공속 0.78 → 0.77 / 이속 2.82 → 2.69).
+        /// </summary>
+        static float SpeedCurve(float baseValue, float limit, float halfStat, int stat)
+        {
+            float s = Mathf.Max(0, stat);
+            float span = Mathf.Max(0f, limit - baseValue);
+            return baseValue + span * s / (s + Mathf.Max(0.01f, halfStat));
+        }
 
         /// <summary>
         /// 저항력 → 침식 <b>상승</b> 배율(실수). 기준점(50)에서 1.0.
@@ -230,6 +259,8 @@ namespace LastSanctuary.Combat
             regenTickSeconds = Mathf.Max(0.1f, regenTickSeconds);
             attacksPerSecondMax = Mathf.Max(attacksPerSecondBase, attacksPerSecondMax);
             moveSpeedMax = Mathf.Max(moveSpeedBase, moveSpeedMax);
+            attacksPerSecondHalfStat = Mathf.Max(0.01f, attacksPerSecondHalfStat);
+            moveSpeedHalfStat = Mathf.Max(0.01f, moveSpeedHalfStat);
         }
     }
 }

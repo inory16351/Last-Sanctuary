@@ -17,9 +17,18 @@ namespace LastSanctuary.Combat
     /// (<see cref="CharacterSkinSO"/> · HUD 폰트가 같은 이유로 <c>Resources</c> 를 쓴다).
     /// 씬에 배선할 것이 하나도 없으므로 유저가 손으로 붙일 것도 없다.
     ///
-    /// <b>그림 출처</b> — Angel 원거리 공격 시트의 마지막 컷은 캐릭터가 없고 탄환만 그려진
+    /// <b>★ 탄환 그림은 이제 스킨이 들고 있다 (2026-08-11, 유저 지시)</b> —
+    /// <see cref="CharacterSkinSO.projectileFrames"/> / <see cref="TowerSkinSO.projectileFrames"/>.
+    /// 공격자의 스킨에 탄환 프레임이 있으면 <b>그것을 쓴다</b>. 그래서 같은 진영이라도
+    /// 유닛마다 다른 탄환이 날아가고, 새 캐릭터를 추가할 때 이 파일을 건드릴 필요가 없다
+    /// (스킨 에셋에 프레임을 넣기만 하면 된다).
+    ///
+    /// 아래의 <c>Resources/Fx</c> 상수들은 <b>스킨에 탄환이 없는 유닛용 폴백</b>으로만 남아있다 —
+    /// 보스·중립 몬스터처럼 아직 전용 탄환을 안 넣은 유닛, 그리고 스킨 자체가 없는 유닛.
+    ///
+    /// <b>그림 출처</b> — 엘린(Angel) 원거리 공격 시트의 마지막 컷은 캐릭터가 없고 탄환만 그려진
     /// 프레임이었다(그대로 재생하면 시전 중에 캐릭터가 사라졌다). 그 컷에서 탄환과 섬광을
-    /// 오려내 <c>Resources/Fx</c> 로 옮긴 것이 여기서 쓰는 스프라이트다.
+    /// 오려내 <c>Resources/Fx</c> 로 옮긴 것이 폴백으로 쓰는 스프라이트다.
     /// </summary>
     public class CombatProjectileFx : MonoBehaviour
     {
@@ -82,6 +91,12 @@ namespace LastSanctuary.Combat
         /// <summary>시전 섬광이 머무는 시간(초).</summary>
         const float FlashSeconds = 0.12f;
 
+        /// <summary>
+        /// 착탄 효과가 머무는 시간(초). 섬광보다 길다 — <b>마법이면 이것이 피해 범위 표시</b>라
+        /// 눈으로 읽을 시간이 필요하다. 뒤쪽 40% 구간에 옅어지며 사라진다.
+        /// </summary>
+        const float ImpactSeconds = 0.32f;
+
         static CombatProjectileFx _instance;
 
         Sprite _bolt;
@@ -100,9 +115,17 @@ namespace LastSanctuary.Combat
             public Vector3 To;
             public float Elapsed;
             public float Duration;
-            public bool IsFlash;
 
-            /// <summary>여러 장짜리 탄환이면 비행 시간에 맞춰 넘길 프레임 목록. 아니면 null.</summary>
+            /// <summary>제자리에서 옅어지며 사라진다(발사 섬광·착탄 효과). 날아가지 않는다.</summary>
+            public bool Stationary;
+
+            /// <summary>
+            /// 이 시간(초)이 지나야 보이기 시작한다. 착탄 효과가 <b>탄환이 도착한 뒤</b>
+            /// 터지게 하는 수단 — 비행 시간을 그대로 넣는다.
+            /// </summary>
+            public float Delay;
+
+            /// <summary>여러 장짜리면 살아있는 시간에 맞춰 넘길 프레임 목록. 아니면 null.</summary>
             public Sprite[] Frames;
         }
 
@@ -136,14 +159,14 @@ namespace LastSanctuary.Combat
             _spitFrames = LoadFrames(SpitFramePathFormat);
 
             if (_bolt == null)
-                Debug.LogWarning($"[Fx] Resources/{BoltResourcePath} 를 찾지 못했습니다. " +
-                                 "원거리 공격에 탄환이 보이지 않습니다.");
+                Debug.LogWarning($"[Fx] 폴백 탄환 Resources/{BoltResourcePath} 를 찾지 못했습니다. " +
+                                 "스킨에 전용 탄환이 없는 유닛(보스·중립)은 탄환이 안 보입니다.");
 
             // 침 탄환은 프레임이 몇 장 잡혔는지 남긴다 — 파일만 넣으면 되는 구조라
             // "왜 예전 탄환이 그대로 날아가지?" 를 로그 한 줄로 바로 알 수 있게.
             Debug.Log(_spitFrames != null
-                ? $"[Fx] 침 탄환 {_spitFrames.Length}프레임 로드"
-                : "[Fx] 침 탄환 프레임 없음 — 암세포는 예전 탄환(Projectile_Bolt_Cancer)을 씁니다");
+                ? $"[Fx] 폴백 침 탄환 {_spitFrames.Length}프레임 로드"
+                : "[Fx] 폴백 침 탄환 프레임 없음 — 암세포는 예전 탄환(Projectile_Bolt_Cancer)을 씁니다");
         }
 
         /// <summary>
@@ -165,15 +188,40 @@ namespace LastSanctuary.Combat
         void OnEnable() => DamageableUnit.OnAnyAttack += HandleAttack;
         void OnDisable() => DamageableUnit.OnAnyAttack -= HandleAttack;
 
+        /// <summary>
+        /// 한 유닛이 쏘는 탄환 한 벌. 스킨에서 읽거나, 스킨에 없으면 폴백에서 만든다.
+        /// </summary>
+        struct ProjectileArt
+        {
+            /// <summary>탄환 프레임(1장 이상). 여러 장이면 비행 중에 넘긴다.</summary>
+            public Sprite[] Frames;
+
+            /// <summary>발사 섬광 — <b>쏘는 쪽</b>에서 반짝인다. 없으면 띄우지 않는다.</summary>
+            public Sprite[] Muzzle;
+
+            /// <summary>착탄 효과 — <b>맞는 쪽</b>에서 터진다. 마법이면 피해 범위 표시.</summary>
+            public Sprite[] Impact;
+
+            public float Scale;
+
+            /// <summary>착탄 효과 배율. 탑뷰에 눕히려고 y 를 따로 줄일 수 있다.</summary>
+            public Vector2 ImpactScale;
+
+            public bool IsValid => Frames != null && Frames.Length > 0;
+        }
+
         /// <summary>근거리는 건너뛰고 원거리·마법만 탄환을 띄운다.</summary>
         void HandleAttack(DamageableUnit attacker, DamageableUnit target)
         {
-            if (_bolt == null || attacker == null || target == null) return;
+            if (attacker == null || target == null) return;
 
             var combat = attacker.GetComponent<UnitCombat>();
             if (combat == null) return;
             if (combat.AttackType != TacticalAttackType.Ranged &&
                 combat.AttackType != TacticalAttackType.Magic) return;
+
+            ProjectileArt art = ArtFor(attacker);
+            if (!art.IsValid) return;
 
             Vector3 from = CenterOf(attacker);
             Vector3 to = CenterOf(target);
@@ -185,25 +233,94 @@ namespace LastSanctuary.Combat
             dist = ((Vector2)(to - from)).magnitude;
             if (dist < 0.01f) return;
 
-            // 포탑은 전용 레이저를(원화에서 오려낸 것), 그 외엔 진영별 색으로 구분한다.
+            float flight = Mathf.Min(MaxLifetime, dist / Speed);
+
+            Spawn(from, to, flight, attacker, art.Frames[0], Vector2.one * art.Scale,
+                  frames: art.Frames.Length > 1 ? art.Frames : null,
+                  rotation: AimAt(to - from));
+
+            // 발사 섬광 — 쏘는 쪽에서 즉시.
+            if (HasFrames(art.Muzzle))
+                Spawn(from, from, FlashSeconds, attacker, art.Muzzle[0], Vector2.one * art.Scale,
+                      frames: art.Muzzle.Length > 1 ? art.Muzzle : null, stationary: true);
+
+            // 착탄 효과 — 맞는 쪽에서, 탄환이 도착한 뒤에.
+            // 회전은 주지 않는다: 바닥에 깔리는 범위 표시라 발사 방향으로 돌리면 기울어진다.
+            if (HasFrames(art.Impact))
+            {
+                Vector2 s = art.ImpactScale == Vector2.zero ? Vector2.one : art.ImpactScale;
+                Spawn(to, to, ImpactSeconds, target, art.Impact[0], s,
+                      frames: art.Impact.Length > 1 ? art.Impact : null,
+                      stationary: true, delay: flight);
+            }
+        }
+
+        static bool HasFrames(Sprite[] frames) => frames != null && frames.Length > 0;
+
+        /// <summary>
+        /// 이 공격자가 쓸 탄환. <b>스킨이 먼저다</b> — 스킨에 탄환 프레임이 들어있으면
+        /// 그대로 쓰고, 없는 유닛만 아래의 진영·종류 폴백으로 넘어간다.
+        /// </summary>
+        ProjectileArt ArtFor(DamageableUnit attacker)
+        {
+            var charAnim = attacker.GetComponent<CharacterAnimator>();
+            if (charAnim != null && charAnim.Skin != null && charAnim.Skin.HasProjectile)
+                return new ProjectileArt
+                {
+                    Frames = charAnim.Skin.projectileFrames,
+                    Muzzle = charAnim.Skin.muzzleFlashFrames,
+                    Impact = charAnim.Skin.impactFrames,
+                    Scale = charAnim.Skin.projectileScale,
+                    ImpactScale = charAnim.Skin.impactScale,
+                };
+
+            var towerAnim = attacker.GetComponent<TowerAnimator>();
+            if (towerAnim != null && towerAnim.Skin != null && towerAnim.Skin.HasProjectile)
+                return new ProjectileArt
+                {
+                    Frames = towerAnim.Skin.projectileFrames,
+                    Muzzle = towerAnim.Skin.muzzleFlashFrames,
+                    Impact = towerAnim.Skin.impactFrames,
+                    Scale = towerAnim.Skin.projectileScale,
+                    ImpactScale = towerAnim.Skin.impactScale,
+                };
+
+            return FallbackArt(attacker);
+        }
+
+        /// <summary>
+        /// 스킨에 탄환이 없는 유닛용. 예전(27절·30절) 규칙 그대로 진영·종류로 고른다 —
+        /// 보스·중립 몬스터가 여기로 온다. 새 유닛에 전용 탄환을 주고 싶으면
+        /// <b>이 함수를 고치는 것이 아니라</b> 스킨 에셋에 프레임을 넣으면 된다.
+        /// </summary>
+        ProjectileArt FallbackArt(DamageableUnit attacker)
+        {
             bool tower = attacker.Kind == UnitKind.Tower;
             bool cancer = attacker.Faction == Faction.Cancer;
             bool spit = cancer && !tower && _spitFrames != null;
 
-            Sprite[] frames = spit ? _spitFrames : null;
-            Sprite bolt = spit ? _spitFrames[0]
-                        : tower && _boltTower != null ? _boltTower
+            if (spit)
+                return new ProjectileArt
+                {
+                    Frames = _spitFrames,
+                    Muzzle = _flashCancer != null ? new[] { _flashCancer } : null,
+                    Scale = SpitBoltScale,
+                    ImpactScale = Vector2.one,
+                };
+
+            Sprite bolt = tower && _boltTower != null ? _boltTower
                         : cancer && _boltCancer != null ? _boltCancer : _bolt;
             Sprite flash = tower && _flashTower != null ? _flashTower
                          : cancer && _flashCancer != null ? _flashCancer : _flash;
-            float scale = spit ? SpitBoltScale
-                        : tower && _boltTower != null ? TowerBoltScale : BoltScale;
+            if (bolt == null) return default;
 
-            Spawn(from, to, Mathf.Min(MaxLifetime, dist / Speed), attacker, bolt,
-                  scale: scale, frames: frames);
-            if (flash != null)
-                Spawn(from, from, FlashSeconds, attacker, flash, isFlash: true,
-                      scale: spit ? BoltScale : scale);
+            return new ProjectileArt
+            {
+                Frames = new[] { bolt },
+                Muzzle = flash != null ? new[] { flash } : null,
+                Scale = tower && _boltTower != null ? TowerBoltScale : BoltScale,
+                ImpactScale = Vector2.one,
+            };
         }
 
         /// <summary>유닛의 몸통 중심. 발밑 피벗이라 <c>transform.position</c> 은 바닥이다.</summary>
@@ -228,34 +345,42 @@ namespace LastSanctuary.Combat
             return dir * forward;
         }
 
-        void Spawn(Vector3 from, Vector3 to, float duration, DamageableUnit shooter,
-                   Sprite sprite, bool isFlash = false, float scale = BoltScale,
-                   Sprite[] frames = null)
+        /// <summary>
+        /// 연출 하나를 띄운다. <paramref name="anchor"/> 는 정렬 기준이 될 유닛이다 —
+        /// 탄환·발사 섬광은 <b>쏘는 쪽</b>, 착탄 효과는 <b>맞는 쪽</b>을 넘긴다.
+        /// 그래야 맞는 유닛 위에 범위 표시가 덮이고 유닛 몸에 가려지지 않는다.
+        /// </summary>
+        void Spawn(Vector3 from, Vector3 to, float duration, DamageableUnit anchor,
+                   Sprite sprite, Vector2 scale, Sprite[] frames = null,
+                   bool stationary = false, float delay = 0f, Quaternion? rotation = null)
         {
             Transform tr = _pool.Count > 0 ? _pool.Pop() : NewProjectile();
             var sr = tr.GetComponent<SpriteRenderer>();
 
             sr.sprite = sprite;
-            // 섬광은 알파를 깎으며 사라지므로, 풀에서 다시 꺼내 쓸 때 되돌려놔야 한다.
+            // 섬광·착탄은 알파를 깎으며 사라지므로, 풀에서 다시 꺼내 쓸 때 되돌려놔야 한다.
             sr.color = Color.white;
+            // 지연 시작인 연출은 첫 프레임부터 숨겨둔다(Update 가 때가 되면 켠다).
+            sr.enabled = delay <= 0f;
 
             // 유닛보다 위에 그려야 탄환이 몸에 가려지지 않는다.
-            var shooterSr = shooter.GetComponent<SpriteRenderer>();
-            if (shooterSr != null)
+            var anchorSr = anchor != null ? anchor.GetComponent<SpriteRenderer>() : null;
+            if (anchorSr != null)
             {
-                sr.sortingLayerID = shooterSr.sortingLayerID;
-                sr.sortingOrder = shooterSr.sortingOrder + 20;
+                sr.sortingLayerID = anchorSr.sortingLayerID;
+                sr.sortingOrder = anchorSr.sortingOrder + 20;
             }
 
             tr.position = from;
-            tr.localScale = Vector3.one * scale;
-            tr.rotation = isFlash ? Quaternion.identity : AimAt(to - from);
+            tr.localScale = new Vector3(scale.x, scale.y, 1f);
+            tr.rotation = rotation ?? Quaternion.identity;
             tr.gameObject.SetActive(true);
 
             _live.Add(new Shot
             {
                 Tr = tr, Renderer = sr, From = from, To = to,
-                Elapsed = 0f, Duration = Mathf.Max(0.01f, duration), IsFlash = isFlash,
+                Elapsed = 0f, Duration = Mathf.Max(0.01f, duration),
+                Stationary = stationary, Delay = Mathf.Max(0f, delay),
                 Frames = frames,
             });
         }
@@ -280,35 +405,47 @@ namespace LastSanctuary.Combat
             {
                 Shot s = _live[i];
                 s.Elapsed += dt;
-                float t = s.Elapsed / s.Duration;
+
+                // 착탄 효과는 탄환이 도착할 때까지 기다린다.
+                if (s.Elapsed < s.Delay)
+                {
+                    _live[i] = s;
+                    continue;
+                }
+                if (!s.Renderer.enabled) s.Renderer.enabled = true;
+
+                float t = (s.Elapsed - s.Delay) / s.Duration;
 
                 if (t >= 1f)
                 {
                     s.Tr.gameObject.SetActive(false);
+                    s.Renderer.enabled = true;      // 풀에서 다시 꺼내 쓸 때를 위해 되돌린다
                     _pool.Push(s.Tr);
                     _live.RemoveAt(i);
                     continue;
                 }
 
-                if (s.IsFlash)
+                if (s.Stationary)
                 {
-                    // 섬광은 제자리에서 옅어지며 사라진다.
+                    // 제자리에서 옅어지며 사라진다. 착탄(범위 표시)은 뒤쪽 40% 에서만 사라지게
+                    // 해서 처음 60% 동안은 또렷하게 읽히도록 한다.
                     Color c = s.Renderer.color;
-                    c.a = 1f - t;
+                    c.a = t < 0.6f ? 1f : 1f - (t - 0.6f) / 0.4f;
                     s.Renderer.color = c;
                 }
                 else
                 {
                     s.Tr.position = Vector3.Lerp(s.From, s.To, t);
+                }
 
-                    // 여러 장짜리 탄환은 비행 시간 전체에 프레임을 고르게 펼친다 —
-                    // 거리가 멀수록 천천히 부서지고, 어느 거리에서든 도착하는 순간이
-                    // 마지막(흩어지는) 프레임이 된다.
-                    if (s.Frames != null)
-                    {
-                        int frame = Mathf.Clamp((int)(t * s.Frames.Length), 0, s.Frames.Length - 1);
-                        if (s.Renderer.sprite != s.Frames[frame]) s.Renderer.sprite = s.Frames[frame];
-                    }
+                // 여러 장짜리는 살아있는 시간 전체에 프레임을 고르게 펼친다.
+                // 탄환이면 거리가 멀수록 천천히 부서지고, 어느 거리에서든 도착하는 순간이
+                // 마지막(흩어지는) 프레임이 된다. 섬광이면 발사 순간에 한 바퀴 재생된다
+                // (프레이야의 ProjectileBurst 5장이 이 경로를 탄다).
+                if (s.Frames != null)
+                {
+                    int frame = Mathf.Clamp((int)(t * s.Frames.Length), 0, s.Frames.Length - 1);
+                    if (s.Renderer.sprite != s.Frames[frame]) s.Renderer.sprite = s.Frames[frame];
                 }
 
                 _live[i] = s;

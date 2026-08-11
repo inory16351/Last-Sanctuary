@@ -46,6 +46,33 @@ namespace LastSanctuary.Combat
         [Header("파괴 (Destroy) — 한 번만 재생한다. 마지막 프레임에서 오브젝트가 사라진다")]
         public Sprite[] destroy;
 
+        /// <summary>
+        /// 이 건물이 쏘는 탄환. <see cref="CharacterSkinSO.projectileFrames"/> 와 같은 규칙이다 —
+        /// <b>+X 를 향한 그림 한 벌</b>만 넣으면 <see cref="CombatProjectileFx"/> 가 발사 방향으로
+        /// 돌려서 그린다. 포탑 레이저는 원화에 <b>아래-오른쪽 고정</b>으로 구워져 있어서
+        /// 오려내 여기로 넘긴 것이다(진행상황 27-11절).
+        /// </summary>
+        [Header("투사체 (공격 시 날아가는 탄환 — +X 를 향한 그림 한 벌)")]
+        public Sprite[] projectileFrames;
+
+        [Tooltip("발사 순간 포구에서 터지는 섬광. 쏘는 쪽에서 반짝인다. " +
+                 "비워두면 섬광 없이 탄환만 날아간다")]
+        public Sprite[] muzzleFlashFrames;
+
+        [Tooltip("탄환이 닿는 순간 맞는 쪽에 재생한다. 비워두면 착탄 연출이 없다. " +
+                 "규칙은 CharacterSkinSO.impactFrames 와 같다")]
+        public Sprite[] impactFrames;
+
+        [Tooltip("탄환 원화를 이 배율로 줄여 그린다. 포탑 레이저는 유닛 탄환보다 굵고 길어야 " +
+                 "'포대' 느낌이 난다")]
+        [Min(0.05f)] public float projectileScale = 0.85f;
+
+        [Tooltip("착탄 효과 배율. 3/4 탑뷰라 세로로 서 있는 폭발이면 y 를 줄여 바닥에 눕힌다")]
+        public Vector2 impactScale = Vector2.one;
+
+        /// <summary>이 스킨이 자기 탄환을 들고 있는지.</summary>
+        public bool HasProjectile => Has(projectileFrames);
+
         public bool HasIdle => Has(idle);
         public bool HasAttack => Has(attack);
         public bool HasDestroy => Has(destroy);

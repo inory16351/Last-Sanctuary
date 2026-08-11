@@ -64,3 +64,10 @@ MonoBehaviour:
   - {fileID: 21300000, guid: 9970521048b6deebfe5d7e506f996c94, type: 3}
   - {fileID: 21300000, guid: 313987c5a5d70e26125ed5bd65001d56, type: 3}
   - {fileID: 21300000, guid: 6c512d39040bef2e07fb0a3df59702ee, type: 3}
+  projectileFrames:
+  - {fileID: 21300000, guid: 1d9805f14936f0fbe869519a92d66abd, type: 3}
+  muzzleFlashFrames:
+  - {fileID: 21300000, guid: 61496e531eb8cdccf2cc69b839437888, type: 3}
+  impactFrames: []
+  projectileScale: 0.85
+  impactScale: {x: 1, y: 1}

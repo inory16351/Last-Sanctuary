@@ -33,11 +33,11 @@ MonoBehaviour:
   criticalMaxPercent: 60
   criticalDamageMultiplier: 1.5
   attacksPerSecondBase: 0.6
-  attacksPerSecondPerStat: 0.06
-  attacksPerSecondMax: 3
+  attacksPerSecondHalfStat: 50
+  attacksPerSecondMax: 3.6
   moveSpeedBase: 2.1
-  moveSpeedPerStat: 0.08
-  moveSpeedMax: 5
+  moveSpeedHalfStat: 50
+  moveSpeedMax: 6
   resistancePivot: 50
   resistancePerStat: 0.01
   attacksPerSecond: 1

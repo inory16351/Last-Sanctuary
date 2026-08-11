@@ -10,9 +10,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a517e511b352f46488ffa35edf32295d, type: 3}
-  m_Name: Skin_LastSanctuary
+  m_Name: Skin_Bigior
   m_EditorClassIdentifier: 
-  displayName: Last Sanctuary
+  displayName: 비기오르
   framesPerSecond: 10
   attackFramesPerSecond: 14
   idleRight:
@@ -67,3 +67,12 @@ MonoBehaviour:
   - {fileID: 21300000, guid: 6b4c13a073c7f944f057122503ab2242, type: 3}
   - {fileID: 21300000, guid: 540121c21fb1a3f6a0e4452ce96d0b3e, type: 3}
   - {fileID: 21300000, guid: 96211235e2afd2dad24874a5d38f71c4, type: 3}
+  healRight: []
+  healLeft: []
+  projectileFrames:
+  - {fileID: 21300000, guid: 0d04a014bcf61f8bf9c47d113ef149ca, type: 3}
+  muzzleFlashFrames:
+  - {fileID: 21300000, guid: 236a67a2c66c8fe23defe001d5d59931, type: 3}
+  impactFrames: []
+  projectileScale: 0.55
+  impactScale: {x: 1, y: 1}

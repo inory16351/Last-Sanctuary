@@ -10,9 +10,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a517e511b352f46488ffa35edf32295d, type: 3}
-  m_Name: Skin_Angel
+  m_Name: Skin_Elin
   m_EditorClassIdentifier: 
-  displayName: Angel
+  displayName: 엘린
   framesPerSecond: 10
   attackFramesPerSecond: 14
   idleRight:
@@ -61,3 +61,12 @@ MonoBehaviour:
   - {fileID: 21300000, guid: 7c1d55beb85175c42b2f57d88a1bc0cd, type: 3}
   - {fileID: 21300000, guid: 2a426c679f98f6649bcf807293782716, type: 3}
   - {fileID: 21300000, guid: 6f933c854d6694f44b67b8c11ed65af9, type: 3}
+  healRight: []
+  healLeft: []
+  projectileFrames:
+  - {fileID: 21300000, guid: 0d04a014bcf61f8bf9c47d113ef149ca, type: 3}
+  muzzleFlashFrames:
+  - {fileID: 21300000, guid: 236a67a2c66c8fe23defe001d5d59931, type: 3}
+  impactFrames: []
+  projectileScale: 0.55
+  impactScale: {x: 1, y: 1}

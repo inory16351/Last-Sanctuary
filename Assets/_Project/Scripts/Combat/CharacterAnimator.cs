@@ -3,8 +3,8 @@ using UnityEngine;
 namespace LastSanctuary.Combat
 {
     /// <summary>
-    /// 캐릭터 스프라이트 애니메이션. 대기 / 이동 / 공격 세 모션을 방향별(좌·우) 프레임으로
-    /// 재생한다. 프레임 목록은 <see cref="CharacterSkinSO"/> 가 들고 있고, 이 컴포넌트는
+    /// 캐릭터 스프라이트 애니메이션. 대기 / 이동 / 공격(근접·원거리·회복) 모션을 방향별(좌·우)
+    /// 프레임으로 재생한다. 프레임 목록은 <see cref="CharacterSkinSO"/> 가 들고 있고, 이 컴포넌트는
     /// "지금 어떤 모션·어느 방향인지"만 판단해서 <c>SpriteRenderer.sprite</c> 를 갈아끼운다.
     ///
     /// <b>왜 Animator/AnimatorController 를 안 쓰는가</b> — 컨트롤러·클립은 오브젝트 참조라
@@ -134,7 +134,7 @@ namespace LastSanctuary.Combat
             if (Time.time < _attackUntil)
             {
                 fps = _skin.attackFramesPerSecond;
-                return _skin.Attack(_facingRight, IsRangedAttackType());
+                return _skin.Attack(_facingRight, CurrentAttackMotion());
             }
 
             fps = _skin.framesPerSecond;
@@ -145,11 +145,21 @@ namespace LastSanctuary.Combat
             return moved > moveThreshold ? _skin.Walk(_facingRight) : _skin.Idle(_facingRight);
         }
 
-        /// <summary>원거리·마법·치유는 원거리 모션(있으면)을 쓴다 — 붙어서 휘두르는 동작이 아니다.</summary>
-        bool IsRangedAttackType()
+        /// <summary>
+        /// 지금 전술이 요구하는 공격 계열 모션.
+        /// <b>회복은 전용 모션을 먼저 찾는다</b> — 없으면 <see cref="CharacterSkinSO.Attack"/> 안에서
+        /// 원거리 → 근접으로 대체된다(유저 지시: 회복 원화가 없으면 공격 모션 사용).
+        /// 마법은 예전처럼 원거리 모션을 같이 쓴다 — 둘 다 떨어져서 시전하는 동작이다.
+        /// </summary>
+        SkinAttackMotion CurrentAttackMotion()
         {
-            if (_combat == null) return false;
-            return _combat.AttackType != TacticalAttackType.Melee;
+            if (_combat == null) return SkinAttackMotion.Melee;
+            switch (_combat.AttackType)
+            {
+                case TacticalAttackType.Heal: return SkinAttackMotion.Heal;
+                case TacticalAttackType.Melee: return SkinAttackMotion.Melee;
+                default: return SkinAttackMotion.Ranged;
+            }
         }
 
         /// <summary>
@@ -173,7 +183,7 @@ namespace LastSanctuary.Combat
 
         void HandleAttackPerformed()
         {
-            float clip = _skin != null ? _skin.AttackClipSeconds(_facingRight, IsRangedAttackType()) : 0f;
+            float clip = _skin != null ? _skin.AttackClipSeconds(_facingRight, CurrentAttackMotion()) : 0f;
             _attackUntil = Time.time + Mathf.Max(minAttackHoldSeconds, clip);
         }
 

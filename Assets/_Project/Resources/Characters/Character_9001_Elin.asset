@@ -16,7 +16,7 @@ MonoBehaviour:
   characterName: '엘린'
   characterNameEn: 'Elin'
   illustName: 'illust_Elin'
-  skinAssetName: 'Skin_Angel'
+  skinAssetName: 'Skin_Elin'
   stats:
     hp: 2
     attack: 4

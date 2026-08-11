@@ -866,3 +866,70 @@ Attack 6, 방향별). 둘 다 `spriteMode: 1`(Single) · 피벗 (0.5, 0) 발밑 
 
 ### 씬반영요청 목록
 없음.
+
+---
+
+## UI-11. 공속·이속 공식 개정 · 스킨 이름 정리 · 프레이야 임포트 · 객체별 투사체/착탄 · 회복 모션 (2026-08-11)
+
+> 상세는 `진행상황.md` **38·39절**.
+
+### 무엇을 했나
+
+유저 요청 5 + 대화 중 추가 2:
+
+| # | 요청 | 결과 |
+|---|---|---|
+| 1 | 엑셀에 기입 안 된 값 채우기 | `계수` 시트에 없던 값 4개(생성 랜덤 범위·폴백 공속/이속), `공식` 시트 빈 예시 1칸, `#NAME?` 로 깨져 있던 1칸, `능력치` 시트 빈 비고 3칸 |
+| 2 | **공속·이속이 능력치 100 이상에서도 적용되게** | 하드 상한 → **점근 곡선**. 예전 식은 공속 40·이속 36 에서 상한에 닿아 그 위가 전부 죽었다 |
+| 3 | 프레이야 스킨 제작 | `Skin_Preyja` + `Character_9003_Preyja` 생성. **원본 Idle 이 깨져 있어 복원**했다 |
+| 4 | 모든 스킨에 투사체 — 객체별 관리 | `CharacterSkinSO`/`TowerSkinSO` 에 투사체 필드. 연출 코드의 진영·종류 분기는 폴백으로만 |
+| 5 | 스킨 회복 모션 (없으면 공격 모션) | `healRight/healLeft` + `SkinAttackMotion` 3분기. 회복 → 원거리 → 근접 폴백 |
+| 6 | 스킨 이름을 캐릭터/몬스터에 맞게 | `Skin_Angel`→`Skin_Elin` 외 3건 + 아트 폴더 4개 |
+| 7 | `ProjectileBurst` 는 섬광이 아니라 **맞았을 때 범위 표시** | 발사 섬광과 **착탄**을 다른 개념으로 분리. 착탄은 맞는 쪽에서, 비행 시간만큼 지연 후 재생 |
+
+### 소유권 (§2)
+
+**UI 소유 — 문제 없음**
+- `Scripts/Combat/BalanceConfigSO.cs` · `CharacterSkinSO.cs` · `TowerSkinSO.cs` ·
+  `CharacterAnimator.cs` · `CombatProjectileFx.cs`
+- `Data/Combat/BalanceConfig.asset`
+- `Resources/Skins/**` · `Resources/MonsterSkins/**` · `Resources/BuildingSkins/**` ·
+  `Resources/Characters/**` (§2 의 `Assets/_Project/Resources/**`)
+
+**⚠️ §2 와 어긋나는 부분 2가지 — 유저 판단 필요**
+
+1. **`Tools/**` 는 §2 상 PROTO 소유**인데 이번에 3개를 추가/수정했다:
+   `stats_sheet_revise.py`(신규) · `char_asset_preyja_build.py`(신규) ·
+   `gen_skin_assets.py`(신규) · `gen_character_assets.py`(수정).
+   **선례가 있다** — 진행상황 35절이 캐릭터 에셋 생성기를 "스크래치패드는 다음 세션에 없다"는
+   이유로 `Tools/` 로 옮겼고, 36절도 `Tools/crop_illust_faces.py` 를 넣었다. 즉 이 브랜치가
+   이미 `Tools/` 를 쓰고 있다. **§2 항목을 갱신하거나(§2 는 단독 변경 금지 — 유저 승인 필요)
+   생성기 전용 폴더를 UI 소유로 새로 정하는 편이 낫다.**
+   PROTO 가 실제로 쓰는 `Tools/wall_depth_pass.py` · `wall_extrude_pass.py` 는 **무접촉**이다.
+2. **`Art/Char_Asset/**` 는 §2 어느 쪽에도 안 적혀 있다.** PROTO 소유로 적힌 것은
+   `Art/Tiles` · `Art/OrganicTilemap` · `Art/Units` 뿐이다. `Char_Asset` 은 25·27·30절부터
+   이 브랜치가 계속 만들어온 폴더라 사실상 UI 소유로 다뤘다(폴더 4개 개명 + 프레이야 44장 추가).
+
+그 외 PROTO 소유 경로(`Scripts/Wave|Map|Fog`, `Units/Monster*`, `Data/Units|Map`,
+`Art/Tiles|OrganicTilemap|Units`)는 **무접촉**.
+
+### 씬 변경 여부
+
+**없음.** 스킨·캐릭터 정의는 전부 `Resources` 경로 로딩이라 씬에 배선할 참조가 하나도 없다
+(§10 의 이유와 같다). `Character_Template` 의 `CharacterAnimator.skinResourceFolder` 도
+`Skins` 그대로다. 스킨 에셋 이름을 바꿨지만 **`.meta` 를 같이 옮겨 guid 가 유지**되므로
+씬·에셋 어느 쪽도 참조가 끊기지 않았다.
+
+⚠️ **에셋(.asset)은 MCP 로 만들 수 없다** — SO 를 만드는 도구도, 스프라이트 참조를 넣는
+도구도 없다(진행상황 8절 1·4번). 그래서 스킨·캐릭터 정의만 생성 스크립트로 쓰고
+**씬 오브젝트·컴포넌트는 MCP** 라는 원칙은 유지된다. 이번엔 씬 변경 자체가 없었다.
+
+### 검증
+
+`recompile_scripts` **에러 0 / 경고 1** — 경고는 `SquadPanel.emptySlotText` 미사용으로
+**UI-9(36절)에서 생긴 것이고 이번 작업과 무관**하다. `Assets/Refresh` 후 콘솔 에러·경고 0
+(새 PNG 44장 `.meta` + 스킨 에셋 6개 정상 임포트). 상세 목록은 진행상황 38-8절.
+
+### 씬반영요청 목록
+
+없음.

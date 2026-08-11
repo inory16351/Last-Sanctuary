@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a517e511b352f46488ffa35edf32295d, type: 3}
-  m_Name: Skin_Spitter
+  m_Name: Skin_Monster_Ranged
   m_EditorClassIdentifier: 
   displayName: 분비형 암세포
   framesPerSecond: 10
@@ -85,3 +85,19 @@ MonoBehaviour:
   - {fileID: 21300000, guid: be5c070922a3b143bd7e80b45af729d8, type: 3}
   - {fileID: 21300000, guid: 69ca6b911f2ecb547b21331f87a16fc3, type: 3}
   - {fileID: 21300000, guid: 27eda9821b0be04821b49c133c6b3d67, type: 3}
+  healRight: []
+  healLeft: []
+  projectileFrames:
+  - {fileID: 21300000, guid: 33f38147acd056c0ee1f67cb4ce45ffe, type: 3}
+  - {fileID: 21300000, guid: 739e5693512578387df9efef518ded99, type: 3}
+  - {fileID: 21300000, guid: 5da338e140913f800024658497869d46, type: 3}
+  - {fileID: 21300000, guid: 91773c21da1d01c1410334d587cbd2e1, type: 3}
+  - {fileID: 21300000, guid: c5ba119e4a73f430ecea9f38c72e6f22, type: 3}
+  - {fileID: 21300000, guid: a018376e586e9589aacd341b3e196daf, type: 3}
+  - {fileID: 21300000, guid: ef5386bdcff1292618268a9463e5d59d, type: 3}
+  - {fileID: 21300000, guid: 2ebcc254e0a8dde293684eb26bf0bef2, type: 3}
+  - {fileID: 21300000, guid: 51f8a315a8899260d9f12c0deb0c53fc, type: 3}
+  muzzleFlashFrames: []
+  impactFrames: []
+  projectileScale: 0.35
+  impactScale: {x: 1, y: 1}
