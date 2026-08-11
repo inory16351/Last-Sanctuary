@@ -201,13 +201,24 @@ namespace LastSanctuary.Units
             Vector3Int cell = PickCharacterCell(centerCell, index, ringDivisor, _usedCells);
             _usedCells.Add(cell);
 
-            StatBlock rolled = StatBlock.Roll(_rng, balance.initialStatMin, balance.initialStatMax);
-
             CharacterUnit unit = Instantiate(characterTemplate, CellCenter(cell),
                                              Quaternion.identity, _unitsRoot);
             unit.name = $"Character_{index + 1}";
             unit.gameObject.SetActive(true);
-            unit.Initialize(rolled, balance);
+
+            // 캐릭터 테이블에 정의된 인물이 있으면 그 중 하나로 만든다.
+            // 정의가 하나도 없으면(에셋 미배치 등) 예전처럼 능력치를 무작위로 굴린다 —
+            // 이 폴백이 있어야 정의 에셋을 못 읽어도 게임이 그냥 돌아간다.
+            CharacterDefinitionSO def = CharacterDefinitionRegistry.Pick(_rng);
+            if (def != null)
+            {
+                unit.InitializeFrom(def, balance);
+            }
+            else
+            {
+                StatBlock rolled = StatBlock.Roll(_rng, balance.initialStatMin, balance.initialStatMax);
+                unit.Initialize(rolled, balance);
+            }
 
             SpawnedCharacters.Add(unit);
             Debug.Log($"[UnitSpawner] {unit.name} @ cell{cell.x},{cell.y} · {unit.DebugSummary()}",

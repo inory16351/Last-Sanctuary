@@ -23,18 +23,28 @@ namespace LastSanctuary.UI
         [SerializeField] TMP_Text rallyLabel;
         [SerializeField] Image rallyBackground;
 
+        [SerializeField] Button rallyClearButton;
+        [SerializeField] TMP_Text rallyClearLabel;
+        [SerializeField] Image rallyClearBackground;
+
         [SerializeField] Button tacticsButton;
         [SerializeField] TMP_Text tacticsLabel;
         [SerializeField] Image tacticsBackground;
 
+        [SerializeField] Button squadButton;
+        [SerializeField] TMP_Text squadLabel;
+        [SerializeField] Image squadBackground;
+
         [Header("문구")]
         [SerializeField] string createFormat = "캐릭터 생성 {0}";
         [SerializeField] string createAtLimit = "인원 상한";
-        [SerializeField] string rallyIdle = "집결지 설정";
+        [SerializeField] string rallyIdle = "집결지 생성";
         [SerializeField] string rallyPicking = "맵을 클릭 (Esc 취소)";
-        [SerializeField] string rallyClear = "집결지 해제 (우클릭)";
+        [SerializeField] string rallyClear = "집결지 해제";
         [SerializeField] string tacticsIdle = "전술 지침";
         [SerializeField] string tacticsOpen = "전술 지침 닫기";
+        [SerializeField] string squadIdle = "부대 지정";
+        [SerializeField] string squadOpen = "부대 지정 닫기";
 
         [Header("색")]
         [SerializeField] Color buttonNormal = new Color(0.13f, 0.17f, 0.22f, 0.95f);
@@ -47,12 +57,16 @@ namespace LastSanctuary.UI
         /// <summary>전술 지침 창. <b>평소 비활성</b>이라 이름/타입 조회에 비활성 포함이 필요하다.</summary>
         TacticalOrderPanel _tacticsPanel;
 
+        /// <summary>부대 지정 창. 전술 지침 창과 같은 이유로 비활성 포함 조회가 필요하다.</summary>
+        SquadPanel _squadPanel;
+
         // 마지막으로 화면에 반영한 값. 바뀔 때만 갱신한다.
         int _shownCost = int.MinValue;
         bool _shownCanCreate;
         bool _shownPicking;
         bool _shownHasRally;
         bool _shownTacticsOpen;
+        bool _shownSquadOpen;
 
         void Start()
         {
@@ -62,16 +76,21 @@ namespace LastSanctuary.UI
             // 전술 지침 창은 버튼을 누르기 전까지 비활성이므로 Instance(=Awake 에서 설정)가
             // 아직 없다. 비활성 오브젝트까지 포함해 직접 찾는다.
             _tacticsPanel = FindAnyObjectByType<TacticalOrderPanel>(FindObjectsInactive.Include);
+            _squadPanel = FindAnyObjectByType<SquadPanel>(FindObjectsInactive.Include);
 
             // MCP 로는 씬 오브젝트 참조를 인스펙터에 넣을 수 없어서(진행상황 8절 4번),
             // 비어 있으면 이름으로 찾는다.
             Resolve("Buttons/CreateButton", ref createButton, ref createBackground, ref createLabel);
             Resolve("Buttons/RallyButton", ref rallyButton, ref rallyBackground, ref rallyLabel);
+            Resolve("Buttons/RallyClearButton", ref rallyClearButton, ref rallyClearBackground, ref rallyClearLabel);
             Resolve("Buttons/TacticsButton", ref tacticsButton, ref tacticsBackground, ref tacticsLabel);
+            Resolve("Buttons/SquadButton", ref squadButton, ref squadBackground, ref squadLabel);
 
             if (createButton != null) createButton.onClick.AddListener(HandleCreate);
             if (rallyButton != null) rallyButton.onClick.AddListener(HandleRally);
+            if (rallyClearButton != null) rallyClearButton.onClick.AddListener(HandleRallyClear);
             if (tacticsButton != null) tacticsButton.onClick.AddListener(HandleTactics);
+            if (squadButton != null) squadButton.onClick.AddListener(HandleSquad);
 
             if (_creation == null)
                 Debug.LogWarning("[Actions] CharacterCreationService 를 찾지 못했습니다. " +
@@ -108,10 +127,33 @@ namespace LastSanctuary.UI
             Refresh(force: true);
         }
 
+        /// <summary>집결지 <b>생성</b> — 맵을 클릭해 새 집결지를 하나 찍는다(여러 개 만들 수 있다).</summary>
         void HandleRally()
         {
             if (_rally == null) _rally = RallyPointService.Instance;
             _rally?.TogglePicking();
+            Refresh(force: true);
+        }
+
+        /// <summary>
+        /// 집결지 <b>해제</b> — 생성과 별도 버튼으로 갈랐다(유저 확정 2026-08-11).
+        /// 캐릭터를 고른 채 누르면 그 캐릭터 것만, 아무것도 안 고른 채 누르면 전부 지운다.
+        /// </summary>
+        void HandleRallyClear()
+        {
+            if (_rally == null) _rally = RallyPointService.Instance;
+            _rally?.CancelPicking();
+            _rally?.ClearForCurrentTarget();
+            Refresh(force: true);
+        }
+
+        /// <summary>부대 지정 창을 연다/닫는다.</summary>
+        void HandleSquad()
+        {
+            if (_squadPanel == null)
+                _squadPanel = FindAnyObjectByType<SquadPanel>(FindObjectsInactive.Include);
+
+            _squadPanel?.Toggle();
             Refresh(force: true);
         }
 
@@ -134,6 +176,22 @@ namespace LastSanctuary.UI
             RefreshCreate(force);
             RefreshRally(force);
             RefreshTactics(force);
+            RefreshSquad(force);
+        }
+
+        void RefreshSquad(bool force)
+        {
+            if (squadButton == null) return;
+
+            bool open = _squadPanel != null && _squadPanel.IsOpen;
+            if (!force && open == _shownSquadOpen) return;
+            _shownSquadOpen = open;
+
+            squadButton.interactable = _squadPanel != null;
+            if (squadBackground != null)
+                squadBackground.color = _squadPanel == null ? buttonOff
+                                      : (open ? buttonOn : buttonNormal);
+            if (squadLabel != null) squadLabel.text = open ? squadOpen : squadIdle;
         }
 
         void RefreshTactics(bool force)
@@ -200,8 +258,16 @@ namespace LastSanctuary.UI
 
             rallyButton.interactable = true;
             if (rallyBackground != null) rallyBackground.color = picking ? buttonOn : buttonNormal;
-            if (rallyLabel != null)
-                rallyLabel.text = picking ? rallyPicking : (hasRally ? rallyClear : rallyIdle);
+            if (rallyLabel != null) rallyLabel.text = picking ? rallyPicking : rallyIdle;
+
+            // 해제 버튼은 지울 것이 있을 때만 눌린다.
+            if (rallyClearButton != null)
+            {
+                rallyClearButton.interactable = hasRally;
+                if (rallyClearBackground != null)
+                    rallyClearBackground.color = hasRally ? buttonNormal : buttonOff;
+                if (rallyClearLabel != null) rallyClearLabel.text = rallyClear;
+            }
         }
     }
 }

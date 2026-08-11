@@ -41,6 +41,8 @@ namespace LastSanctuary.Combat
         {
             OnAnyAttack = null;
             OnAnyDied = null;
+            OnAnyMissed = null;
+            OnAnyCritical = null;
         }
 
         bool _wasInCombat;
@@ -70,6 +72,28 @@ namespace LastSanctuary.Combat
         /// 이 값을 확인하고 스스로 물러나는 방식으로 갈랐다.
         /// </summary>
         public virtual bool AcceptsExternalHeal => true;
+
+        /// <summary>
+        /// 능력치에서 파생된 초당 공격 횟수. <b>0 이면 "이 유닛은 능력치로 정하지 않는다"</b>는 뜻이고
+        /// <c>UnitCombat</c> 이 기존 경로(인스펙터 값 → 밸런스 폴백)를 그대로 쓴다.
+        ///
+        /// 몬스터·중립·포탑은 능력치 4종만 쓰므로 기본값 0 을 그대로 둔다 — 확장 전과 동작이 같다.
+        /// 캐릭터만 <c>CharacterUnit</c> 에서 재정의해 공격속도 능력치를 반영한다.
+        /// </summary>
+        public virtual float StatAttacksPerSecond => 0f;
+
+        /// <summary>능력치에서 파생된 초당 이동 타일 수. 0 이면 기존 경로를 쓴다.</summary>
+        public virtual float StatMoveSpeedTiles => 0f;
+
+        /// <summary>
+        /// 공격이 빗나갈 수 있는 유닛인지 — 적중 확률(%). 100 이면 절대 안 빗나간다(기본값).
+        /// 몬스터는 명중 능력치가 없으므로 100 을 유지해 확장 전과 동작이 같다.
+        /// <b>실수다</b> — 확률은 0.5% 단위 조정이 필요할 수 있어 정수로 깎지 않는다.
+        /// </summary>
+        public virtual float HitChancePercent => 100f;
+
+        /// <summary>치명타 확률(%). 0 이면 치명타가 없다(기본값). 실수.</summary>
+        public virtual float CriticalChancePercent => 0f;
 
         // ------------------------------------------------------------------
 
@@ -184,7 +208,18 @@ namespace LastSanctuary.Combat
 
         DamageableUnit _lastAttacker;
 
-        /// <summary>공격자의 공격력 능력치를 받아 피해를 계산해 적용한다.</summary>
+        /// <summary>
+        /// 공격자의 공격력 능력치를 받아 피해를 계산해 적용한다.
+        ///
+        /// 처리 순서는 「능력치 및 공식 정리.xlsx」의 '데미지 계산' 시트와 같다:
+        /// <b>① 명중 판정 → ② 기본 피해 → ③ 치명타 판정 → ④ 적용</b>.
+        /// ①③ 은 공격자가 명중·치명타 능력치를 가진 경우에만 실제로 작동한다 —
+        /// 몬스터는 기본값(적중 100% · 치명 0%)이라 확장 전과 결과가 완전히 같다.
+        ///
+        /// <b>빗나가도 <see cref="OnAnyAttack"/> 은 발생시킨다</b> — 이 이벤트가 웨이브 전투 개시
+        /// 판정(11절)과 투사체 연출(25-5절)의 트리거라서, 빗나갔다고 발생시키지 않으면
+        /// "쏘는데 아무 일도 안 일어나는" 상태가 된다.
+        /// </summary>
         public void TakeDamageFrom(DamageableUnit attacker)
         {
             if (!IsAlive || balance == null || attacker == null) return;
@@ -193,8 +228,37 @@ namespace LastSanctuary.Combat
             LastAttackedTime = Time.time;
 
             OnAnyAttack?.Invoke(attacker, this);
-            ApplyDamage(balance.Damage(attacker.AttackStat, DefenseStat));
+
+            // ① 명중 판정 — 빗나가면 피해 0 이고 치명타 판정도 하지 않는다.
+            // 확률이 실수라 0~100 실수 난수로 굴린다(정수 난수로 굴리면 81.5% 가 81% 로 깎인다).
+            float hit = attacker.HitChancePercent;
+            if (hit < 100f && Random.value * 100f >= hit)
+            {
+                OnAnyMissed?.Invoke(attacker, this);
+                return;
+            }
+
+            // ② 기본 피해
+            int damage = balance.Damage(attacker.AttackStat, DefenseStat);
+
+            // ③ 치명타 판정
+            float crit = attacker.CriticalChancePercent;
+            bool critical = crit > 0f && Random.value * 100f < crit;
+            if (critical)
+            {
+                damage = balance.ApplyCriticalDamage(damage);
+                OnAnyCritical?.Invoke(attacker, this);
+            }
+
+            // ④ 적용
+            ApplyDamage(damage);
         }
+
+        /// <summary>공격이 빗나갔다 (공격자, 대상). MISS 연출용 — 아직 구독자가 없다.</summary>
+        public static event System.Action<DamageableUnit, DamageableUnit> OnAnyMissed;
+
+        /// <summary>치명타가 터졌다 (공격자, 대상). 연출용 — 아직 구독자가 없다.</summary>
+        public static event System.Action<DamageableUnit, DamageableUnit> OnAnyCritical;
 
         /// <summary>계산이 끝난 피해량(정수)을 직접 적용한다.</summary>
         public void ApplyDamage(int amount)

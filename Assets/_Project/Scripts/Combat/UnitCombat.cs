@@ -908,9 +908,14 @@ namespace LastSanctuary.Combat
                 Vector2.Distance(transform.position, _target.transform.position) < MinAttackDistance)
                 return;
 
-            float aps = attacksPerSecond > 0f
-                ? attacksPerSecond
-                : (_self.Balance != null ? _self.Balance.attacksPerSecond : 1f);
+            // 능력치(공격 속도)가 있으면 그게 최우선이다 — 캐릭터만 해당하고,
+            // 몬스터·포탑은 0 을 돌려주므로 기존 경로(인스펙터 값 → 밸런스 폴백)를 그대로 탄다.
+            float statAps = _self.StatAttacksPerSecond;
+            float aps = statAps > 0f
+                ? statAps
+                : (attacksPerSecond > 0f
+                    ? attacksPerSecond
+                    : (_self.Balance != null ? _self.Balance.attacksPerSecond : 1f));
             if (aps <= 0f) return;
 
             _nextAttackTime = Time.time + 1f / aps;
@@ -1089,10 +1094,16 @@ namespace LastSanctuary.Combat
             MoveWithCollision((Vector3)(move * CurrentSpeed() * dt));
         }
 
-        float CurrentSpeed() =>
-            moveSpeedTiles > 0f
+        float CurrentSpeed()
+        {
+            // 능력치(이동속도)가 있으면 그게 최우선. 몬스터·포탑은 0 이라 기존 경로를 그대로 탄다.
+            float statSpeed = _self != null ? _self.StatMoveSpeedTiles : 0f;
+            if (statSpeed > 0f) return statSpeed;
+
+            return moveSpeedTiles > 0f
                 ? moveSpeedTiles
                 : (_self != null && _self.Balance != null ? _self.Balance.moveSpeedTilesPerSecond : 3f);
+        }
 
         /// <summary>
         /// 스프라이트를 좌우로만 뒤집어 진행 방향을 보게 한다 (코어 키퍼·스타듀 밸리 방식).

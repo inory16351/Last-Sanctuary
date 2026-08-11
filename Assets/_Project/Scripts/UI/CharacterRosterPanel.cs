@@ -548,6 +548,17 @@ namespace LastSanctuary.UI
         void SelectRow(Row row)
         {
             if (row.IsDead || row.Unit == null || !row.Unit.IsAlive) return;
+
+            // 부대 지정 창에서 부대를 골라둔 상태라면, 이 클릭은 "선택"이 아니라 "배정"이다
+            // (유저 확정 2026-08-11: 부대 슬롯을 누른 뒤 로스터의 캐릭터를 누르면 그 부대에 들어간다).
+            // 배정으로 처리했으면 선택을 바꾸지 않는다 — 배정하려고 누른 건데 선택까지 따라 바뀌면
+            // 다른 창(전술·성장)의 표시가 같이 움직여 혼란스럽다.
+            if (SquadPanel.Instance != null && SquadPanel.Instance.TryAssign(row.Unit))
+            {
+                RefreshValues();
+                return;
+            }
+
             if (_selector == null) _selector = UnitSelector.Instance;
             _selector?.Select(row.Unit);
             FocusCameraOn(row.Unit);

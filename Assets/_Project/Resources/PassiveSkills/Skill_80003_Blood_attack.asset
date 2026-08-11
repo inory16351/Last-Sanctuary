@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21498a0a43b4e824ea7e6db210ef2e29, type: 3}
+  m_Name: Skill_80003_Blood_attack
+  m_EditorClassIdentifier:
+  skillId: 80003
+  skillName: '유혈 낭자'
+  skillType: 'Blood_attack'
+  value01: 5
+  value02: 0
+  value03: 0
+  coolTime: 0
+  iconName: 'icon_blood_dagger'
+  flavorText: '상처는 엘린을 더욱 강하게 만들었습니다.'
+  effectTemplate: '엘린은 공격을 할때마다 현제 체력의 {value_01}% 만큼 체력이 감소하고 해당 값만큼 데미지 공식의 공격력 부분에 더해서 계산한다.'

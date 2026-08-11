@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21498a0a43b4e824ea7e6db210ef2e29, type: 3}
+  m_Name: Skill_80007_Gluttony
+  m_EditorClassIdentifier:
+  skillId: 80007
+  skillName: '포식'
+  skillType: 'Gluttony'
+  value01: 3
+  value02: 0
+  value03: 0
+  coolTime: 0
+  iconName: 'icon_soul_devour'
+  flavorText: '프레이야는 분노와 함께 적들을 집어 삼킵니다.'
+  effectTemplate: '프레이야가 2초내에 직접 공격한 적이 사망할 때마다 프레이야의 현재 체력이 최대체력의 {value_01}% 만큼 회복된다.'

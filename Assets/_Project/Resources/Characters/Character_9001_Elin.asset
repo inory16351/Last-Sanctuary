@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bacf4f16746e56b4da254173d578cf4e, type: 3}
+  m_Name: Character_9001_Elin
+  m_EditorClassIdentifier:
+  characterId: 9001
+  characterName: '엘린'
+  characterNameEn: 'Elin'
+  illustName: 'illust_Elin'
+  skinAssetName: 'Skin_Angel'
+  stats:
+    hp: 2
+    attack: 4
+    defense: 2
+    regen: 4
+    rangedAttack: 3
+    magic: 8
+    cure: 7
+    accuracy: 1
+    critical: 2
+    attackSpeed: 3
+    moveSpeed: 9
+    resistance: 13
+  passives:
+  - {fileID: 11400000, guid: 5e40c71e09362bd75f0e66203e8fa549, type: 2}
+  - {fileID: 11400000, guid: b0929579da84a5d787cf4b1761fb0f85, type: 2}
+  - {fileID: 11400000, guid: 17f553f8d4faae630079fe5905d27544, type: 2}
+  narrative: '눈을 가린 채 가장 먼저 전장에 뛰어드는 호중구. 제 몸을 그물처럼 풀어 적을 붙잡고 스러진다. 보지 못하지만 누구보다 먼저 침입자를 알아챈다.'

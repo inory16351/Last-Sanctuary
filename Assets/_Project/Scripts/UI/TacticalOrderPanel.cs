@@ -69,6 +69,12 @@ namespace LastSanctuary.UI
         TMP_Text _nameText, _levelText, _hpPercentText, _hintText, _summaryText, _retreatValueText;
         Image _hpFill, _retreatBarFill, _hpGhost;
 
+        // 초상화 — 캐릭터 성장 창(CharacterGrowthPanel)과 완전히 같은 구조·같은 규칙이다.
+        // 액자(Portrait)는 항상 보이고, 그 안의 Sprite 레이어에만 그림을 얹는다.
+        Image _portraitSprite;
+        GameObject _portraitHint;
+        SpriteRenderer _unitSprite;
+
         /// <summary>깎인 구간을 잠깐 남겨두는 잔상 값. <see cref="HpGhostBar"/> 가 관리한다.</summary>
         readonly HpGhostBar _ghost = new HpGhostBar();
 
@@ -182,6 +188,7 @@ namespace LastSanctuary.UI
         {
             _unit = unit != null && unit.IsAlive ? unit : null;
             _tactics = _unit != null ? _unit.GetComponent<CharacterTactics>() : null;
+            _unitSprite = _unit != null ? _unit.GetComponent<SpriteRenderer>() : null;
 
             // 다른 캐릭터로 바뀌었으면 잔상은 애니메이션 없이 바로 맞춘다 —
             // 안 그러면 새로 고른 캐릭터의 체력이 이전 캐릭터 값에서 줄어드는 것처럼 보인다.
@@ -234,6 +241,31 @@ namespace LastSanctuary.UI
             if (_retreatBarFill != null) _retreatBarFill.fillAmount = percent / 100f;
         }
 
+        /// <summary>
+        /// 초상화. <b>캐릭터 테이블의 일러스트</b>(<c>Resources/Illust/</c>)를 우선 쓰고,
+        /// 정의가 없는 캐릭터만 인게임 스프라이트를 그대로 얹는다 —
+        /// <c>CharacterGrowthPanel.RefreshPortrait</c> 와 완전히 같은 규칙이다.
+        /// </summary>
+        void RefreshPortrait()
+        {
+            Sprite sprite = null;
+
+            if (_unit != null)
+            {
+                var def = _unit.Definition;
+                if (def != null) sprite = def.Illust;
+                if (sprite == null && _unitSprite != null) sprite = _unitSprite.sprite;
+            }
+
+            if (_portraitSprite != null)
+            {
+                _portraitSprite.sprite = sprite;
+                _portraitSprite.color = sprite != null ? Color.white : new Color(1f, 1f, 1f, 0f);
+            }
+
+            if (_portraitHint != null) _portraitHint.SetActive(sprite == null);
+        }
+
         /// <summary>이름 · 강화 횟수(LV) · 현재 체력 % — 유저가 요청한 세 가지만 보여준다.</summary>
         void RefreshLiveValues()
         {
@@ -245,10 +277,12 @@ namespace LastSanctuary.UI
                 if (_hpFill != null) _hpFill.fillAmount = 0f;
                 if (_hpGhost != null) { _ghost.Snap(0f); _hpGhost.fillAmount = 0f; }
                 _erosion.Refresh(null);
+                RefreshPortrait();
                 return;
             }
 
-            if (_nameText != null) _nameText.text = _unit.name;
+            if (_nameText != null) _nameText.text = _unit.DisplayName;
+            RefreshPortrait();
 
             // "강화 횟수(LV)" — CharacterUpgradeService 가 올리는 그 횟수를 그대로 쓴다.
             if (_levelText != null) _levelText.text = $"LV.{_unit.UpgradeCount}";
@@ -286,6 +320,8 @@ namespace LastSanctuary.UI
             _hpPercentText = FindText("Info/HpPercent");
             _hintText = FindText("Info/Hint");
             _hpFill = FindImage("Info/HpBack/HpFill");
+            _portraitSprite = FindImage("Info/Portrait/Sprite");
+            _portraitHint = transform.Find("Info/Portrait/Hint")?.gameObject;
 
             _summaryText = FindText("Col3/Summary/Text");
             _retreatValueText = FindText("Col2/RetreatValue");

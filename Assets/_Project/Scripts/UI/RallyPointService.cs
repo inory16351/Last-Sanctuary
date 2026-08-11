@@ -61,11 +61,29 @@ namespace LastSanctuary.UI
         [Header("디버그")]
         [SerializeField] bool logChanges = true;
 
-        /// <summary>캐릭터별 집결지. 값이 없으면 <see cref="_globalRally"/> 를 본다.</summary>
+        /// <summary>캐릭터별 집결지. 값이 없으면 부대·전체 집결지를 본다.</summary>
         readonly Dictionary<CharacterUnit, Vector3> _perUnit = new Dictionary<CharacterUnit, Vector3>();
 
-        /// <summary>전체 공통 집결지. 선택 없이 지정하면 여기 들어간다.</summary>
-        Vector3? _globalRally;
+        /// <summary>
+        /// 맵에 찍힌 집결지 하나. <b>여러 개를 만들 수 있고</b>, 각각에 부대를 배정할 수 있다
+        /// (유저 확정 2026-08-11).
+        /// </summary>
+        public class RallyPoint
+        {
+            public int Id;
+            public Vector3 World;
+
+            /// <summary>이 집결지를 쓰는 부대. <b>0 이면 부대 미지정 = 전체 공용</b>이다.</summary>
+            public int SquadId;
+        }
+
+        readonly List<RallyPoint> _points = new List<RallyPoint>();
+        int _nextPointId = 1;
+
+        /// <summary>집결지 목록이 바뀌었다(생성·해제·부대 배정). UI 가 표시를 다시 그린다.</summary>
+        public event System.Action OnPointsChanged;
+
+        public IReadOnlyList<RallyPoint> Points => _points;
 
         readonly List<RectTransform> _markers = new List<RectTransform>();
         readonly List<RectTransform> _ranges = new List<RectTransform>();
@@ -143,8 +161,71 @@ namespace LastSanctuary.UI
         {
             UpdatePreview();
             if (IsPicking) HandlePicking();
+            else HandleRallyPointClick();
             PruneDeadUnits();
             UpdateOverlay();
+        }
+
+        /// <summary>
+        /// 지정 모드가 아닐 때 <b>이미 찍힌 집결지를 클릭하면 부대 지정 창</b>을 연다(유저 확정).
+        ///
+        /// <b>캐릭터를 아무것도 선택하지 않은 상태에서만</b> 동작한다 — 캐릭터를 고른 채 맵을
+        /// 클릭하는 것은 <see cref="UnitSelector"/> 의 선택 해제이므로, 그걸 가로채면
+        /// 기존 조작이 망가진다.
+        /// </summary>
+        void HandleRallyPointClick()
+        {
+            if (_points.Count == 0) return;
+
+            Mouse mouse = Mouse.current;
+            if (mouse == null) return;
+
+            if (mouse.leftButton.wasPressedThisFrame)
+            {
+                _pressActive = true;
+                _pressPosition = mouse.position.ReadValue();
+                _pressStartedOverUI = IsPointerOverUI();
+                return;
+            }
+
+            if (!mouse.leftButton.wasReleasedThisFrame) return;
+
+            bool wasPress = _pressActive;
+            _pressActive = false;
+            if (!wasPress || _pressStartedOverUI) return;
+
+            // 캐릭터가 선택돼 있으면 이 클릭은 선택 조작이다 — 건드리지 않는다.
+            if (UnitSelector.Instance != null && UnitSelector.Instance.Selected != null) return;
+
+            // 카메라를 끌었던 것이면 클릭이 아니다 (UnitSelector 와 같은 규칙).
+            Vector2 release = mouse.position.ReadValue();
+            if ((release - _pressPosition).magnitude >= clickThresholdPixels) return;
+
+            if (_camera == null) _camera = Camera.main;
+            if (_camera == null) return;
+
+            Vector3 world = _camera.ScreenToWorldPoint(release);
+            world.z = 0f;
+
+            RallyPoint hit = FindPointNear(world, rallyAreaSize * 0.5f);
+            if (hit == null) return;
+
+            SquadPanel panel = ResolveSquadPanel();
+            if (panel != null) panel.OpenForRallyPoint(hit.Id);
+        }
+
+        SquadPanel _squadPanel;
+
+        /// <summary>
+        /// 부대 지정 창을 찾는다. <b>평소 비활성이라 <c>SquadPanel.Instance</c> 는 아직 null 이다</b> —
+        /// <c>Awake</c> 가 한 번도 안 돌았기 때문이다. <c>ActionPanel</c> 과 같은 방식으로
+        /// 비활성 오브젝트까지 포함해 직접 찾는다.
+        /// </summary>
+        SquadPanel ResolveSquadPanel()
+        {
+            if (_squadPanel == null)
+                _squadPanel = FindAnyObjectByType<SquadPanel>(FindObjectsInactive.Include);
+            return _squadPanel;
         }
 
         /// <summary>
@@ -267,49 +348,109 @@ namespace LastSanctuary.UI
         // 집결지 설정 / 해제
         // ------------------------------------------------------------------
 
-        /// <summary>선택된 캐릭터(없으면 전체)의 집결지를 지정한다.</summary>
-        public void SetRallyPoint(Vector3 world)
+        /// <summary>
+        /// 집결지를 <b>새로 하나 만든다</b>. 캐릭터가 선택돼 있으면 그 캐릭터 전용 집결지가 되고,
+        /// 아니면 부대 미지정(전체 공용) 집결지가 된다 — 부대 배정은 만든 뒤에
+        /// <see cref="AssignSquad"/> 로 붙인다(집결지를 클릭하면 부대 지정 창이 뜬다).
+        /// </summary>
+        public RallyPoint SetRallyPoint(Vector3 world)
         {
             CharacterUnit selected = UnitSelector.Instance != null ? UnitSelector.Instance.Selected : null;
 
             if (selected != null)
             {
                 _perUnit[selected] = world;
-                if (logChanges) Debug.Log($"[Rally] {selected.name} 집결지 → {world}", selected);
-                HudLog.Add($"{selected.name} 집결지 지정", HudLogKind.Good);
+                if (logChanges) Debug.Log($"[Rally] {selected.DisplayName} 집결지 → {world}", selected);
+                HudLog.Add($"{selected.DisplayName} 집결지 지정", HudLogKind.Good);
+                OnPointsChanged?.Invoke();
+                return null;
             }
-            else
-            {
-                _globalRally = world;
-                _perUnit.Clear();   // 전체 지정은 개별 지정을 덮는다 — 규칙이 두 벌로 갈리지 않게
-                if (logChanges) Debug.Log($"[Rally] 전체 집결지 → {world}");
-                HudLog.Add("전체 집결지 지정", HudLogKind.Good);
-            }
+
+            var point = new RallyPoint { Id = _nextPointId++, World = world, SquadId = 0 };
+            _points.Add(point);
+
+            if (logChanges) Debug.Log($"[Rally] 집결지 #{point.Id} 생성 → {world} (총 {_points.Count}개)");
+            HudLog.Add($"집결지 #{point.Id} 생성 — 클릭해서 부대를 지정하세요", HudLogKind.Good);
+            OnPointsChanged?.Invoke();
+            return point;
         }
 
-        /// <summary>지금 대상(선택된 캐릭터 또는 전체)의 집결지를 해제한다.</summary>
+        /// <summary>집결지 하나에 부대를 배정한다. <paramref name="squadId"/> 가 0 이면 전체 공용으로 되돌린다.</summary>
+        public void AssignSquad(int pointId, int squadId)
+        {
+            RallyPoint point = _points.Find(p => p.Id == pointId);
+            if (point == null) return;
+
+            point.SquadId = squadId;
+
+            var squad = SquadService.Instance != null ? SquadService.Instance.Find(squadId) : null;
+            string label = squad != null ? squad.Name : "전체";
+            if (logChanges) Debug.Log($"[Rally] 집결지 #{point.Id} → {label}");
+            HudLog.Add($"집결지 #{point.Id} → {label}", HudLogKind.Good);
+            OnPointsChanged?.Invoke();
+        }
+
+        /// <summary>집결지 하나를 없앤다.</summary>
+        public void RemovePoint(int pointId)
+        {
+            int index = _points.FindIndex(p => p.Id == pointId);
+            if (index < 0) return;
+
+            _points.RemoveAt(index);
+            HudLog.Add($"집결지 #{pointId} 해제");
+            OnPointsChanged?.Invoke();
+        }
+
+        /// <summary>
+        /// 지금 대상(선택된 캐릭터 또는 전체)의 집결지를 해제한다.
+        /// 캐릭터가 선택돼 있으면 그 캐릭터 것만, 아니면 <b>전부</b> 지운다.
+        /// </summary>
         public void ClearForCurrentTarget()
         {
             CharacterUnit selected = UnitSelector.Instance != null ? UnitSelector.Instance.Selected : null;
 
             if (selected != null)
             {
-                if (_perUnit.Remove(selected)) HudLog.Add($"{selected.name} 집결지 해제");
+                if (_perUnit.Remove(selected)) HudLog.Add($"{selected.DisplayName} 집결지 해제");
             }
             else
             {
-                _globalRally = null;
+                _points.Clear();
                 _perUnit.Clear();
                 HudLog.Add("집결지 전체 해제");
             }
+            OnPointsChanged?.Invoke();
         }
 
         /// <summary>집결지가 하나라도 걸려 있는지. 버튼 문구를 정할 때 쓴다.</summary>
-        public bool HasAnyRally => _globalRally.HasValue || _perUnit.Count > 0;
+        public bool HasAnyRally => _points.Count > 0 || _perUnit.Count > 0;
+
+        /// <summary>
+        /// 화면 클릭 지점에서 가장 가까운 집결지. 반경 안에 없으면 null —
+        /// "아무것도 선택하지 않은 채 집결지를 누르면 부대 지정 창"을 위한 히트 판정이다.
+        /// </summary>
+        public RallyPoint FindPointNear(Vector3 world, float radiusTiles)
+        {
+            RallyPoint best = null;
+            float bestSqr = radiusTiles * radiusTiles;
+
+            for (int i = 0; i < _points.Count; i++)
+            {
+                float sqr = (_points[i].World - world).sqrMagnitude;
+                if (sqr > bestSqr) continue;
+                bestSqr = sqr;
+                best = _points[i];
+            }
+            return best;
+        }
 
         /// <summary>
         /// 이 캐릭터가 지금 가야 할 집결지. <see cref="CharacterBehavior"/> 가 매 프레임 물어본다.
         /// 서비스가 없거나 지정된 곳이 없으면 false — 그 경우 캐릭터는 원래 정찰·방어 로직으로 돈다.
+        ///
+        /// 우선순위: <b>① 캐릭터 개별 지정 → ② 자기 부대에 배정된 집결지 → ③ 부대 미지정(전체 공용) 집결지</b>.
+        /// 부대에 배정된 집결지가 있으면 전체 공용보다 그쪽이 먼저다 — 부대별로 다른 곳을
+        /// 지키게 하려고 만든 기능이라, 전체 지정이 부대 지정을 덮으면 의미가 없다.
         /// </summary>
         public static bool TryGetRallyPoint(CharacterUnit unit, out Vector3 point)
         {
@@ -319,9 +460,23 @@ namespace LastSanctuary.UI
 
             if (service._perUnit.TryGetValue(unit, out point)) return true;
 
-            if (service._globalRally.HasValue)
+            int squadId = SquadService.Instance != null ? SquadService.Instance.SquadIdOf(unit) : 0;
+
+            RallyPoint fallback = null;
+            for (int i = 0; i < service._points.Count; i++)
             {
-                point = service._globalRally.Value;
+                RallyPoint p = service._points[i];
+                if (squadId != 0 && p.SquadId == squadId)
+                {
+                    point = p.World;
+                    return true;
+                }
+                if (p.SquadId == 0 && fallback == null) fallback = p;
+            }
+
+            if (fallback != null)
+            {
+                point = fallback.World;
                 return true;
             }
             return false;
@@ -359,7 +514,7 @@ namespace LastSanctuary.UI
 
             _activePoints.Clear();
             if (_hasPreview) _activePoints.Add(_previewWorld);
-            if (_globalRally.HasValue) _activePoints.Add(_globalRally.Value);
+            for (int i = 0; i < _points.Count; i++) _activePoints.Add(_points[i].World);
             foreach (var pair in _perUnit) _activePoints.Add(pair.Value);
 
             SyncPool(_markers, markerTemplate, "RallyMarker");

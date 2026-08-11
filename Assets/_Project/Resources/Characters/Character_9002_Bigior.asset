@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bacf4f16746e56b4da254173d578cf4e, type: 3}
+  m_Name: Character_9002_Bigior
+  m_EditorClassIdentifier:
+  characterId: 9002
+  characterName: '비기오르'
+  characterNameEn: 'Bigior'
+  illustName: 'illust_Bigior'
+  skinAssetName: 'Skin_LastSanctuary'
+  stats:
+    hp: 8
+    attack: 6
+    defense: 8
+    regen: 6
+    rangedAttack: 4
+    magic: 1
+    cure: 7
+    accuracy: 2
+    critical: 2
+    attackSpeed: 4
+    moveSpeed: 3
+    resistance: 61
+  passives:
+  - {fileID: 11400000, guid: 476969a66dcfc1ca9d33ac9fcdeaa978, type: 2}
+  - {fileID: 11400000, guid: cf076a80ed753f2e95dedaa6cec57b4f, type: 2}
+  - {fileID: 11400000, guid: cc4ffff9ea97d753c59792d5394870bd, type: 2}
+  narrative: '전열을 지탱하는 대식세포. 삼킨 것을 태워 열을 내고, 그 열로 곁의 아군까지 지킨다. 무너지지 않는 것이 그의 역할이다.'

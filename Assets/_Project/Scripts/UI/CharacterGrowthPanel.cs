@@ -45,9 +45,20 @@ namespace LastSanctuary.UI
         [SerializeField] string enhanceFormat = "강화하기 ({0})";
         [SerializeField] string enhanceNoSelection = "강화하기";
         [SerializeField] string enhanceMaxed = "능력치 상한";
-        [SerializeField] string noteAffordable = "선택한 캐릭터의 능력치 4종에 무작위 성장치를 더합니다.";
+        [SerializeField] string noteAffordable = "능력치에 무작위 성장치를 더합니다 (저항력 제외).";
         [SerializeField] string noteUnaffordable = "에너지가 부족합니다.";
         [SerializeField] string noteNoSelection = "-";
+
+        [Header("문구 — 패시브 스킬")]
+        [Tooltip("미해금 스킬의 이름 자리. 내용을 감춘다")]
+        [SerializeField] string lockedTitle = "???";
+        [SerializeField] string lockedDesc = "???";
+        [Tooltip("{0} = 해금에 필요한 강화 횟수")]
+        [SerializeField] string lockedNoteFormat = "강화 {0}회에 해금";
+        [SerializeField] string unlockedNote = "해금됨";
+        [SerializeField] string passiveClickHint = "클릭 → 상세";
+        [SerializeField] string passiveNoneText = "이 캐릭터에는 지정된 스킬이 없습니다.";
+        [SerializeField] string passiveNoSelectionText = "캐릭터를 선택하세요.";
 
         [Header("색")]
         [SerializeField] Color rowActive = new Color(0.13f, 0.17f, 0.22f, 0.95f);
@@ -57,6 +68,15 @@ namespace LastSanctuary.UI
         [SerializeField] Color deltaColor = new Color(0.45f, 0.95f, 0.6f, 1f);
         [SerializeField] Color costColor = new Color(0.98f, 0.85f, 0.45f, 1f);
         [SerializeField] Color costUnaffordableColor = new Color(0.96f, 0.42f, 0.42f, 1f);
+
+        [Header("색 — 패시브 스킬")]
+        [SerializeField] Color passiveUnlockedColor = new Color(0.13f, 0.15f, 0.20f, 0.95f);
+        [SerializeField] Color passiveLockedColor = new Color(0.07f, 0.08f, 0.10f, 0.85f);
+        [SerializeField] Color passiveEmptyColor = new Color(0.06f, 0.07f, 0.08f, 0.6f);
+        [Tooltip("미해금 아이콘을 눌러 실루엣으로 만드는 색. 알파는 남기고 밝기만 죽인다")]
+        [SerializeField] Color passiveSilhouetteColor = new Color(0.06f, 0.06f, 0.08f, 0.95f);
+        [SerializeField] Color passiveDescColor = new Color(0.72f, 0.76f, 0.82f, 1f);
+        [SerializeField] Color unlockedNoteColor = new Color(0.45f, 0.85f, 0.6f, 1f);
 
         /// <summary>다른 UI(액션 버튼)가 열고 닫을 수 있게 하나만 둔다.</summary>
         public static CharacterGrowthPanel Instance { get; private set; }
@@ -69,27 +89,50 @@ namespace LastSanctuary.UI
         }
 
         /// <summary>
-        /// 구현된 4종을 앞에, 나머지는 정식 기획 참고 자료(Character Enhance UI.html)의 abbr 코드만
-        /// 자리 표시로 둔다 — 원문 한글 라벨은 그 파일이 인코딩 손상으로 복구 불가능해서 지어내지 않았다.
+        /// 캐릭터 테이블(first_Stat 시트)의 12능력치. 화면은 3열 × 4행이고 이 배열 순서가 곧 배치 순서다
+        /// (같은 계열끼리 한 줄에 오도록 묶었다: 공격 계열 → 방어/회복 계열 → 명중/치명 → 속도/저항).
+        ///
+        /// <b>시야 · 사거리는 넣지 않는다</b> — 모든 캐릭터가 같은 고정값을 쓰고 패시브 스킬로만
+        /// 달라지므로 캐릭터마다 표기할 값이 없다(유저 확정 2026-08-11). 테이블에도 컬럼이 없다.
+        ///
+        /// 이제 <see cref="StatSlot.Type"/> 이 null 인 칸은 없다 — 15칸 중 11칸이 미구현
+        /// 자리표시(ASPD/RNG/CRT…)였던 이전 구조를 12칸 전부 실제 능력치로 교체했다.
+        /// null 처리는 코드에 그대로 남겨둔다: 나중에 능력치가 또 늘어날 때 다시 쓴다.
         /// </summary>
         static readonly StatSlot[] Slots =
         {
-            new StatSlot { Type = StatType.Hp,      DisplayName = "체력" },
-            new StatSlot { Type = StatType.Attack,  DisplayName = "공격력" },
-            new StatSlot { Type = StatType.Defense, DisplayName = "방어력" },
-            new StatSlot { Type = StatType.Regen,   DisplayName = "체력회복력" },
-            new StatSlot { Type = null, DisplayName = "ASPD" },
-            new StatSlot { Type = null, DisplayName = "RNG" },
-            new StatSlot { Type = null, DisplayName = "CRT" },
-            new StatSlot { Type = null, DisplayName = "CDM" },
-            new StatSlot { Type = null, DisplayName = "RES" },
-            new StatSlot { Type = null, DisplayName = "EVA" },
-            new StatSlot { Type = null, DisplayName = "ACC" },
-            new StatSlot { Type = null, DisplayName = "PEN" },
-            new StatSlot { Type = null, DisplayName = "MSPD" },
-            new StatSlot { Type = null, DisplayName = "SGT" },
-            new StatSlot { Type = null, DisplayName = "GAIN" },
+            new StatSlot { Type = StatType.Hp,           DisplayName = "체력" },
+            new StatSlot { Type = StatType.Attack,       DisplayName = "근거리 공격력" },
+            new StatSlot { Type = StatType.RangedAttack, DisplayName = "원거리 공격력" },
+
+            new StatSlot { Type = StatType.Magic,        DisplayName = "마법" },
+            new StatSlot { Type = StatType.Cure,         DisplayName = "회복력" },
+            new StatSlot { Type = StatType.Defense,      DisplayName = "방어력" },
+
+            new StatSlot { Type = StatType.Regen,        DisplayName = "체력 재생" },
+            new StatSlot { Type = StatType.Accuracy,     DisplayName = "명중률" },
+            new StatSlot { Type = StatType.Critical,     DisplayName = "크리티컬 확률" },
+
+            new StatSlot { Type = StatType.AttackSpeed,  DisplayName = "공격 속도" },
+            new StatSlot { Type = StatType.MoveSpeed,    DisplayName = "이동속도" },
+            new StatSlot { Type = StatType.Resistance,   DisplayName = "저항력" },
         };
+
+        /// <summary>패시브 스킬 칸 하나. 카드 전체가 버튼이고, 누르면 상세 창이 열린다.</summary>
+        class PassiveCard
+        {
+            public GameObject Root;
+            public Image Background;
+            public Image Icon;
+            public TMP_Text Name;
+            public TMP_Text Lock;
+            public TMP_Text Desc;
+            public TMP_Text Hint;
+            public Button Button;
+        }
+
+        const int PassiveSlotCount = 3;
+        readonly PassiveCard[] _passives = new PassiveCard[PassiveSlotCount];
 
         class Row
         {
@@ -191,6 +234,10 @@ namespace LastSanctuary.UI
 
             gameObject.SetActive(open);
             if (open) RebindToSelection();
+
+            // 상세 창은 이 창 위에 뜨는 자식 같은 존재라, 부모가 닫히면 같이 닫혀야 한다 —
+            // 안 그러면 성장 창을 닫아도 스킬 설명만 화면에 덩그러니 남는다.
+            if (!open) SkillDetailPanel.Instance?.Close();
         }
 
         public void Close() => SetOpen(false);
@@ -267,7 +314,7 @@ namespace LastSanctuary.UI
         {
             bool has = _unit != null;
 
-            if (_nameText != null) _nameText.text = has ? _unit.name : noSelectionName;
+            if (_nameText != null) _nameText.text = has ? _unit.DisplayName : noSelectionName;
             if (_countText != null) _countText.text = has ? $"강화 {_unit.UpgradeCount}회" : "-";
             if (_hintText != null) _hintText.text = has ? selectionHint : noSelectionHint;
 
@@ -283,13 +330,27 @@ namespace LastSanctuary.UI
 
             RefreshPortrait(has);
             RefreshRows(has);
+            RefreshPassives(has);
             RefreshFooter(has);
         }
 
-        /// <summary>선택된 캐릭터가 지금 들고 있는 스프라이트를 그대로 얹는다(연출 없음, 매 갱신마다 동기화).</summary>
+        /// <summary>
+        /// 초상화. <b>캐릭터 테이블의 일러스트</b>(<c>Resources/Illust/</c>)를 우선 쓰고,
+        /// 정의가 없는 캐릭터(무작위 능력치 캐릭터)만 예전처럼 인게임 스프라이트를 그대로 얹는다.
+        ///
+        /// 예전에는 항상 <see cref="SpriteRenderer"/> 를 미러링해서 "살아있는 애니메이션"이
+        /// 초상화에 나왔는데, 이제 정식 일러스트가 생겼으니 그게 우선이다.
+        /// </summary>
         void RefreshPortrait(bool has)
         {
-            Sprite sprite = has && _unitSprite != null ? _unitSprite.sprite : null;
+            Sprite sprite = null;
+
+            if (has)
+            {
+                var def = _unit.Definition;
+                if (def != null) sprite = def.Illust;
+                if (sprite == null && _unitSprite != null) sprite = _unitSprite.sprite;
+            }
 
             if (_portraitSprite != null)
             {
@@ -299,6 +360,91 @@ namespace LastSanctuary.UI
             }
 
             if (_portraitHint != null) _portraitHint.SetActive(sprite == null);
+        }
+
+        /// <summary>
+        /// 패시브 스킬 3칸.
+        ///
+        /// <b>미해금은 내용을 절대 보여주지 않는다</b>(유저 확정) — 아이콘은 완전히 어둡게 눌러
+        /// 실루엣만 남기고, 이름과 설명은 <c>???</c> 로 가린다. 대신 <b>언제 열리는지</b>
+        /// (강화 N회)는 알려줘야 목표가 생기므로 그것만 표시한다.
+        /// </summary>
+        void RefreshPassives(bool has)
+        {
+            var def = has ? _unit.Definition : null;
+
+            for (int slot = 0; slot < PassiveSlotCount; slot++)
+            {
+                PassiveCard card = _passives[slot];
+                if (card == null) continue;
+
+                PassiveSkillSO skill = def != null ? def.PassiveAt(slot) : null;
+                bool unlocked = skill != null && has && _unit.IsPassiveUnlocked(slot);
+
+                // 선택이 없거나 이 캐릭터에 스킬 자체가 없으면 빈 칸으로 둔다
+                if (skill == null)
+                {
+                    if (card.Background != null) card.Background.color = passiveEmptyColor;
+                    if (card.Icon != null) card.Icon.color = new Color(1f, 1f, 1f, 0f);
+                    if (card.Name != null) { card.Name.text = "-"; card.Name.color = labelDisabled; }
+                    if (card.Lock != null) card.Lock.text = "";
+                    if (card.Desc != null) card.Desc.text = has ? passiveNoneText : passiveNoSelectionText;
+                    if (card.Hint != null) card.Hint.text = "";
+                    if (card.Button != null) card.Button.interactable = false;
+                    continue;
+                }
+
+                if (card.Background != null)
+                    card.Background.color = unlocked ? passiveUnlockedColor : passiveLockedColor;
+
+                if (card.Icon != null)
+                {
+                    Sprite icon = skill.Icon;
+                    card.Icon.sprite = icon;
+                    // 실루엣 — 아이콘을 지우지 않고 검게 눌러야 "무언가 있다"는 게 보인다
+                    card.Icon.color = icon == null
+                        ? new Color(1f, 1f, 1f, 0f)
+                        : (unlocked ? Color.white : passiveSilhouetteColor);
+                }
+
+                if (card.Name != null)
+                {
+                    card.Name.text = unlocked ? skill.skillName : lockedTitle;
+                    card.Name.color = unlocked ? labelActive : labelDisabled;
+                }
+
+                if (card.Lock != null)
+                {
+                    card.Lock.text = unlocked
+                        ? unlockedNote
+                        : string.Format(lockedNoteFormat, def.UnlockUpgradesFor(slot));
+                    card.Lock.color = unlocked ? unlockedNoteColor : labelDisabled;
+                }
+
+                if (card.Desc != null)
+                {
+                    card.Desc.text = unlocked ? skill.flavorText : lockedDesc;
+                    card.Desc.color = unlocked ? passiveDescColor : labelDisabled;
+                }
+
+                if (card.Hint != null) card.Hint.text = unlocked ? passiveClickHint : "";
+
+                // 해금된 것만 상세 창을 열 수 있다 — 잠긴 스킬의 내용이 새어나가지 않게
+                if (card.Button != null) card.Button.interactable = unlocked;
+            }
+        }
+
+        /// <summary>패시브 칸을 눌렀을 때 — 상세 효과 창을 연다.</summary>
+        void HandlePassiveClicked(int slot)
+        {
+            if (_unit == null) return;
+            var def = _unit.Definition;
+            if (def == null) return;
+
+            PassiveSkillSO skill = def.PassiveAt(slot);
+            if (skill == null) return;
+
+            SkillDetailPanel.Instance?.Open(skill, _unit, slot, _unit.IsPassiveUnlocked(slot));
         }
 
         void RefreshRows(bool has)
@@ -365,8 +511,21 @@ namespace LastSanctuary.UI
             }
         }
 
-        static bool AreStatsAtCap(StatBlock stats, int cap) =>
-            stats.hp >= cap && stats.attack >= cap && stats.defense >= cap && stats.regen >= cap;
+        /// <summary>
+        /// 강화로 더 올릴 것이 남아 있는가. <b>성장하는 능력치만</b> 본다 —
+        /// 저항력은 애초에 강화 대상이 아니라서(고정값) 여기에 넣으면
+        /// 저항력이 낮은 캐릭터는 영원히 "상한 도달"이 안 뜬다.
+        /// </summary>
+        static bool AreStatsAtCap(StatBlock stats, int cap)
+        {
+            for (int i = 0; i < (int)StatType.COUNT; i++)
+            {
+                var t = (StatType)i;
+                if (!StatBlock.IsGrowable(t)) continue;
+                if (stats[t] < cap) return false;
+            }
+            return true;
+        }
 
         /// <summary>로스터·전술 창과 같은 3단 그라디언트(초록 → 노랑 → 빨강).</summary>
         static Color HpGaugeColor(float ratio)
@@ -414,6 +573,39 @@ namespace LastSanctuary.UI
                 };
 
                 if (_rows[i].Label != null) _rows[i].Label.text = Slots[i].DisplayName;
+            }
+
+            // 패시브 카드 3장. 클로저가 슬롯 번호를 잡도록 지역 변수에 복사해서 넘긴다 —
+            // 반복 변수를 그대로 캡처하면 세 버튼이 전부 마지막 값을 쓴다(고전적 실수).
+            for (int i = 0; i < PassiveSlotCount; i++)
+            {
+                string path = $"Stats/PassiveGrid/PassiveCard_{i:00}";
+                Transform node = transform.Find(path);
+                if (node == null)
+                {
+                    Debug.LogWarning($"[Growth] 하이라키에서 '{path}' 를 찾지 못했습니다.", this);
+                    continue;
+                }
+
+                var card = new PassiveCard
+                {
+                    Root = node.gameObject,
+                    Background = node.GetComponent<Image>(),
+                    Icon = FindImage($"{path}/Icon"),
+                    Name = FindText($"{path}/Name"),
+                    Lock = FindText($"{path}/Lock"),
+                    Desc = FindText($"{path}/Desc"),
+                    Hint = FindText($"{path}/Hint"),
+                    Button = node.GetComponent<Button>(),
+                };
+                _passives[i] = card;
+
+                if (card.Button != null)
+                {
+                    int slot = i;
+                    card.Button.onClick.RemoveAllListeners();
+                    card.Button.onClick.AddListener(() => HandlePassiveClicked(slot));
+                }
             }
 
             // 강화 버튼·비용/안내 문구는 초상화 바로 아래(Info 컬럼)에 둔다(유저 확정) —

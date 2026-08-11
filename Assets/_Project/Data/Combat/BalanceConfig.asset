@@ -22,11 +22,23 @@ MonoBehaviour:
   attackPerStat: 2
   defenseK: 50
   defensePerStat: 1
+  minDamage: 1
   regenTickSeconds: 10
   regenPerStat: 1
-  minDamage: 1
+  outOfCombatRegenDelay: 5
+  accuracyBasePercent: 85
+  accuracyPerStat: 0.3
+  accuracyMaxPercent: 100
+  criticalPerStat: 0.8
+  criticalMaxPercent: 60
+  criticalDamageMultiplier: 1.5
+  attacksPerSecondBase: 0.6
+  attacksPerSecondPerStat: 0.06
+  attacksPerSecondMax: 3
+  moveSpeedBase: 2.1
+  moveSpeedPerStat: 0.08
+  moveSpeedMax: 5
+  resistancePivot: 50
+  resistancePerStat: 0.01
   attacksPerSecond: 1
   moveSpeedTilesPerSecond: 3
-  meleeRangeTiles: 1.2
-  sightTiles: 8
-  outOfCombatRegenDelay: 5

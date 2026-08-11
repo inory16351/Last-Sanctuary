@@ -101,6 +101,15 @@ namespace LastSanctuary.Units
                  "'건물 건설'을 고른 캐릭터는 이 값과 무관하게 맵 어디의 예정지든 맡는다")]
         [Min(0f)] [SerializeField] float assistBuildRange = 22f;
 
+        [Header("부대 — 함께 이동 (탐색 · 사냥)")]
+        [Tooltip("부대 기준원의 목적지에서 이만큼 떨어져 선다(타일). 0 이면 같은 지점으로 몰린다.\n" +
+                 "캐릭터마다 고정된 방향으로 어긋나므로 대열이 흔들리지 않는다")]
+        [Min(0f)] [SerializeField] float squadFollowSpacing = 2.5f;
+
+        [Tooltip("부대를 따라가는 중 목적지를 다시 읽는 주기(초). 기준원이 새 목적지를 고른 것을 " +
+                 "이만큼 뒤에 따라잡는다. 너무 짧으면 매 프레임 경로가 초기화된다")]
+        [Min(0.2f)] [SerializeField] float squadFollowRepick = 1.5f;
+
         [Header("전방 포지션 — 적극 방어 (인터셉트)")]
         [Tooltip("전방 포지션 캐릭터가 '막으러 나가는' 판정 거리(타일). 구역 중심에서 이 거리 안에 " +
                  "웨이브 몬스터가 들어오면, 순찰을 멈추고 그 적과 구역 사이를 가로막는다. " +
@@ -798,6 +807,11 @@ namespace LastSanctuary.Units
 
         bool PickScoutSpot()
         {
+            // 같은 부대원과 함께 움직인다 — 기준원이 있으면 그가 정한 목적지를 따라간다.
+            // 건설하러 간 부대원은 여기 오지 않으므로(Update 의 TryBuild 에서 먼저 빠진다)
+            // 자연히 제외되고, 건설이 끝나면 다시 이 경로를 타며 합류한다.
+            if (TryFollowSquad(scoutLeash)) return true;
+
             if (_fog == null || !_fog.IsReady) return false;
             if (!_fog.TryFindUnexploredTarget(transform.position, scoutMinDistance,
                                               scoutSearchRadius, _rng, out Vector3 target))
@@ -806,6 +820,36 @@ namespace LastSanctuary.Units
             _destination = target;
             _repickTime = Time.time + scoutTimeout;
             _combat.SetHome(_destination, scoutLeash);
+            return true;
+        }
+
+        /// <summary>
+        /// 부대 기준원의 목적지를 따라간다. 기준원이 없으면(무소속이거나 내가 기준이면) false.
+        ///
+        /// <b>같은 자리에 겹치지 않게 흩어 세운다</b> — 목적지를 그대로 쓰면 부대원이 한 점에
+        /// 몰려 서로 밀어낸다. 캐릭터마다 고정된 각도(<see cref="GetInstanceID"/> 기반)로
+        /// 조금씩 어긋난 자리를 잡아, 매 프레임 흔들리지 않으면서 대열처럼 보이게 한다.
+        /// </summary>
+        bool TryFollowSquad(float leash)
+        {
+            SquadService squads = SquadService.Instance;
+            if (squads == null) return false;
+
+            CharacterBehavior leader = squads.LeaderFor(this);
+            if (leader == null) return false;
+
+            Vector3 target = leader.Destination;
+
+            if (squadFollowSpacing > 0f)
+            {
+                // 캐릭터마다 고정된 방향 — 랜덤을 쓰면 목적지를 다시 고를 때마다 자리가 바뀐다.
+                float angle = (Mathf.Abs(GetInstanceID()) % 360) * Mathf.Deg2Rad;
+                target += new Vector3(Mathf.Cos(angle), Mathf.Sin(angle), 0f) * squadFollowSpacing;
+            }
+
+            _destination = target;
+            _repickTime = Time.time + squadFollowRepick;
+            _combat.SetHome(_destination, leash + squadFollowSpacing);
             return true;
         }
 
@@ -937,6 +981,25 @@ namespace LastSanctuary.Units
 
             // 치유 유형은 애초에 적을 때리지 않는다 — 사냥감을 잡아봐야 쫓아가기만 한다.
             if (_combat.AttackType == TacticalAttackType.Heal) return false;
+
+            // 부대원과 함께 사냥한다 — 기준원이 이미 노리는 사냥감이 있으면 같은 놈을 문다.
+            // 각자 가장 가까운 놈을 고르면 부대가 사방으로 흩어진다(유저 요청: "같은 부대는
+            // 탐색·사냥 시 함께 이동"). 사거리 제한은 두지 않는다 — 기준원을 따라가는 중이라
+            // 어차피 곧 붙는다.
+            SquadService squads = SquadService.Instance;
+            if (squads != null)
+            {
+                CharacterBehavior leader = squads.LeaderFor(this);
+                if (leader != null && leader._combat != null)
+                {
+                    DamageableUnit shared = leader._combat.Target;
+                    if (shared != null && shared.IsAlive && shared.Faction == Faction.Neutral)
+                    {
+                        prey = shared;
+                        return true;
+                    }
+                }
+            }
 
             Vector3 zoneCenter;
             float zoneHalfExtent;

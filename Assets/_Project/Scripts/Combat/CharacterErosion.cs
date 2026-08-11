@@ -149,16 +149,23 @@ namespace LastSanctuary.Combat
 
             if (!service.EnableErosion) return;
 
+            // 저항력이 상승·회복 속도를 모두 바꾼다 (캐릭터 가이드 p10).
+            // 기준점(기본 50)에서 배율 1.0 이고, 그보다 낮으면 빨리 쌓이고 늦게 빠진다 —
+            // 두 배율은 정확히 대칭이다. 정의가 없는 캐릭터는 둘 다 1.0 이라 예전과 같이 동작한다.
+            // 침식 수치 자체는 실수로 누적한다(정수로 깎으면 초당 0.25 회복이 0 이 된다).
+            float gain = _character != null ? _character.ErosionGainMultiplier : 1f;
+            float recover = _character != null ? _character.ErosionRecoverMultiplier : 1f;
+
             if (IsInWaveCombat(service))
             {
                 _outOfCombatTime = 0f;
-                erosion += service.ErosionPerSecondInCombat * dt;
+                erosion += service.ErosionPerSecondInCombat * dt * gain;
             }
             else
             {
                 _outOfCombatTime += dt;
                 if (_outOfCombatTime >= service.RecoverDelaySeconds)
-                    erosion -= service.ErosionRecoverPerSecond * dt;
+                    erosion -= service.ErosionRecoverPerSecond * dt * recover;
             }
 
             erosion = Mathf.Clamp(erosion, 0f, service.ErosionMax);

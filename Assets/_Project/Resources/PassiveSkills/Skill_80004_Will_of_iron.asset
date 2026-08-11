@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21498a0a43b4e824ea7e6db210ef2e29, type: 3}
+  m_Name: Skill_80004_Will_of_iron
+  m_EditorClassIdentifier:
+  skillId: 80004
+  skillName: '강철의 의지'
+  skillType: 'Will_of_iron'
+  value01: 3
+  value02: 0
+  value03: 0
+  coolTime: 0
+  iconName: 'icon_holy_light'
+  flavorText: '비기오르는 강철과 같은 의지로 전방에 나섭니다.'
+  effectTemplate: '비기오르는 침식 정신 상태 이상 발동 시 좋은 효과가 발동할 확률이{value_01}배 높다. 정신 상태 이상 시 유저에게 이득을 주는 효과 한정 확률 증가 후 남은 확률 부정적 효과에 균일하게 재 분배'

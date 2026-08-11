@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21498a0a43b4e824ea7e6db210ef2e29, type: 3}
+  m_Name: Skill_80002_Sacrifice
+  m_EditorClassIdentifier:
+  skillId: 80002
+  skillName: '희생'
+  skillType: 'Sacrifice'
+  value01: 35
+  value02: 40
+  value03: 20
+  coolTime: 300
+  iconName: 'icon_blessing'
+  flavorText: '엘린은 사랑하는 이들을 위해 자기 자신마저 버릴 수 있습니다.'
+  effectTemplate: '엘린의 주변에 현재체력이 최대체력의{value_01}%만큼 감소한 상태의 동료가 존재한다면 즉시 엘린의 현재 체력이 {value_02}% 만큼 감소하고 대상의 체력을 최대체력의{value_02}%만큼 회복한다.'

@@ -138,23 +138,27 @@ namespace LastSanctuary.Units
         }
 
         /// <summary>
-        /// 능력치 4종에 각각 독립적인 랜덤값을 더한다. 능력치 상한(기본 100)에서 잘린다.
-        /// <see cref="StatBlock.Roll"/> 를 재사용해 "각 능력치에 균등 랜덤" 규칙이
-        /// 캐릭터 생성과 성장에서 같은 코드로 유지되게 했다.
+        /// 성장 가능한 능력치마다 각각 독립적인 랜덤값을 더한다. 능력치 상한(기본 100)에서 잘린다.
+        ///
+        /// <b>저항력은 오르지 않는다</b>(<see cref="StatBlock.IsGrowable"/>) —
+        /// 캐릭터 고유의 고정 능력치이기 때문이다(캐릭터 가이드 p5).
+        /// 그래서 <see cref="StatBlock.Roll"/> 을 그대로 쓰지 않고 능력치마다 따로 굴린다:
+        /// Roll 은 저항력을 50 으로 고정해 넣기 때문에 여기서 쓰면 저항력이 매번 50 이 더해진다.
         /// </summary>
         StatBlock Grow(StatBlock current, BalanceConfigSO balance)
         {
             int min = Mathf.Min(growthMin, growthMax);
             int max = Mathf.Max(growthMin, growthMax);
-            StatBlock growth = StatBlock.Roll(_rng, min, max);
-
             int statMax = balance != null ? balance.statMax : 100;
 
             StatBlock result = current;
             for (int i = 0; i < (int)StatType.COUNT; i++)
             {
                 var t = (StatType)i;
-                result[t] = Mathf.Min(statMax, current[t] + growth[t]);
+                if (!StatBlock.IsGrowable(t)) continue;   // 저항력은 고정
+
+                int growth = _rng.Next(min, max + 1);     // System.Random 은 상한 배타적
+                result[t] = Mathf.Min(statMax, current[t] + growth);
             }
             return result;
         }
