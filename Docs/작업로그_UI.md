@@ -811,3 +811,31 @@ Attack 6, 방향별). 둘 다 `spriteMode: 1`(Single) · 피벗 (0.5, 0) 발밑 
 
 ### 씬반영요청 목록
 없음.
+
+---
+
+## UI-9. 마법 유형 사냥 무피해 수정 · 전술 포지션별 교전 거리 (2026-08-11)
+
+> 상세는 `진행상황.md` **31절**.
+
+### 무엇을 했나
+1. `PerformMagicSplash` 가 `Opposite` 진영만 모아서 **마법 캐릭터가 중립 몬스터를 사냥하면
+   피해가 0**이던 버그(모션만 재생). 타겟 자신을 따로 확인해 때리도록 고쳤다.
+2. "못 때리는 최소 거리"를 `UnitCombat.MinAttackDistance` 한 곳으로 모아, 타겟 필터·상태
+   결정·실제 타격이 같은 선을 쓰게 했다. `TryAttack` 에도 가드 추가(헛 모션 방지).
+3. `UnitCombat.SetStandoff(tiles)` 신설 — 교전 중 유지 거리. `ChaseDestination` 의 후퇴
+   목적지를 타겟 기준 고정점으로 바꿔 끝없이 물러나던 것도 같이 고쳤다.
+4. `CharacterBehavior` — 포지션별 교전 거리(전방 0 / 중위 전방아군+1.5 / 후방 최대사거리),
+   중위·후방의 구역 내 교전 지원(`TryPickSupportSpot`).
+
+### 소유권 (§2)
+- 수정: `Scripts/Combat/UnitCombat.cs`, `Scripts/Units/CharacterBehavior.cs` — **둘 다 UI 소유**.
+- PROTO 소유 무접촉.
+
+### 씬 변경 여부
+**없음.** 신규 `[SerializeField]` 3개(`supportRange`/`supportRepick`/`midBehindGap`)는 씬에
+저장돼 있지 않아 코드 기본값이 그대로 적용된다(플레이 모드에서 14/0.5/1.5 로 들어오는 것 확인).
+커밋: `c43ede7`.
+
+### 씬반영요청 목록
+없음.
