@@ -13,6 +13,9 @@ MonoBehaviour:
   m_Name: Skill_80009_Rampage
   m_EditorClassIdentifier:
   skillId: 80009
+  nameKey: 'skill_name_80009'
+  flavorKey: 'skill_explain_80009'
+  effectKey: 'skill_type_desc_Rampage'
   skillName: '광란'
   skillType: 'Rampage'
   value01: 15

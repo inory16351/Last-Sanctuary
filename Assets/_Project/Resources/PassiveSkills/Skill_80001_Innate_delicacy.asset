@@ -13,6 +13,9 @@ MonoBehaviour:
   m_Name: Skill_80001_Innate_delicacy
   m_EditorClassIdentifier:
   skillId: 80001
+  nameKey: 'skill_name_80001'
+  flavorKey: 'skill_explain_80001'
+  effectKey: 'skill_type_desc_Innate_delicacy'
   skillName: '타고난 섬세함'
   skillType: 'Innate_delicacy'
   value01: 1

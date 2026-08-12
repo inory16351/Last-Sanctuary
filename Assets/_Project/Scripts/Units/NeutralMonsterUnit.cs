@@ -53,7 +53,7 @@ namespace LastSanctuary.Units
         public string DebugSummary()
         {
             if (Balance == null || definition == null) return stats.ToString();
-            return $"{definition.displayName} [중립{(definition.aggressive ? "·선공" : "")}] " +
+            return $"{definition.DisplayName} [중립{(definition.aggressive ? "·선공" : "")}] " +
                    $"{stats} → HP {MaxHp} · 타격 {Balance.Attack(stats.attack)} · " +
                    $"피해감소 {Balance.DefenseReductionPercent(stats.defense)}% · " +
                    $"에너지 {definition.minEnergy}~{definition.maxEnergy}";

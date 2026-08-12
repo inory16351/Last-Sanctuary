@@ -13,6 +13,9 @@ MonoBehaviour:
   m_Name: Skill_80004_Will_of_iron
   m_EditorClassIdentifier:
   skillId: 80004
+  nameKey: 'skill_name_80004'
+  flavorKey: 'skill_explain_80004'
+  effectKey: 'skill_type_desc_Will_of_iron'
   skillName: '강철의 의지'
   skillType: 'Will_of_iron'
   value01: 3

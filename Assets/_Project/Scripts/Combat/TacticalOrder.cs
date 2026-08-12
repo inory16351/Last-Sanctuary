@@ -71,31 +71,54 @@ namespace LastSanctuary.Combat
         FallBackWithAlly,
     }
 
-    /// <summary>웨이브가 없는 동안 무엇을 우선할지.</summary>
-    public enum TacticalNonCombat
+    /// <summary>
+    /// <b>탐험 유형</b> — 전장을 돌아다닐 때 <b>중립 몬스터를 어떻게 대할지</b>
+    /// (유저 확정 2026-08-12).
+    ///
+    /// <b>★ 용어 주의 — "탐험"이 상위 개념이고 "탐색"은 그 안의 한 유형이다</b>(유저 확정):
+    /// <code>
+    ///   탐험(Expedition) = 맵을 돌아다니는 활동 전체
+    ///     ├─ 사냥(Hunt)     중립을 먼저 공격한다
+    ///     ├─ 정찰(Patrol)   먼저 안 때리고 맞으면 반격한다
+    ///     └─ 탐색(Explore)  안 때리고 맞아도 반격 없이 도망간다
+    /// </code>
+    /// 세 값 모두 <b>안개를 밝히며 돌아다니는 것은 같다</b> — 다른 것은 중립 몬스터를
+    /// 만났을 때뿐이다. 그래서 세 유형을 아우르는 이름이 "탐험"이어야 한다
+    /// ("탐색 유형"이라고 부르면 하위 유형 하나와 이름이 겹쳐 헷갈린다).
+    /// 코드에서도 상위 개념은 <c>Expedition</c>, 하위 유형은 <c>Explore</c> 로 갈라 쓴다.
+    ///
+    /// ⚠️ <b>'건물 건설'이 이 목록에서 빠졌다.</b> 건설은 이제 지침으로 고르는 것이 아니라
+    /// <b>예정지에서 가장 가까운 캐릭터가 맡는 공용 작업</b>이다(유저 확정 2026-08-12) —
+    /// 배정은 <c>Buildings.BuildService.AssignedSiteFor</c> 한 곳에서만 정한다.
+    /// </summary>
+    public enum TacticalExpeditionType
     {
-        /// <summary>중립 몬스터 사냥 — 자원 확보 우선.</summary>
+        /// <summary>사냥 — 돌아다니다 중립 몬스터를 마주치면 <b>즉시 공격해 사냥</b>한다.</summary>
         Hunt,
 
-        /// <summary>탐색 — 전장의 안개 해제 우선(사냥하지 않는다).</summary>
-        Explore,
+        /// <summary>정찰 — 중립 몬스터를 <b>먼저 때리지 않는다</b>.
+        /// 다만 선공 몹에게 공격당하면 <b>즉시 반격</b>한다.</summary>
+        Patrol,
 
-        /// <summary>건물 건설 — 플레이어가 찍어둔 건설 예정지를 <b>맵 어디에 있든</b> 맡아
-        /// 짓는다(건설 전담). 지을 곳이 없으면 사냥·정찰을 대신한다(유저 요청: "건설이 끝나고
-        /// 대기 시간엔 놀지 말고 사냥이나 정찰을 해야 한다") — 넥서스 주변에 가만히 서서
-        /// 기다리지 않는다. 예정지가 생기면 그쪽으로 즉시 전환한다.
-        /// 다른 우선 행동을 고른 캐릭터도 가까운 예정지는 도와준다 —
-        /// <c>CharacterBehavior.assistBuildRange</c> 참조.</summary>
-        Build,
+        /// <summary>탐색 — 중립 몬스터를 아예 건드리지 않고 <b>안개만 밝힌다</b>.
+        /// 선공 몹에게 공격당해도 <b>반격하지 않고 그 자리를 벗어난다</b>.</summary>
+        Explore,
     }
 
     /// <summary>웨이브가 시작될 때의 반응.</summary>
     public enum TacticalWaveReaction
     {
-        /// <summary>우선 행동 중시 — 진행 중인 사냥/탐색을 마친 뒤 합류한다.</summary>
-        FinishCurrent,
+        /// <summary>
+        /// 탐험 우선 — 웨이브가 와도 <b>탐험과 건설을 계속</b>한다.
+        /// 여기서 말하는 탐험은 <see cref="TacticalExpeditionType"/> 세 유형 전부다 —
+        /// 사냥이든 정찰이든 탐색이든 자기 유형대로 계속 돌아다닌다.
+        ///
+        /// ⚠️ <b>집결지를 무시한다</b> — 같은 부대에 집결지가 잡혀 있어도 가지 않는다
+        /// (유저 확정 2026-08-12). 방어는 다른 캐릭터에게 맡기고 맵을 계속 밝히는 역할.
+        /// </summary>
+        KeepExploring,
 
-        /// <summary>즉시 방어 — 웨이브 감지 즉시 하던 일을 놓고 집결지/넥서스로 복귀한다.</summary>
+        /// <summary>즉시 방어 — 웨이브 감지 즉시 하던 일을 놓고 <b>집결지</b>(없으면 넥서스)로 이동한다.</summary>
         DefendNow,
     }
 
@@ -123,8 +146,8 @@ namespace LastSanctuary.Combat
         [Tooltip("적을 발견했을 때의 반응")]
         public TacticalAttackReaction attackReaction = TacticalAttackReaction.Chase;
 
-        [Tooltip("비전투(대기시간) 중 우선 행동")]
-        public TacticalNonCombat nonCombat = TacticalNonCombat.Hunt;
+        [Tooltip("탐험 유형 — 돌아다니며 중립 몬스터를 어떻게 대할지 (사냥 / 정찰 / 탐색)")]
+        public TacticalExpeditionType expeditionType = TacticalExpeditionType.Hunt;
 
         [Tooltip("웨이브가 시작될 때의 반응")]
         public TacticalWaveReaction waveReaction = TacticalWaveReaction.DefendNow;
@@ -144,7 +167,7 @@ namespace LastSanctuary.Combat
             position = other.position;
             targetPriority = other.targetPriority;
             attackReaction = other.attackReaction;
-            nonCombat = other.nonCombat;
+            expeditionType = other.expeditionType;
             waveReaction = other.waveReaction;
             retreatHpPercent = other.retreatHpPercent;
             retreatAction = other.retreatAction;
@@ -176,7 +199,7 @@ namespace LastSanctuary.Combat
         {
             string retreat = retreatHpPercent > 0 ? $"체력 {retreatHpPercent}% 이하에서 후퇴" : "후퇴하지 않음";
             return $"{Label(position)} 에서 {Label(attackType)} 공격으로 {Label(targetPriority)}을(를) 노리고, " +
-                   $"{Label(attackReaction)}. 비전투 시 {Label(nonCombat)}, 웨이브에는 {Label(waveReaction)}. " +
+                   $"{Label(attackReaction)}. 탐험 유형은 {Label(expeditionType)}, 웨이브에는 {Label(waveReaction)}. " +
                    $"{retreat}, 앞이 빠지면 {Label(retreatAction)}.";
         }
 
@@ -214,14 +237,14 @@ namespace LastSanctuary.Combat
         public static string Label(TacticalAttackReaction v) =>
             v == TacticalAttackReaction.HoldGround ? "사거리에 들어올 때까지 대기" : "시야 내의 적을 쫓아가 공격";
 
-        public static string Label(TacticalNonCombat v) => v switch
+        public static string Label(TacticalExpeditionType v) => v switch
         {
-            TacticalNonCombat.Explore => "탐색",
-            TacticalNonCombat.Build   => "건물 건설",
-            _                         => "중립 몬스터 사냥",
+            TacticalExpeditionType.Patrol  => "정찰",
+            TacticalExpeditionType.Explore => "탐색",
+            _                              => "사냥",
         };
 
         public static string Label(TacticalWaveReaction v) =>
-            v == TacticalWaveReaction.FinishCurrent ? "우선 행동 중시" : "즉시 방어";
+            v == TacticalWaveReaction.KeepExploring ? "탐험 우선" : "즉시 방어";
     }
 }

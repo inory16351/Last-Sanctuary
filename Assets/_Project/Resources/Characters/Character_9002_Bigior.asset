@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Character_9002_Bigior
   m_EditorClassIdentifier:
   characterId: 9002
+  nameKey: 'character_name_9002'
   characterName: '비기오르'
   characterNameEn: 'Bigior'
   illustName: 'illust_Bigior'

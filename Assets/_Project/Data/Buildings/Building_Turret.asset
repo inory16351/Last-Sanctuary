@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Building_Turret
   m_EditorClassIdentifier: 
   constId: 10002
+  nameKey: const_name_10002
   displayName: 포탑
   kind: 1
   maxCount: 0

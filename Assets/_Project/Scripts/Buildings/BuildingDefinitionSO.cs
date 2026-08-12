@@ -31,8 +31,16 @@ namespace LastSanctuary.Buildings
         [Tooltip("Const_id — 10001 중앙건물 / 10002 포탑")]
         public int constId = 10002;
 
-        [Tooltip("Const_name")]
+        [Tooltip("스트링 키 (스트링 키 테이블.xlsx). 예: const_name_10002\n" +
+                 "비워두면 아래 displayName 리터럴을 쓴다(하위 호환)")]
+        public string nameKey = "";
+
+        [Tooltip("Const_name. ⚠ 스트링 테이블 도입 이후로는 nameKey 폴백용이다 — " +
+                 "표시에는 DisplayName 을 쓴다")]
         public string displayName = "포탑";
+
+        /// <summary>화면에 보여줄 이름 — 스트링 테이블이 먼저, 없으면 리터럴.</summary>
+        public string DisplayName => Data.StringTable.Get(nameKey, displayName);
 
         [Tooltip("Const_type. 코드에서는 이름이 아니라 이 값으로 분기한다(시트 규칙)")]
         public BuildingKind kind = BuildingKind.Turret;

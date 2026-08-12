@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   mentalErrorId: 40002
   type: 2
+  nameKey: mental_error_name_40002
   koreanName: 진정
   value01: 5
   value02: 25

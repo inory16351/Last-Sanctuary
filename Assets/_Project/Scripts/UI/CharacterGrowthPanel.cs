@@ -409,7 +409,7 @@ namespace LastSanctuary.UI
 
                 if (card.Name != null)
                 {
-                    card.Name.text = unlocked ? skill.skillName : lockedTitle;
+                    card.Name.text = unlocked ? skill.DisplayName : lockedTitle;
                     card.Name.color = unlocked ? labelActive : labelDisabled;
                 }
 
@@ -423,7 +423,7 @@ namespace LastSanctuary.UI
 
                 if (card.Desc != null)
                 {
-                    card.Desc.text = unlocked ? skill.flavorText : lockedDesc;
+                    card.Desc.text = unlocked ? skill.FlavorText : lockedDesc;
                     card.Desc.color = unlocked ? passiveDescColor : labelDisabled;
                 }
 

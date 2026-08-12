@@ -13,6 +13,9 @@ MonoBehaviour:
   m_Name: Skill_80002_Sacrifice
   m_EditorClassIdentifier:
   skillId: 80002
+  nameKey: 'skill_name_80002'
+  flavorKey: 'skill_explain_80002'
+  effectKey: 'skill_type_desc_Sacrifice'
   skillName: '희생'
   skillType: 'Sacrifice'
   value01: 35

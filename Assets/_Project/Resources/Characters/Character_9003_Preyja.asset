@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Character_9003_Preyja
   m_EditorClassIdentifier:
   characterId: 9003
+  nameKey: 'character_name_9003'
   characterName: '프레이야'
   characterNameEn: 'Preyja'
   illustName: 'illust_Preyja'

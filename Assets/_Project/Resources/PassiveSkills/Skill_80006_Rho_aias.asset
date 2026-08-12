@@ -13,6 +13,9 @@ MonoBehaviour:
   m_Name: Skill_80006_Rho_aias
   m_EditorClassIdentifier:
   skillId: 80006
+  nameKey: 'skill_name_80006'
+  flavorKey: 'skill_explain_80006'
+  effectKey: 'skill_type_desc_Rho_aias'
   skillName: '로 아이아스'
   skillType: 'Rho_aias'
   value01: 2

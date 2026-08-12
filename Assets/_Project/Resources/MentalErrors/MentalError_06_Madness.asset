@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   mentalErrorId: 40006
   type: 6
+  nameKey: mental_error_name_40006
   koreanName: 광분
   value01: 0
   value02: 0

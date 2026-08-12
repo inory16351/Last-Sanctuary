@@ -61,7 +61,7 @@ namespace LastSanctuary.Units
         public string DebugSummary()
         {
             if (Balance == null) return stats.ToString();
-            return $"{(definition != null ? definition.displayName : name)} [{Tier}] " +
+            return $"{(definition != null ? definition.DisplayName : name)} [{Tier}] " +
                    $"{stats} → HP {MaxHp} · 타격 {Balance.Attack(AttackStat)} · " +
                    $"피해감소 {Balance.DefenseReductionPercent(stats.defense)}%";
         }

@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5dbe527860d1cbe42a3efae9fd5cb4b2, type: 3}
   m_Name: Monster_Ranged
   m_EditorClassIdentifier: 
+  nameKey: monster_name_100002
   displayName: 원거리 암세포
   tier: 0
   template: {fileID: 0}

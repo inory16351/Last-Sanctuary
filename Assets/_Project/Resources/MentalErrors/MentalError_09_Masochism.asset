@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   mentalErrorId: 40009
   type: 9
+  nameKey: mental_error_name_40009
   koreanName: 피학
   value01: 1.5
   value02: 0

@@ -376,7 +376,7 @@ namespace LastSanctuary.Buildings
             });
 
             if (logChanges) Debug.Log($"[Build] 건설 예정지 등록 {minCell} · 비용 {cost}", this);
-            HudLog.Add($"{turretDefinition.displayName} 건설 예약 (에너지 {cost})", HudLogKind.Good);
+            HudLog.Add($"{turretDefinition.DisplayName} 건설 예약 (에너지 {cost})", HudLogKind.Good);
             return true;
         }
 
@@ -411,8 +411,10 @@ namespace LastSanctuary.Buildings
         /// 아무도 안 맡는 자리가 생긴다. 전체를 한 번에 보고 <b>예정지마다 지금 가장 적합한
         /// 캐릭터 한 명</b>을 붙인다.
         ///
-        /// <b>적합도 순서</b>: ① 전술 우선 행동이 "건물 건설"인 캐릭터가 먼저, ② 그다음 거리순.
-        /// 전담이 아닌 캐릭터는 자기 <c>AssistBuildRange</c> 안의 자리만 후보로 본다.
+        /// <b>적합도 기준은 거리 하나</b>다 — <b>예정지에서 가장 가까운 캐릭터</b>가 맡는다
+        /// (유저 확정 2026-08-12: 전술 지침에서 '건물 건설' 항목이 사라지면서 "건설 전담
+        /// 캐릭터" 개념도 같이 없어졌다). 인스펙터의 <c>BuildRange</c> 에 값을 넣으면 그
+        /// 거리 안의 자리만 후보가 된다(0 = 무제한, 기본값).
         ///
         /// 계산은 <b>프레임당 한 번</b>만 돈다. 캐릭터들의 Update 순서를 알 수 없으므로
         /// 첫 호출이 계산을 끌고 나머지는 그 결과를 읽는다(실행 순서에 의존하지 않게).
@@ -461,12 +463,15 @@ namespace LastSanctuary.Buildings
                 if (!_freeWorkers.Remove(s.Builder)) s.Builder = null;
             }
 
-            // 남은 자리 × 남은 후보 중 가장 적합한 짝부터 차례로 붙인다.
+            // 남은 자리 × 남은 후보 중 <b>가장 가까운 짝</b>부터 차례로 붙인다.
+            //
+            // ⚠️ 예전에는 "전술 우선 행동이 건물 건설인 전담 캐릭터 먼저 → 그다음 거리순"
+            //    2단 기준이었다. 전술 지침에서 '건물 건설' 항목이 사라졌으므로(유저 확정
+            //    2026-08-12: "건설은 그냥 제일 가까운 캐릭터가 우선 수행") 기준은 거리 하나다.
             while (_freeWorkers.Count > 0)
             {
                 BuildSite bestSite = null;
                 Units.CharacterBehavior bestWorker = null;
-                bool bestDedicated = false;
                 float bestSqr = float.PositiveInfinity;
 
                 for (int i = 0; i < _sites.Count; i++)
@@ -477,22 +482,15 @@ namespace LastSanctuary.Buildings
                     for (int w = 0; w < _freeWorkers.Count; w++)
                     {
                         Units.CharacterBehavior worker = _freeWorkers[w];
-                        bool dedicated = worker.BuildDedicated;
-                        float range = worker.AssistBuildRange;
+                        float range = worker.BuildRange;
                         float sqr = ((Vector2)(s.Center - worker.transform.position)).sqrMagnitude;
 
-                        // 전담이 아니면 눈앞(도와줄 만한 거리)의 자리만 맡는다.
-                        if (!dedicated && (range <= 0f || sqr > range * range)) continue;
-
-                        if (bestWorker != null)
-                        {
-                            if (bestDedicated && !dedicated) continue;
-                            if (bestDedicated == dedicated && sqr >= bestSqr) continue;
-                        }
+                        // 인스펙터에서 거리 제한을 걸어둔 경우만 후보를 줄인다(0 = 무제한).
+                        if (range > 0f && sqr > range * range) continue;
+                        if (sqr >= bestSqr) continue;
 
                         bestSite = s;
                         bestWorker = worker;
-                        bestDedicated = dedicated;
                         bestSqr = sqr;
                     }
                 }
@@ -529,8 +527,8 @@ namespace LastSanctuary.Buildings
 
             _builtCount++;
 
-            if (logChanges) Debug.Log($"[Build] {site.Definition.displayName} 완성 {site.MinCell}", this);
-            HudLog.Add($"{site.Definition.displayName} 건설 완료", HudLogKind.Good);
+            if (logChanges) Debug.Log($"[Build] {site.Definition.DisplayName} 완성 {site.MinCell}", this);
+            HudLog.Add($"{site.Definition.DisplayName} 건설 완료", HudLogKind.Good);
         }
 
         /// <summary>템플릿 복제 (진행상황 5절 — 이 프로젝트의 모든 유닛 생성 방식).</summary>
@@ -550,7 +548,7 @@ namespace LastSanctuary.Buildings
             }
 
             TowerUnit tower = Instantiate(towerTemplate, site.Center, Quaternion.identity, _towerRoot);
-            tower.name = $"{site.Definition.displayName}_{_builtCount + 1}";
+            tower.name = $"{site.Definition.DisplayName}_{_builtCount + 1}";
             tower.gameObject.SetActive(true);
             tower.Initialize(site.Definition, site.MinCell, balance);
             return tower;

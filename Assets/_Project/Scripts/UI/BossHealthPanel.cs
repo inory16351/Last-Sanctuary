@@ -115,7 +115,7 @@ namespace LastSanctuary.UI
         void Refresh(MonsterUnit boss)
         {
             // 이름은 바뀔 일이 거의 없으니 바뀔 때만 쓴다 (TMP 는 대입할 때마다 메시를 다시 굽는다).
-            string bossName = boss.Definition != null ? boss.Definition.displayName : boss.name;
+            string bossName = boss.Definition != null ? boss.Definition.DisplayName : boss.name;
             if (bossName != _shownName)
             {
                 _shownName = bossName;

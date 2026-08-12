@@ -25,10 +25,23 @@ namespace LastSanctuary.Units
         [Tooltip("캐릭터 테이블 Skill 시트의 skill_id")]
         public int skillId;
 
-        [Tooltip("스킬 이름 (한글)")]
+        [Header("스트링 키 (스트링 키 테이블.xlsx)")]
+        [Tooltip("스킬 이름 키. 예: skill_name_80001")]
+        public string nameKey = "";
+
+        [Tooltip("플레이버 문장 키. 예: skill_explain_80001")]
+        public string flavorKey = "";
+
+        [Tooltip("효과 정의문 키. 예: skill_type_desc_Innate_delicacy\n" +
+                 "★ 이 문구는 {value_01} 같은 자리표를 담고 있고 EffectText() 가 수치로 바꾼다")]
+        public string effectKey = "";
+
+        [Header("문구 (⚠ 위 키를 못 찾았을 때의 폴백)")]
+        [Tooltip("스킬 이름 (한글). 표시에는 DisplayName 을 쓸 것")]
         public string skillName = "";
 
-        [Tooltip("Skill_Type 시트의 enum 값. 나중에 효과를 구현할 때 이 문자열로 분기한다")]
+        [Tooltip("Skill_Type 시트의 enum 값. 나중에 효과를 구현할 때 이 문자열로 분기한다.\n" +
+                 "⚠ 이건 문구가 아니라 <b>분기용 식별자</b>다 — 스트링 키로 빼지 않는다")]
         public string skillType = "";
 
         [Header("수치 — 효과 정의문의 {value_01~03} 에 채워진다")]
@@ -70,17 +83,29 @@ namespace LastSanctuary.Units
                 {
                     _icon = Resources.Load<Sprite>("SkillIcons/" + iconName.Trim());
                     if (_icon == null)
-                        Debug.LogWarning($"[Passive] 아이콘 'Resources/SkillIcons/{iconName}' 을 찾지 못했습니다. ({skillName})", this);
+                        Debug.LogWarning($"[Passive] 아이콘 'Resources/SkillIcons/{iconName}' 을 찾지 못했습니다. ({DisplayName})", this);
                 }
                 return _icon;
             }
         }
 
-        /// <summary>정의문의 {value_01~03} 자리표시를 실제 수치로 치환한 문장.</summary>
+        /// <summary>화면에 보여줄 스킬 이름 — 스트링 테이블이 먼저, 없으면 리터럴.</summary>
+        public string DisplayName => Data.StringTable.Get(nameKey, skillName);
+
+        /// <summary>플레이버 문장 — 스트링 테이블이 먼저, 없으면 리터럴.</summary>
+        public string FlavorText => Data.StringTable.Get(flavorKey, flavorText);
+
+        /// <summary>
+        /// 정의문의 {value_01~03} 자리표시를 실제 수치로 치환한 문장.
+        /// <b>문구 원본은 스트링 테이블</b>이고(<see cref="effectKey"/>),
+        /// 키가 없으면 <see cref="effectTemplate"/> 리터럴로 폴백한다 — 치환 규칙은 같다.
+        /// </summary>
         public string EffectText()
         {
-            if (string.IsNullOrEmpty(effectTemplate)) return "";
-            return effectTemplate
+            string template = Data.StringTable.Get(effectKey, effectTemplate);
+            if (string.IsNullOrEmpty(template)) return "";
+
+            return template
                 .Replace("{value_01}", Num(value01))
                 .Replace("{value_02}", Num(value02))
                 .Replace("{value_03}", Num(value03));
@@ -90,6 +115,12 @@ namespace LastSanctuary.Units
         static string Num(float v) =>
             Mathf.Approximately(v, Mathf.Round(v)) ? Mathf.RoundToInt(v).ToString() : v.ToString("0.##");
 
-        public bool IsUsable => skillId != 0 && !string.IsNullOrWhiteSpace(skillName);
+        /// <summary>
+        /// 쓸 수 있는 스킬인지. <b>이름이 어느 경로로든 잡히면</b> 쓸 수 있다 —
+        /// 스트링 키만 있고 리터럴이 비어 있는 에셋(이제 생성되는 형태)도 통과해야 한다.
+        /// </summary>
+        public bool IsUsable =>
+            skillId != 0 &&
+            (!string.IsNullOrWhiteSpace(skillName) || !string.IsNullOrWhiteSpace(nameKey));
     }
 }

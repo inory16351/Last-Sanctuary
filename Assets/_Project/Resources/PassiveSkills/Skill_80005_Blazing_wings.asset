@@ -13,6 +13,9 @@ MonoBehaviour:
   m_Name: Skill_80005_Blazing_wings
   m_EditorClassIdentifier:
   skillId: 80005
+  nameKey: 'skill_name_80005'
+  flavorKey: 'skill_explain_80005'
+  effectKey: 'skill_type_desc_Blazing_wings'
   skillName: '타오르는 날개'
   skillType: 'Blazing_wings'
   value01: 3

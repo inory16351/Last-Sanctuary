@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: NeutralMonster_3
   m_EditorClassIdentifier:
   monId: 1003
+  nameKey: mon_name_1003
   displayName: 역겨운 덩어리 3
   template: {fileID: 0}
   spawnRangeTiles: 200

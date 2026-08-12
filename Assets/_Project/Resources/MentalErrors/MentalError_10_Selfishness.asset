@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   mentalErrorId: 40010
   type: 10
+  nameKey: mental_error_name_40010
   koreanName: 이기심
   value01: 0
   value02: 0

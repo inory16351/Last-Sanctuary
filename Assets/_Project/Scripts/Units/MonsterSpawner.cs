@@ -448,7 +448,7 @@ namespace LastSanctuary.Units
 
             MonsterUnit unit = Instantiate(template, CellCenter(cell),
                                            Quaternion.identity, _root);
-            unit.name = $"{def.displayName}_{_alive.Count + 1}";
+            unit.name = $"{def.DisplayName}_{_alive.Count + 1}";
             unit.gameObject.SetActive(true);
 
             StatBlock scaled = def.BuildStats(hpScale, atkScale, balance.statMax);

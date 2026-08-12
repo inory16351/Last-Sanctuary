@@ -13,6 +13,9 @@ MonoBehaviour:
   m_Name: Skill_80007_Gluttony
   m_EditorClassIdentifier:
   skillId: 80007
+  nameKey: 'skill_name_80007'
+  flavorKey: 'skill_explain_80007'
+  effectKey: 'skill_type_desc_Gluttony'
   skillName: '포식'
   skillType: 'Gluttony'
   value01: 3

@@ -85,6 +85,46 @@ def guid_for(key):
     return hashlib.md5(('LastSanctuary/' + key).encode('utf-8')).hexdigest()
 
 
+# ---------------------------------------------------------------------------
+# 스트링 테이블 — 2026-08-12부터 캐릭터 테이블의 문구 컬럼에는 <b>키</b>가 들어 있다
+# (Tools/convert_tables_to_string_keys.py 가 바꿨다). 그래서 에셋에 넣을
+# <b>리터럴 폴백</b>은 여기서 되돌려 읽어야 한다 — 안 그러면 폴백 칸에 키 문자열이 들어가고,
+# 스트링 테이블을 못 읽는 상황에서 화면에 'character_name_9001' 이 그대로 뜬다.
+# ---------------------------------------------------------------------------
+STRING_XLSX = r'C:\Project\라스트 생츄어리\데이터 테이블\스트링 키 테이블.xlsx'
+
+
+def load_strings():
+    if not os.path.exists(STRING_XLSX):
+        print('  ! 스트링 키 테이블이 없습니다 — 리터럴 폴백이 비게 됩니다.')
+        return {}
+    wb = openpyxl.load_workbook(STRING_XLSX, data_only=True)
+    ws = wb['string']
+    out = {}
+    for r in range(4, ws.max_row + 1):
+        k = ws.cell(r, 1).value
+        if k:
+            out[str(k).strip()] = (ws.cell(r, 2).value or '')
+    return out
+
+
+_STRINGS = load_strings()
+
+
+def looks_like_key(text):
+    """convert_tables_to_string_keys.py 와 같은 규칙."""
+    return bool(text) and text.isascii() and ('_' in text) and \
+        not any(c.isspace() for c in text)
+
+
+def text_of(value):
+    """셀 값 → 사람이 읽는 문구. 셀이 스트링 키면 스트링 테이블에서 되돌려 읽는다."""
+    s = '' if value is None else str(value).strip()
+    if looks_like_key(s) and s in _STRINGS:
+        return str(_STRINGS[s]).strip()
+    return s
+
+
 def yaml_str(s):
     """Unity YAML 의 문자열. 줄바꿈·특수문자를 안전하게 처리한다."""
     if s is None:
@@ -136,13 +176,13 @@ for r in range(4, ws.max_row + 1):
     if not sid:
         continue
     sid = int(sid)
-    sname = (ws.cell(r, 2).value or '').strip()
+    sname = text_of(ws.cell(r, 2).value)          # 셀은 이제 키다 — 문구로 되돌린다
     stype = (ws.cell(r, 3).value or '').strip()
     v1, v2, v3 = num(ws.cell(r, 4).value), num(ws.cell(r, 5).value), num(ws.cell(r, 6).value)
     cool = num(ws.cell(r, 7).value)
     icon = (ws.cell(r, 8).value or '').strip()
-    flavor = ws.cell(r, 9).value or ''
-    effect = skill_types.get(stype, '')
+    flavor = text_of(ws.cell(r, 9).value)
+    effect = text_of(skill_types.get(stype, ''))
 
     asset_name = 'Skill_%d_%s' % (sid, stype.replace(' ', ''))
     rel = 'Resources/PassiveSkills/%s.asset' % asset_name
@@ -151,6 +191,12 @@ for r in range(4, ws.max_row + 1):
 
     body = HEADER.format(script_guid=SCRIPT_GUID_SKILL, name=asset_name)
     body += "  skillId: %d\n" % sid
+    # ★ 스트링 키 (2026-08-12) — 화면 문구의 정본은 '스트링 키 테이블.xlsx' 다.
+    #   키 형식은 Tools/gen_string_table.py 의 규칙과 반드시 같아야 한다.
+    #   아래 리터럴(skillName·flavorText·effectTemplate)은 키를 못 찾았을 때의 폴백으로 남긴다.
+    body += "  nameKey: %s\n" % yaml_str('skill_name_%d' % sid)
+    body += "  flavorKey: %s\n" % yaml_str('skill_explain_%d' % sid)
+    body += "  effectKey: %s\n" % yaml_str('skill_type_desc_%s' % stype if stype else '')
     body += "  skillName: %s\n" % yaml_str(sname)
     body += "  skillType: %s\n" % yaml_str(stype)
     body += "  value01: %s\n" % v1
@@ -189,7 +235,7 @@ for r in range(4, wc.max_row + 1):
     if not cid:
         continue
     cid = int(cid)
-    cname = (wc.cell(r, 2).value or '').strip()
+    cname = text_of(wc.cell(r, 2).value)          # 셀은 이제 키다 — 문구로 되돌린다
     cname_en = (wc.cell(r, 3).value or '').strip()
     sk = [wc.cell(r, 4).value, wc.cell(r, 5).value, wc.cell(r, 6).value]
     illust = (wc.cell(r, 7).value or '').strip()
@@ -204,6 +250,8 @@ for r in range(4, wc.max_row + 1):
 
     body = HEADER.format(script_guid=SCRIPT_GUID_CHAR, name=asset_name)
     body += "  characterId: %d\n" % cid
+    # ★ 스트링 키 (2026-08-12) — 아래 characterName 은 폴백용으로만 남긴다.
+    body += "  nameKey: %s\n" % yaml_str('character_name_%d' % cid)
     body += "  characterName: %s\n" % yaml_str(cname)
     body += "  characterNameEn: %s\n" % yaml_str(cname_en)
     body += "  illustName: %s\n" % yaml_str(illust)

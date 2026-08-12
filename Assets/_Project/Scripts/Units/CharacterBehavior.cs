@@ -9,7 +9,12 @@ namespace LastSanctuary.Units
     /// <summary>캐릭터가 지금 무엇을 하려는지.</summary>
     public enum CharacterDuty
     {
-        Scout,   // 정찰 — 대기시간 동안 미탐사 지역으로 나가 전장을 밝힌다
+        /// <summary>탐험 — 미탐사 지역으로 나가 전장을 밝힌다.
+        /// <b>사냥·정찰·탐색 세 유형을 모두 아우르는 상위 임무</b>다(유저 확정 용어) —
+        /// 중립 몬스터를 어떻게 대할지는 전술 지침의 <b>탐험 유형</b>이 따로 정하고,
+        /// 이 임무는 "돌아다닌다"까지만 뜻한다.</summary>
+        Expedition,
+
         Guard,   // 방어 — 웨이브에 대비해 넥서스 주변을 돈다
         Rally,   // 집결 — 웨이브 소환 이후, 넥서스 대신 지정된 집결지 구역을 지킨다
 
@@ -20,6 +25,11 @@ namespace LastSanctuary.Units
         /// <summary>후퇴 — 전술 지침의 "후퇴 판단 기준" 이하로 체력이 떨어져 넥서스로 물러난 상태.
         /// 다른 모든 임무보다 우선하며, 회복될 때까지 싸우지 않는다.</summary>
         Retreat,
+
+        /// <summary>도망 — 탐험 유형이 <b>'탐색'</b> 인 캐릭터가 선공 중립 몬스터에게 맞았을 때.
+        /// 반격하지 않고 그 자리를 벗어난다(유저 확정 2026-08-12). 체력 후퇴와 달리
+        /// <b>넥서스로 돌아가지 않고</b> 때린 상대의 반대 방향으로만 물러난다.</summary>
+        Flee,
     }
 
     /// <summary>
@@ -30,8 +40,9 @@ namespace LastSanctuary.Units
     /// 귀환 지점을 옮기는 것이 곧 이동 명령이 된다. 덕분에 이동 코드가 두 벌로
     /// 갈라지지 않는다.
     ///
-    ///   대기시간(Preparation) → 정찰: 아직 안 밝혀진 칸을 찾아 나간다
+    ///   대기시간(Preparation) → 탐험: 아직 안 밝혀진 칸을 찾아 나간다
     ///   그 외(방어 시점)       → 집결지가 있으면 그 구역을 경계, 없으면 넥서스 주변을 경계
+    ///   단 웨이브 반응이 '탐험 우선'이면 웨이브 중에도 탐험을 유지하고 집결지를 무시한다
     ///
     /// 적을 발견하면 UnitCombat 이 알아서 교전하고, 이 컴포넌트는 교전이 끝날
     /// 때까지 목적지를 건드리지 않는다.
@@ -96,12 +107,13 @@ namespace LastSanctuary.Units
         [Tooltip("건설 중 적을 쫓을 수 있는 거리(타일). 짧게 둬야 현장을 지킨다")]
         [Min(1f)] [SerializeField] float buildLeash = 5f;
 
-        [Tooltip("전술 우선 행동이 '건물 건설'이 아닌 캐릭터가 그래도 도와주러 가는 거리(타일). " +
-                 "0 이면 건설 전담(우선 행동 = 건물 건설) 캐릭터만 짓는다.\n" +
-                 "'건물 건설'을 고른 캐릭터는 이 값과 무관하게 맵 어디의 예정지든 맡는다")]
-        [Min(0f)] [SerializeField] float assistBuildRange = 22f;
+        [Tooltip("건설 예정지를 맡을 수 있는 최대 거리(타일). 0 이면 제한 없음.\n" +
+                 "건설은 전술 지침 항목이 아니라 '예정지에서 가장 가까운 캐릭터가 맡는 공용 작업' " +
+                 "이므로(유저 확정 2026-08-12) 기본값은 0 = 무제한이다. " +
+                 "맵 반대편까지 걸어가는 게 싫으면 여기에 거리를 넣으면 된다")]
+        [Min(0f)] [SerializeField] float buildRange = 0f;
 
-        [Header("부대 — 함께 이동 (탐색 · 사냥)")]
+        [Header("부대 — 협동 탐험 시 함께 이동")]
         [Tooltip("부대 기준원의 목적지에서 이만큼 떨어져 선다(타일). 0 이면 같은 지점으로 몰린다.\n" +
                  "캐릭터마다 고정된 방향으로 어긋나므로 대열이 흔들리지 않는다")]
         [Min(0f)] [SerializeField] float squadFollowSpacing = 2.5f;
@@ -150,6 +162,14 @@ namespace LastSanctuary.Units
         [Tooltip("후퇴 시 물러나 대기할 지점 — 넥서스로부터의 반경(타일)")]
         [Min(0.5f)] [SerializeField] float retreatRadius = 3f;
 
+        [Header("도망 (탐험 유형 '탐색' — 선공 몹에게 맞았을 때)")]
+        [Tooltip("때린 상대의 반대 방향으로 한 번에 이만큼 물러난다(타일)")]
+        [Min(1f)] [SerializeField] float fleeDistance = 12f;
+
+        [Tooltip("마지막으로 맞은 뒤 이 시간 동안 도망을 유지한다(초). " +
+                 "쫓아오는 동안은 계속 맞으므로 실제로는 '떼어낼 때까지' 도망친다")]
+        [Min(0.5f)] [SerializeField] float fleeMemorySeconds = 4f;
+
         [Header("디버그")]
         [SerializeField] bool drawGizmos = true;
 
@@ -172,10 +192,13 @@ namespace LastSanctuary.Units
         // ── 전술 지침 (CharacterTactics 가 밀어 넣는다. 여기선 직렬화하지 않는다) ────
         TacticalPosition _position = TacticalPosition.Mid;
         TacticalRetreatAction _retreatAction = TacticalRetreatAction.KeepFighting;
-        TacticalNonCombat _nonCombat = TacticalNonCombat.Hunt;
+        TacticalExpeditionType _expeditionType = TacticalExpeditionType.Hunt;
         TacticalWaveReaction _waveReaction = TacticalWaveReaction.DefendNow;
         int _retreatHpPercent;
         bool _retreating;
+
+        /// <summary>탐험 유형 '탐색' 이 선공 몹에게 맞아 그 자리를 벗어나는 중.</summary>
+        bool _fleeing;
 
         /// <summary>정신 이상이 임무 판단을 가로챈 상태. <see cref="CharacterErosion"/> 만 설정한다.</summary>
         MentalOverride _mental = MentalOverride.None;
@@ -185,6 +208,9 @@ namespace LastSanctuary.Units
 
         /// <summary>지금 후퇴 중인지 (로스터 표시·디버그용 + 뒤에 선 아군의 동반 후퇴 판정).</summary>
         public bool IsRetreating => _retreating;
+
+        /// <summary>탐험 유형 '탐색' 이 선공 몹을 피해 도망치는 중인지 (로스터 표시·부대 이동 제외 판정).</summary>
+        public bool IsFleeing => _fleeing;
 
         // 전방 아군 후퇴 판정 캐시 — frontRetreatCheckInterval 간격으로만 다시 계산한다.
         bool _frontRetreating;
@@ -254,17 +280,30 @@ namespace LastSanctuary.Units
         /// 전술 지침을 반영한다. <see cref="CharacterTactics"/> 만 호출한다 —
         /// 지침의 정본은 그쪽이고 여기는 사본이다.
         /// </summary>
-        public void ApplyTactics(TacticalPosition position, TacticalNonCombat nonCombat,
+        public void ApplyTactics(TacticalPosition position, TacticalExpeditionType scoutMode,
                                  TacticalWaveReaction waveReaction, int retreatHpPercent,
                                  TacticalRetreatAction retreatAction)
         {
+            // 지침은 Awake·Start 순서와 무관하게 들어올 수 있다 — 아래에서 _combat 을 쓰므로
+            // 쓰기 직전에 준비를 확인한다(EnsureReady 주석의 그 패턴).
+            EnsureReady();
+
             bool positionChanged = _position != position;
 
             _position = position;
-            _nonCombat = nonCombat;
+            _expeditionType = scoutMode;
             _waveReaction = waveReaction;
             _retreatHpPercent = Mathf.Clamp(retreatHpPercent, 0, 100);
             _retreatAction = retreatAction;
+
+            // 탐험 유형 '탐색' 은 중립을 아예 안 건드린다 — 그 판정은 UnitCombat 이 들고 있어야
+            // 반격·동료 구원·사냥 강제 세 경로를 한 번에 막을 수 있다. 지침이 들어오는
+            // 이 지점에서만 밀어 넣으므로 매 프레임 확인할 필요가 없다.
+            _combat?.SetNeutralHostilitySuppressed(scoutMode == TacticalExpeditionType.Explore);
+
+            // 사냥에서 다른 유형으로 바꾸면 지금 물고 있던 사냥감도 그 자리에서 놓는다 —
+            // 안 그러면 지침을 바꿔도 그 한 마리를 끝까지 쫓아가 반영이 안 된 것처럼 보인다.
+            if (scoutMode != TacticalExpeditionType.Hunt) _combat?.ClearHuntTarget();
 
             // '공격 유지'로 돌아왔는데 남을 따라 물러나던 중이면 그 자리에서 끊는다 —
             // 안 그러면 지침을 바꿔도 이번 후퇴가 끝날 때까지 반영이 안 된 것처럼 보인다.
@@ -344,12 +383,17 @@ namespace LastSanctuary.Units
             UpdateRetreatState();
             if (_retreating) { _combat.SetStandoff(0f); TickRetreat(); return; }
 
+            // 도망(탐험 유형 '탐색' 이 선공 몹에게 맞은 상태)은 후퇴 바로 다음이다 —
+            // 반격하지 않는 상태이므로 아래의 교전·임무 판단을 아예 타지 않아야 한다.
+            UpdateFleeState();
+            if (_fleeing) { _combat.SetStandoff(0f); TickFlee(); return; }
+
             // 웨이브 타임(전투·광폭화)이 시작되면 사냥 중이던 중립 몬스터보다 웨이브 몬스터를
             // 우선한다 — 사냥 타겟을 놓아 UnitCombat 의 일반 진영 타겟팅(가장 가까운 웨이브
             // 몬스터)이 대신 잡게 한다(유저 요청: "웨이브 타임에는 웨이브 몬스터 우선 처리").
             //
-            // 전술 지침 "우선 행동 중시"(FinishCurrent)를 고른 캐릭터는 예외다 — 하던 사냥을
-            // 마치고 합류하는 것이 그 선택지의 정의이므로 여기서 놓지 않는다.
+            // 전술 지침 "탐험 우선"(KeepExploring)을 고른 캐릭터는 예외다 — 웨이브가 와도
+            // 탐험·건설을 계속하는 것이 그 선택지의 정의이므로 여기서 놓지 않는다.
             if (_combat.IsHunting && IsWaveTimePhase() &&
                 _waveReaction == TacticalWaveReaction.DefendNow)
                 _combat.ClearHuntTarget();
@@ -365,11 +409,16 @@ namespace LastSanctuary.Units
             }
             _combat.SetStandoff(0f);
 
-            CharacterDuty baseline = CurrentDuty();   // Scout(대기시간) 또는 Guard(그 외)
+            CharacterDuty baseline = CurrentDuty();   // Expedition(탐험) 또는 Guard(방어)
 
-            // 집결지는 "방어" 를 대신한다 — 정찰(대기시간) 중에는 반영하지 않는다.
+            // 집결지는 "방어" 를 대신한다 — 탐험 중에는 반영하지 않는다.
             // baseline 이 Guard 로 바뀌는 시점이 곧 웨이브 소환 직후이므로(클래스 doc 참조),
             // 별도 이벤트 구독 없이 이 검사만으로 "소환 직후부터 반영" 이 정확히 성립한다.
+            //
+            // ★ 그래서 <b>웨이브 반응 '탐험 우선'은 집결지를 자동으로 무시한다</b>
+            //   (유저 확정 2026-08-12: "같은 부대로 설정되어 있더라도 탐험 우선으로 설정 시
+            //   집결지 무시"). 그 지침은 CurrentDuty 가 항상 Scout 을 돌려주므로 이 조건에
+            //   애초에 걸리지 않는다 — 집결지를 따로 예외 처리하는 코드가 필요 없다.
             Vector3 rallyCenter = default;
             bool hasRally = baseline == CharacterDuty.Guard &&
                             UI.RallyPointService.TryGetRallyPoint(_character, out rallyCenter);
@@ -380,15 +429,16 @@ namespace LastSanctuary.Units
             // 직접 찾아가야만 마주친다(기획 요청: "탐색 중 조우 시 사냥, 에너지 획득"). 다만
             // 방어·집결 중(=진군)에는 지금 모여야 할 구역(집결지가 있으면 그 구역, 없으면 넥서스
             // 주변 방어 반경) 밖까지 쫓아가면 대열이 흐트러진다는 피드백으로, 그 구역 안에
-            // 있는 사냥감만 본다 — 정찰 중에는 원래대로 구역 제한 없이 캐릭터 주변만 본다.
-            // 웨이브 타임에는 위에서 이미 걸러지므로 여기서는 phase 만 보면 된다.
-            // 건설이 사냥·정찰보다 앞이다 — 예정지는 플레이어가 직접 찍은 <b>명시적인 지시</b>고
-            // 사냥·정찰은 할 일이 없을 때의 기본 행동이다. 웨이브 타임(전투·광폭화)에는
-            // 아예 시도하지 않는다 — 그때는 싸우는 게 먼저다(유저 요청: "건설 타이밍은
-            // 캐릭터가 알아서 판단").
-            if (!IsWaveTimePhase() && TryBuild()) return;
+            // 있는 사냥감만 본다 — 탐험 중에는 원래대로 구역 제한 없이 캐릭터 주변만 본다.
+            // 건설이 사냥보다 앞이다 — 예정지는 플레이어가 직접 찍은 <b>명시적인 지시</b>고
+            // 사냥·탐험은 할 일이 없을 때의 기본 행동이다. 웨이브 타임(전투·광폭화)에는
+            // 원래 아예 시도하지 않았는데, 이제 <b>웨이브 반응이 '탐험 우선'이면 웨이브 중에도
+            // 탐험·건설을 계속한다</b>(유저 확정 2026-08-12) — 그 판정이 <see cref="CanDoExpeditionWork"/> 다.
+            bool expeditionWork = CanDoExpeditionWork();
 
-            if (!IsWaveTimePhase() && TryFindHuntPrey(duty, rallyCenter, out DamageableUnit prey))
+            if (expeditionWork && TryBuild()) return;
+
+            if (expeditionWork && TryFindHuntPrey(duty, rallyCenter, out DamageableUnit prey))
             {
                 _combat.SetHuntTarget(prey);
                 return;
@@ -427,7 +477,7 @@ namespace LastSanctuary.Units
         /// </summary>
         void PickZoneSpot(CharacterDuty duty, Vector3 rallyCenter)
         {
-            if (duty != CharacterDuty.Scout)
+            if (duty != CharacterDuty.Expedition)
             {
                 bool rally = duty == CharacterDuty.Rally;
                 Vector3 center = rally ? rallyCenter : NexusPosition();
@@ -631,41 +681,38 @@ namespace LastSanctuary.Units
         // ------------------------------------------------------------------
 
         /// <summary>
-        /// 전술 지침을 반영한 "지금의 기본 임무". 두 축이 섞인다:
+        /// 전술 지침을 반영한 "지금의 기본 임무" — <b>웨이브 반응</b> 한 축으로 정해진다
+        /// (유저 확정 2026-08-12로 단순해졌다).
         ///
-        ///   <b>비전투 우선 행동</b> — 대기시간에 무엇을 할지.
-        ///     사냥/탐색은 돌아다녀야 하므로 정찰(Scout), 건설은 예정지가 없을 때만 여기까지 와서
-        ///     자리를 지킨다(Guard) — 실제 건설 판정은 <see cref="TryBuild"/> 가 더 앞에서 한다.
+        ///   대기시간(Preparation)   → 언제나 <b>탐험</b>(Expedition). 탐험 유형이 무엇이든
+        ///                             돌아다니는 것은 같고, 다른 것은 중립 몬스터를 만났을 때다.
+        ///   웨이브 · <b>탐험 우선</b> → 계속 <b>탐험</b>. 집결지도 무시한다(호출부 주석 참조).
+        ///   웨이브 · <b>즉시 방어</b> → <b>방어</b>(Guard). 집결지가 있으면 호출부가 Rally 로 바꾼다.
         ///
-        ///   <b>웨이브 반응</b> — 웨이브가 시작될 때 하던 일을 마칠지.
-        ///     "즉시 방어"는 소환되는 순간 바로 Guard 로 넘어가고(기존 동작),
-        ///     "우선 행동 중시"는 진군(Marching) 구간까지는 정찰을 유지했다가
-        ///     목적지에 닿으면 합류한다. 전투(Battle)가 시작되면 어느 쪽이든 합류한다 —
-        ///     그때까지 안 돌아오면 넥서스가 비어버린다.
+        /// ⚠️ 예전에는 "우선 행동 중시"가 <b>진군 구간까지만</b> 정찰을 유지하고 목적지에 닿으면
+        /// 합류하는 반쪽 지침이었다. 이제는 <b>웨이브 내내 탐험을 유지</b>한다 — 방어는
+        /// '즉시 방어'를 고른 캐릭터에게 맡기고 이쪽은 맵을 계속 밝히는 역할로 갈랐다.
         /// </summary>
         CharacterDuty CurrentDuty()
         {
             if (_waveManager == null) return CharacterDuty.Guard;
 
-            if (_waveManager.Phase == WavePhase.Preparation) return PreparationDuty();
+            if (_waveManager.Phase == WavePhase.Preparation) return CharacterDuty.Expedition;
 
-            if (_waveReaction == TacticalWaveReaction.FinishCurrent &&
-                _waveManager.Phase == WavePhase.Marching &&
-                _duty == CharacterDuty.Scout &&
-                Vector2.Distance(transform.position, _destination) > arriveDistance)
-                return CharacterDuty.Scout;
-
-            return CharacterDuty.Guard;
+            return _waveReaction == TacticalWaveReaction.KeepExploring
+                ? CharacterDuty.Expedition
+                : CharacterDuty.Guard;
         }
 
         /// <summary>
-        /// 대기시간에 무엇을 할지. "건물 건설"은 실제 건설 판정이 <see cref="TryBuild"/> 에서
-        /// 먼저 일어나므로, 여기까지 왔다는 건 <b>지을 예정지가 없다</b>는 뜻이다 —
-        /// 그때는 사냥·탐색 우선 행동과 똑같이 돌아다닌다(유저 요청: "건설 끝나고 대기 시간엔
-        /// 놀지 말고 사냥이나 정찰해야 한다"). 예정지가 생기면 다음 프레임 <see cref="TryBuild"/>
-        /// 가 바로 그쪽으로 되돌린다.
+        /// 지금 <b>탐험·건설 같은 비전투 작업</b>을 해도 되는 구간인가.
+        ///
+        /// 평소에는 웨이브 타임(전투·광폭화)이 아닐 때만이다 — 그때는 싸우는 게 먼저다.
+        /// 다만 웨이브 반응이 <b>'탐험 우선'</b>이면 웨이브 중에도 계속한다
+        /// (유저 확정 2026-08-12: "탐험 우선 → 탐험 및 건설 우선 수행").
         /// </summary>
-        CharacterDuty PreparationDuty() => CharacterDuty.Scout;
+        bool CanDoExpeditionWork() =>
+            !IsWaveTimePhase() || _waveReaction == TacticalWaveReaction.KeepExploring;
 
         // ------------------------------------------------------------------
         // 후퇴 — 전술 지침의 "후퇴 판단 기준"
@@ -803,7 +850,7 @@ namespace LastSanctuary.Units
             }
 
             // 혼란·광분 — 표시용 임무만 갱신해 둔다(로스터는 정신 이상 이름을 우선 표시한다).
-            _duty = _mental == MentalOverride.Charge ? CharacterDuty.Scout : CharacterDuty.Guard;
+            _duty = _mental == MentalOverride.Charge ? CharacterDuty.Expedition : CharacterDuty.Guard;
         }
 
         /// <summary>후퇴 중 유지 — 넥서스 근처에 도착했으면 그 자리에 머문다.</summary>
@@ -876,23 +923,112 @@ namespace LastSanctuary.Units
         }
 
         // ------------------------------------------------------------------
+        // 도망 — 탐험 유형 '탐색' 이 선공 몹에게 맞았을 때 (유저 확정 2026-08-12)
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// 도망 상태를 켜고 끈다. 조건은 <b>탐험 유형이 '탐색'</b> 이고
+        /// <b>중립 몬스터에게 방금 맞았다</b> 는 것 둘뿐이다.
+        ///
+        /// <b>왜 웨이브 몬스터(Cancer)는 세지 않는가</b> — 이 지침이 정하는 것은 중립 몬스터를
+        /// 어떻게 대할지이고, 웨이브 몬스터와는 탐험 중이라도 싸워야 한다. Cancer 에게 맞으면
+        /// <c>LastAttacker</c> 가 그쪽으로 바뀌므로 도망이 저절로 풀리고 평소 전투로 돌아간다.
+        /// </summary>
+        void UpdateFleeState()
+        {
+            bool want = _expeditionType == TacticalExpeditionType.Explore && RecentNeutralAttacker() != null;
+            if (want == _fleeing) return;
+
+            _fleeing = want;
+            if (want)
+            {
+                _duty = CharacterDuty.Flee;
+                PickFleeSpot();
+            }
+            else
+            {
+                _repickTime = 0f;   // 복귀 — 다음 프레임에 원래 임무의 목적지를 다시 고른다
+            }
+        }
+
+        /// <summary>
+        /// <b>방금 나를 때린 중립 몬스터.</b> 없으면 null.
+        /// <see cref="DamageableUnit.LastAttacker"/>/<see cref="DamageableUnit.LastAttackedTime"/> 을
+        /// 그대로 읽는다 — 반격 로직이 쓰는 것과 같은 값이라 별도 장부가 필요 없다(42-2절과 같은 방식).
+        /// </summary>
+        DamageableUnit RecentNeutralAttacker()
+        {
+            if (_self == null) return null;
+            if (Time.time - _self.LastAttackedTime > fleeMemorySeconds) return null;
+
+            DamageableUnit attacker = _self.LastAttacker;
+            return attacker != null && attacker.IsAlive && attacker.Faction == Faction.Neutral
+                ? attacker
+                : null;
+        }
+
+        /// <summary>도망 중 유지 — 도착하거나 길이 막히면 계속 더 멀리 잡는다.</summary>
+        void TickFlee()
+        {
+            _duty = CharacterDuty.Flee;
+
+            bool arrived = Vector2.Distance(transform.position, _destination) <= arriveDistance;
+            if (arrived || _combat.DestinationUnreachable || Time.time >= _repickTime)
+                PickFleeSpot();
+        }
+
+        /// <summary>
+        /// 때린 상대의 <b>반대 방향</b>으로 <see cref="fleeDistance"/> 만큼 물러난 지점.
+        /// 벽에 막히면 방향을 45°씩 돌려보고, 그래도 못 가면 제자리에 둔다
+        /// (넥서스로 돌아가지는 않는다 — 그건 체력 후퇴의 동작이고, 이쪽은 "그 자리를 벗어난다"다).
+        ///
+        /// ⚠️ 목줄(<see cref="UnitCombat.SetHome"/> 두 번째 인자)을 <b>0 으로 준다</b> —
+        /// 도망 중에 눈에 걸린 웨이브 몬스터를 쫓아가면 도망이 아니게 된다.
+        /// </summary>
+        void PickFleeSpot()
+        {
+            DamageableUnit foe = RecentNeutralAttacker();
+            Vector3 from = foe != null ? foe.transform.position : _destination;
+
+            Vector2 away = (Vector2)(transform.position - from);
+            if (away.sqrMagnitude < 0.01f) away = Vector2.up;
+            away = away.normalized;
+
+            Vector3 spot = transform.position + (Vector3)(away * fleeDistance);
+            for (int step = 0; step < 7 && !IsWalkable(spot); step++)
+            {
+                away = (Vector2)(Quaternion.Euler(0f, 0f, 45f) * (Vector3)away);
+                spot = transform.position + (Vector3)(away * fleeDistance);
+            }
+            if (!IsWalkable(spot)) spot = transform.position;
+
+            _destination = spot;
+            _repickTime = Time.time + 1f;
+            _combat.SetHome(_destination, 0f);
+        }
+
+        // ------------------------------------------------------------------
         // 건설 — "캐릭터가 알아서 판단해서" 짓는다 (유저 요청)
         // ------------------------------------------------------------------
 
-        /// <summary>전술 우선 행동이 "건물 건설"인가 — 건설 전담 캐릭터다.</summary>
-        public bool BuildDedicated => _nonCombat == TacticalNonCombat.Build;
-
-        /// <summary>전담이 아닌 캐릭터가 그래도 도우러 가는 거리(타일). 0 이면 안 간다.</summary>
-        public float AssistBuildRange => assistBuildRange;
+        /// <summary>
+        /// 건설 예정지를 맡을 수 있는 최대 거리(타일). <b>0 이면 제한 없음.</b>
+        ///
+        /// ⚠️ 예전에는 전술 지침에 "건물 건설"이 있어서 <b>전담 캐릭터</b>가 맵 어디든 맡고
+        /// 나머지는 이 거리 안만 도왔다. 지금은 지침 항목이 사라졌으므로
+        /// <b>모두가 같은 조건으로 후보</b>고, 배정 기준은 <b>거리 하나</b>다
+        /// (유저 확정 2026-08-12: "건설은 그냥 제일 가까운 캐릭터가 우선 수행").
+        /// </summary>
+        public float BuildRange => buildRange;
 
         /// <summary>
         /// 지금 건설을 맡을 수 있는 상태인가 — <see cref="Buildings.BuildService"/> 가
         /// 건설자를 고를 때 후보 조건으로 쓴다. <see cref="Update"/> 가 <see cref="TryBuild"/>
-        /// 까지 내려오는 조건(살아있고, 후퇴 중이 아니고, 웨이브 타임이 아니고, 교전 중이
-        /// 아니다)과 같아야 한다 — 어긋나면 일 못 하는 캐릭터에게 자리가 배정된 채 묶인다.
+        /// 까지 내려오는 조건(살아있고, 후퇴·도망 중이 아니고, 비전투 작업이 가능한 구간이고,
+        /// 교전 중이 아니다)과 같아야 한다 — 어긋나면 일 못 하는 캐릭터에게 자리가 배정된 채 묶인다.
         /// </summary>
         public bool CanTakeBuildOrder =>
-            _self != null && _self.IsAlive && !_retreating && !IsWaveTimePhase() &&
+            _self != null && _self.IsAlive && !_retreating && !_fleeing && CanDoExpeditionWork() &&
             (_combat == null || _combat.Target == null || !_combat.Target.IsAlive);
 
         /// <summary>
@@ -938,19 +1074,24 @@ namespace LastSanctuary.Units
 
         void PickDestination()
         {
-            bool picked = _duty == CharacterDuty.Scout ? PickScoutSpot() : PickGuardSpot();
+            bool picked = _duty == CharacterDuty.Expedition ? PickExpeditionSpot() : PickGuardSpot();
 
             // 정찰할 곳이 없으면(맵을 다 밝혔거나 안개가 꺼져 있으면) 방어로 넘어간다.
-            if (!picked && _duty == CharacterDuty.Scout)
+            if (!picked && _duty == CharacterDuty.Expedition)
             {
                 _duty = CharacterDuty.Guard;
                 PickGuardSpot();
             }
         }
 
-        bool PickScoutSpot()
+        bool PickExpeditionSpot()
         {
             // 같은 부대원과 함께 움직인다 — 기준원이 있으면 그가 정한 목적지를 따라간다.
+            //
+            // ★ <b>이 지점이 탐험 유형과 무관하다는 점이 중요하다</b>(유저 확정 2026-08-12):
+            //   여기까지 오는 조건은 "지금 임무가 탐험"뿐이고 사냥/정찰/탐색을 구분하지 않는다.
+            //   그래서 부대원끼리 유형이 서로 달라도 <b>이동은 같이 한다.</b>
+            //
             // 건설하러 간 부대원은 여기 오지 않으므로(Update 의 TryBuild 에서 먼저 빠진다)
             // 자연히 제외되고, 건설이 끝나면 다시 이 경로를 타며 합류한다.
             if (TryFollowSquad(scoutLeash)) return true;
@@ -967,7 +1108,9 @@ namespace LastSanctuary.Units
         }
 
         /// <summary>
-        /// 부대 기준원의 목적지를 따라간다. 기준원이 없으면(무소속이거나 내가 기준이면) false.
+        /// 부대 기준원의 목적지를 따라간다. 기준원이 없으면 false —
+        /// 무소속이거나, 내가 기준이거나, <b>그 부대의 협동 탐험이 꺼져 있을 때</b>다
+        /// (판정은 <see cref="SquadService.LeaderFor"/> 한 곳).
         ///
         /// <b>같은 자리에 겹치지 않게 흩어 세운다</b> — 목적지를 그대로 쓰면 부대원이 한 점에
         /// 몰려 서로 밀어낸다. 캐릭터마다 고정된 각도(<see cref="GetInstanceID"/> 기반)로
@@ -1103,36 +1246,39 @@ namespace LastSanctuary.Units
         /// <summary>
         /// 주변에서 사냥할 만한(살아있는) 중립 몬스터를 찾는다. 가장 가까운 것을 고른다.
         ///
-        /// 정찰(Scout) 중에는 원래대로 구역 제한 없이 캐릭터 주변만 본다 — 어차피 안 밝혀진
+        /// 탐험(Expedition) 중에는 원래대로 구역 제한 없이 캐릭터 주변만 본다 — 어차피 안 밝혀진
         /// 지역으로 널리 돌아다니는 임무라 "구역"이라는 개념이 없다.
         /// 방어·집결(Guard/Rally) 중에는 사냥감이 지금 모여야 할 구역(집결지가 있으면 그
         /// 구역, 없으면 넥서스 방어 반경) 안에 있을 때만 쫓는다 — 안 그러면 구역 밖까지
         /// 쫓아가버려 대열이 흐트러진다(유저 피드백).
+        ///
+        /// <b>협동 탐험 중이면 부대 기준원 주변으로 한 번 더 좁힌다</b> — 아래 주석 참조.
         /// </summary>
         bool TryFindHuntPrey(CharacterDuty duty, Vector3 rallyCenter, out DamageableUnit prey)
         {
             prey = null;
             if (huntDetectRange <= 0f) return false;
 
-            // 전술 지침 — "중립 몬스터 사냥"을 고른 캐릭터는 당연히 사냥한다.
-            // 탐색(Explore)은 안개 해제가 목적이므로 사냥하지 않는다.
-            // 건설(Build)은 여기 도달했다는 것 자체가 "지금 지을 예정지가 없다"는 뜻이다
-            // (있었으면 Update 의 TryBuild 에서 이미 return 했다) — 노는 대신 사냥한다
-            // (유저 요청: "건설 끝나고 대기 시간엔 사냥이나 정찰해야 한다").
-            if (_nonCombat != TacticalNonCombat.Hunt && _nonCombat != TacticalNonCombat.Build)
-                return false;
+            // 탐험 유형 — <b>'사냥'만</b> 중립 몬스터를 먼저 공격한다(유저 확정 2026-08-12).
+            //   정찰(Patrol)  : 먼저 때리지 않는다. 맞으면 UnitCombat 의 반격 경로가 알아서 받는다.
+            //   탐색(Explore) : 아예 건드리지 않는다. 맞아도 반격 대신 도망친다
+            //                   (UnitCombat.SetNeutralHostilitySuppressed · UpdateFleeState).
+            if (_expeditionType != TacticalExpeditionType.Hunt) return false;
 
             // 치유 유형은 애초에 적을 때리지 않는다 — 사냥감을 잡아봐야 쫓아가기만 한다.
             if (_combat.AttackType == TacticalAttackType.Heal) return false;
 
             // 부대원과 함께 사냥한다 — 기준원이 이미 노리는 사냥감이 있으면 같은 놈을 문다.
             // 각자 가장 가까운 놈을 고르면 부대가 사방으로 흩어진다(유저 요청: "같은 부대는
-            // 탐색·사냥 시 함께 이동"). 사거리 제한은 두지 않는다 — 기준원을 따라가는 중이라
-            // 어차피 곧 붙는다.
+            // 함께 이동"). 사거리 제한은 두지 않는다 — 기준원을 따라가는 중이라 어차피 곧 붙는다.
+            //
+            // ★ 기준원은 <b>협동 탐험이 켜져 있을 때만</b> 잡힌다(SquadService.LeaderFor) —
+            //   꺼두면 여기도 null 이라 각자 자기 사냥감을 고른다. 스위치가 한 곳뿐인 이유다.
+            CharacterBehavior leader = null;
             SquadService squads = SquadService.Instance;
             if (squads != null)
             {
-                CharacterBehavior leader = squads.LeaderFor(this);
+                leader = squads.LeaderFor(this);
                 if (leader != null && leader._combat != null)
                 {
                     DamageableUnit shared = leader._combat.Target;
@@ -1156,10 +1302,25 @@ namespace LastSanctuary.Units
                     zoneCenter = NexusPosition();
                     zoneHalfExtent = guardRadius;
                     break;
-                default:   // Scout — 구역 제한 없음
+                default:   // 탐험 — 구역 제한 없음
                     zoneCenter = transform.position;
                     zoneHalfExtent = float.PositiveInfinity;
                     break;
+            }
+
+            // ★ 협동 탐험 중이면(기준원이 있으면) <b>기준원 주변의 사냥감만</b> 본다
+            //   (유저 확정 2026-08-12: "최소한 이동만은 같이 해야 된다").
+            //
+            //   이게 없으면 이런 일이 생긴다 — 기준원은 탐색 유형이라 중립을 무시하고 계속
+            //   나아가는데, 사냥 유형인 부대원은 자기 옆의 중립을 물고 뒤에 남는다. 그 뒤로
+            //   기준원과의 거리가 벌어지면 부대가 갈라진 채로 각자 논다.
+            //   기준원 기준으로 좁혀두면 <b>사냥은 하되 대열에서 이탈하지는 않는다</b> —
+            //   유형이 서로 달라도 이동이 같이 가는 것이 이 한 줄로 보장된다.
+            //   반경은 huntDetectRange 를 그대로 재사용한다(새 인스펙터 값을 늘리지 않는다).
+            if (leader != null)
+            {
+                zoneCenter = leader.transform.position;
+                zoneHalfExtent = huntDetectRange;
             }
 
             float bestSqr = huntDetectRange * huntDetectRange;
@@ -1204,9 +1365,10 @@ namespace LastSanctuary.Units
 
             Gizmos.color = _duty switch
             {
-                CharacterDuty.Scout => new Color(0.4f, 1f, 0.6f, 0.9f),
+                CharacterDuty.Expedition => new Color(0.4f, 1f, 0.6f, 0.9f),
                 CharacterDuty.Rally => new Color(1f, 0.95f, 0.5f, 0.9f),
                 CharacterDuty.Build => new Color(1f, 0.6f, 0.25f, 0.9f),
+                CharacterDuty.Flee  => new Color(0.8f, 0.5f, 1f, 0.9f),
                 _                   => new Color(0.4f, 0.7f, 1f, 0.9f),
             };
             Gizmos.DrawLine(transform.position, _destination);

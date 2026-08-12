@@ -150,7 +150,7 @@ namespace LastSanctuary.Buildings
 
         protected override void OnDeath()
         {
-            Debug.Log($"[Tower] {(definition != null ? definition.displayName : name)} 파괴됨", this);
+            Debug.Log($"[Tower] {(definition != null ? definition.DisplayName : name)} 파괴됨", this);
             OnDestroyed?.Invoke(this);
 
             // 파괴 연출이 있으면 그게 끝난 뒤에 지운다. 연출 도중에도 발판은 계속 막고 있는데,

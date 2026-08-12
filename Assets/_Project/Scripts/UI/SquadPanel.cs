@@ -35,6 +35,8 @@ namespace LastSanctuary.UI
         [SerializeField] string rallySetPicking = "맵을 클릭";
         [SerializeField] string rallySetMove = "집결지 이동";
         [SerializeField] string rallyClear = "집결지 해제";
+        [SerializeField] string coopExpeditionOn = "협동 탐험 ON";
+        [SerializeField] string coopExpeditionOff = "협동 탐험 OFF";
 
         [Header("색")]
         [SerializeField] Color squadNormal = new Color(0.11f, 0.13f, 0.17f, 0.92f);
@@ -44,7 +46,10 @@ namespace LastSanctuary.UI
         [SerializeField] Color buttonOff = new Color(0.10f, 0.11f, 0.13f, 0.85f);
         [SerializeField] Color labelActive = new Color(0.90f, 0.93f, 0.96f, 1f);
 
-        /// <summary>부대 카드 하나 — 이름(편집 가능) · 인원 수 · 부대원 초상화 줄 · 집결지 버튼 2개.</summary>
+        /// <summary>
+        /// 부대 카드 하나 — 이름(편집 가능) · 인원 수 · 부대원 초상화 줄 ·
+        /// 부대 해제 · <b>협동 탐험 토글</b> · 집결지 버튼 2개.
+        /// </summary>
         class Card
         {
             public GameObject Root;
@@ -53,6 +58,9 @@ namespace LastSanctuary.UI
             public TMP_Text Count;
             public Button Button;
             public Button RemoveButton;
+            public Button CoopButton;
+            public Image CoopBackground;
+            public TMP_Text CoopLabel;
             public Button RallySetButton;
             public Image RallySetBackground;
             public TMP_Text RallySetLabel;
@@ -212,6 +220,27 @@ namespace LastSanctuary.UI
         }
 
         /// <summary>
+        /// 협동 탐험 토글 (유저 확정 2026-08-12: "부대 해제 버튼 옆에 협동 탐험 버튼을 넣어서
+        /// 활성화되어 있으면 같이 탐험하고 비활성화되어 있으면 따로 탐험").
+        ///
+        /// ⚠️ 여기서 말하는 탐험은 <b>사냥·정찰·탐색 세 유형 전부</b>다 — 부대원의 탐험 유형이
+        /// 서로 달라도 이동은 같이 한다.
+        ///
+        /// ⚠️ <b>카드 클릭(배정 대상 선택)과 겹치지 않는다</b> — 이 버튼은 카드의 자식이지만
+        /// 자기 <c>Button</c> 이 클릭을 먹으므로 부모 카드의 <c>onClick</c> 은 안 불린다
+        /// (부대 해제·집결지 버튼과 같은 구조).
+        /// </summary>
+        void HandleCoopToggle(int squadId)
+        {
+            if (_squads == null) _squads = SquadService.Instance;
+            _squads?.ToggleCoopExpedition(squadId);
+
+            // OnSquadsChanged 가 Rebuild 를 부르지만, 서비스가 없을 때도 표시가 굳지 않게 한 번 더.
+            _shownSignature = int.MinValue;
+            RefreshCards();
+        }
+
+        /// <summary>
         /// 이 부대의 집결지를 찍는다. <b>창을 닫는다</b> — 창이 화면의 큰 부분을 덮고 있어서
         /// 열어둔 채로는 맵을 클릭할 수 없다.
         /// </summary>
@@ -276,6 +305,9 @@ namespace LastSanctuary.UI
                 Count = FindText(root, "Count"),
                 Button = root.GetComponent<Button>(),
                 RemoveButton = root.Find("RemoveButton")?.GetComponent<Button>(),
+                CoopButton = root.Find("CoopButton")?.GetComponent<Button>(),
+                CoopBackground = root.Find("CoopButton")?.GetComponent<Image>(),
+                CoopLabel = FindText(root, "CoopButton/Label"),
                 RallySetButton = root.Find("RallySetButton")?.GetComponent<Button>(),
                 RallySetBackground = root.Find("RallySetButton")?.GetComponent<Image>(),
                 RallySetLabel = FindText(root, "RallySetButton/Label"),
@@ -299,6 +331,7 @@ namespace LastSanctuary.UI
             int slot = index;
             Hook(card.Button, () => HandleCardClicked(SquadIdAt(slot)));
             Hook(card.RemoveButton, () => HandleRemove(SquadIdAt(slot)));
+            Hook(card.CoopButton, () => HandleCoopToggle(SquadIdAt(slot)));
             Hook(card.RallySetButton, () => HandleRallySet(SquadIdAt(slot)));
             Hook(card.RallyClearButton, () => HandleRallyClear(SquadIdAt(slot)));
 
@@ -388,6 +421,7 @@ namespace LastSanctuary.UI
                 if (card.Background != null)
                     card.Background.color = squad.Id == SelectedSquadId ? squadSelected : squadNormal;
 
+                RefreshCoopButton(card, squad);
                 RefreshRallyButtons(card, squad.Id, rally);
 
                 // 부대원 초상화 — 캐릭터 정의의 일러스트를 그대로 쓴다.
@@ -402,6 +436,27 @@ namespace LastSanctuary.UI
                     slot.sprite = art;
                     slot.color = art != null ? Color.white : new Color(1f, 1f, 1f, 0.06f);
                 }
+            }
+        }
+
+        /// <summary>
+        /// 협동 탐험 버튼 — <b>켜짐/꺼짐이 글자와 색 둘 다로 보인다.</b>
+        /// 색만 쓰면 "그냥 버튼 색"으로 읽혀서 지금 상태를 알 수 없다.
+        /// </summary>
+        void RefreshCoopButton(Card card, SquadService.Squad squad)
+        {
+            if (card.CoopButton == null) return;
+
+            bool on = squad.CoopExpedition;
+
+            // 인원이 1명 이하여도 잠그지 않는다 — 곧 배정할 부대를 미리 켜 둘 수 있어야 한다.
+            card.CoopButton.interactable = true;
+            if (card.CoopBackground != null)
+                card.CoopBackground.color = on ? buttonOn : buttonOff;
+            if (card.CoopLabel != null)
+            {
+                card.CoopLabel.text = on ? coopExpeditionOn : coopExpeditionOff;
+                card.CoopLabel.color = labelActive;
             }
         }
 
@@ -448,6 +503,7 @@ namespace LastSanctuary.UI
                         h = h * 31 + list[i].Id;
                         h = h * 31 + (list[i].Name != null ? list[i].Name.GetHashCode() : 0);
                         h = h * 31 + (rally != null && rally.HasRallyForSquad(list[i].Id) ? 1 : 0);
+                        h = h * 31 + (list[i].CoopExpedition ? 1 : 0);
                         h = h * 31 + list[i].Members.Count;
                         for (int m = 0; m < list[i].Members.Count; m++)
                             h = h * 31 + (list[i].Members[m] != null ? list[i].Members[m].GetInstanceID() : 0);

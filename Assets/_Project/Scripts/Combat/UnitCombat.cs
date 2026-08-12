@@ -247,6 +247,12 @@ namespace LastSanctuary.Combat
         bool _retreatFiring;
 
         /// <summary>
+        /// 중립 진영에만 적용되는 적대 억제 — 전술 지침의 탐험 유형 '탐색'.
+        /// 자세한 내용은 <see cref="SetNeutralHostilitySuppressed"/>.
+        /// </summary>
+        bool _neutralHostilitySuppressed;
+
+        /// <summary>
         /// 교전 중 타겟과 유지하려는 거리(타일). 0 이하면 예전처럼 타겟에 그대로 붙는다.
         /// <c>CharacterBehavior</c> 가 전술 포지션(전방/중위/후방)에 따라 매 프레임 밀어 넣는다 —
         /// 지침의 정본은 그쪽이므로 여기서는 직렬화하지 않는다.
@@ -432,7 +438,13 @@ namespace LastSanctuary.Combat
         /// 다음 <see cref="AcquireTargetIfNeeded"/> 에서 즉시 <see cref="Target"/> 으로 잡힌다.
         /// 대상이 <see cref="leashRange"/>(귀환 지점 기준) 밖으로 벗어나면 자동으로 포기한다.
         /// </summary>
-        public void SetHuntTarget(DamageableUnit target) => _huntOverrideTarget = target;
+        public void SetHuntTarget(DamageableUnit target)
+        {
+            // 중립 적대가 억제된 상태(탐험 유형 '탐색')에서는 사냥감 자체를 받지 않는다 —
+            // 억제를 한 곳에서만 검사하려면 들어오는 입구도 같이 막아야 한다.
+            if (_neutralHostilitySuppressed && target != null && target.Faction == Faction.Neutral) return;
+            _huntOverrideTarget = target;
+        }
 
         /// <summary>사냥을 포기한다. 이미 그 상대를 쫓고 있었다면 타겟도 함께 비운다.</summary>
         public void ClearHuntTarget()
@@ -559,6 +571,37 @@ namespace LastSanctuary.Combat
 
         /// <summary>지금 후퇴하면서 쏘는 중인지 (디버그·표시용).</summary>
         public bool IsRetreatFiring => _retreatFiring;
+
+        /// <summary>
+        /// <b>중립 몬스터에 대한 적대 행동만</b> 끈다 — 전술 지침의 탐험 유형 <b>'탐색'</b> 이
+        /// 켜는 스위치다(유저 확정 2026-08-12: "선공 몹 마주칠 시 공격당해도 반격 안 하고 도망 감").
+        ///
+        /// <b>왜 <see cref="SetCombatSuppressed"/> 를 쓰지 않는가</b> — 그쪽은 전투를 통째로 끈다.
+        /// 탐험 중이라도 <b>웨이브 몬스터(Cancer)와는 싸워야 하므로</b>, 억제 대상을
+        /// 중립 진영으로만 좁힌 스위치가 따로 필요하다. 막는 경로는 세 개다:
+        /// 반격(<see cref="FindRetaliationTarget"/>) · 동료 구원(<see cref="AttackerOf"/>) ·
+        /// 사냥 강제(<see cref="SetHuntTarget"/>).
+        ///
+        /// 실제로 <b>도망가는 이동</b>은 <c>CharacterBehavior</c> 가 맡는다 — 여기서는
+        /// "때리지 않는다"까지만 보장한다.
+        /// </summary>
+        public void SetNeutralHostilitySuppressed(bool value)
+        {
+            if (_neutralHostilitySuppressed == value) return;
+            _neutralHostilitySuppressed = value;
+            if (!value) return;
+
+            _huntOverrideTarget = null;
+            if (_target != null && _target.Faction == Faction.Neutral)
+            {
+                _target = null;
+                _engaged = false;
+                _engagedWith = null;
+            }
+        }
+
+        /// <summary>지금 중립 몬스터를 건드리지 않는 상태인지 (탐험 유형 '탐색').</summary>
+        public bool IsNeutralHostilitySuppressed => _neutralHostilitySuppressed;
 
         public TacticalAttackType AttackType => attackType;
 
@@ -883,6 +926,10 @@ namespace LastSanctuary.Combat
             DamageableUnit attacker = unit.LastAttacker;
             if (attacker == null || !attacker.IsAlive) return null;
             if (attacker.Faction == _self.Faction) return null;   // 혼란으로 아군이 때린 경우
+
+            // 탐험 유형 '탐색' — 중립 몬스터에게는 동료 구원도 나서지 않는다.
+            // 여기서 막지 않으면 "반격은 안 하는데 동료를 돕겠다며 그 중립을 때리러 가는" 모순이 생긴다.
+            if (_neutralHostilitySuppressed && attacker.Faction == Faction.Neutral) return null;
             return attacker;
         }
 
@@ -902,6 +949,10 @@ namespace LastSanctuary.Combat
 
             DamageableUnit attacker = _self.LastAttacker;
             if (attacker == null || !attacker.IsAlive) return null;
+
+            // 탐험 유형 '탐색' — 중립(선공 몹)에게 맞아도 반격하지 않는다(유저 확정 2026-08-12).
+            // 그 자리를 벗어나는 것은 CharacterBehavior 의 도망 로직이 맡는다.
+            if (_neutralHostilitySuppressed && attacker.Faction == Faction.Neutral) return null;
 
             float chase = Mathf.Max(retaliateChaseRange, EffectiveAttackRange);
             if (Vector2.Distance(attacker.transform.position, transform.position) > chase) return null;

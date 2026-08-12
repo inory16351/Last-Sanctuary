@@ -9,13 +9,22 @@ namespace LastSanctuary.Units
     /// 부대 개수 상한 등은 <b>인스펙터에서 고친다</b>(진행상황 35절과 같은 원칙 — 값을 코드에 박지 않는다).
     ///
     /// <b>부대가 하는 일은 "함께 이동"뿐이다</b>(유저 확정 2026-08-11):
-    /// 같은 부대원은 <b>탐색·사냥할 때 함께 움직인다.</b> 전투 방식·전열·타겟팅 같은 전술 지침은
+    /// 같은 부대원은 <b>탐험(사냥·정찰·탐색) 중에 함께 움직인다.</b> 전투 방식·전열·타겟팅 같은 전술 지침은
     /// 여전히 캐릭터마다 따로다(<see cref="CharacterTactics"/>).
     ///
-    /// <b>★ 개인 비전투 우선순위를 덮지 않는다</b>(유저 확정):
-    /// 1번과 2번이 같은 부대인데 1번이 "건물 건설"이면 → 1번은 혼자 건설하러 가고 2번은 사냥·탐색을
-    /// 계속한다. 1번은 <b>건설이 끝나면 자동으로 합류</b>한다. 그래서 부대 이동은 "지금 실제로
-    /// 탐색·사냥 중인 부대원"끼리만 적용된다 — 판정은 <see cref="IsMovementEligible"/> 한 곳에 있다.
+    /// <b>★ 함께 갈지는 부대마다 켜고 끈다</b>(유저 확정 2026-08-12) —
+    /// 부대 카드의 <b>'협동 탐험'</b> 버튼이 <see cref="Squad.CoopExpedition"/> 를 토글한다.
+    /// 꺼두면 같은 부대라도 각자 따로 돌아다닌다(집결지·전열은 그대로 부대 단위로 작동한다).
+    ///
+    /// ⚠️ <b>협동은 탐험 유형과 무관하다</b>(유저 확정 2026-08-12) — 한 명은 사냥, 한 명은 탐색
+    /// 이어도 <b>이동만은 같이 한다.</b> 유형은 "중립을 만났을 때 어떻게 할지"만 정하고,
+    /// "어디로 갈지"는 협동 탐험이 정한다.
+    ///
+    /// <b>★ 개인 임무를 덮지 않는다</b>(유저 확정):
+    /// 1번과 2번이 같은 부대인데 1번이 건설 예정지를 맡았으면 → 1번은 혼자 건설하러 가고 2번은
+    /// 탐험을 계속한다. 1번은 <b>건설이 끝나면 자동으로 합류</b>한다. 그래서 부대 이동은
+    /// "지금 실제로 탐험 중인 부대원"끼리만 적용된다 — 판정은
+    /// <see cref="IsMovementEligible"/> 한 곳에 있다.
     ///
     /// <b>왜 중앙 서비스인가</b> — <see cref="CharacterTactics"/> 는 "캐릭터마다 한 벌"이라 컴포넌트가
     /// 맞았지만, 부대는 <b>여러 캐릭터에 걸친 집합</b>이라 한 캐릭터에 담을 수 없다.
@@ -39,6 +48,10 @@ namespace LastSanctuary.Units
                  "너무 길어지지 않게 하는 값이라 화면을 보고 조정할 것")]
         [Min(1)] [SerializeField] int maxNameLength = 10;
 
+        [Tooltip("새로 만든 부대의 '협동 탐험' 초기값. 켜져 있으면 부대원이 탐험 유형과 무관하게 함께 움직이고, " +
+                 "꺼져 있으면 같은 부대라도 각자 따로 돌아다닌다(유저 확정 2026-08-12)")]
+        [SerializeField] bool coopExpeditionDefault = true;
+
         [Header("디버그")]
         [SerializeField] bool logChanges = true;
 
@@ -47,6 +60,15 @@ namespace LastSanctuary.Units
         {
             public int Id;
             public string Name;
+
+            /// <summary>
+            /// <b>협동 탐험</b> — 켜져 있으면 부대원이 <b>함께</b> 움직이고, 꺼져 있으면
+            /// 같은 부대라도 <b>각자 따로</b> 돌아다닌다(유저 확정 2026-08-12).
+            /// 판정은 <see cref="LeaderFor"/> 한 곳에서만 본다 — 기준원이 없으면 각자
+            /// 스스로 목적지를 고르므로, 이 값 하나로 함께 이동 전체가 켜지고 꺼진다.
+            /// </summary>
+            public bool CoopExpedition = true;
+
             public readonly List<CharacterUnit> Members = new List<CharacterUnit>();
 
             /// <summary>살아있는 인원만 센다.</summary>
@@ -91,7 +113,12 @@ namespace LastSanctuary.Units
         {
             if (!CanCreate) return null;
 
-            var squad = new Squad { Id = _nextId++, Name = string.Format(squadNameFormat, _squads.Count + 1) };
+            var squad = new Squad
+            {
+                Id = _nextId++,
+                Name = string.Format(squadNameFormat, _squads.Count + 1),
+                CoopExpedition = coopExpeditionDefault,
+            };
             _squads.Add(squad);
 
             if (logChanges) Debug.Log($"[Squad] {squad.Name} 생성 (총 {_squads.Count}개)", this);
@@ -133,6 +160,37 @@ namespace LastSanctuary.Units
             if (logChanges) Debug.Log($"[Squad] 부대 #{squadId} 이름 → {trimmed}", this);
             OnSquadsChanged?.Invoke();
             return true;
+        }
+
+        /// <summary>
+        /// 협동 탐험을 켜고 끈다 (부대 카드의 '협동 탐험' 버튼).
+        /// 값이 실제로 바뀌었을 때만 true — UI 가 불필요하게 다시 그리지 않게.
+        /// </summary>
+        public bool SetCoopExpedition(int squadId, bool value)
+        {
+            Squad squad = Find(squadId);
+            if (squad == null || squad.CoopExpedition == value) return false;
+
+            squad.CoopExpedition = value;
+            if (logChanges)
+                Debug.Log($"[Squad] {squad.Name} 협동 탐험 {(value ? "켜짐" : "꺼짐")}", this);
+
+            OnSquadsChanged?.Invoke();
+            return true;
+        }
+
+        /// <summary>협동 탐험 토글. 없는 부대면 아무 일도 하지 않는다.</summary>
+        public bool ToggleCoopExpedition(int squadId)
+        {
+            Squad squad = Find(squadId);
+            return squad != null && SetCoopExpedition(squadId, !squad.CoopExpedition);
+        }
+
+        /// <summary>그 부대가 협동 탐험 중인지. 없는 부대면 false.</summary>
+        public bool IsCoopExpedition(int squadId)
+        {
+            Squad squad = Find(squadId);
+            return squad != null && squad.CoopExpedition;
         }
 
         /// <summary>이 캐릭터가 속한 부대. 무소속이면 null.</summary>
@@ -219,6 +277,7 @@ namespace LastSanctuary.Units
 
             if (behavior.Duty == CharacterDuty.Build) return false;   // 건설 중 — 혼자 간다
             if (behavior.IsRetreating) return false;
+            if (behavior.IsFleeing) return false;                     // 도망 중 — 대열을 따를 수 없다
             if (behavior.Mental != MentalOverride.None) return false;
 
             return true;
@@ -231,6 +290,10 @@ namespace LastSanctuary.Units
         /// 기준은 <b>부대원 중 이동 가능한 첫 번째</b>다. 순서는 배정 순서 그대로라
         /// 매 프레임 흔들리지 않는다 — 거리나 체력으로 고르면 기준이 계속 바뀌어
         /// 부대가 서로를 쫓아다니며 진동한다.
+        ///
+        /// <b>협동 탐험이 꺼져 있으면 언제나 null</b> — 기준원이 없다는 것이 곧 "각자 따로
+        /// 돌아다닌다"이므로, 함께 이동을 끄는 스위치를 여기 한 곳에만 두면 된다
+        /// (<see cref="Squad.CoopExpedition"/>). 사냥감 공유도 이 메서드를 거치므로 같이 꺼진다.
         /// </summary>
         public CharacterBehavior LeaderFor(CharacterBehavior member)
         {
@@ -240,7 +303,7 @@ namespace LastSanctuary.Units
             if (unit == null) return null;
 
             Squad squad = SquadOf(unit);
-            if (squad == null || squad.Members.Count < 2) return null;
+            if (squad == null || !squad.CoopExpedition || squad.Members.Count < 2) return null;
 
             for (int i = 0; i < squad.Members.Count; i++)
             {

@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Character_9001_Elin
   m_EditorClassIdentifier:
   characterId: 9001
+  nameKey: 'character_name_9001'
   characterName: '엘린'
   characterNameEn: 'Elin'
   illustName: 'illust_Elin'

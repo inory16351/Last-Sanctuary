@@ -67,14 +67,14 @@ namespace LastSanctuary.UI
                 _icon.color = s != null ? Color.white : new Color(1f, 1f, 1f, 0f);
             }
 
-            if (_nameText != null) _nameText.text = skill.skillName;
+            if (_nameText != null) _nameText.text = skill.DisplayName;
 
             if (_ownerText != null)
                 _ownerText.text = owner != null
                     ? string.Format(ownerFormat, owner.DisplayName, slot + 1)
                     : string.Format(ownerFormat, "-", slot + 1);
 
-            if (_flavorText != null) _flavorText.text = skill.flavorText;
+            if (_flavorText != null) _flavorText.text = skill.FlavorText;
 
             if (_effectText != null)
             {

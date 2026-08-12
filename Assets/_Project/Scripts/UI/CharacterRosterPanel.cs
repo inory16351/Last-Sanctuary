@@ -105,6 +105,11 @@ namespace LastSanctuary.UI
             public GameObject Root;
             public Image Background;
             public Button SelectButton;
+
+            /// <summary>행을 꾹 누르면 캐릭터 성장 창을 여는 판정(유저 확정 2026-08-12).
+            /// 모체(<c>RowTemplate</c>)에 붙어 있어서 복제되는 모든 행이 물려받는다.</summary>
+            public UiLongPress LongPress;
+
             public TMP_Text Name;
             public TMP_Text Duty;
             public Image HpFill;
@@ -156,6 +161,10 @@ namespace LastSanctuary.UI
         UnitSelector _selector;
         CameraRigController _cameraRig;
         WaveManager _waveManager;
+
+        /// <summary>비활성 상태로도 찾아둔 성장 창 (<see cref="GrowthPanel"/> 참조).</summary>
+        CharacterGrowthPanel _growthPanel;
+
         float _nextRefresh;
 
         void Start()
@@ -372,6 +381,7 @@ namespace LastSanctuary.UI
                 Root = clone.gameObject,
                 Background = clone.GetComponent<Image>(),
                 SelectButton = clone.GetComponent<Button>(),
+                LongPress = clone.GetComponent<UiLongPress>(),
                 Name = FindText(clone, "Name"),
                 Duty = FindText(clone, "Duty"),
             };
@@ -397,6 +407,10 @@ namespace LastSanctuary.UI
             // 람다가 row 를 잡아두므로 행이 다른 캐릭터로 바뀌어도 항상 지금 물린 캐릭터를 쓴다.
             if (row.SelectButton != null)
                 row.SelectButton.onClick.AddListener(() => SelectRow(row));
+
+            // 꾹 누르면 성장 창 (유저 확정 2026-08-12) — 짧게 누르면 위의 onClick 이 그대로 돈다.
+            if (row.LongPress != null)
+                row.LongPress.OnLongPress += () => OpenGrowthFor(row);
 
             // 핸들러도 같은 이유로 row 를 닫아 두고 한 번만 만든다 — 구독/해제할 때마다 새
             // 델리게이트를 만들면 구독 해제(-=)가 다른 인스턴스를 지우려다 실패한다
@@ -549,6 +563,11 @@ namespace LastSanctuary.UI
         {
             if (row.IsDead || row.Unit == null || !row.Unit.IsAlive) return;
 
+            // 이번 누름이 이미 "꾹 누르기"로 처리됐으면 클릭은 무시한다 — 손을 뗄 때 클릭이
+            // 뒤따라 오는데, 그걸 그대로 받으면 부대 배정 모드에서 성장 창을 열려다
+            // 엉뚱하게 부대에 배정돼 버린다(UiLongPress.ConsumedThisPress 주석 참조).
+            if (row.LongPress != null && row.LongPress.ConsumedThisPress) return;
+
             // 부대 지정 창에서 부대를 골라둔 상태라면, 이 클릭은 "선택"이 아니라 "배정"이다
             // (유저 확정 2026-08-11: 부대 슬롯을 누른 뒤 로스터의 캐릭터를 누르면 그 부대에 들어간다).
             // 배정으로 처리했으면 선택을 바꾸지 않는다 — 배정하려고 누른 건데 선택까지 따라 바뀌면
@@ -563,6 +582,46 @@ namespace LastSanctuary.UI
             _selector?.Select(row.Unit);
             FocusCameraOn(row.Unit);
             RefreshValues();
+        }
+
+        /// <summary>
+        /// 행을 <b>꾹 눌렀을 때</b> — 그 캐릭터를 선택하고 <b>캐릭터 성장 창</b>을 바로 띄운다
+        /// (유저 확정 2026-08-12: "캐릭터 로스터 각 캐릭터 버튼 꾹 누르면 해당 캐릭터 성장 창이
+        /// 바로 나오게").
+        ///
+        /// ⚠️ <b>부대 배정보다 우선한다</b> — <see cref="SelectRow"/> 와 달리
+        /// <see cref="SquadPanel.TryAssign"/> 을 거치지 않는다. 성장 창을 열려고 꾹 눌렀는데
+        /// 부대에 배정되면 의도와 정반대다.
+        ///
+        /// ⚠️ 성장 창은 <b>선택된 캐릭터를 따라가는 창</b>이라(창이 스스로 캐릭터를 고르지 않는다)
+        /// 열기 전에 선택을 먼저 옮겨야 한다.
+        /// </summary>
+        void OpenGrowthFor(Row row)
+        {
+            if (row.IsDead || row.Unit == null || !row.Unit.IsAlive) return;
+
+            if (_selector == null) _selector = UnitSelector.Instance;
+            _selector?.Select(row.Unit);
+            FocusCameraOn(row.Unit);
+
+            GrowthPanel()?.SetOpen(true);
+            RefreshValues();
+        }
+
+        /// <summary>
+        /// 캐릭터 성장 창. ⚠️ <b><see cref="CharacterGrowthPanel.Instance"/> 는 창이 한 번도
+        /// 안 열렸으면 null 이다</b> — 비활성 오브젝트라 <c>Awake</c> 가 아직 안 돌았기 때문이다
+        /// (진행상황 36-4절에서 <c>SquadPanel</c> 로 같은 문제를 겪었다).
+        /// 그래서 비활성까지 포함해 찾아 캐시한다.
+        /// </summary>
+        CharacterGrowthPanel GrowthPanel()
+        {
+            if (CharacterGrowthPanel.Instance != null) return CharacterGrowthPanel.Instance;
+
+            if (_growthPanel == null)
+                _growthPanel = FindAnyObjectByType<CharacterGrowthPanel>(FindObjectsInactive.Include);
+
+            return _growthPanel;
         }
 
         /// <summary>
@@ -646,9 +705,10 @@ namespace LastSanctuary.UI
         {
             var behavior = unit.GetComponent<CharacterBehavior>();
 
-            // 후퇴는 전투보다 먼저 본다 — 후퇴 중에는 타겟을 잡지 않으므로 아래 교전 판정에
+            // 후퇴·도망은 전투보다 먼저 본다 — 그 중에는 타겟을 잡지 않으므로 아래 교전 판정에
             // 걸리지 않지만, 순서를 명시해 두는 편이 의도가 분명하다.
             if (behavior != null && behavior.IsRetreating) return "후퇴";
+            if (behavior != null && behavior.IsFleeing) return "도망";
 
             var combat = unit.GetComponent<UnitCombat>();
             if (combat != null && combat.Target != null && combat.Target.IsAlive)
@@ -661,9 +721,11 @@ namespace LastSanctuary.UI
 
             return behavior.Duty switch
             {
-                CharacterDuty.Scout   => "정찰",
+                CharacterDuty.Expedition   => "탐험",
                 CharacterDuty.Rally   => "집결",
                 CharacterDuty.Retreat => "후퇴",
+                CharacterDuty.Flee    => "도망",
+                CharacterDuty.Build   => "건설",
                 _                     => "방어",
             };
         }

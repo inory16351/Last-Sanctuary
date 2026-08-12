@@ -25,8 +25,13 @@ namespace LastSanctuary.Combat
 
         public MentalErrorType type = MentalErrorType.None;
 
-        [Tooltip("테이블의 '한글 설명'(Korean_explain). 로그와 로스터 표기에 그대로 쓴다 — " +
-                 "\"OO이/가 «이 값» 상태에 빠집니다.\"")]
+        [Tooltip("스트링 키 (스트링 키 테이블.xlsx). 예: mental_error_name_40001\n" +
+                 "비워두면 아래 koreanName 리터럴을 쓴다(하위 호환)")]
+        public string nameKey = "";
+
+        [Tooltip("테이블의 '한글 설명'(Korean_explain). 로그와 로스터 표기에 쓰인다 — " +
+                 "\"OO이/가 «이 값» 상태에 빠집니다.\"\n" +
+                 "⚠ 스트링 테이블 도입 이후로는 nameKey 폴백용이다")]
         public string koreanName = "";
 
         [Header("적용값 (의미는 종류마다 다르다 — 아래 주석 참조)")]
@@ -54,9 +59,18 @@ namespace LastSanctuary.Combat
         /// <summary>지속 효과 없이 한 번만 적용되는 종류인지.</summary>
         public bool IsInstant => durationSeconds <= 0f;
 
-        /// <summary>표시용 이름. 테이블 한글 설명이 비어 있으면 열거값 이름으로 떨어진다.</summary>
-        public string DisplayName =>
-            string.IsNullOrEmpty(koreanName) ? type.ToString() : koreanName;
+        /// <summary>
+        /// 표시용 이름. <b>스트링 테이블이 먼저</b>고, 키가 없으면 테이블 한글 설명,
+        /// 그것도 비어 있으면 열거값 이름으로 떨어진다.
+        /// </summary>
+        public string DisplayName
+        {
+            get
+            {
+                string fallback = string.IsNullOrEmpty(koreanName) ? type.ToString() : koreanName;
+                return Data.StringTable.Get(nameKey, fallback);
+            }
+        }
 
         public override string ToString() =>
             $"{mentalErrorId} {DisplayName}({type}) · 값 {value01}/{value02} · " +

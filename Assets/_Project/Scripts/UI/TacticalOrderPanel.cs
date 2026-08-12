@@ -392,17 +392,18 @@ namespace LastSanctuary.UI
                       () => _tactics.Order.retreatAction == TacticalRetreatAction.FallBackWithAlly,
                       () => _tactics.Order.CanFallBackWithAlly);
 
-            // 비전투 우선 행동
-            AddOption("Col3/Non/Hunt",    () => Set(t => t.SetNonCombat(TacticalNonCombat.Hunt)),
-                      () => _tactics.Order.nonCombat == TacticalNonCombat.Hunt);
-            AddOption("Col3/Non/Explore", () => Set(t => t.SetNonCombat(TacticalNonCombat.Explore)),
-                      () => _tactics.Order.nonCombat == TacticalNonCombat.Explore);
-            AddOption("Col3/Non/Build",   () => Set(t => t.SetNonCombat(TacticalNonCombat.Build)),
-                      () => _tactics.Order.nonCombat == TacticalNonCombat.Build);
+            // 탐험 유형 (예전 "비전투 우선 행동". '건물 건설' 항목이 빠지고 '정찰'이 들어왔다 —
+            // 하이라키에서는 기존 버튼 3개를 Hunt / Patrol / Explore 로 개명해 그대로 쓴다)
+            AddOption("Col3/Non/Hunt",    () => Set(t => t.SetExpeditionType(TacticalExpeditionType.Hunt)),
+                      () => _tactics.Order.expeditionType == TacticalExpeditionType.Hunt);
+            AddOption("Col3/Non/Patrol",  () => Set(t => t.SetExpeditionType(TacticalExpeditionType.Patrol)),
+                      () => _tactics.Order.expeditionType == TacticalExpeditionType.Patrol);
+            AddOption("Col3/Non/Explore", () => Set(t => t.SetExpeditionType(TacticalExpeditionType.Explore)),
+                      () => _tactics.Order.expeditionType == TacticalExpeditionType.Explore);
 
             // 웨이브 반응
-            AddOption("Col3/Wave/Priority", () => Set(t => t.SetWaveReaction(TacticalWaveReaction.FinishCurrent)),
-                      () => _tactics.Order.waveReaction == TacticalWaveReaction.FinishCurrent);
+            AddOption("Col3/Wave/Priority", () => Set(t => t.SetWaveReaction(TacticalWaveReaction.KeepExploring)),
+                      () => _tactics.Order.waveReaction == TacticalWaveReaction.KeepExploring);
             AddOption("Col3/Wave/Defend",   () => Set(t => t.SetWaveReaction(TacticalWaveReaction.DefendNow)),
                       () => _tactics.Order.waveReaction == TacticalWaveReaction.DefendNow);
 

@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   mentalErrorId: 40003
   type: 3
+  nameKey: mental_error_name_40003
   koreanName: 각성
   value01: 10
   value02: 0

@@ -42,8 +42,8 @@ namespace LastSanctuary.Units
 
         /// <summary>표시 이름. 정의가 있으면 테이블의 한글 이름, 없으면 오브젝트 이름.</summary>
         public string DisplayName =>
-            definition != null && !string.IsNullOrWhiteSpace(definition.characterName)
-                ? definition.characterName
+            definition != null && !string.IsNullOrWhiteSpace(definition.DisplayName)
+                ? definition.DisplayName
                 : name;
 
         /// <summary>
@@ -178,8 +178,8 @@ namespace LastSanctuary.Units
             definition = def;
             Initialize(def.stats, balance, upgrades);
 
-            if (!string.IsNullOrWhiteSpace(def.characterName))
-                gameObject.name = def.characterName;
+            if (!string.IsNullOrWhiteSpace(def.DisplayName))
+                gameObject.name = def.DisplayName;
 
             ApplyDefinitionSkin(def);
         }
@@ -202,7 +202,7 @@ namespace LastSanctuary.Units
             if (skin == null)
             {
                 Debug.LogWarning($"[Character] 외형 'Resources/Skins/{def.skinAssetName}' 을 찾지 못했습니다. " +
-                                 $"({def.characterName}) — 무작위로 고른 외형을 그대로 씁니다.", this);
+                                 $"({def.DisplayName}) — 무작위로 고른 외형을 그대로 씁니다.", this);
                 return;
             }
             animator.SetSkin(skin);

@@ -18,7 +18,16 @@ namespace LastSanctuary.Units
     {
         [Header("식별 (테이블 mon_id/mon_name)")]
         public int monId = 1001;
+
+        [Tooltip("스트링 키 (스트링 키 테이블.xlsx). 예: mon_name_1001\n" +
+                 "비워두면 아래 displayName 리터럴을 쓴다(하위 호환)")]
+        public string nameKey = "";
+
+        [Tooltip("⚠ 스트링 테이블 도입 이후로는 nameKey 폴백용이다 — 표시에는 DisplayName 을 쓴다")]
         public string displayName = "역겨운 덩어리";
+
+        /// <summary>화면에 보여줄 이름 — 스트링 테이블이 먼저, 없으면 리터럴.</summary>
+        public string DisplayName => Data.StringTable.Get(nameKey, displayName);
 
         [Header("외형 템플릿")]
         [Tooltip("복제할 원본. 씬 오브젝트는 SO가 참조할 수 없으므로(Unity 제약), " +

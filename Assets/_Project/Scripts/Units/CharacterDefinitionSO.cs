@@ -26,11 +26,26 @@ namespace LastSanctuary.Units
         [Tooltip("character_id")]
         public int characterId;
 
-        [Tooltip("character_name — 한글 이름. UI 에 이걸 보여준다")]
+        [Tooltip("스트링 키 (스트링 키 테이블.xlsx). 예: character_name_9001\n" +
+                 "★ 화면에 뜨는 이름의 정본은 이 키다 — DisplayName 이 스트링 테이블에서 읽는다.\n" +
+                 "비워두면 아래 characterName 리터럴을 그대로 쓴다(하위 호환)")]
+        public string nameKey = "";
+
+        [Tooltip("character_name — 한글 이름. ⚠ 스트링 테이블 도입 이후로는 " +
+                 "nameKey 를 못 찾았을 때의 폴백일 뿐이다. 문구는 스트링 키 테이블에서 고칠 것")]
         public string characterName = "";
 
-        [Tooltip("character_name_EG — 영어 이름. 에셋 폴더 이름과 맞춘다")]
+        [Tooltip("character_name_EG — 영어 이름. 에셋 폴더·스킨 이름을 맞추는 용도로 남겨둔다. " +
+                 "화면 표시용 영어는 스트링 테이블의 en 컬럼이 정본이다")]
         public string characterNameEn = "";
+
+        /// <summary>
+        /// 화면에 보여줄 이름. <b>스트링 테이블이 먼저다</b>(유저 지시 2026-08-12 —
+        /// 모든 테이블 문자열을 스트링 키로 관리한다).
+        /// 키가 비었거나 표에 없으면 <see cref="characterName"/> 리터럴로 폴백하므로,
+        /// 키를 아직 안 붙인 에셋도 그대로 동작한다.
+        /// </summary>
+        public string DisplayName => Data.StringTable.Get(nameKey, characterName);
 
         [Header("외형")]
         [Tooltip("illust — Resources/Illust/ 아래의 파일 이름 (확장자 없이). " +

@@ -54,7 +54,7 @@ namespace LastSanctuary.Combat
             order.Normalize();
 
             _combat?.ApplyTactics(order.attackType, order.targetPriority, order.attackReaction);
-            _behavior?.ApplyTactics(order.position, order.nonCombat, order.waveReaction,
+            _behavior?.ApplyTactics(order.position, order.expeditionType, order.waveReaction,
                                     order.retreatHpPercent, order.retreatAction);
 
             OnAnyOrderChanged?.Invoke(this);
@@ -97,10 +97,10 @@ namespace LastSanctuary.Combat
             order.attackReaction = v; Apply();
         }
 
-        public void SetNonCombat(TacticalNonCombat v)
+        public void SetExpeditionType(TacticalExpeditionType v)
         {
-            if (order.nonCombat == v) return;
-            order.nonCombat = v; Apply();
+            if (order.expeditionType == v) return;
+            order.expeditionType = v; Apply();
         }
 
         public void SetWaveReaction(TacticalWaveReaction v)

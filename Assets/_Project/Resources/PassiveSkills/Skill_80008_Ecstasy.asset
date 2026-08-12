@@ -13,6 +13,9 @@ MonoBehaviour:
   m_Name: Skill_80008_Ecstasy
   m_EditorClassIdentifier:
   skillId: 80008
+  nameKey: 'skill_name_80008'
+  flavorKey: 'skill_explain_80008'
+  effectKey: 'skill_type_desc_Ecstasy'
   skillName: '희열'
   skillType: 'Ecstasy'
   value01: 5

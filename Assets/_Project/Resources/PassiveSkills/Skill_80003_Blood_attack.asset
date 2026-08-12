@@ -13,6 +13,9 @@ MonoBehaviour:
   m_Name: Skill_80003_Blood_attack
   m_EditorClassIdentifier:
   skillId: 80003
+  nameKey: 'skill_name_80003'
+  flavorKey: 'skill_explain_80003'
+  effectKey: 'skill_type_desc_Blood_attack'
   skillName: '유혈 낭자'
   skillType: 'Blood_attack'
   value01: 5

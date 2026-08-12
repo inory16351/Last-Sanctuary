@@ -176,7 +176,7 @@ namespace LastSanctuary.Units
                 : new Vector3(cell.x + 0.5f, cell.y + 0.5f, 0f);
 
             NeutralMonsterUnit unit = Instantiate(template, pos, Quaternion.identity, _root);
-            unit.name = $"{entry.definition.displayName}_{_rng.Next(1000, 9999)}";
+            unit.name = $"{entry.definition.DisplayName}_{_rng.Next(1000, 9999)}";
             unit.gameObject.SetActive(true);
             unit.Initialize(entry.definition, balance);
 

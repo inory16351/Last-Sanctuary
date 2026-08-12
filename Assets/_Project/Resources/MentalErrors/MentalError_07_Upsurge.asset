@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   mentalErrorId: 40007
   type: 7
+  nameKey: mental_error_name_40007
   koreanName: 고조
   value01: 2
   value02: 0
