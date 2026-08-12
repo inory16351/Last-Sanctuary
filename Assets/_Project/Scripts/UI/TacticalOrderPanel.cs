@@ -61,6 +61,9 @@ namespace LastSanctuary.UI
             public Image Background;
             public System.Action OnPick;
             public System.Func<bool> IsOn;
+
+            /// <summary>지금 고를 수 있는지. null 이면 항상 가능.</summary>
+            public System.Func<bool> IsAvailable;
         }
 
         readonly List<Option> _options = new List<Option>();
@@ -213,10 +216,12 @@ namespace LastSanctuary.UI
             for (int i = 0; i < _options.Count; i++)
             {
                 Option option = _options[i];
-                if (option.Button != null) option.Button.interactable = has;
+                bool available = has && (option.IsAvailable == null || option.IsAvailable());
+
+                if (option.Button != null) option.Button.interactable = available;
                 if (option.Background == null) continue;
 
-                option.Background.color = !has
+                option.Background.color = !available
                     ? optionDisabled
                     : (option.IsOn() ? optionSelected : optionNormal);
             }
@@ -377,6 +382,16 @@ namespace LastSanctuary.UI
             AddOption("Col2/Retreat/Plus",  () => Set(t => t.SetRetreatHpPercent(t.Order.retreatHpPercent + retreatStep)),
                       () => false);
 
+            // 후퇴 시 행동 — '동료와 함께 후퇴'는 전방 포지션에서 고를 수 없다.
+            // 잠금은 RefreshAll 이 매번 다시 판단한다(포지션을 바꾸면 그 자리에서 반영돼야 한다).
+            AddOption("Col2/RetreatAction/Keep",
+                      () => Set(t => t.SetRetreatAction(TacticalRetreatAction.KeepFighting)),
+                      () => _tactics.Order.retreatAction == TacticalRetreatAction.KeepFighting);
+            AddOption("Col2/RetreatAction/WithAlly",
+                      () => Set(t => t.SetRetreatAction(TacticalRetreatAction.FallBackWithAlly)),
+                      () => _tactics.Order.retreatAction == TacticalRetreatAction.FallBackWithAlly,
+                      () => _tactics.Order.CanFallBackWithAlly);
+
             // 비전투 우선 행동
             AddOption("Col3/Non/Hunt",    () => Set(t => t.SetNonCombat(TacticalNonCombat.Hunt)),
                       () => _tactics.Order.nonCombat == TacticalNonCombat.Hunt);
@@ -406,7 +421,13 @@ namespace LastSanctuary.UI
             RefreshAll();
         }
 
-        void AddOption(string path, System.Action onPick, System.Func<bool> isOn)
+        /// <param name="isAvailable">
+        /// 지금 이 선택지를 고를 수 있는지. null 이면 항상 고를 수 있다.
+        /// 고를 수 없는 선택지는 <b>숨기지 않고 잠근다</b> — 사라지면 "원래 없는 기능"으로 보이고,
+        /// 왜 못 고르는지도 알 수 없다.
+        /// </param>
+        void AddOption(string path, System.Action onPick, System.Func<bool> isOn,
+                       System.Func<bool> isAvailable = null)
         {
             Transform node = transform.Find(path);
             if (node == null)
@@ -422,6 +443,7 @@ namespace LastSanctuary.UI
                 OnPick = onPick,
                 // 선택 대상이 없을 때 IsOn 이 불리면 NullReference 가 나므로 여기서 한 번 막는다.
                 IsOn = () => _tactics != null && isOn(),
+                IsAvailable = isAvailable == null ? null : (System.Func<bool>)(() => _tactics != null && isAvailable()),
             };
 
             if (option.Button != null) option.Button.onClick.AddListener(() => option.OnPick());

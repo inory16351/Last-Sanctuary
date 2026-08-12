@@ -49,9 +49,13 @@ namespace LastSanctuary.Combat
             if (_combat == null) _combat = GetComponent<UnitCombat>();
             if (_behavior == null) _behavior = GetComponent<CharacterBehavior>();
 
+            // 모순된 조합(전방 + 동료와 함께 후퇴)을 여기서 한 번 걸러 낸다 —
+            // 인스펙터에서 직접 고친 경우까지 이 경로를 지난다.
+            order.Normalize();
+
             _combat?.ApplyTactics(order.attackType, order.targetPriority, order.attackReaction);
             _behavior?.ApplyTactics(order.position, order.nonCombat, order.waveReaction,
-                                    order.retreatHpPercent);
+                                    order.retreatHpPercent, order.retreatAction);
 
             OnAnyOrderChanged?.Invoke(this);
         }
@@ -76,7 +80,9 @@ namespace LastSanctuary.Combat
         public void SetPosition(TacticalPosition v)
         {
             if (order.position == v) return;
-            order.position = v; Apply();
+            order.position = v;
+            // 전방으로 바꾸면 '동료와 함께 후퇴'가 자동으로 '공격 유지'로 돌아간다(Normalize).
+            Apply();
         }
 
         public void SetTargetPriority(TacticalTargetPriority v)
@@ -101,6 +107,17 @@ namespace LastSanctuary.Combat
         {
             if (order.waveReaction == v) return;
             order.waveReaction = v; Apply();
+        }
+
+        /// <summary>
+        /// 후퇴 시 행동. <b>전방 포지션에서는 '동료와 함께 후퇴'를 받지 않는다</b> —
+        /// UI 가 버튼을 잠그지만, 여기서도 막아 다른 경로로 새어 들어오지 않게 한다.
+        /// </summary>
+        public void SetRetreatAction(TacticalRetreatAction v)
+        {
+            if (v == TacticalRetreatAction.FallBackWithAlly && !order.CanFallBackWithAlly) return;
+            if (order.retreatAction == v) return;
+            order.retreatAction = v; Apply();
         }
 
         public void SetRetreatHpPercent(int percent)

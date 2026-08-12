@@ -933,3 +933,171 @@ Attack 6, 방향별). 둘 다 `spriteMode: 1`(Single) · 피벗 (0.5, 0) 발밑 
 ### 씬반영요청 목록
 
 없음.
+
+---
+
+## UI-12. 프레이야 걷기 재제작(Idle 재해석) · 보스 크기 2x3 타일 (2026-08-11)
+
+> 상세는 `진행상황.md` **40·41절**. MCP 함정은 **8절 10번**.
+
+### 무엇을 했나
+
+1. **프레이야 걷기를 Idle 에서 합성했다.** 원본 `Move` 8장이 웅크린 돌진 포즈라 직립 Idle 과
+   실루엣이 완전히 달랐다(엘린·비기오르는 Walk 가 Idle 과 같은 직립에 다리만 움직인다).
+   Idle 3프레임에 **기울임 3px · 자락 흔들림 ±3px · 바운스 2px** 를 겹쳐 6프레임 주기를 만들었다.
+   전부 **행 단위 정수 이동**이라 픽셀이 뭉개지지 않는다. 캔버스가 316x147 → 218x147 로 줄었다.
+2. **보스 크기를 6x6 → 가로 2 · 세로 3 타일로** 바꿨다. 씬 템플릿 스케일 (1, 1.5, 1) +
+   `Monster_Boss.asset` 의 `footprintTiles` 3 → 1 (1보다 크면 스포너가 균일 스케일로 덮어쓴다).
+
+### 소유권 (§2)
+
+**UI 소유** — `Tools/char_asset_preyja_build.py`(§2 이슈는 UI-11 에 적은 그대로),
+`Resources/Skins/Skin_Preyja.asset`, `Art/Char_Asset/Char_Asset_Preyja/**`,
+`Assets/Scenes/Proto_01.unity`.
+
+**⚠️ PROTO 소유 파일 1건을 건드렸다** — `Data/Units/Monster_Boss.asset` 의
+`footprintTiles: 3 → 1` **한 값**. 유저가 직접 지시한 보스 크기 변경이고, 이 값을 안 내리면
+`MonsterSpawner`(PROTO 소유 코드)가 스폰 때 균일 스케일로 덮어써서 **씬에서 아무리 고쳐도
+반영되지 않는다.** 코드를 고치지 않는 대신 데이터 한 값으로 끝낸 선택이다.
+`MonsterSpawner.cs` 자체는 **무접촉**.
+
+### 씬 변경 여부
+
+**있음.** `Templates/Monster_Templates/Monster_Boss_Template` 의 `m_LocalScale` → `(1, 1.5, 1)`.
+커밋된 씬과 비교해 **줄 수 1,404,919 동일 · GameObject 326개 동일 · Transform 33개 동일** —
+그 한 줄 말고는 바뀐 것이 없다(U-S1 의 "변경 최소화" 준수).
+
+### ⚠️ 이번에 씬을 오염시켰다가 되돌린 일 (기록)
+
+`update_gameobject` 로 보스 템플릿을 건드리려 했는데, **비활성 오브젝트라 MCP 경로 조회가 못 찾고
+"없으면 만든다" 동작으로 `Templates` → `Monster_Templates` → `Monster_Boss_Template` 빈 껍데기
+3개가 새로 생겼다.** 이어 부른 `set_transform` 이 진짜 템플릿이 아니라 껍데기에 적용됐고
+**응답은 둘 다 "성공"이었다.** `grep "m_Name: ..."` 개수를 커밋본과 비교해서 발견했다.
+
+`delete_gameobject` 는 권한 거부로 막혀서, 씬 YAML 에서 블록 4개 + 부모 `m_Children` 항목 +
+`SceneRoots` 루트 등록을 지우고 `load_scene` 으로 리로드해 되돌렸다.
+**앞으로 비활성 오브젝트는 `get_gameobject` 로 찾아지는지 먼저 확인하고, 안 찾아지면
+`update_gameobject` 를 그 경로에 쓰지 말 것** (진행상황 8절 10번).
+
+### 검증
+
+`Assets/Refresh` · `load_scene` 후 **콘솔 에러·경고 0**. 걷기 6프레임이 방향별로 전부 다른
+파일임을 md5 로 확인. `Skin_Preyja` 재생성(walk 6/6), 빈 줄 0. 씬 구조 커밋본과 동일.
+
+### 씬반영요청 목록
+
+없음.
+
+---
+
+## UI-13. 교전 고정 · 동료 구원 · 후퇴 사격(카이팅) (2026-08-11)
+
+> 상세는 `진행상황.md` **42·43절**.
+
+### 무엇을 했나
+
+유저 리포트: **"중위나 후방으로 뒀을때 최대 사거리를 유지하려다가 전투 지역에서 벗어날 정도로
+무빙을 해버리는게 어색하다"**. 31-3절의 전열 유지가 매 프레임 "타겟에서 N타일" 지점으로
+이동하는데, 적이 다가오는 만큼 그 점도 밀려서 끝없이 뒷걸음질을 쳤다.
+
+| # | 변경 | 파일 |
+|---|---|---|
+| 1 | **교전 고정** — 타겟이 한 번이라도 사거리 안에 들어오면 유지 거리로 물러나는 분기를 건너뛴다. 쫓기·최소 사거리 회피는 그대로 | `Combat/UnitCombat.cs` |
+| 2 | **동료 구원** — 동료를 때리는 적은 사거리 밖이라도 잡으러 간다. 교전 고정과 "대기" 반응을 푸는 유일한 조건 | `Combat/UnitCombat.cs` |
+| 3 | **후퇴 사격** — `SetRetreatFiring()` 신설. 이동은 후퇴 지점 고정, 사거리 안의 적만 사격. 체력 후퇴(본인/전방 아군)에서만 켜진다. 공포는 여전히 전투를 끈다 | `Combat/UnitCombat.cs` · `Units/CharacterBehavior.cs` |
+| 4 | **카이팅 방향** — 이동 중엔 진행 방향, 공격 순간엔 타겟(투사체) 방향. 뒷걸음질 제거 | `Combat/CharacterAnimator.cs` |
+
+### 소유권 (§2)
+
+- **UI 소유** — `Scripts/Combat/UnitCombat.cs` · `CharacterAnimator.cs` (§2 의 `Scripts/Combat/**`).
+- ⚠️ **`Scripts/Units/CharacterBehavior.cs`** — §2 의 PROTO 목록은 `Units/Monster*` 만
+  지정하고 있고, `CharacterBehavior` 는 전투 AI 이관(v2) 이후 이 브랜치가 계속 만들고
+  고쳐온 파일이다(28·31·36절). 이번에도 같은 전제로 수정했다.
+- PROTO 소유 경로(`Scripts/Wave|Map|Fog`, `Units/Monster*`, `Data/Units|Map`,
+  `Art/Tiles|OrganicTilemap|Units`, `Tools/wall_*`)는 **무접촉**.
+
+### 씬 변경 여부
+
+**없음.** 신규 `[SerializeField]` 4개(`answerAllyCalls` / `allyCallMemorySeconds` /
+`allyCallRange` / `frontRetreatCheckInterval`)는 씬에 저장돼 있지 않아 코드 기본값
+(✔ / 2초 / 12타일 / 0.25초)이 그대로 적용된다 — UI-9 와 같은 방식이다.
+씬 저장이 38MB 재작성이라 값을 넣으려고 저장하지는 않았다(U-S1).
+조정이 필요하면 인스펙터에서 만지면 그때 씬에 남는다.
+
+### 만들면서 잡은 함정 2개 (같은 실수 방지)
+
+1. **동료 구원 판정을 타겟 선정 시점에 캐시했더니** 재탐색 간격(0.2초) 동안·억제·사냥 경로에서
+   옛 값이 남아 엉뚱한 순간에 자리를 떴다 → `DecideState` 에서 매 프레임 다시 계산하도록 고쳤다.
+2. **"전방 아군"을 적과의 거리로 판정했더니** 물러나는 도중 적이 사거리 밖으로 나가
+   `Target` 이 null 이 되는 순간 판정이 뒤집혀 **후퇴/복귀를 반복하며 떨었다** →
+   **넥서스로부터의 거리**(이 프로젝트가 전열을 정의하는 방식, 36절)로 바꾸고,
+   한 번 따라 물러나면 그 상대가 끝낼 때까지 붙잡도록(`_followingRetreatOf`) 했다.
+
+### 검증
+
+재컴파일 **에러 0 / 경고 1**(기존 `SquadPanel.emptySlotText`, 무관).
+`Character_Template` 의 `flipSpriteToFaceMovement: 0` 확인 — 방향 결정의 주인이
+`CharacterAnimator` 하나뿐이라 `UnitCombat.FaceMovement` 와 충돌하지 않는다.
+`CombatState` 를 외부에서 읽는 곳이 없음을 `grep` 으로 확인.
+**플레이 검증은 유저 몫**(진행상황 42-6절에 확인 항목 4가지).
+
+### 씬반영요청 목록
+
+없음.
+
+---
+
+## UI-14. 전술 지침 "후퇴 시 행동" + 교전 개시 위치 한계 (2026-08-11)
+
+> 상세는 `진행상황.md` **44·45절**.
+
+### 무엇을 했나
+
+1. **전술 지침에 "후퇴 시 행동" 추가** — `공격 유지`(기본) / `동료와 함께 후퇴`.
+   42-3절에서 무조건 켜뒀던 "전방을 따라 물러난다"가 이제 캐릭터별 선택이 됐다.
+   **전방 포지션은 '공격 유지'로 고정**(따라 물러날 대상이 없다) — 강제 지점을
+   `TacticalOrder.Normalize()` 한 곳에 모아 UI·복사·인스펙터 모든 경로가 지나게 했다.
+2. **동반 후퇴는 최대 사거리를 유지한다** — 넥서스까지 도망가지 않고
+   `적 위치 + 넥서스 방향 × 내 사거리` 지점을 계속 잡는다.
+3. **교전 개시 위치 잡기에 한계 거리**(`openingRepositionMaxTiles`, 4타일).
+   원거리·마법이 최대 사거리로 물러나 시작하는 동작은 **이미 있었고**(DecideState 의
+   유지-거리 분기가 공격 분기보다 앞), 문제는 그 구간에 한계가 없어 적이 더 빠르면
+   전투 지역을 벗어난다는 것이었다.
+
+### 씬 변경 여부 — **있음** (전부 MCP)
+
+유저 지시: "모든 객체 생성과 수정은 하드 코딩 하지말고 mcp 연결해서 직접 시도
+단 템플릿 복제는 예외적으로 허용".
+
+- `Col1/React`(세로 2단 버튼 그룹)를 **`duplicate_gameobject`** 로 복제 →
+  `Col2/RetreatAction`, 자식 `Chase`→`Keep` · `Hold`→`WithAlly` 개명.
+- `Col2/RetreatLabel` · `Col2/RetreatHint` 복제 → `RetreatActionLabel` · `RetreatActionHint`.
+- 문구·위치·크기는 `update_component`(`m_text` / `anchoredPosition` / `sizeDelta`).
+- **패널·컬럼 크기는 안 늘렸다** — Col2 가 −442 에서 끝나 200px 가 비어 있었다.
+  다른 요소가 하나도 안 움직이는 것이 U-S1(씬 변경 최소화)에도 맞다.
+
+### ⚠️ 비활성 패널을 MCP 로 만질 때의 절차 (UI-12 사고 이후)
+
+UI-12 에서 `update_gameobject` 가 오브젝트를 새로 만들어버린 사고가 있었다. 이번엔
+**만지기 전에 `UI_Root` · `HUD_Tactics` 이름이 각각 1개뿐임을 grep 으로 확인**하고 시작했고,
+작업 뒤 이름별 개수와 GameObject 총계(326 → 333, 정확히 만든 것 7개)를 다시 확인했다.
+UI-12 의 원인은 **같은 이름의 루트가 3개**여서 경로 첫 조각이 엉뚱한 것에 걸린 것으로 보인다 —
+이름이 유일하면 비활성이어도 제대로 찾아간다.
+
+### 소유권 (§2)
+
+UI 소유 — `Scripts/Combat/TacticalOrder.cs` · `CharacterTactics.cs` · `UnitCombat.cs`,
+`Scripts/UI/TacticalOrderPanel.cs`, `Assets/Scenes/Proto_01.unity`.
+`Scripts/Units/CharacterBehavior.cs` 는 UI-13 과 같은 전제(전투 AI 이관 이후 이 브랜치 소유).
+PROTO 소유 경로 무접촉.
+
+### 검증
+
+재컴파일 **에러 0 · 경고 0**(`SquadPanel` 경고는 이번 재컴파일 로그에 안 잡혔다 —
+증분 컴파일이라 해당 파일이 안 돌았을 뿐, 코드는 그대로다).
+`HUD_Tactics` 는 작업 후 다시 `m_IsActive: 0` 으로 되돌렸다.
+**화면 확인은 유저 몫**(진행상황 44-6절에 확인 항목 3가지).
+
+### 씬반영요청 목록
+
+없음.

@@ -29,12 +29,14 @@ MonoBehaviour:
   - {fileID: 21300000, guid: dc860682d1a24c47969f0a929e948e95, type: 3}
   - {fileID: 21300000, guid: 502c18c15df806a7c242dd862609182a, type: 3}
   - {fileID: 21300000, guid: b3be0dfae1c716e7e9635dbdcf938d43, type: 3}
+  - {fileID: 21300000, guid: bd2d0ffef80a317068c9202505b82f6a, type: 3}
   walkLeft:
   - {fileID: 21300000, guid: 05c62cb6784e231173e7f80b6c1d6a4e, type: 3}
   - {fileID: 21300000, guid: c1533e1a46fa02047f05d3ecc5810409, type: 3}
   - {fileID: 21300000, guid: 54aed543d80fa586a00a9f7d82ca471b, type: 3}
   - {fileID: 21300000, guid: 8bf6f5e81d9b4426f53cb7c47860463a, type: 3}
   - {fileID: 21300000, guid: 20887f30e8b1ce3b64ae3cd6da515714, type: 3}
+  - {fileID: 21300000, guid: 79c72ac2226df5f2015fcddf7dbcf59c, type: 3}
   attackRight:
   - {fileID: 21300000, guid: 3d19894b98e0430880533bb62d02b573, type: 3}
   - {fileID: 21300000, guid: a14e1b6982a13c32450ed108ecdaca91, type: 3}

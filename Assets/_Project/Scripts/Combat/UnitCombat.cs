@@ -74,6 +74,24 @@ namespace LastSanctuary.Combat
         [Tooltip("반격 대상을 쫓아갈 수 있는 최대 거리(타일). 이 밖으로 도망가면 포기한다")]
         [Min(0.5f)] [SerializeField] float retaliateChaseRange = 8f;
 
+        [Header("동료 구원 (교전 고정을 푸는 유일한 조건)")]
+        [Tooltip("사거리 밖에 있는 적이라도 동료를 때리고 있으면 사거리 안까지 이동해 공격한다. " +
+                 "끄면 교전이 시작된 자리에서만 싸운다")]
+        [SerializeField] bool answerAllyCalls = true;
+
+        [Tooltip("동료가 이 시간(초) 안에 맞았으면 '지금 맞고 있다'로 본다. " +
+                 "너무 길면 이미 끝난 싸움을 보고 달려간다")]
+        [Min(0.2f)] [SerializeField] float allyCallMemorySeconds = 2f;
+
+        [Tooltip("이 거리(타일) 안의 동료가 맞고 있을 때만 도우러 간다")]
+        [Min(0.5f)] [SerializeField] float allyCallRange = 12f;
+
+        [Header("교전 개시 위치")]
+        [Tooltip("원거리·마법이 교전을 시작하기 전 최대 사거리까지 물러나 자리를 잡을 때, " +
+                 "시작 지점에서 이 거리(타일)까지만 물러난다. 넘으면 그 자리에서 교전을 고정한다 — " +
+                 "적이 더 빠르면 한계가 없을 때 전투 지역을 통째로 벗어난다")]
+        [Min(0f)] [SerializeField] float openingRepositionMaxTiles = 4f;
+
         // ------------------------------------------------------------------
         // 전술 지침 (캐릭터 전용). CharacterTactics 가 UI 값으로 덮어쓴다.
         // 몬스터는 이 값을 아무도 안 건드리므로 기본값(근거리·가장 가까운 적·추격) 그대로 돌아간다.
@@ -181,6 +199,52 @@ namespace LastSanctuary.Combat
 
         /// <summary>"사거리에 들어올 때까지 대기" 반응으로 타겟을 쫓지 않고 자리를 지키는 중.</summary>
         bool _holdingGround;
+
+        /// <summary>
+        /// ★ <b>교전 고정</b> — 지금 타겟이 <b>한 번이라도 사거리 안에 들어온 뒤</b> true.
+        ///
+        /// <b>왜 필요했나 (유저 리포트 2026-08-11)</b> — 중위·후방은 매 프레임
+        /// <see cref="_standoffTiles"/>(최대 사거리)를 유지하려 하는데, 적이 다가오는 만큼
+        /// 계속 물러나므로 <b>전투 지역을 완전히 벗어날 때까지 뒷걸음질</b>을 쳤다.
+        /// 교전이 시작된 뒤에는 <b>그 자리에서 쏘는 것</b>이 맞다 — 이 값이 켜지면
+        /// <see cref="DecideState"/> 가 유지 거리 때문에 물러나는 분기를 건너뛴다.
+        ///
+        /// ⚠️ <b>못 때리는 거리(<see cref="MinAttackDistance"/>) 때문에 벌리는 것은 막지 않는다</b> —
+        /// 그건 취향이 아니라 "가만히 있으면 아무도 못 때린다"는 물리적 제약이다.
+        /// 사거리 밖으로 나간 적을 쫓는 것도 그대로다. 막는 것은 <b>물러나는 이동 하나뿐</b>이다.
+        /// </summary>
+        bool _engaged;
+
+        /// <summary>교전 고정이 걸린 상대. 타겟이 바뀌면 고정을 푼다.</summary>
+        DamageableUnit _engagedWith;
+
+        /// <summary>교전 전 <b>개시 위치를 잡는 중</b>(원거리·마법이 최대 사거리까지 물러나는 구간).</summary>
+        bool _repositioning;
+
+        /// <summary>개시 위치 잡기를 시작한 지점. 여기서 얼마나 멀어졌는지로 한계를 잰다.</summary>
+        Vector3 _openingAnchor;
+
+        /// <summary>
+        /// 사거리 밖이지만 <b>동료를 때리고 있는</b> 적을 잡으러 가는 중.
+        /// 이 동안에는 교전 고정도 "대기" 반응도 무시하고 사거리 안까지 이동한다
+        /// (유저 지시: "최대 사거리 밖에 적이 있는데 그 적이 동료 캐릭터를 공격하면
+        /// 사거리 내의 거리로 이동해서 공격").
+        /// </summary>
+        bool _answeringAllyCall;
+
+        /// <summary>
+        /// ★ <b>후퇴 사격(카이팅)</b> — 넥서스 쪽으로 물러나면서 사거리 안의 적을 쏜다.
+        /// <c>CharacterBehavior</c> 가 <b>체력 기준 후퇴</b>(본인 또는 전방 아군)에서만 켠다.
+        ///
+        /// 이 상태에서만 <b>이동과 공격이 동시에</b> 일어난다. 평소에는 상태 기계가
+        /// Attack 이거나 Chase 이거나 둘 중 하나다.
+        ///
+        /// ⚠️ 이때도 <b>쫓아가지는 않는다</b> — 이동 목적지는 언제나 후퇴 지점(<see cref="_homePosition"/>)이고
+        /// 사거리 안에 들어온 적만 쏜다. 예전에 후퇴 중 전투를 통째로 껐던 이유가
+        /// "물러나는 길에 마주친 적을 다시 쫓아가느라 영영 못 빠져나온다" 였는데,
+        /// 이동 목적지를 후퇴 지점으로 고정하면 그 문제가 원천적으로 안 생긴다.
+        /// </summary>
+        bool _retreatFiring;
 
         /// <summary>
         /// 교전 중 타겟과 유지하려는 거리(타일). 0 이하면 예전처럼 타겟에 그대로 붙는다.
@@ -467,6 +531,35 @@ namespace LastSanctuary.Combat
             if (value) { _target = null; _huntOverrideTarget = null; _backOff = false; }
         }
 
+        /// <summary>
+        /// ★ <b>후퇴 사격(카이팅)</b>을 켜고 끈다. <c>CharacterBehavior</c> 가
+        /// <b>체력 기준 후퇴</b>(본인 또는 전방 아군)에서만 켠다 — 유저 지시 2026-08-11:
+        /// "후퇴하면서 공격하는 건 전방의 캐릭터나 본인 스스로의 체력이 후퇴 기준에 다다라서
+        /// 넥서스 방향으로 후퇴할 때 발동되는 걸로".
+        ///
+        /// <b>공포(정신 이상)와 다르다</b> — 공포는 <see cref="SetCombatSuppressed"/> 로
+        /// 전투 자체를 끈다(패닉이라 반격하지 않는다). 체력 후퇴는 물러나면서 쏜다.
+        ///
+        /// 켜는 쪽이 <b>이동 목적지(<see cref="SetHome"/>)를 후퇴 지점으로 잡아 두어야 한다</b> —
+        /// 이 상태의 이동은 언제나 그 지점을 향한다.
+        /// </summary>
+        public void SetRetreatFiring(bool value)
+        {
+            if (_retreatFiring == value) return;
+            _retreatFiring = value;
+
+            // 후퇴에 들어가거나 빠져나올 때는 교전 고정을 푼다 — 상황이 완전히 바뀌었으므로
+            // 다음 교전은 처음부터 다시 판단해야 한다.
+            _engaged = false;
+            _engagedWith = null;
+            _repositioning = false;
+            _backOff = false;
+            if (value) _huntOverrideTarget = null;   // 물러나면서 사냥을 이어갈 수는 없다
+        }
+
+        /// <summary>지금 후퇴하면서 쏘는 중인지 (디버그·표시용).</summary>
+        public bool IsRetreatFiring => _retreatFiring;
+
         public TacticalAttackType AttackType => attackType;
 
         /// <summary>
@@ -700,7 +793,97 @@ namespace LastSanctuary.Combat
             // (공격력 0 · 8초 경과 · retaliateChaseRange 밖이면 놓는다).
             if (found == null) found = FindRetaliationTarget();
 
+            // ★ 동료를 때리는 적 — 내 사거리 밖이라도 이쪽으로 간다 (유저 지시 2026-08-11).
+            //
+            // 지금 때릴 수 있는 적이 있으면 그대로 둔다 — 눈앞의 적을 두고 딴 데로 달려가면
+            // 오히려 대열이 무너진다. <b>때릴 수 있는 적이 없을 때만</b> 동료를 돕는다.
+            if (answerAllyCalls && !_retreatFiring && (found == null || !InAttackRange(found)))
+            {
+                DamageableUnit caller = FindAllyAttacker();
+                if (caller != null) found = caller;
+            }
+
+            // 후퇴 사격 중에는 <b>때릴 수 있는 적만</b> 잡는다 — 쫓아가지 않는 것이 이 상태의 정의다.
+            if (_retreatFiring && found != null && !InAttackRange(found)) found = null;
+
             _target = found;
+        }
+
+        /// <summary>타겟이 지금 당장 때릴 수 있는 거리인지 (못 때리는 최소 거리도 함께 본다).</summary>
+        bool InAttackRange(DamageableUnit unit)
+        {
+            if (unit == null) return false;
+            float d = Vector2.Distance(transform.position, unit.transform.position);
+            return d <= EffectiveAttackRange + TargetRadius(unit) && d >= MinAttackDistance;
+        }
+
+        /// <summary>
+        /// <b>지금 동료를 때리고 있는 적</b> 중 가장 가까운 하나. 없으면 null.
+        ///
+        /// <b>왜 새로 기록하지 않는가</b> — <see cref="DamageableUnit.LastAttacker"/> /
+        /// <see cref="DamageableUnit.LastAttackedTime"/> 이 이미 "누가 언제 나를 때렸나"를
+        /// 들고 있다(반격 로직이 쓰는 것과 같은 값). 동료 쪽에서 그걸 읽으면 되므로
+        /// 이벤트 구독이나 별도 장부가 필요 없다.
+        /// </summary>
+        DamageableUnit FindAllyAttacker()
+        {
+            if (_self == null || allyCallRange <= 0f) return null;
+
+            Vector3 myPos = transform.position;
+            float limitSqr = allyCallRange * allyCallRange;
+            DamageableUnit best = null;
+            float bestSqr = float.MaxValue;
+
+            var all = UnitRegistry.All;
+            for (int i = 0; i < all.Count; i++)
+            {
+                DamageableUnit ally = all[i];
+                if (ally == null || !ally.IsAlive || ReferenceEquals(ally, _self)) continue;
+                if (ally.Faction != _self.Faction) continue;
+                if (((Vector2)(ally.transform.position - myPos)).sqrMagnitude > limitSqr) continue;
+
+                DamageableUnit attacker = AttackerOf(ally);
+                if (attacker == null) continue;
+
+                float sqr = ((Vector2)(attacker.transform.position - myPos)).sqrMagnitude;
+                // 인식 범위 밖까지 달려가지는 않는다 — 목줄과 같은 취지의 안전장치.
+                if (sqr > EffectiveDetectRange * EffectiveDetectRange) continue;
+                if (sqr >= bestSqr) continue;
+
+                best = attacker;
+                bestSqr = sqr;
+            }
+            return best;
+        }
+
+        /// <summary>이 적이 지금 내 동료를 때리고 있는지.</summary>
+        bool IsAllyAttacker(DamageableUnit enemy)
+        {
+            if (!answerAllyCalls || enemy == null || _self == null) return false;
+
+            Vector3 myPos = transform.position;
+            float limitSqr = allyCallRange * allyCallRange;
+
+            var all = UnitRegistry.All;
+            for (int i = 0; i < all.Count; i++)
+            {
+                DamageableUnit ally = all[i];
+                if (ally == null || !ally.IsAlive || ReferenceEquals(ally, _self)) continue;
+                if (ally.Faction != _self.Faction) continue;
+                if (((Vector2)(ally.transform.position - myPos)).sqrMagnitude > limitSqr) continue;
+                if (ReferenceEquals(AttackerOf(ally), enemy)) return true;
+            }
+            return false;
+        }
+
+        /// <summary>그 유닛을 <b>방금</b> 때린 적. 시간이 지났거나 죽었으면 null.</summary>
+        DamageableUnit AttackerOf(DamageableUnit unit)
+        {
+            if (Time.time - unit.LastAttackedTime > allyCallMemorySeconds) return null;
+            DamageableUnit attacker = unit.LastAttacker;
+            if (attacker == null || !attacker.IsAlive) return null;
+            if (attacker.Faction == _self.Faction) return null;   // 혼란으로 아군이 때린 경우
+            return attacker;
         }
 
         /// <summary>
@@ -790,12 +973,35 @@ namespace LastSanctuary.Combat
             _backOff = false;
             _holdingGround = false;
 
+            // 타겟이 바뀌거나 죽으면 교전 고정을 푼다 — 새 상대와는 처음부터 다시 판단한다.
+            if (_target == null || !_target.IsAlive || !ReferenceEquals(_target, _engagedWith))
+            {
+                _engaged = false;
+                _engagedWith = null;
+                _repositioning = false;
+            }
+
+            // 지금 타겟이 "동료를 때리고 있어서 잡으러 가는" 상대인지 매 프레임 다시 본다.
+            // ⚠️ 타겟을 고를 때 한 번 계산해 두면, 재탐색 간격(0.2초) 동안이나 억제·사냥 경로로
+            //    빠질 때 옛 값이 남아 <b>엉뚱한 순간에 자리를 뜬다.</b> 판정의 정본을 한 곳에 둔다.
+            _answeringAllyCall = answerAllyCalls && !_retreatFiring &&
+                                 _target != null && _target.IsAlive &&
+                                 !InAttackRange(_target) && IsAllyAttacker(_target);
+
+            // ★ 후퇴 사격 — 이동은 언제나 후퇴 지점으로. 공격은 Act 가 따로 얹는다.
+            if (_retreatFiring)
+            {
+                _state = CombatState.Chase;
+                return;
+            }
+
             if (_target != null && _target.IsAlive)
             {
                 float dist = Vector2.Distance(transform.position, _target.transform.position);
 
                 // 때릴 수 없을 만큼 붙었으면(마법의 안전 반경·최소 사거리) 거리를 벌린다.
                 // 가만히 있으면 상태만 Attack 이고 실제로는 아무도 못 때리는 상태가 된다.
+                // ⚠️ 교전 고정 중에도 이건 살아 있다 — 취향이 아니라 물리적 제약이다.
                 if (dist < MinAttackDistance)
                 {
                     _backOff = true;
@@ -805,22 +1011,49 @@ namespace LastSanctuary.Combat
 
                 // 전열 유지 — 지정된 교전 거리보다 가까우면 그만큼 물러난다(후방·중위 포지션).
                 // 여유(StandoffTolerance)를 빼야 밀림에 밀릴 때마다 전진/후퇴가 뒤집히지 않는다.
-                if (_standoffTiles > 0f && dist < _standoffTiles - StandoffTolerance)
+                //
+                // ★ <b>교전이 시작된 뒤에는 물러나지 않는다</b>(<see cref="_engaged"/>).
+                //    적이 다가오는 만큼 계속 뒤로 빠지면 전투 지역을 통째로 벗어나 버린다
+                //    (유저 리포트 2026-08-11). 유지 거리는 <b>붙기 전에 자리를 잡는 용도</b>로만 쓴다 —
+                //    원거리·마법은 이 구간에서 최대 사거리까지 물러나 자리를 잡고 시작한다.
+                if (!_engaged && _standoffTiles > 0f && dist < _standoffTiles - StandoffTolerance)
                 {
-                    _backOff = true;
-                    _state = CombatState.Chase;
-                    return;
+                    // 자리를 잡기 시작한 지점을 기억한다 — 여기서 얼마나 멀어졌는지가 한계의 기준.
+                    if (!_repositioning)
+                    {
+                        _repositioning = true;
+                        _openingAnchor = transform.position;
+                    }
+
+                    // ⚠️ <b>한계가 없으면 결국 전투 지역을 벗어난다</b> — 적이 나보다 빠르면
+                    //    거리가 영영 안 벌어져서 계속 물러나기만 한다. 개시 위치를 잡는 이동은
+                    //    시작 지점에서 이만큼까지만 허용하고, 넘으면 그 자리에서 교전을 고정한다.
+                    if (Vector2.Distance(transform.position, _openingAnchor) <= openingRepositionMaxTiles)
+                    {
+                        _backOff = true;
+                        _state = CombatState.Chase;
+                        return;
+                    }
+
+                    _engaged = true;
+                    _engagedWith = _target;
                 }
 
                 if (dist <= EffectiveAttackRange + TargetRadius(_target))
                 {
+                    // 사거리 안에 들어온 그 순간이 교전 시작이다 — 이후로는 자리를 지킨다.
+                    _engaged = true;
+                    _engagedWith = _target;
                     _state = CombatState.Attack;
                     return;
                 }
 
                 // "적이 사거리 내에 들어올 때까지 대기" — 쫓아가지 않고 자기 자리를 지킨다.
                 // 몬스터(advanceToObjective)에는 적용하지 않는다.
-                if (_reaction == TacticalAttackReaction.HoldGround && !advanceToObjective)
+                // ⚠️ 동료를 때리는 적을 잡으러 가는 중이면 대기하지 않는다 — 그 상황만이
+                //    자리를 뜨는 유일한 사유다(유저 지시).
+                if (_reaction == TacticalAttackReaction.HoldGround && !advanceToObjective &&
+                    !_answeringAllyCall)
                 {
                     _holdingGround = true;
                     _state = Vector2.Distance(transform.position, _homePosition) > 0.3f
@@ -843,6 +1076,17 @@ namespace LastSanctuary.Combat
 
         void Act(float dt)
         {
+            // ★ 후퇴 사격(카이팅) — 이 상태에서만 이동과 공격이 <b>동시에</b> 일어난다.
+            // 이동 목적지는 언제나 후퇴 지점이라 적을 쫓아가는 일이 없고,
+            // 사거리 안에 들어온 적만 쏜다. 바라보는 방향은 CharacterAnimator 가
+            // "이동 중엔 진행 방향 · 때리는 순간엔 타겟 방향" 으로 갈라 준다.
+            if (_retreatFiring)
+            {
+                if (!immobile) MoveToDestination(_homePosition, dt);
+                if (InAttackRange(_target)) TryAttack();
+                return;
+            }
+
             switch (_state)
             {
                 case CombatState.Attack:

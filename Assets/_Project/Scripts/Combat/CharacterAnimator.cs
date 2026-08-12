@@ -103,9 +103,15 @@ namespace LastSanctuary.Combat
         {
             if (_skin == null || _sprite == null) return;
 
-            UpdateFacing();
+            // 이번 프레임에 얼마나 움직였는지는 방향 판정과 모션 판정이 <b>같은 값</b>을 써야 한다.
+            // 예전에는 공격 중에 _lastPosition 이 갱신되지 않아, 공격이 끝난 첫 프레임의
+            // 이동량이 공격 시간 전체의 이동량으로 잡혔다.
+            Vector2 delta = transform.position - _lastPosition;
+            _lastPosition = transform.position;
 
-            Sprite[] wanted = ResolveFrames(out float fps);
+            UpdateFacing(delta);
+
+            Sprite[] wanted = ResolveFrames(delta.magnitude, out float fps);
             if (wanted == null || wanted.Length == 0) return;
 
             // 모션이 바뀌면 첫 프레임부터 다시 시작한다 — 안 그러면 공격 모션이 걷기 프레임
@@ -129,7 +135,7 @@ namespace LastSanctuary.Combat
         /// 공격이 가장 앞인 이유: 공격 중에도 밀림(separation)으로 좌표가 조금씩 흔들려서,
         /// 이동 판정을 먼저 보면 때리는 동안 걷는 모션이 섞인다.
         /// </summary>
-        Sprite[] ResolveFrames(out float fps)
+        Sprite[] ResolveFrames(float moved, out float fps)
         {
             if (Time.time < _attackUntil)
             {
@@ -138,10 +144,6 @@ namespace LastSanctuary.Combat
             }
 
             fps = _skin.framesPerSecond;
-
-            float moved = ((Vector2)(transform.position - _lastPosition)).magnitude;
-            _lastPosition = transform.position;
-
             return moved > moveThreshold ? _skin.Walk(_facingRight) : _skin.Idle(_facingRight);
         }
 
@@ -163,19 +165,36 @@ namespace LastSanctuary.Combat
         }
 
         /// <summary>
-        /// 바라보는 방향. 공격 중이면 타겟 쪽, 아니면 진행 방향을 본다.
+        /// 바라보는 방향.
+        ///
+        /// ★ <b>때리는 순간에만 타겟(=투사체가 날아갈 방향)을 보고, 그 외에는 진행 방향을 본다</b>
+        /// (유저 지시 2026-08-11: "이동할때는 이동 방향을 바라보고 공격 할때는 투사체 방향을
+        /// 바라보게 ... 지금처럼 뒷걸음질 치지 말고 롤에서 카이팅 할때처럼").
+        ///
+        /// <b>예전에는 타겟이 있으면 언제나 타겟을 봤다.</b> 그래서 물러나면서 싸울 때
+        /// 적을 마주 본 채 뒤로 걸어가는 <b>뒷걸음질</b>이 됐다. 이제는 물러나는 동안 등을
+        /// 보이고 걷다가, 공격이 나가는 순간(<see cref="_attackUntil"/> 유지 시간)만 홱 돌아
+        /// 쏘고 다시 진행 방향으로 돌아온다.
+        ///
         /// 좌우 성분이 거의 없을 때는 마지막 방향을 유지한다 — 위아래로만 움직일 때
         /// 좌우가 덜덜 떨리는 것을 막는다(<see cref="UnitCombat.FaceMovement"/> 와 같은 규칙).
         /// </summary>
-        void UpdateFacing()
+        void UpdateFacing(Vector2 delta)
         {
             float dx;
 
             DamageableUnit target = _combat != null ? _combat.Target : null;
-            if (target != null && target.IsAlive)
+            bool attacking = Time.time < _attackUntil && target != null && target.IsAlive;
+
+            if (attacking)
+                dx = target.transform.position.x - transform.position.x;
+            else if (delta.sqrMagnitude > moveThreshold * moveThreshold)
+                dx = delta.x;
+            else if (target != null && target.IsAlive)
+                // 멈춰 서 있고 공격 모션도 아니면 적을 마주 본다 — 대치 중에 등을 보이면 어색하다.
                 dx = target.transform.position.x - transform.position.x;
             else
-                dx = transform.position.x - _lastPosition.x;
+                return;
 
             if (Mathf.Abs(dx) < 0.001f) return;
             _facingRight = dx > 0f;

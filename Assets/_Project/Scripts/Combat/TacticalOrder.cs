@@ -53,6 +53,24 @@ namespace LastSanctuary.Combat
         HoldGround,
     }
 
+    /// <summary>
+    /// <b>후퇴 시 행동</b> — 전방 아군이 물러날 때 나는 어떻게 할지 (유저 지시 2026-08-11).
+    ///
+    /// 자기 체력이 후퇴 기준 아래로 내려가면 <b>어느 쪽을 골랐든 물러난다</b> —
+    /// 이 지침이 정하는 것은 <b>"남이 물러날 때"</b> 뿐이다.
+    /// </summary>
+    public enum TacticalRetreatAction
+    {
+        /// <summary>공격 유지 — 앞이 빠져도 자기 자리에서 계속 싸운다.</summary>
+        KeepFighting,
+
+        /// <summary>
+        /// 동료와 함께 후퇴 — 전방이 물러나면 <b>최대 사거리를 유지하며</b> 같이 물러난다.
+        /// 넥서스까지 도망가는 것이 아니라 적에게서 자기 사거리만큼 떨어진 자리를 계속 잡는다.
+        /// </summary>
+        FallBackWithAlly,
+    }
+
     /// <summary>웨이브가 없는 동안 무엇을 우선할지.</summary>
     public enum TacticalNonCombat
     {
@@ -114,6 +132,10 @@ namespace LastSanctuary.Combat
         [Tooltip("체력이 이 % 이하로 떨어지면 후퇴를 시도한다. 0 이면 후퇴하지 않는다")]
         [Range(0, 100)] public int retreatHpPercent = 35;
 
+        [Tooltip("전방 아군이 물러날 때 나는 어떻게 할지. " +
+                 "공격 위치가 '전방'이면 따라 물러날 대상이 없으므로 '공격 유지'로 고정된다")]
+        public TacticalRetreatAction retreatAction = TacticalRetreatAction.KeepFighting;
+
         /// <summary>다른 지침의 값을 그대로 가져온다 (UI 가 편집 대상 캐릭터를 바꿀 때).</summary>
         public void CopyFrom(TacticalOrder other)
         {
@@ -125,7 +147,26 @@ namespace LastSanctuary.Combat
             nonCombat = other.nonCombat;
             waveReaction = other.waveReaction;
             retreatHpPercent = other.retreatHpPercent;
+            retreatAction = other.retreatAction;
+            Normalize();
         }
+
+        /// <summary>
+        /// 서로 모순되는 조합을 바로잡는다. <b>지금은 한 가지</b> —
+        /// <b>공격 위치가 전방이면 '동료와 함께 후퇴'를 고를 수 없다</b>(유저 확정 2026-08-11).
+        /// 전방보다 앞에 선 아군이 없으니 따라 물러날 대상 자체가 없다.
+        ///
+        /// 값을 넣는 모든 경로(UI · CopyFrom · 인스펙터 직접 수정)가 이 한 곳을 지나게 해서
+        /// "UI 에서는 막았는데 다른 경로로는 들어가는" 구멍을 없앤다.
+        /// </summary>
+        public void Normalize()
+        {
+            if (position == TacticalPosition.Front)
+                retreatAction = TacticalRetreatAction.KeepFighting;
+        }
+
+        /// <summary>이 지침에서 '동료와 함께 후퇴'를 고를 수 있는지 (UI 가 버튼을 잠글 때 쓴다).</summary>
+        public bool CanFallBackWithAlly => position != TacticalPosition.Front;
 
         /// <summary>UI 의 "초기화" 버튼 — 코드 기본값으로 되돌린다.</summary>
         public void ResetToDefault() => CopyFrom(new TacticalOrder());
@@ -135,7 +176,8 @@ namespace LastSanctuary.Combat
         {
             string retreat = retreatHpPercent > 0 ? $"체력 {retreatHpPercent}% 이하에서 후퇴" : "후퇴하지 않음";
             return $"{Label(position)} 에서 {Label(attackType)} 공격으로 {Label(targetPriority)}을(를) 노리고, " +
-                   $"{Label(attackReaction)}. 비전투 시 {Label(nonCombat)}, 웨이브에는 {Label(waveReaction)}. {retreat}.";
+                   $"{Label(attackReaction)}. 비전투 시 {Label(nonCombat)}, 웨이브에는 {Label(waveReaction)}. " +
+                   $"{retreat}, 앞이 빠지면 {Label(retreatAction)}.";
         }
 
         // ── 표시용 라벨 (UI 와 요약문이 같은 문구를 쓰도록 여기 한 곳에 모아둔다) ──────
@@ -146,6 +188,12 @@ namespace LastSanctuary.Combat
             TacticalAttackType.Magic  => "마법",
             TacticalAttackType.Heal   => "치유",
             _                         => "근거리",
+        };
+
+        public static string Label(TacticalRetreatAction v) => v switch
+        {
+            TacticalRetreatAction.FallBackWithAlly => "동료와 함께 후퇴",
+            _                                      => "공격 유지",
         };
 
         public static string Label(TacticalPosition v) => v switch

@@ -144,6 +144,9 @@ namespace LastSanctuary.Units
                  "기준선 근처에서 후퇴/복귀를 무한히 반복하며 덜덜 떤다")]
         [Range(0, 50)] [SerializeField] int retreatRecoverMargin = 15;
 
+        [Tooltip("전방 아군이 후퇴 중인지 다시 확인하는 간격(초). 매 프레임 전체 유닛을 훑지 않기 위한 값")]
+        [Min(0.05f)] [SerializeField] float frontRetreatCheckInterval = 0.25f;
+
         [Tooltip("후퇴 시 물러나 대기할 지점 — 넥서스로부터의 반경(타일)")]
         [Min(0.5f)] [SerializeField] float retreatRadius = 3f;
 
@@ -168,6 +171,7 @@ namespace LastSanctuary.Units
 
         // ── 전술 지침 (CharacterTactics 가 밀어 넣는다. 여기선 직렬화하지 않는다) ────
         TacticalPosition _position = TacticalPosition.Mid;
+        TacticalRetreatAction _retreatAction = TacticalRetreatAction.KeepFighting;
         TacticalNonCombat _nonCombat = TacticalNonCombat.Hunt;
         TacticalWaveReaction _waveReaction = TacticalWaveReaction.DefendNow;
         int _retreatHpPercent;
@@ -179,8 +183,15 @@ namespace LastSanctuary.Units
         public CharacterDuty Duty => _duty;
         public Vector3 Destination => _destination;
 
-        /// <summary>지금 후퇴 중인지 (로스터 표시·디버그용).</summary>
+        /// <summary>지금 후퇴 중인지 (로스터 표시·디버그용 + 뒤에 선 아군의 동반 후퇴 판정).</summary>
         public bool IsRetreating => _retreating;
+
+        // 전방 아군 후퇴 판정 캐시 — frontRetreatCheckInterval 간격으로만 다시 계산한다.
+        bool _frontRetreating;
+        float _nextFrontRetreatCheck;
+
+        /// <summary>따라 물러나기 시작한 전방 아군. 그가 후퇴를 끝낼 때까지 붙잡고 있는다.</summary>
+        CharacterBehavior _followingRetreatOf;
 
         /// <summary>지금 정신 이상이 임무를 가로채고 있는지 (로스터 표시·디버그용).</summary>
         public MentalOverride Mental => _mental;
@@ -209,6 +220,7 @@ namespace LastSanctuary.Units
                 {
                     _retreating = false;
                     _combat.SetCombatSuppressed(false);
+                    _combat.SetRetreatFiring(false);
                 }
                 _duty = CurrentDuty();
                 _repickTime = 0f;
@@ -216,11 +228,15 @@ namespace LastSanctuary.Units
             }
 
             // 오버라이드 진입 — 지침에 따른 후퇴는 여기서 끝낸다(위 주석 참조).
+            // ⚠️ `_retreating` 을 직접 끄므로 `SetRetreating` 을 안 거친다 —
+            //    후퇴 사격도 여기서 같이 꺼야 한다. 안 그러면 정신 이상 중에 계속 쏜다.
             _retreating = false;
+            _combat.SetRetreatFiring(false);
 
             if (mode == MentalOverride.Flee)
             {
-                // 공포: 적을 인식하지 않고 넥서스 쪽으로 물러난다 = 기존 후퇴와 완전히 같은 동작.
+                // 공포: 적을 인식하지 않고 넥서스 쪽으로 물러난다.
+                // ★ 체력 후퇴와 달리 <b>쏘지 않는다</b> — 패닉 상태라는 것이 이 상태의 정의다.
                 _combat.SetCombatSuppressed(true);
                 _combat.ClearHuntTarget();
                 _duty = CharacterDuty.Retreat;
@@ -239,7 +255,8 @@ namespace LastSanctuary.Units
         /// 지침의 정본은 그쪽이고 여기는 사본이다.
         /// </summary>
         public void ApplyTactics(TacticalPosition position, TacticalNonCombat nonCombat,
-                                 TacticalWaveReaction waveReaction, int retreatHpPercent)
+                                 TacticalWaveReaction waveReaction, int retreatHpPercent,
+                                 TacticalRetreatAction retreatAction)
         {
             bool positionChanged = _position != position;
 
@@ -247,6 +264,16 @@ namespace LastSanctuary.Units
             _nonCombat = nonCombat;
             _waveReaction = waveReaction;
             _retreatHpPercent = Mathf.Clamp(retreatHpPercent, 0, 100);
+            _retreatAction = retreatAction;
+
+            // '공격 유지'로 돌아왔는데 남을 따라 물러나던 중이면 그 자리에서 끊는다 —
+            // 안 그러면 지침을 바꿔도 이번 후퇴가 끝날 때까지 반영이 안 된 것처럼 보인다.
+            if (_retreatAction != TacticalRetreatAction.FallBackWithAlly && _followingRetreatOf != null)
+            {
+                _followingRetreatOf = null;
+                _frontRetreating = false;
+                _nextFrontRetreatCheck = 0f;
+            }
 
             // 포지션이 바뀌면 지금 서 있는 자리가 더 이상 맞지 않으므로 즉시 다시 고른다.
             // (다음 재추첨까지 최대 6초를 기다리면 UI 를 눌러도 아무 반응이 없어 보인다)
@@ -651,13 +678,88 @@ namespace LastSanctuary.Units
         /// </summary>
         void UpdateRetreatState()
         {
+            // ★ 전방 아군이 물러나면 같이 물러난다 (유저 지시 2026-08-11:
+            //   "전방의 캐릭터나 본인 스스로의 체력이 후퇴 기준에 다다라서 ... 후퇴할 때").
+            //   앞이 무너졌는데 뒤가 그 자리에 남으면 그대로 물려 죽는다.
+            bool frontFallingBack = FrontAllyIsRetreating();
+
+            // 후퇴 기준이 0 이면 "후퇴하지 않음"이라는 명시적 지침이다 —
+            // 전방이 물러나도 따라가지 않는다. 지침을 넘어서까지 대신 판단하지 않는다.
             if (_retreatHpPercent <= 0) { SetRetreating(false); return; }
 
             float percent = _self.HpRatio * 100f;
 
-            if (!_retreating && percent <= _retreatHpPercent) SetRetreating(true);
-            else if (_retreating && percent >= Mathf.Min(100, _retreatHpPercent + retreatRecoverMargin))
+            if (!_retreating && (percent <= _retreatHpPercent || frontFallingBack))
+                SetRetreating(true);
+            else if (_retreating && !frontFallingBack &&
+                     percent >= Mathf.Min(100, _retreatHpPercent + retreatRecoverMargin))
                 SetRetreating(false);
+        }
+
+        /// <summary>
+        /// <b>나보다 앞에 선 아군 캐릭터가 지금 후퇴 중인지.</b>
+        ///
+        /// <b>"앞"의 기준은 넥서스로부터의 거리</b>다 — 넥서스에서 나보다 먼 쪽에 있으면 전방이다.
+        /// 이 프로젝트가 전열(전방/중위/후방)을 정의하는 방식 그대로다(36절).
+        /// ⚠️ <b>적과의 거리로 재면 안 된다</b> — 물러나는 도중 적이 사거리 밖으로 나가
+        /// <c>_combat.Target</c> 이 null 이 되는 순간 판정이 뒤집혀서
+        /// <b>후퇴/복귀를 반복하며 제자리에서 떤다.</b>
+        ///
+        /// 한 번 따라 물러나기 시작하면 <b>그 상대가 후퇴를 끝낼 때까지 계속 따른다</b>
+        /// (<see cref="_followingRetreatOf"/>) — 중간에 서로의 앞뒤가 바뀌어도 흔들리지 않게.
+        ///
+        /// 포탑은 세지 않는다(후퇴하지 않는 구조물이다). 내가 전방이면 따라 물러날 대상이
+        /// 없으므로 보지 않는다 — 전방은 자기 체력으로만 판단한다.
+        ///
+        /// ⚠️ 매 프레임 전체 유닛을 훑지 않도록 <see cref="frontRetreatCheckInterval"/> 간격으로만
+        /// 다시 계산하고 사이에는 직전 결과를 쓴다.
+        /// </summary>
+        bool FrontAllyIsRetreating()
+        {
+            // ★ '공격 유지'를 고른 캐릭터는 앞이 빠져도 자기 자리에서 계속 싸운다(전술 지침).
+            //   전방 포지션은 애초에 이 지침을 고를 수 없다(TacticalOrder.Normalize).
+            if (_retreatAction != TacticalRetreatAction.FallBackWithAlly) return false;
+            if (_position == TacticalPosition.Front || supportRange <= 0f) return false;
+            if (Time.time < _nextFrontRetreatCheck) return _frontRetreating;
+            _nextFrontRetreatCheck = Time.time + frontRetreatCheckInterval;
+
+            float limitSqr = supportRange * supportRange;
+
+            // 따라 물러나던 상대가 아직 후퇴 중이면 앞뒤를 다시 따지지 않고 계속 따른다.
+            if (_followingRetreatOf != null)
+            {
+                bool stillFollowing =
+                    _followingRetreatOf._self != null && _followingRetreatOf._self.IsAlive &&
+                    _followingRetreatOf.IsRetreating &&
+                    ((Vector2)(_followingRetreatOf.transform.position - transform.position)).sqrMagnitude
+                        <= limitSqr;
+                if (stillFollowing) { _frontRetreating = true; return true; }
+                _followingRetreatOf = null;
+            }
+
+            Vector3 nexus = NexusPosition();
+            float myDistToNexus = Vector2.Distance(transform.position, nexus);
+            _frontRetreating = false;
+
+            var all = UnitRegistry.All;
+            for (int i = 0; i < all.Count; i++)
+            {
+                DamageableUnit u = all[i];
+                if (u == null || !u.IsAlive || ReferenceEquals(u, _self)) continue;
+                if (u.Faction != _self.Faction || u.Kind != UnitKind.Character) continue;
+                if (((Vector2)(u.transform.position - transform.position)).sqrMagnitude > limitSqr) continue;
+
+                // 넥서스에서 나보다 먼 쪽에 선 아군만 "전방"이다.
+                if (Vector2.Distance(u.transform.position, nexus) <= myDistToNexus) continue;
+
+                var behavior = u.GetComponent<CharacterBehavior>();
+                if (behavior == null || !behavior.IsRetreating) continue;
+
+                _followingRetreatOf = behavior;
+                _frontRetreating = true;
+                break;
+            }
+            return _frontRetreating;
         }
 
         void SetRetreating(bool value)
@@ -665,9 +767,12 @@ namespace LastSanctuary.Units
             if (_retreating == value) return;
             _retreating = value;
 
-            // 후퇴 중에는 적을 아예 인식하지 않는다 — 안 그러면 물러나는 길에 마주친 적을
-            // 다시 쫓아가느라 영영 못 빠져나온다.
-            _combat.SetCombatSuppressed(value);
+            // ★ 예전에는 여기서 전투를 통째로 껐다(`SetCombatSuppressed`) — "물러나는 길에
+            //    마주친 적을 다시 쫓아가느라 영영 못 빠져나온다"는 이유였다. 이제는
+            //    <b>후퇴 사격</b>으로 바꾼다: 이동 목적지는 후퇴 지점으로 고정되고 사거리 안에
+            //    들어온 적만 쏘므로, 쫓아가는 일이 애초에 없다(유저 지시 2026-08-11).
+            //    공포(정신 이상)는 여전히 전투를 끈다 — 그쪽은 SetMentalOverride 가 직접 켠다.
+            _combat.SetRetreatFiring(value);
 
             if (value)
             {
@@ -711,8 +816,46 @@ namespace LastSanctuary.Units
                 PickRetreatSpot();
         }
 
+        /// <summary>
+        /// ★ <b>동반 후퇴 전용 후퇴 지점</b> — 넥서스까지 도망가는 것이 아니라
+        /// <b>적에게서 자기 최대 사거리만큼 떨어진, 넥서스 쪽 자리</b>를 잡는다
+        /// (유저 지시: "동료와 함께 후퇴를 선택하면 전방이 후퇴할때 최대 사거리를 유지하며 같이 후퇴").
+        ///
+        /// 적이 다가오면 이 점도 넥서스 쪽으로 밀려나므로 <b>거리를 유지한 채 계속 물러난다.</b>
+        /// 적을 못 찾으면 평소 후퇴 지점(넥서스 주변)으로 넘긴다.
+        ///
+        /// ⚠️ 기준이 되는 적은 <c>UnitCombat.Target</c> 이 아니라 <b>가장 가까운 적</b>이다 —
+        /// 후퇴 사격 중에는 사거리 밖 타겟을 놓아버리므로, 타겟을 기준으로 잡으면
+        /// 물러나자마자 기준이 사라져 후퇴 지점이 넥서스로 튄다.
+        /// </summary>
+        bool TryPickStandoffRetreatSpot()
+        {
+            DamageableUnit foe = UnitRegistry.FindTarget(
+                transform.position, _self.Faction, _combat.EffectiveDetectRange, null, null);
+            if (foe == null) return false;
+
+            Vector3 nexus = NexusPosition();
+            Vector2 towardNexus = nexus - foe.transform.position;
+            if (towardNexus.sqrMagnitude < 0.0001f) return false;
+
+            float range = Mathf.Max(1f, _combat.EffectiveAttackRange);
+            Vector3 spot = foe.transform.position + (Vector3)(towardNexus.normalized * range);
+            if (!IsWalkable(spot)) return false;
+
+            _destination = spot;
+            _repickTime = Time.time + 0.5f;   // 적이 움직이므로 자주 다시 잡는다
+            _combat.SetHome(_destination, retreatRadius + guardRadius);
+            return true;
+        }
+
         void PickRetreatSpot()
         {
+            // 내 체력은 멀쩡한데 물러나는 중 = 전방을 따라가는 동반 후퇴다.
+            if (_retreatAction == TacticalRetreatAction.FallBackWithAlly &&
+                _self.HpRatio * 100f > _retreatHpPercent &&
+                TryPickStandoffRetreatSpot())
+                return;
+
             Vector3 nexus = NexusPosition();
             Vector3 candidate = nexus;
 

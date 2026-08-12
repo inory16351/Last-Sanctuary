@@ -25,4 +25,4 @@ MonoBehaviour:
   attackRange: 2.0
   attacksPerSecond: 0.9
   moveSpeedTiles: 1.4
-  footprintTiles: 3
+  footprintTiles: 1

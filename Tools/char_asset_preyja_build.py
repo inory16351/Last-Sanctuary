@@ -23,6 +23,19 @@
    PPU 50 으로 넣으면 20% 넘게 커 보인다. **픽셀을 리샘플링하지 않고 PPU 만 조정**해
    맞춘다(확대·축소하면 픽셀아트가 뭉개진다). PPU 는 스프라이트마다 다를 수 있다.
 
+4. ★ **원본 `Move` 를 쓰지 않고 Idle 에서 걷기를 만들어낸다** (유저 지시 2026-08-11:
+   "이동 모습일때 너무 어색하니까 idle 상태 스프라이트 재해석 해서 붙여가지고 다시 만들어줘.
+   다른 캐릭터들 스킨이랑 일관성을 가지도록").
+
+   원본 `Move` 8장은 **웅크려 창을 앞으로 뻗은 돌진 포즈**라 직립 Idle 과 실루엣이 완전히 다르다.
+   엘린·비기오르는 **Walk 가 Idle 과 같은 직립 실루엣이고 다리만 움직인다**(둘 다 프레임 사이
+   위쪽 경계가 1~3px 만 흔들리고 발 위치는 고정). 프레이야만 걸을 때 다른 사람이 되는 셈이라
+   서 있다가 움직이는 순간 튀어 보였다.
+
+   그래서 Idle 3프레임을 **재해석해 6프레임 걷기 주기**를 합성한다 — 자세한 규칙은
+   `synth_walk_from_idle` 주석 참조. 원본 `Move` 원화는 손대지 않고 남아 있으므로
+   나중에 "돌진/질주" 같은 별도 모션으로 쓸 수 있다.
+
 남는 한 가지 — RangedAttack 은 오른쪽이 4프레임, **왼쪽이 3프레임**이다. 원본 시트가
 없어 잃어버린 것인지 애초에 3장인지 확정할 수 없다(좌우 원화가 서로의 거울상이 아니므로
 오른쪽 프레임을 뒤집어 끼우면 날개 그림이 튄다). 그대로 3프레임으로 둔다 —
@@ -47,12 +60,28 @@ TARGET_BODY_UNITS = 2.18
 ALPHA_SOLID = 128     # '몸'으로 볼 불투명도 — 흐린 잔광·그림자를 앵커 계산에서 뺀다
 ALPHA_ANY = 32        # 프레임 경계(bbox)를 잡을 때 쓰는 문턱
 
-# 원본 폴더명 → Unity 폴더명. 엘린·비기오르가 Walk 를 쓰므로 Move 를 Walk 로 맞춘다.
-MOTION_RENAME = {"Move": "Walk"}
-
-# 발 기준으로 정렬할 캐릭터 모션 (투사체는 발이 없다 — 따로 처리)
-BODY_MOTIONS = ["Idle", "Walk", "MeleeAttack", "RangedAttack"]
+# 원본에서 그대로 가져오는 캐릭터 모션. `Move` 는 일부러 빠져 있다 —
+# 걷기는 Idle 에서 합성한다(파일 상단 4번).
+SOURCE_BODY_MOTIONS = ["Idle", "MeleeAttack", "RangedAttack"]
 FX_MOTIONS = ["Projectile", "ProjectileBurst"]
+
+# ---- 걷기 합성 파라미터 (전부 여기 모아둔다 — 어색하면 이 숫자만 만진다) ----
+
+WALK_FRAMES = 6                 # 두 걸음 한 주기. 비기오르 6 · 엘린 5 와 같은 급
+
+# 어느 Idle 프레임을 밑그림으로 쓸지. ⚠ **핑퐁으로 돌린다** — [0,1,2,0,1,2] 로 두면
+# 자락 흔들림이 0 이 되는 두 접지 프레임(0·3)이 밑그림까지 같아져 **완전히 같은 그림**이
+# 두 장 나온다(실제로 그렇게 나왔다). 밑그림을 어긋나게 두면 여섯 장이 전부 달라진다.
+WALK_POSE_ORDER = [0, 1, 2, 1, 0, 2]
+
+WALK_LEAN_PX = 3                # 진행 방향으로 상체를 기울이는 양(머리 기준). 발은 0
+WALK_BOB_PX = 2                 # 한 걸음마다 몸이 뜨는 높이
+WALK_SWING_PX = 3               # 아랫도리(다리·로브)가 앞뒤로 흔들리는 폭
+WALK_SWING_BAND = 0.38          # 아랫도리로 볼 높이 비율 (발끝에서 이 비율까지)
+
+# ⚠ 좌우 흔들림(sway)은 넣지 않는다 — **몸 전체를 같은 양만큼 밀면 아무 일도 안 일어난다.**
+#   정규화가 발 기준점을 캔버스 가운데에 맞추므로 균일 이동은 그 단계에서 정확히 상쇄된다.
+#   체중 이동을 표현하려면 위아래가 서로 다르게 움직여야 하고, 그 역할은 위의 swing 이 한다.
 
 
 # ======================================================================
@@ -299,6 +328,69 @@ def body_anchor(img):
     return x_anchor, y_bottom, y_top
 
 
+def row_shift(img, shifts):
+    """
+    행마다 정수 픽셀로 좌우로 밀어 새 이미지를 만든다 (기울이기 · 흔들기의 공통 수단).
+
+    <b>정수 픽셀만 민다</b> — 실수 좌표로 회전·전단하면 픽셀아트가 보간되어 뭉개진다.
+    행 단위 정수 이동이면 원본 픽셀이 그대로 살아있다.
+    """
+    w, h = img.size
+    lo, hi = min(shifts), max(shifts)
+    out = Image.new("RGBA", (w + (hi - lo), h), (0, 0, 0, 0))
+    for y in range(h):
+        out.paste(img.crop((0, y, w, y + 1)), (shifts[y] - lo, y))
+    return out
+
+
+def synth_walk_from_idle(idle_frames, facing_right):
+    """
+    ★ Idle 프레임을 재해석해 걷기 한 주기를 만든다 (유저 지시 — 파일 상단 4번).
+
+    <b>왜 그리지 않고 변형하는가</b> — 다리를 새로 그릴 수단이 없다. 대신 **로브 자락과
+    상체를 움직여** 걷는 것처럼 읽히게 한다. 이 캐릭터는 긴 로브를 입고 있어서
+    다리 대신 자락이 흔들리는 편이 오히려 자연스럽다.
+
+    한 프레임에 세 가지를 겹친다. 전부 <b>발끝을 고정</b>하고 위로 갈수록 커지므로
+    발이 미끄러지지 않는다(엘린·비기오르 걷기도 아래 경계가 고정이고 위만 흔들린다).
+
+    1. **기울임(lean)** — 진행 방향으로 상체를 기울인다. 머리에서 최대, 발에서 0.
+       걷기와 서기를 가르는 가장 강한 신호다. 주기 내내 유지된다.
+    2. **자락 흔들림(swing)** — 아랫도리(발끝~38% 높이)만 앞뒤로 흔든다.
+       발끝과 허리에서 0, 그 중간에서 최대라 <b>자락이 앞뒤로 나부끼는</b> 모양이 된다.
+       한 주기에 앞·뒤 한 번씩(사인) — 이것이 두 걸음이다.
+    3. **바운스(bob)와 흔들(sway)** — 한 걸음마다 몸이 살짝 뜨고 좌우로 체중이 옮겨간다.
+
+    ⚠️ 밑그림은 Idle 3장을 돌려쓴다. 한 장만 쓰면 로브 주름·날개가 완전히 굳어서
+       변형만 도는 것이 눈에 보인다.
+    """
+    import math
+
+    sign = 1 if facing_right else -1
+    out = []
+    for i in range(WALK_FRAMES):
+        src = trim(idle_frames[WALK_POSE_ORDER[i % len(WALK_POSE_ORDER)] % len(idle_frames)])
+        w, h = src.size
+        phase = 2 * math.pi * i / WALK_FRAMES
+
+        swing = sign * WALK_SWING_PX * math.sin(phase)
+        # |sin| 이라 한 주기에 두 번 솟는다 = 걸음마다 한 번
+        bob = int(round(WALK_BOB_PX * abs(math.sin(phase))))
+
+        shifts = []
+        for y in range(h):
+            t = (h - 1 - y) / max(1, h - 1)          # 0=발끝, 1=머리끝
+            lean = sign * WALK_LEAN_PX * t
+            # 아랫도리에서만 살아나는 봉우리 — 발끝(0)과 밴드 끝에서 0, 가운데서 1
+            band = math.sin(math.pi * t / WALK_SWING_BAND) if t < WALK_SWING_BAND else 0.0
+            shifts.append(int(round(lean + swing * band)))
+
+        # bob 은 이미지에 여백으로 넣지 않는다 — 정규화가 실루엣 아래를 캔버스 바닥에
+        # 맞추므로 여백을 넣어봐야 그대로 상쇄된다. 배치 단계에 넘길 '들어올림' 값으로 둔다.
+        out.append((row_shift(src, shifts), bob))
+    return out
+
+
 def trim(img):
     """투명 여백을 잘라낸다 (알파 문턱 기준)."""
     a = np.array(img)[:, :, 3]
@@ -313,37 +405,49 @@ def trim(img):
 # ======================================================================
 
 def collect_body_frames():
-    """모션별·방향별 프레임을 모으고 Idle 은 복원해서 돌려준다."""
-    result = {}    # (unity_motion, side) -> [Image]
-    for motion in ["Idle", "MeleeAttack", "Move", "RangedAttack"]:
+    """
+    모션별·방향별 프레임을 모은다. 값은 `(이미지, 들어올림px)` 목록이다 —
+    들어올림은 걷기 바운스에만 쓰이고 나머지는 0 이다.
+
+    Idle 은 깨진 원본을 복원하고, Walk 는 그 Idle 에서 합성한다.
+    """
+    result = {}
+    for motion in SOURCE_BODY_MOTIONS:
         for side in ["Left", "Right"]:
             raw = frames_of(motion, side)
             if motion == "Idle":
-                row = stitch_row(raw)
-                frames = split_characters(row, expected=3)
+                frames = split_characters(stitch_row(raw), expected=3)
                 print(f"  Idle {side}: 원본 {len(raw)}컷(깨짐) → 복원 {len(frames)}프레임")
             else:
                 frames = raw
                 print(f"  {motion} {side}: {len(frames)}프레임")
-            result[(MOTION_RENAME.get(motion, motion), side)] = frames
+            result[(motion, side)] = [(f, 0) for f in frames]
+
+    # ★ 걷기는 원본 Move 가 아니라 Idle 에서 만든다 (파일 상단 4번)
+    for side in ["Left", "Right"]:
+        idle = [f for f, _ in result[("Idle", side)]]
+        result[("Walk", side)] = synth_walk_from_idle(idle, facing_right=(side == "Right"))
+        print(f"  Walk {side}: Idle {len(idle)}프레임 → 합성 {WALK_FRAMES}프레임 "
+              f"(원본 Move 는 쓰지 않는다)")
     return result
 
 
 def normalize_body(frames_by_key):
     """
     모든 캐릭터 프레임을 하나의 균일 캔버스에 발 기준으로 앉힌다.
-    반환: {(motion, side): [Image]} · 캔버스 크기 · 아이들 몸 높이
+    반환: {(motion, side): [Image]} · 캔버스 크기 · 대기 자세 몸 높이
     """
     metrics = {}
     for key, frames in frames_by_key.items():
-        for i, f in enumerate(frames):
+        for i, (f, lift) in enumerate(frames):
             t = trim(f)
             ax, ybot, ytop = body_anchor(t)
-            metrics[(key, i)] = (t, ax, ybot, ytop)
+            metrics[(key, i)] = (t, ax, ybot, ytop, lift)
 
-    left_ext = max(ax for _, ax, _, _ in metrics.values())
-    right_ext = max(t.width - ax for t, ax, _, _ in metrics.values())
-    height = max(ybot + 1 for _, _, ybot, _ in metrics.values())
+    left_ext = max(ax for _, ax, _, _, _ in metrics.values())
+    right_ext = max(t.width - ax for t, ax, _, _, _ in metrics.values())
+    # 들어올린 프레임은 그만큼 위가 더 필요하다
+    height = max(ybot + 1 + lift for _, _, ybot, _, lift in metrics.values())
 
     half = max(left_ext, right_ext)          # 좌우 대칭 캔버스 — 피벗이 정확히 가운데여야 한다
     canvas = (half * 2, height)
@@ -352,13 +456,14 @@ def normalize_body(frames_by_key):
     for key, frames in frames_by_key.items():
         made = []
         for i in range(len(frames)):
-            t, ax, ybot, _ = metrics[(key, i)]
+            t, ax, ybot, _, lift = metrics[(key, i)]
             img = Image.new("RGBA", canvas, (0, 0, 0, 0))
-            img.alpha_composite(t, (half - ax, canvas[1] - 1 - ybot))
+            img.alpha_composite(t, (half - ax, canvas[1] - 1 - ybot - lift))
             made.append(img)
         out[key] = made
 
-    idle_h = max(ybot - ytop + 1 for (k, _), (_, _, ybot, ytop) in metrics.items() if k[0] == "Idle")
+    idle_h = max(ybot - ytop + 1
+                 for (k, _), (_, _, ybot, ytop, _) in metrics.items() if k[0] == "Idle")
     return out, canvas, idle_h
 
 
