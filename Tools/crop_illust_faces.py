@@ -14,7 +14,7 @@ Unity 의 Resources 로 쓰므로, 몇 번을 돌려도 결과가 같고 원본�
 import os
 from PIL import Image
 
-SRC = r'C:\Project\라스트 생츄어리\리소스\illust\char'
+SRC = r'C:\Project\Last-Sanctuary-Vault\리소스\illust\char'
 DST = r'C:\Project\Last Sanctuary\Assets\_Project\Resources\Illust'
 
 # 초상화 Sprite 칸: Portrait(226x200) 에 -16 인셋 → 210x184

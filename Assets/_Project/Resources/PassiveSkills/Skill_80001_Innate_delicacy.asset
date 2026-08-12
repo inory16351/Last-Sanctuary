@@ -18,7 +18,7 @@ MonoBehaviour:
   effectKey: 'skill_type_desc_Innate_delicacy'
   skillName: '타고난 섬세함'
   skillType: 'Innate_delicacy'
-  value01: 1
+  value01: 2
   value02: 0
   value03: 0
   coolTime: 0

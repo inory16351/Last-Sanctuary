@@ -18,8 +18,8 @@ MonoBehaviour:
   effectKey: 'skill_type_desc_Rho_aias'
   skillName: '로 아이아스'
   skillType: 'Rho_aias'
-  value01: 2
-  value02: 10
+  value01: 4
+  value02: 8
   value03: 0
   coolTime: 0
   iconName: 'icon_shield_aura'

@@ -16,8 +16,8 @@ MonoBehaviour:
   type: 9
   nameKey: mental_error_name_40009
   koreanName: 피학
-  value01: 1.5
+  value01: 0.8
   value02: 0
-  durationSeconds: 60
-  afterErosion: 65
-  activationProbability: 0.1125
+  durationSeconds: 45
+  afterErosion: 50
+  activationProbability: 0.12

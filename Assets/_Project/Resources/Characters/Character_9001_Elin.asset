@@ -19,17 +19,17 @@ MonoBehaviour:
   illustName: 'illust_Elin'
   skinAssetName: 'Skin_Elin'
   stats:
-    hp: 2
+    hp: 4
     attack: 4
-    defense: 2
+    defense: 3
     regen: 4
-    rangedAttack: 3
-    magic: 8
-    cure: 7
-    accuracy: 1
-    critical: 2
-    attackSpeed: 3
-    moveSpeed: 9
+    rangedAttack: 5
+    magic: 11
+    cure: 9
+    accuracy: 6
+    critical: 4
+    attackSpeed: 5
+    moveSpeed: 11
     resistance: 13
   passives:
   - {fileID: 11400000, guid: 5e40c71e09362bd75f0e66203e8fa549, type: 2}

@@ -33,7 +33,7 @@ import sys
 import datetime
 import openpyxl
 
-TABLE_DIR = r'C:\Project\라스트 생츄어리\데이터 테이블'
+TABLE_DIR = r'C:\Project\Last-Sanctuary-Vault\데이터 테이블'
 STRING_XLSX = os.path.join(TABLE_DIR, '스트링 키 테이블.xlsx')
 BACKUP_ROOT = os.path.join(TABLE_DIR, '_백업')
 

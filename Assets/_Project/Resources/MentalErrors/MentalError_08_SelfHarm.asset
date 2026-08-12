@@ -16,8 +16,8 @@ MonoBehaviour:
   type: 8
   nameKey: mental_error_name_40008
   koreanName: 자해
-  value01: 30
+  value01: 25
   value02: 0
   durationSeconds: 0
-  afterErosion: 65
-  activationProbability: 0.1125
+  afterErosion: 55
+  activationProbability: 0.12

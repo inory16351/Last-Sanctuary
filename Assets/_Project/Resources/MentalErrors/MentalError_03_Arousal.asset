@@ -16,8 +16,8 @@ MonoBehaviour:
   type: 3
   nameKey: mental_error_name_40003
   koreanName: 각성
-  value01: 10
+  value01: 15
   value02: 0
   durationSeconds: 120
-  afterErosion: 60
-  activationProbability: 0.04
+  afterErosion: 75
+  activationProbability: 0.05

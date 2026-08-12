@@ -20,7 +20,39 @@ namespace LastSanctuary.UI
     /// </summary>
     public class SkillDetailPanel : MonoBehaviour
     {
-        public static SkillDetailPanel Instance { get; private set; }
+        static SkillDetailPanel _instance;
+
+        /// <summary>
+        /// ★ <b>버그 수정 (유저 리포트: "스킬 상세 설명 UI 가 안 나온다")</b>
+        ///
+        /// 예전에는 <c>Awake</c> 에서만 채우는 순수 static 필드였다. 그런데 이 창은 씬에서
+        /// <b>비활성</b>(<c>HUD_SkillDetail.activeSelf = false</c>)으로 시작하고,
+        /// <b>비활성 오브젝트의 <c>Awake</c> 는 아예 돌지 않는다.</b> 그래서
+        /// <see cref="Instance"/> 가 <b>영원히 null</b> 이었고, 호출부가
+        /// <c>SkillDetailPanel.Instance?.Open(...)</c> 로 물음표를 붙여 놓았기 때문에
+        /// <b>에러도 로그도 없이 조용히 아무 일도 일어나지 않았다</b> — 스킬 카드를 눌러도
+        /// 창이 뜰 수가 없었다.
+        ///
+        /// 이 프로젝트가 <b>같은 함정을 이미 두 번 밟았다</b>(36-4절 <c>SquadPanel</c>,
+        /// 49-6절 <c>CharacterGrowthPanel</c>). 그때는 <b>부르는 쪽</b>에서
+        /// <c>FindAnyObjectByType(FindObjectsInactive.Include)</c> 로 우회했는데,
+        /// 그러면 <b>새 호출부가 생길 때마다 같은 우회를 기억해야 한다</b> — 이번 버그가 정확히
+        /// 그래서 났다. 그래서 이번에는 <b>우회를 프로퍼티 안으로 넣어</b> 호출부가 아무것도
+        /// 몰라도 되게 했다. 이 창을 부르는 코드는 그대로 두면 된다.
+        /// </summary>
+        public static SkillDetailPanel Instance
+        {
+            get
+            {
+                if (_instance != null) return _instance;
+
+                // 비활성이라 Awake 가 안 돌았을 수 있다 — 비활성까지 포함해 찾는다.
+                _instance = FindAnyObjectByType<SkillDetailPanel>(FindObjectsInactive.Include);
+                if (_instance != null) _instance.EnsureBound();
+                return _instance;
+            }
+            private set => _instance = value;
+        }
 
         [Header("문구")]
         [SerializeField] string ownerFormat = "{0} · 패시브 {1}";
@@ -34,16 +66,29 @@ namespace LastSanctuary.UI
         TMP_Text _effectText;
         TMP_Text _valuesText;
 
+        bool _bound;
+
         void Awake()
         {
             Instance = this;
-            BuildBindings();
+            EnsureBound();
             gameObject.SetActive(false);   // 항상 닫힌 채로 시작
         }
 
         void OnDestroy()
         {
-            if (Instance == this) Instance = null;
+            if (_instance == this) _instance = null;
+        }
+
+        /// <summary>
+        /// 하이라키 배선을 한 번만 한다. <see cref="Awake"/> 가 안 돌았을 수도 있으므로
+        /// (비활성 시작 — 위 <see cref="Instance"/> 주석) <see cref="Open"/> 쪽에서도 부른다.
+        /// </summary>
+        void EnsureBound()
+        {
+            if (_bound) return;
+            _bound = true;
+            BuildBindings();
         }
 
         public bool IsOpen => gameObject.activeSelf;
@@ -57,6 +102,7 @@ namespace LastSanctuary.UI
         {
             if (skill == null || !unlocked) return;
 
+            EnsureBound();   // Awake 가 안 돌았을 수 있다 (비활성 시작)
             gameObject.SetActive(true);
             transform.SetAsLastSibling();   // 성장 창 위에 그린다
 

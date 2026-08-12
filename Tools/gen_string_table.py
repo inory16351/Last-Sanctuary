@@ -32,7 +32,7 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils import get_column_letter
 
-TABLE_DIR = r'C:\Project\라스트 생츄어리\데이터 테이블'
+TABLE_DIR = r'C:\Project\Last-Sanctuary-Vault\데이터 테이블'
 OUT_XLSX = os.path.join(TABLE_DIR, '스트링 키 테이블.xlsx')
 
 # 스크립트 위치에서 프로젝트 루트를 역산한다 (gen_character_assets.py 의 교훈 —

@@ -18,9 +18,9 @@ MonoBehaviour:
   effectKey: 'skill_type_desc_Ecstasy'
   skillName: '희열'
   skillType: 'Ecstasy'
-  value01: 5
+  value01: 2
   value02: 5
-  value03: 0
+  value03: 3
   coolTime: 0
   iconName: 'icon_arcane_aura'
   flavorText: '그녀는 전투 중 종종 황홀경에 빠지곤 합니다.'

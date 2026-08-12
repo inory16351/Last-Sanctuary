@@ -17,12 +17,12 @@ MonoBehaviour:
   displayName: 포탑
   kind: 1
   maxCount: 0
-  hp: 100
-  defenseStat: 2
+  hp: 400
+  defenseStat: 8
   healOnWave: 0
-  attackStat: 10
-  attacksPerSecond: 1
-  attackRange: 5
+  attackStat: 18
+  attacksPerSecond: 1.2
+  attackRange: 6
   splash: 1
   splashAreaTiles: 2
   costBase: 50

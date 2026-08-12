@@ -24,6 +24,6 @@ MonoBehaviour:
   attackType: 1
   detectRange: 8
   attackRange: 5.0
-  attacksPerSecond: 0.7
+  attacksPerSecond: 0.822
   moveSpeedTiles: 2.2
   footprintTiles: 1

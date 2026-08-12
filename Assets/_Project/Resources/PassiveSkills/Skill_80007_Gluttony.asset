@@ -18,7 +18,7 @@ MonoBehaviour:
   effectKey: 'skill_type_desc_Gluttony'
   skillName: '포식'
   skillType: 'Gluttony'
-  value01: 3
+  value01: 5
   value02: 0
   value03: 0
   coolTime: 0

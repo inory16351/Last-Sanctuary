@@ -18,8 +18,8 @@ MonoBehaviour:
   effectKey: 'skill_type_desc_Rampage'
   skillName: '광란'
   skillType: 'Rampage'
-  value01: 15
-  value02: 5
+  value01: 10
+  value02: 3
   value03: 0
   coolTime: 0
   iconName: 'icon_demon_rage'

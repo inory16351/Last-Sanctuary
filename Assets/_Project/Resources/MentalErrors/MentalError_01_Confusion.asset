@@ -19,5 +19,5 @@ MonoBehaviour:
   value01: 0
   value02: 0
   durationSeconds: 30
-  afterErosion: 75
-  activationProbability: 0.1125
+  afterErosion: 45
+  activationProbability: 0.09

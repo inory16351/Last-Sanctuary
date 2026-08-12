@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21498a0a43b4e824ea7e6db210ef2e29, type: 3}
+  m_Name: Skill_80010_Corrosion
+  m_EditorClassIdentifier:
+  skillId: 80010
+  nameKey: 'skill_name_80010'
+  flavorKey: 'skill_explain_80010'
+  effectKey: 'skill_type_desc_Corrosion'
+  skillName: '부식'
+  skillType: 'Corrosion'
+  value01: 8
+  value02: 6
+  value03: 0
+  coolTime: 0
+  iconName: 'icon_poison_skull'
+  flavorText: '역병의사의 숨결은 적들에게 공포를 선사합니다.'
+  effectTemplate: '피올로에게 공격을 당한 적의 방어력이 {value_01} 만큼 감소한다. {value_02}초 만큼 지속된다. 중첩 불가능.'

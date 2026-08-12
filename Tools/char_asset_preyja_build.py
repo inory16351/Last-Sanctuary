@@ -49,7 +49,7 @@ import shutil
 import numpy as np
 from PIL import Image
 
-SRC = r"C:\Project\라스트 생츄어리\리소스\asset\char_asset\Char_Asset_Preyja\Char"
+SRC = r"C:\Project\Last-Sanctuary-Vault\리소스\asset\char_asset\Char_Asset_Preyja\Char"
 PROJECT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DST = os.path.join(PROJECT, "Assets", "_Project", "Art", "Char_Asset", "Char_Asset_Preyja", "Char")
 DST_REL = "Assets/_Project/Art/Char_Asset/Char_Asset_Preyja/Char"

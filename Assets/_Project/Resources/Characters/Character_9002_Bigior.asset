@@ -19,14 +19,14 @@ MonoBehaviour:
   illustName: 'illust_Bigior'
   skinAssetName: 'Skin_Bigior'
   stats:
-    hp: 8
-    attack: 6
-    defense: 8
-    regen: 6
+    hp: 12
+    attack: 7
+    defense: 11
+    regen: 4
     rangedAttack: 4
     magic: 1
-    cure: 7
-    accuracy: 2
+    cure: 5
+    accuracy: 5
     critical: 2
     attackSpeed: 4
     moveSpeed: 3

@@ -17,7 +17,7 @@ MonoBehaviour:
   nameKey: mental_error_name_40011
   koreanName: 역겨움
   value01: 5
-  value02: 1
-  durationSeconds: 60
-  afterErosion: 65
-  activationProbability: 0.1125
+  value02: 0.5
+  durationSeconds: 40
+  afterErosion: 50
+  activationProbability: 0.11

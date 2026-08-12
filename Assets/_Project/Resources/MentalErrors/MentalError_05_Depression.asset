@@ -17,7 +17,7 @@ MonoBehaviour:
   nameKey: mental_error_name_40005
   koreanName: 우울
   value01: 5
-  value02: 25
+  value02: 20
   durationSeconds: 0
-  afterErosion: 75
-  activationProbability: 0.1125
+  afterErosion: 50
+  activationProbability: 0.11

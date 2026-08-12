@@ -11,7 +11,7 @@
 import os, hashlib
 import openpyxl
 
-XLSX = r'C:\Project\라스트 생츄어리\데이터 테이블\캐릭터 테이블.xlsx'
+XLSX = r'C:\Project\Last-Sanctuary-Vault\데이터 테이블\캐릭터 테이블.xlsx'
 
 # ⚠ 예전에는 프로젝트 경로를 'C:\Project\Last Sanctuary' 로 박아뒀는데 실제 폴더는
 #   'C:\Project\Last-Sanctuary' 다(하이픈). 그대로 돌리면 엉뚱한 폴더를 새로 만들고
@@ -91,7 +91,7 @@ def guid_for(key):
 # <b>리터럴 폴백</b>은 여기서 되돌려 읽어야 한다 — 안 그러면 폴백 칸에 키 문자열이 들어가고,
 # 스트링 테이블을 못 읽는 상황에서 화면에 'character_name_9001' 이 그대로 뜬다.
 # ---------------------------------------------------------------------------
-STRING_XLSX = r'C:\Project\라스트 생츄어리\데이터 테이블\스트링 키 테이블.xlsx'
+STRING_XLSX = r'C:\Project\Last-Sanctuary-Vault\데이터 테이블\스트링 키 테이블.xlsx'
 
 
 def load_strings():

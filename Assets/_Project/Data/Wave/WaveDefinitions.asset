@@ -17,6 +17,7 @@ MonoBehaviour:
     meleeCount: 4
     rangedCount: 4
     bossCount: 0
+    midBossCount: 0
     statPercent: 50
     reinforceIntervalSeconds: 0
     reinforceCount: 0
@@ -24,6 +25,7 @@ MonoBehaviour:
     meleeCount: 5
     rangedCount: 5
     bossCount: 0
+    midBossCount: 0
     statPercent: 65
     reinforceIntervalSeconds: 0
     reinforceCount: 0
@@ -31,6 +33,7 @@ MonoBehaviour:
     meleeCount: 7
     rangedCount: 7
     bossCount: 0
+    midBossCount: 0
     statPercent: 90
     reinforceIntervalSeconds: 0
     reinforceCount: 0
@@ -38,13 +41,15 @@ MonoBehaviour:
     meleeCount: 9
     rangedCount: 9
     bossCount: 0
+    midBossCount: 0
     statPercent: 120
     reinforceIntervalSeconds: 0
     reinforceCount: 0
   - waveNumber: 5
-    meleeCount: 12
-    rangedCount: 12
+    meleeCount: 10
+    rangedCount: 10
     bossCount: 0
+    midBossCount: 1
     statPercent: 170
     reinforceIntervalSeconds: 0
     reinforceCount: 0
@@ -52,6 +57,7 @@ MonoBehaviour:
     meleeCount: 11
     rangedCount: 11
     bossCount: 0
+    midBossCount: 0
     statPercent: 210
     reinforceIntervalSeconds: 0
     reinforceCount: 0
@@ -59,6 +65,7 @@ MonoBehaviour:
     meleeCount: 12
     rangedCount: 12
     bossCount: 0
+    midBossCount: 0
     statPercent: 250
     reinforceIntervalSeconds: 0
     reinforceCount: 0
@@ -66,6 +73,7 @@ MonoBehaviour:
     meleeCount: 13
     rangedCount: 13
     bossCount: 0
+    midBossCount: 0
     statPercent: 300
     reinforceIntervalSeconds: 0
     reinforceCount: 0
@@ -73,6 +81,7 @@ MonoBehaviour:
     meleeCount: 14
     rangedCount: 14
     bossCount: 0
+    midBossCount: 0
     statPercent: 340
     reinforceIntervalSeconds: 0
     reinforceCount: 0
@@ -80,6 +89,7 @@ MonoBehaviour:
     meleeCount: 7
     rangedCount: 7
     bossCount: 1
+    midBossCount: 0
     statPercent: 430
     reinforceIntervalSeconds: 0
     reinforceCount: 0
@@ -87,6 +97,7 @@ MonoBehaviour:
     meleeCount: 13
     rangedCount: 13
     bossCount: 0
+    midBossCount: 0
     statPercent: 460
     reinforceIntervalSeconds: 0
     reinforceCount: 0
@@ -94,6 +105,7 @@ MonoBehaviour:
     meleeCount: 14
     rangedCount: 14
     bossCount: 0
+    midBossCount: 0
     statPercent: 500
     reinforceIntervalSeconds: 0
     reinforceCount: 0
@@ -101,6 +113,7 @@ MonoBehaviour:
     meleeCount: 14
     rangedCount: 14
     bossCount: 0
+    midBossCount: 0
     statPercent: 540
     reinforceIntervalSeconds: 0
     reinforceCount: 0
@@ -108,13 +121,15 @@ MonoBehaviour:
     meleeCount: 15
     rangedCount: 15
     bossCount: 0
+    midBossCount: 0
     statPercent: 580
     reinforceIntervalSeconds: 0
     reinforceCount: 0
   - waveNumber: 15
-    meleeCount: 17
-    rangedCount: 17
+    meleeCount: 15
+    rangedCount: 15
     bossCount: 0
+    midBossCount: 1
     statPercent: 660
     reinforceIntervalSeconds: 0
     reinforceCount: 0
@@ -122,6 +137,7 @@ MonoBehaviour:
     meleeCount: 15
     rangedCount: 15
     bossCount: 0
+    midBossCount: 0
     statPercent: 690
     reinforceIntervalSeconds: 0
     reinforceCount: 0
@@ -129,6 +145,7 @@ MonoBehaviour:
     meleeCount: 16
     rangedCount: 16
     bossCount: 0
+    midBossCount: 0
     statPercent: 730
     reinforceIntervalSeconds: 0
     reinforceCount: 0
@@ -136,6 +153,7 @@ MonoBehaviour:
     meleeCount: 17
     rangedCount: 17
     bossCount: 0
+    midBossCount: 0
     statPercent: 770
     reinforceIntervalSeconds: 0
     reinforceCount: 0
@@ -143,6 +161,7 @@ MonoBehaviour:
     meleeCount: 18
     rangedCount: 18
     bossCount: 0
+    midBossCount: 0
     statPercent: 820
     reinforceIntervalSeconds: 0
     reinforceCount: 0
@@ -150,6 +169,7 @@ MonoBehaviour:
     meleeCount: 12
     rangedCount: 12
     bossCount: 1
+    midBossCount: 0
     statPercent: 900
     reinforceIntervalSeconds: 0
     reinforceCount: 0

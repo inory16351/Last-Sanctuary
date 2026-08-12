@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21498a0a43b4e824ea7e6db210ef2e29, type: 3}
+  m_Name: Skill_80011_Calm_down
+  m_EditorClassIdentifier:
+  skillId: 80011
+  nameKey: 'skill_name_80011'
+  flavorKey: 'skill_explain_80011'
+  effectKey: 'skill_type_desc_Calm_down'
+  skillName: '정신 안정'
+  skillType: 'Calm_down'
+  value01: 30
+  value02: 0
+  value03: 0
+  coolTime: 180
+  iconName: 'icon_barrier_dome'
+  flavorText: '전장의 광기는 그들을 머나먼 곳으로 인도하곤 하지만 아직은 떠날 때가 아닙니다.'
+  effectTemplate: '같은 집결지 내의 동료가 부정적인 정신 이상에 당할 경우, 즉시 정신 이상 상태를 해제하고 침식 수치를{value_01} 만큼 낮춘다.'

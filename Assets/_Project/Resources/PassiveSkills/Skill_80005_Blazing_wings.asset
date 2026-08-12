@@ -19,7 +19,7 @@ MonoBehaviour:
   skillName: '타오르는 날개'
   skillType: 'Blazing_wings'
   value01: 3
-  value02: 4
+  value02: 2
   value03: 0
   coolTime: 0
   iconName: 'icon_flame_burst'

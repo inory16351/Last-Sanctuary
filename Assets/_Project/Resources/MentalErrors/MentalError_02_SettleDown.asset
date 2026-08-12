@@ -17,7 +17,7 @@ MonoBehaviour:
   nameKey: mental_error_name_40002
   koreanName: 진정
   value01: 5
-  value02: 25
+  value02: 30
   durationSeconds: 0
-  afterErosion: 50
-  activationProbability: 0.04
+  afterErosion: 70
+  activationProbability: 0.06

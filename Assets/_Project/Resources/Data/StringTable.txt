@@ -73,3 +73,13 @@ skill_type_desc_Rho_aias	비기오르의 반경 {value_01} 내에 있는 동료�
 skill_type_desc_Sacrifice	엘린의 주변에 현재체력이 최대체력의{value_01}%만큼 감소한 상태의 동료가 존재한다면 즉시 엘린의 현재 체력이 {value_02}% 만큼 감소하고 대상의 체력을 최대체력의{value_02}%만큼 회복한다.	
 skill_type_desc_Void_laser	가장 먼 적을 향해 단탈리온이 존재하는 칸을 포함하여 {value_01}(가로) x {value_02}(세로) 범위의 적을 단탈리온의 근거리 공격력{value_03}%로 공격한다	
 skill_type_desc_Will_of_iron	비기오르는 침식 정신 상태 이상 발동 시 좋은 효과가 발동할 확률이{value_01}배 높다. 정신 상태 이상 시 유저에게 이득을 주는 효과 한정 확률 증가 후 남은 확률 부정적 효과에 균일하게 재 분배	
+character_name_9004	피올로	Piolo
+skill_explain_80010	역병의사의 숨결은 적들에게 공포를 선사합니다.	
+skill_explain_80011	전장의 광기는 그들을 머나먼 곳으로 인도하곤 하지만 아직은 떠날 때가 아닙니다.	
+skill_explain_80012	피올로의 손길은 천사들에겐 달콤한 휴식과도 같습니다.	
+skill_name_80010	부식	
+skill_name_80011	정신 안정	
+skill_name_80012	정화의 손길	
+skill_type_desc_Calm_down	같은 집결지 내의 동료가 부정적인 정신 이상에 당할 경우, 즉시 정신 이상 상태를 해제하고 침식 수치를{value_01} 만큼 낮춘다.	
+skill_type_desc_Corrosion	피올로에게 공격을 당한 적의 방어력이 {value_01} 만큼 감소한다. {value_02}초 만큼 지속된다. 중첩 불가능.	
+skill_type_desc_Purifying_touch	정화의 손길이 활성화 된 동안 피올로가 공격한 적에게 '정화'를 한 개 부여한다. '정화'가 부여된 적을 공격할 시 공격한 캐릭터의  현재 체력이 최대 체력의 {value_01}% 만큼 회복되고, '정화'가 즉시 해제된다. '정화' 는 중첩 부여될 수 없다. 정화의 손길은 {value_02}초 동안 지속된다. 피올로의 현재 체력이 최대체력의 {value_03}% 가 되면 발동	

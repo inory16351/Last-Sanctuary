@@ -26,7 +26,7 @@ import os
 import openpyxl
 from openpyxl.styles import Alignment, Font, PatternFill
 
-XLSX = r"C:\Project\라스트 생츄어리\데이터 테이블\능력치 및 공식 정리.xlsx"
+XLSX = r"C:\Project\Last-Sanctuary-Vault\데이터 테이블\능력치 및 공식 정리.xlsx"
 
 # 새 공속·이속 상수 (코드의 BalanceConfig.asset 과 반드시 같아야 한다)
 APS_BASE, APS_LIMIT, APS_HALF = 0.6, 3.6, 50

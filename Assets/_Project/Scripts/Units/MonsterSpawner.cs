@@ -60,6 +60,13 @@ namespace LastSanctuary.Units
         [Tooltip("웨이브 테이블 사용 시 보스 담당")]
         [SerializeField] MonsterSpawnEntry bossSlot;
 
+        [Tooltip("웨이브 테이블 사용 시 <b>중간보스</b> 담당. 여러 개를 넣으면 그중 하나가 뽑힌다.\n" +
+                 "★ `웨이브 몬스터 테이블.xlsx` 의 `wave_mid_boss.spawn_percent`(혈인 0.5 / " +
+                 "공허의 속삭임 0.5)에 대응한다 — 각 항목의 `count` 가 <b>추첨 가중치</b>로 쓰인다" +
+                 "(마리 수가 아니다. 마리 수는 웨이브 표의 midBossCount 가 정한다).\n" +
+                 "웨이브 기획서 p4 의 \"5번째 웨이브 – 중간 보스 등장\" 이 23절부터 미구현이었다")]
+        [SerializeField] MonsterSpawnEntry[] midBossSlots = System.Array.Empty<MonsterSpawnEntry>();
+
         [Header("맵 참조")]
         [SerializeField] MapGenerator mapGenerator;
 
@@ -312,6 +319,7 @@ namespace LastSanctuary.Units
                 AppendToQueue(queue, meleeSlot, wave.meleeCount);
                 AppendToQueue(queue, rangedSlot, wave.rangedCount);
                 AppendToQueue(queue, bossSlot, wave.bossCount);
+                AppendMidBosses(queue, wave.midBossCount, rng);
             }
             else
             {
@@ -421,6 +429,99 @@ namespace LastSanctuary.Units
             if (entry.definition == null || count <= 0) return;
             MonsterUnit tpl = entry.template != null ? entry.template : entry.definition.template;
             for (int i = 0; i < count; i++) queue.Add((entry.definition, tpl));
+        }
+
+        /// <summary>
+        /// 중간보스를 <paramref name="count"/> 마리 대기열에 넣는다.
+        /// <b>어느 종류가 나오는지는 마리 수와 따로 정해진다</b> — 웨이브 표는 "몇 마리"만 정하고
+        /// (`midBossCount`), 종류는 <see cref="midBossSlots"/> 각 항목의 <c>count</c> 를
+        /// <b>추첨 가중치</b>로 써서 뽑는다. 이게 표의 `wave_mid_boss.spawn_percent`
+        /// (혈인 0.5 / 공허의 속삭임 0.5)에 대응하는 구조다.
+        ///
+        /// <b>왜 count 를 가중치로 재해석하는가</b> — <see cref="MonsterSpawnEntry"/> 는
+        /// (정의·템플릿·수량) 3칸짜리 기존 자료형이고, PROTO 가 쓰는 공개 자료형이라
+        /// 필드를 늘리면 씬의 직렬화 값이 흔들린다(47-4-2절). 남는 칸을 쓰는 쪽이 안전하다.
+        /// 가중치가 전부 0 이면 균등 추첨으로 떨어진다.
+        ///
+        /// 마리 수가 2 이상이면 <b>매번 다시 뽑는다</b> — 같은 종류만 둘 나오는 것도 가능하다
+        /// (확률 0.5/0.5 의 정의가 그렇다).
+        /// </summary>
+        void AppendMidBosses(List<(MonsterDefinitionSO def, MonsterUnit template)> queue,
+                             int count, System.Random rng)
+        {
+            if (count <= 0 || midBossSlots == null || midBossSlots.Length == 0) return;
+
+            int totalWeight = 0;
+            for (int i = 0; i < midBossSlots.Length; i++)
+                if (midBossSlots[i].definition != null)
+                    totalWeight += Mathf.Max(0, midBossSlots[i].count);
+
+            for (int n = 0; n < count; n++)
+            {
+                MonsterSpawnEntry picked = default;
+                bool found = false;
+
+                if (totalWeight > 0)
+                {
+                    int roll = rng.Next(totalWeight);
+                    for (int i = 0; i < midBossSlots.Length; i++)
+                    {
+                        if (midBossSlots[i].definition == null) continue;
+                        roll -= Mathf.Max(0, midBossSlots[i].count);
+                        if (roll >= 0) continue;
+                        picked = midBossSlots[i];
+                        found = true;
+                        break;
+                    }
+                }
+                else
+                {
+                    // 가중치를 아무도 안 넣었다 — 균등 추첨. "설정을 안 했으면 안 나온다" 보다
+                    // "일단 나온다" 가 낫다(표에 마리 수가 적혀 있다는 것이 곧 의도다).
+                    for (int tries = 0; tries < midBossSlots.Length; tries++)
+                    {
+                        int idx = rng.Next(midBossSlots.Length);
+                        if (midBossSlots[idx].definition == null) continue;
+                        picked = midBossSlots[idx];
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found)
+                {
+                    Debug.LogWarning($"[MonsterSpawner] 웨이브 {waveNumber} 에 중간보스 {count}마리가 " +
+                                     "예정돼 있는데 Mid Boss Slots 에 정의가 없습니다.", this);
+                    return;
+                }
+
+                queue.Add((picked.definition, ResolveMidBossTemplate(picked)));
+            }
+        }
+
+        /// <summary>
+        /// 중간보스가 쓸 외형 템플릿. 슬롯 → 정의 → <b>같은 공격 타입의 잡몹 슬롯</b> 순으로 찾는다.
+        ///
+        /// <b>왜 잡몹 템플릿으로 폴백하는가</b> — 유저 확정(진행상황 54-4절): "중간 보스 인게임
+        /// 모션은 <b>임시로 일반 몬스터 스킨을 그대로 쓰는 것</b>이니 신경 쓰지 말고 냅둬".
+        /// 그리고 구조적으로도 이 폴백이 필요하다: 템플릿은 <b>씬 오브젝트 참조</b>라
+        /// ① ScriptableObject(정의 에셋)에 넣을 수 없고(5절) ② MCP 로 씬의 배열 항목에 넣을 수도
+        /// 없다(8절 4번). 폴백이 없으면 중간보스 전용 템플릿을 손으로 연결할 때까지
+        /// "템플릿이 없습니다" 에러만 나고 아무것도 안 나온다.
+        ///
+        /// 전용 템플릿이 생기면 인스펙터에서 슬롯의 Template 칸을 채우면 되고, 그때부터
+        /// 이 폴백은 자동으로 안 쓰인다.
+        /// </summary>
+        MonsterUnit ResolveMidBossTemplate(MonsterSpawnEntry entry)
+        {
+            if (entry.template != null) return entry.template;
+            if (entry.definition != null && entry.definition.template != null)
+                return entry.definition.template;
+
+            bool ranged = entry.definition != null &&
+                          entry.definition.attackType != TacticalAttackType.Melee;
+            MonsterSpawnEntry fallback = ranged ? rangedSlot : meleeSlot;
+            return fallback.template != null ? fallback.template : fallback.definition?.template;
         }
 
         void SpawnOne(MonsterDefinitionSO def, MonsterUnit template, Vector3Int portalCell,

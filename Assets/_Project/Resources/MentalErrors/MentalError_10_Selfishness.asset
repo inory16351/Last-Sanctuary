@@ -18,6 +18,6 @@ MonoBehaviour:
   koreanName: 이기심
   value01: 0
   value02: 0
-  durationSeconds: 120
-  afterErosion: 75
-  activationProbability: 0.1125
+  durationSeconds: 90
+  afterErosion: 50
+  activationProbability: 0.12

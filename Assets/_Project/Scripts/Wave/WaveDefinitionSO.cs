@@ -11,6 +11,15 @@ namespace LastSanctuary.Wave
         [Min(0)] public int rangedCount;
         [Min(0)] public int bossCount;
 
+        [Tooltip("중간보스 마리 수. 표(`웨이브테이블.xlsx` Sheet2 의 `mid_boss_mon_num`)의 값이며 " +
+                 "5·15웨이브가 1이다.\n" +
+                 "★ 어느 중간보스가 나오는지는 이 값이 정하지 않는다 — " +
+                 "`웨이브 몬스터 테이블.xlsx` 의 `wave_mid_boss.spawn_percent`(0.5/0.5)가 정하고, " +
+                 "게임에서는 `MonsterSpawner.midBossSlots` 의 가중치가 그 역할을 한다.\n" +
+                 "웨이브 기획서 p4 의 \"5번째 웨이브 – 중간 보스 등장\" 이 23절부터 미구현으로 " +
+                 "남아 있던 항목이다(진행상황 54-5절에서 표에 컬럼이 신설됐다)")]
+        [Min(0)] public int midBossCount;
+
         [Tooltip("이 웨이브의 몬스터 능력치 배율(%, 정수). 표의 wave_mon_abil_per(0.6~2.63) × 100")]
         [Min(0)] public int statPercent;
 
