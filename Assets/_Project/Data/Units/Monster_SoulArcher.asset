@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 5dbe527860d1cbe42a3efae9fd5cb4b2, type: 3}
-  m_Name: Monster_Ranged
+  m_Name: Monster_SoulArcher
   m_EditorClassIdentifier: 
   nameKey: monster_name_100002
   displayName: 원거리 암세포
@@ -27,3 +27,6 @@ MonoBehaviour:
   attacksPerSecond: 0.822
   moveSpeedTiles: 2.2
   footprintTiles: 1
+  spriteScale: 1
+  bodyHeightTiles: 1
+  bodyWidthTiles: 1

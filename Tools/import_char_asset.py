@@ -230,7 +230,11 @@ def piolo():
     return import_asset(
         os.path.join(VAULT_ASSET, 'char_asset', 'Char_Asset_kim', 'Char'),
         'Char_Asset_Piolo',
-        ppu=60,                     # 기존 캐릭터(프레이야)와 같은 스케일
+        # ⚠ PPU 60 이 아니다 — 피올로 원화는 64x64 저해상도 팩이고 다른 캐릭터는
+        #   139~218px 다. 60 을 쓰면 보이는 크기가 0.95x0.75 타일로 다른 캐릭터
+        #   (2.1~3.1 타일)의 1/3 이 된다. 보이는 세로(45px)를 다른 캐릭터 평균 2.15타일에
+        #   맞춘 값이 21 이다 → 2.71 x 2.14 타일.
+        ppu=21,
         motion_map={
             'Idle': 'Idle',
             'Walk': 'Walk',

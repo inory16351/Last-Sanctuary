@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 5dbe527860d1cbe42a3efae9fd5cb4b2, type: 3}
-  m_Name: Monster_Boss
+  m_Name: Monster_Dantalian
   m_EditorClassIdentifier: 
   nameKey: monster_name_120001
   displayName: 암세포 군주
@@ -27,3 +27,6 @@ MonoBehaviour:
   attacksPerSecond: 0.77
   moveSpeedTiles: 1.4
   footprintTiles: 1
+  spriteScale: 0.75
+  bodyHeightTiles: 3
+  bodyWidthTiles: 2

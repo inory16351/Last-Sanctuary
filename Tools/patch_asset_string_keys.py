@@ -80,9 +80,9 @@ TARGETS = [
     #   ⚠️ <b>게임에 보이는 이름이 실제로 바뀐다</b>:
     #      근거리 암세포 → 지옥 송곳니 · 원거리 암세포 → 영혼 사수 · 암세포 군주 → 단탈리온
     #   리터럴(displayName)은 폴백으로 남아 있지만 키가 먼저 잡히므로 화면에는 표의 이름이 뜬다.
-    ('Assets/_Project/Data/Units/Monster_Melee.asset',  'monster_name_100001', 'displayName'),
-    ('Assets/_Project/Data/Units/Monster_Ranged.asset', 'monster_name_100002', 'displayName'),
-    ('Assets/_Project/Data/Units/Monster_Boss.asset',   'monster_name_120001', 'displayName'),
+    ('Assets/_Project/Data/Units/Monster_HellFang.asset',  'monster_name_100001', 'displayName'),
+    ('Assets/_Project/Data/Units/Monster_SoulArcher.asset', 'monster_name_100002', 'displayName'),
+    ('Assets/_Project/Data/Units/Monster_Dantalian.asset',   'monster_name_120001', 'displayName'),
 ]
 
 

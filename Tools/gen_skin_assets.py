@@ -199,9 +199,9 @@ def patch_existing():
         ("Skins/Skin_Elin.asset", [bolt], [flash], [], 0.55),
         ("Skins/Skin_Bigior.asset", [bolt], [flash], [], 0.55),
         # 근거리 몬스터는 탄환을 쏘지 않는다 — 그래도 필드는 만들어 둔다(비어 있음이 명시적이게).
-        ("MonsterSkins/Melee/Skin_Monster_Melee.asset", [], [], [], 0.55),
+        ("MonsterSkins/Melee/Skin_HellFang.asset", [], [], [], 0.55),
         # 분비형 암세포의 침 9프레임. 마지막 두 장이 흩어지는 그림이라 착탄 효과가 따로 필요 없다.
-        ("MonsterSkins/Ranged/Skin_Monster_Ranged.asset", spits, [], [], 0.35),
+        ("MonsterSkins/Ranged/Skin_SoulArcher.asset", spits, [], [], 0.35),
         # 포탑 레이저 (원화에서 오려낸 것 — 27-11절).
         ("BuildingSkins/Skin_Tower.asset", [bolt_t], [flash_t], [], 0.85),
     ]

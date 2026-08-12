@@ -150,9 +150,9 @@ def sync_mental_errors():
 # ---------------------------------------------------------------------------
 # 표의 monster_id → 기존 에셋 파일명. 중간보스는 아직 에셋이 없어서 새로 만든다(아래).
 MONSTER_ASSET_BY_ID = {
-    100001: 'Monster_Melee',
-    100002: 'Monster_Ranged',
-    120001: 'Monster_Boss',
+    100001: 'Monster_HellFang',
+    100002: 'Monster_SoulArcher',
+    120001: 'Monster_Dantalian',
 }
 
 # 중간보스 — 54-4절. tier=MidBoss(1).
@@ -165,8 +165,8 @@ MONSTER_ASSET_BY_ID = {
 # ⚠ **외형(template)은 이 에셋에 넣을 수 없다** — ScriptableObject 는 씬 오브젝트를 참조할 수
 #   없다(진행상황 5절). 스포너의 슬롯이 템플릿을 지정하는 구조이므로 씬에서 MCP 로 연결한다.
 MID_BOSS = {
-    110001: dict(asset='Monster_MidBoss_Melee', name='혈인', inherit='Monster_Melee'),
-    110002: dict(asset='Monster_MidBoss_Ranged', name='공허의 속삭임', inherit='Monster_Ranged'),
+    110001: dict(asset='Monster_MidBoss_HellFang', name='혈인', inherit='Monster_HellFang'),
+    110002: dict(asset='Monster_MidBoss_SoulArcher', name='공허의 속삭임', inherit='Monster_SoulArcher'),
 }
 
 # 능력치 → 공속/이속 치환은 게임이 인스펙터 값을 그대로 쓰므로(몬스터는 StatMoveSpeedTiles 0)
@@ -235,6 +235,13 @@ def sync_monsters():
         body += "  attacksPerSecond: %s\n" % aspd_from_stat(num(r[8]))
         body += "  moveSpeedTiles: %s\n" % mspd_from_stat(num(r[9]))
         body += "  footprintTiles: %s\n" % inherited('footprintTiles', '1')
+        # 크기 — 유저 확정 2026-08-12: "중간보스는 크기만 일반 몬스터 두 배로 키워서
+        # 일단 에셋은 동일하게 써서". 발판 2x2 · 균등 스케일 2배(비율 유지).
+        # ⚠ 이 블록이 없으면 이 스크립트를 다시 돌릴 때마다 크기가 초기화된다
+        #   (중간보스 에셋은 갱신이 아니라 전체 재작성이다).
+        body += "  bodyWidthTiles: 2\n"
+        body += "  bodyHeightTiles: 2\n"
+        body += "  spriteScale: 2\n"
 
         with open(path, 'w', encoding='utf-8', newline='\n') as f:
             f.write(body)

@@ -555,9 +555,11 @@ namespace LastSanctuary.Units
             StatBlock scaled = def.BuildStats(hpScale, atkScale, balance.statMax);
             unit.Initialize(def, scaled, balance);
 
-            // 크기 보정 — 보스는 대형 그리드
-            if (def.footprintTiles > 1)
-                unit.transform.localScale = Vector3.one * def.footprintTiles;
+            // 크기 보정 — <b>균등 스케일만</b> 쓴다(비율 유지, 유저 확정 2026-08-12).
+            // 발판 크기(BodyWidth/BodyHeight)는 스케일과 분리돼 있다 — MonsterDefinitionSO 참조.
+            float scale = def.EffectiveSpriteScale;
+            if (!Mathf.Approximately(scale, 1f))
+                unit.transform.localScale = Vector3.one * scale;
 
             // 정의 테이블의 전투 파라미터를 AI 에 주입
             var ai = unit.GetComponent<UnitCombat>();

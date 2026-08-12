@@ -1596,6 +1596,18 @@ namespace LastSanctuary.Combat
                 var nexusScale = target.transform.localScale.x;
                 return Mathf.Max(0.5f, nexusScale * 0.5f);
             }
+
+            // 몸집이 큰 몬스터(보스·중간보스) — 발판 크기만큼 반경을 준다.
+            // 없으면(일반 몬스터는 발판 1칸) 아래 기본값으로 떨어진다.
+            // ⚠ 이게 없으면 근거리 유닛이 <b>보스 중심까지</b> 들어가려 하고, 발판이 커질수록
+            //   "몸 안으로 파고드는" 모습이 된다. 반대로 너무 크게 주면 허공을 때린다 —
+            //   그래서 MonsterUnit 은 가로·세로 중 <b>작은 쪽</b>의 절반을 돌려준다.
+            if (target is Units.MonsterUnit monster)
+            {
+                float body = monster.BodyRadiusTiles;
+                if (body > 0.4f) return body;
+            }
+
             return 0.4f;
         }
 

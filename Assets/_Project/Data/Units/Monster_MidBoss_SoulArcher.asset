@@ -10,20 +10,23 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 5dbe527860d1cbe42a3efae9fd5cb4b2, type: 3}
-  m_Name: Monster_Melee
-  m_EditorClassIdentifier: 
-  nameKey: monster_name_100001
-  displayName: 근거리 암세포
-  tier: 0
+  m_Name: Monster_MidBoss_SoulArcher
+  m_EditorClassIdentifier:
+  nameKey: monster_name_110002
+  displayName: 공허의 속삭임
+  tier: 1
   template: {fileID: 0}
-  hpStat: 7
-  attackStat: 5
-  defenseStat: 2
-  regenStat: 0
-  hpPercent: 100
-  attackType: 0
-  detectRange: 7
-  attackRange: 1.2
+  hpStat: 9
+  attackStat: 6
+  defenseStat: 6
+  regenStat: 1
+  hpPercent: 600
+  attackType: 1
+  detectRange: 8
+  attackRange: 5.0
   attacksPerSecond: 0.822
-  moveSpeedTiles: 2.2
+  moveSpeedTiles: 2.25
   footprintTiles: 1
+  bodyWidthTiles: 2
+  bodyHeightTiles: 2
+  spriteScale: 2

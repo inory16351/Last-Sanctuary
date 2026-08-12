@@ -25,6 +25,16 @@ namespace LastSanctuary.Units
         public StatBlock Stats => stats;
         public MonsterTier Tier => definition != null ? definition.tier : MonsterTier.Normal;
 
+        /// <summary>
+        /// 몸집 반경(타일) — <b>근거리 유닛이 어디까지 다가가야 때릴 수 있는지</b>.
+        /// 발판의 가로·세로 중 작은 쪽의 절반을 쓴다: 큰 쪽을 쓰면 몸 옆구리에서
+        /// 사거리 안으로 판정돼 <b>공중에서 때리는</b> 것처럼 보인다.
+        /// 정의가 없으면 0 — <c>UnitCombat</c> 의 기존 기본값(0.4)이 그대로 쓰인다.
+        /// </summary>
+        public float BodyRadiusTiles =>
+            definition == null ? 0f
+                               : Mathf.Max(0f, Mathf.Min(definition.BodyWidth, definition.BodyHeight) * 0.5f);
+
         public override int MaxHp =>
             Balance != null
                 ? BalanceConfigSO.ScaleByPercent(
