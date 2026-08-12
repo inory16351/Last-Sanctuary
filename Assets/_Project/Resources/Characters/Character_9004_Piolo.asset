@@ -17,7 +17,7 @@ MonoBehaviour:
   characterName: '피올로'
   characterNameEn: 'Piolo'
   illustName: 'illust_Piolo'
-  skinAssetName: ''
+  skinAssetName: 'Skin_Piolo'
   stats:
     hp: 7
     attack: 3

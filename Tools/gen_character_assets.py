@@ -34,6 +34,7 @@ SKIN_OVERRIDE = {
     9001: 'Skin_Elin',             # 엘린 — 마법/치유형
     9002: 'Skin_Bigior',           # 비기오르 — 중장갑 탱커
     9003: 'Skin_Preyja',           # 프레이야 — 근접/원거리 창
+    9004: 'Skin_Piolo',            # 피올로 — 지원/치유 (표의 ingame_asset = Char_Asset_Piolo)
 }
 
 NARRATIVE = {
