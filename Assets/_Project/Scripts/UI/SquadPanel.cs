@@ -7,18 +7,15 @@ using LastSanctuary.Units;
 namespace LastSanctuary.UI
 {
     /// <summary>
-    /// 부대 지정 창. 부대를 만들고 지우고, 부대에 캐릭터를 배정한다.
+    /// 부대 설정 창. 부대를 만들고 지우고, 인원을 배정하고, <b>부대마다 집결지를 설정·해제</b>한다.
     ///
-    /// <b>배정 방식</b>(유저 확정 2026-08-11): 부대 슬롯을 누른 뒤 <b>로스터에서 캐릭터를 클릭</b>하면
+    /// <b>2026-08-12 개편</b>(유저 확정): 예전엔 액션 버튼이 "부대 지정 / 집결지 생성 / 집결지 해제"
+    /// 세 개였고 집결지의 담당 부대는 <b>맵의 집결지를 클릭</b>해서 골랐다. 지금은 그 셋이
+    /// <b>"부대 설정" 버튼 하나</b>로 합쳐졌고, 집결지는 <b>부대 카드 안의 두 버튼</b>으로 다룬다 —
+    /// 즉 집결지는 처음부터 어느 부대의 것인지가 정해진 채로 만들어진다.
+    ///
+    /// <b>배정 방식</b>(유저 확정 2026-08-11): 부대 카드를 누른 뒤 <b>로스터에서 캐릭터를 클릭</b>하면
     /// 그 캐릭터가 선택된 부대에 들어가고 슬롯에 일러스트가 나타난다. 같은 캐릭터를 다시 누르면 빠진다.
-    ///
-    /// <b>두 가지 용도</b>로 열린다:
-    /// <list type="number">
-    /// <item>액션 버튼("부대 지정") — 편성 모드. 부대를 만들고 인원을 넣는다.</item>
-    /// <item>맵의 집결지 클릭 — 그 집결지에 <b>어느 부대를 보낼지</b> 고르는 모드
-    ///       (<see cref="OpenForRallyPoint"/>). 이때는 부대 슬롯을 누르면 배정 대상이 아니라
-    ///       <b>그 집결지의 담당 부대</b>가 정해진다.</item>
-    /// </list>
     ///
     /// 다른 패널(<c>TacticalOrderPanel</c>·<c>CharacterGrowthPanel</c>)과 같은 API 모양을 쓴다.
     /// </summary>
@@ -30,30 +27,38 @@ namespace LastSanctuary.UI
         [Min(0f)] [SerializeField] float refreshInterval = 0.15f;
 
         [Header("문구")]
-        [SerializeField] string titleAssign = "부대 지정";
-        [SerializeField] string titleRally = "집결지 #{0} — 담당 부대 선택";
-        [SerializeField] string hintAssign = "부대를 고른 뒤 로스터에서 캐릭터를 클릭하면 배정됩니다. 다시 누르면 해제.";
-        [SerializeField] string hintRally = "이 집결지를 맡을 부대를 고르세요. '전체'를 고르면 부대 지정이 풀립니다.";
+        [SerializeField] string title = "부대 설정";
+        [SerializeField] string hint = "부대를 고른 뒤 로스터에서 캐릭터를 클릭하면 배정됩니다(다시 누르면 해제). 부대 이름은 직접 고칠 수 있습니다.";
         [SerializeField] string hintNoSquad = "부대가 없습니다. '부대 추가'로 만드세요.";
-        [SerializeField] string emptySlotText = "-";
         [SerializeField] string memberFormat = "{0}명";
+        [SerializeField] string rallySetIdle = "집결지 설정";
+        [SerializeField] string rallySetPicking = "맵을 클릭";
+        [SerializeField] string rallySetMove = "집결지 이동";
+        [SerializeField] string rallyClear = "집결지 해제";
 
         [Header("색")]
         [SerializeField] Color squadNormal = new Color(0.11f, 0.13f, 0.17f, 0.92f);
         [SerializeField] Color squadSelected = new Color(0.16f, 0.42f, 0.38f, 0.98f);
-        [SerializeField] Color squadRallyOwner = new Color(0.42f, 0.34f, 0.14f, 0.98f);
+        [SerializeField] Color buttonNormal = new Color(0.13f, 0.17f, 0.22f, 0.95f);
+        [SerializeField] Color buttonOn = new Color(0.16f, 0.42f, 0.38f, 0.98f);
+        [SerializeField] Color buttonOff = new Color(0.10f, 0.11f, 0.13f, 0.85f);
         [SerializeField] Color labelActive = new Color(0.90f, 0.93f, 0.96f, 1f);
-        [SerializeField] Color labelDim = new Color(0.50f, 0.55f, 0.62f, 1f);
 
-        /// <summary>부대 카드 하나 — 이름 · 인원 수 · 부대원 초상화 줄.</summary>
+        /// <summary>부대 카드 하나 — 이름(편집 가능) · 인원 수 · 부대원 초상화 줄 · 집결지 버튼 2개.</summary>
         class Card
         {
             public GameObject Root;
             public Image Background;
-            public TMP_Text Name;
+            public TMP_InputField NameInput;
             public TMP_Text Count;
             public Button Button;
             public Button RemoveButton;
+            public Button RallySetButton;
+            public Image RallySetBackground;
+            public TMP_Text RallySetLabel;
+            public Button RallyClearButton;
+            public Image RallyClearBackground;
+            public TMP_Text RallyClearLabel;
             public readonly List<Image> Portraits = new List<Image>();
         }
 
@@ -68,9 +73,6 @@ namespace LastSanctuary.UI
 
         /// <summary>지금 배정 대상으로 고른 부대. 0 이면 고른 것 없음.</summary>
         public int SelectedSquadId { get; private set; }
-
-        /// <summary>집결지 담당 부대를 고르는 모드일 때 그 집결지 id. 0 이면 일반 편성 모드.</summary>
-        int _rallyPointId;
 
         float _nextRefresh;
         int _shownSignature = int.MinValue;
@@ -129,7 +131,14 @@ namespace LastSanctuary.UI
                 // 같은 자리에 겹치는 창들은 서로 닫는다 (전술·성장 창과 같은 규칙).
                 TacticalOrderPanel.Instance?.Close();
                 CharacterGrowthPanel.Instance?.Close();
-                _rallyPointId = 0;          // 액션 버튼으로 연 것 = 편성 모드
+            }
+            else
+            {
+                // 창을 닫으면 집결지 지정 모드도 같이 끊는다 — 창에서 시작한 조작이라
+                // 창이 없는데 "맵을 클릭하세요" 상태만 남으면 빠져나올 방법이 안 보인다.
+                // (지정 모드로 들어가면서 창이 자동으로 닫히는 경우는 예외 — HandleRallySet 참조)
+                if (!_pickingHandoff) RallyPointService.Instance?.CancelPicking();
+                _pickingHandoff = false;
             }
 
             gameObject.SetActive(open);
@@ -139,28 +148,15 @@ namespace LastSanctuary.UI
 
         public void Close() => SetOpen(false);
 
-        /// <summary>맵의 집결지를 눌렀을 때 — 그 집결지의 담당 부대를 고르는 모드로 연다.</summary>
-        public void OpenForRallyPoint(int rallyPointId)
-        {
-            TacticalOrderPanel.Instance?.Close();
-            CharacterGrowthPanel.Instance?.Close();
-
-            gameObject.SetActive(true);
-            _rallyPointId = rallyPointId;
-            SelectedSquadId = 0;
-            Rebuild();
-        }
+        /// <summary>"집결지 설정"으로 창이 스스로 닫히는 중인지 — 그때는 지정 모드를 끊으면 안 된다.</summary>
+        bool _pickingHandoff;
 
         // ------------------------------------------------------------------
         // 로스터 연동 — 캐릭터 클릭이 배정으로 이어지는 지점
         // ------------------------------------------------------------------
 
-        /// <summary>
-        /// 지금 로스터 클릭을 <b>부대 배정</b>으로 가로채야 하는 상태인가.
-        /// 편성 모드에서 부대를 하나 고른 경우에만 true —
-        /// 집결지 모드에서는 캐릭터를 만지지 않는다.
-        /// </summary>
-        public bool IsAssigning => IsOpen && _rallyPointId == 0 && SelectedSquadId != 0;
+        /// <summary>지금 로스터 클릭을 <b>부대 배정</b>으로 가로채야 하는 상태인가.</summary>
+        public bool IsAssigning => IsOpen && SelectedSquadId != 0;
 
         /// <summary>
         /// 로스터에서 캐릭터를 눌렀을 때 <see cref="CharacterRosterPanel"/> 이 부른다.
@@ -192,18 +188,6 @@ namespace LastSanctuary.UI
 
         void HandleCardClicked(int squadId)
         {
-            if (_rallyPointId != 0)
-            {
-                // 집결지 모드 — 같은 부대를 다시 누르면 '전체'(부대 미지정)로 되돌린다.
-                int current = CurrentRallySquadId();
-                RallyPointService.Instance?.AssignSquad(_rallyPointId,
-                                                        current == squadId ? 0 : squadId);
-                _shownSignature = int.MinValue;
-                RefreshCards();
-                return;
-            }
-
-            // 편성 모드 — 배정 대상 토글
             SelectedSquadId = SelectedSquadId == squadId ? 0 : squadId;
             _shownSignature = int.MinValue;
             RefreshCards();
@@ -217,15 +201,39 @@ namespace LastSanctuary.UI
             Rebuild();
         }
 
-        int CurrentRallySquadId()
+        void HandleRename(int squadId, string value)
         {
-            var service = RallyPointService.Instance;
-            if (service == null || _rallyPointId == 0) return 0;
+            if (_squads == null) _squads = SquadService.Instance;
+            if (_squads == null) return;
 
-            var points = service.Points;
-            for (int i = 0; i < points.Count; i++)
-                if (points[i].Id == _rallyPointId) return points[i].SquadId;
-            return 0;
+            // 실패(빈 이름 등)해도 조용히 넘어간다 — 다음 RefreshCards 가 원래 이름으로 되돌린다.
+            _squads.Rename(squadId, value);
+            _shownSignature = int.MinValue;
+        }
+
+        /// <summary>
+        /// 이 부대의 집결지를 찍는다. <b>창을 닫는다</b> — 창이 화면의 큰 부분을 덮고 있어서
+        /// 열어둔 채로는 맵을 클릭할 수 없다.
+        /// </summary>
+        void HandleRallySet(int squadId)
+        {
+            var rally = RallyPointService.Instance;
+            if (rally == null) return;
+
+            bool alreadyPicking = rally.IsPicking && rally.PickingSquadId == squadId;
+            rally.TogglePickingForSquad(squadId);
+
+            if (alreadyPicking) return;      // 껐으면 창은 그대로 둔다
+
+            _pickingHandoff = true;          // 아래 Close 가 방금 켠 지정 모드를 끄지 않게
+            Close();
+        }
+
+        void HandleRallyClear(int squadId)
+        {
+            RallyPointService.Instance?.RemoveForSquad(squadId);
+            _shownSignature = int.MinValue;
+            RefreshCards();
         }
 
         // ------------------------------------------------------------------
@@ -243,9 +251,13 @@ namespace LastSanctuary.UI
             while (_cards.Count < want)
             {
                 RectTransform clone = Instantiate(_cardTemplate, _grid);
-                clone.gameObject.SetActive(true);
                 clone.name = $"SquadCard_{_cards.Count:00}";
+
+                // ⚠️ 배선(BindCard)을 활성화보다 먼저 한다 — TMP_InputField 는 OnEnable 에서
+                // 캐럿을 만들면서 textComponent/textViewport 를 읽는다. 활성화부터 하면
+                // 그 참조가 아직 null 이라 입력창이 죽는다.
                 _cards.Add(BindCard(clone, _cards.Count));
+                clone.gameObject.SetActive(true);
             }
 
             for (int i = 0; i < _cards.Count; i++)
@@ -261,11 +273,18 @@ namespace LastSanctuary.UI
             {
                 Root = root.gameObject,
                 Background = root.GetComponent<Image>(),
-                Name = FindText(root, "Name"),
                 Count = FindText(root, "Count"),
                 Button = root.GetComponent<Button>(),
                 RemoveButton = root.Find("RemoveButton")?.GetComponent<Button>(),
+                RallySetButton = root.Find("RallySetButton")?.GetComponent<Button>(),
+                RallySetBackground = root.Find("RallySetButton")?.GetComponent<Image>(),
+                RallySetLabel = FindText(root, "RallySetButton/Label"),
+                RallyClearButton = root.Find("RallyClearButton")?.GetComponent<Button>(),
+                RallyClearBackground = root.Find("RallyClearButton")?.GetComponent<Image>(),
+                RallyClearLabel = FindText(root, "RallyClearButton/Label"),
             };
+
+            BindNameInput(root, card);
 
             Transform portraits = root.Find("Portraits");
             if (portraits != null)
@@ -278,17 +297,49 @@ namespace LastSanctuary.UI
             // 클로저가 인덱스를 잡도록 지역 변수에 복사 — 반복 변수를 그대로 캡처하면
             // 모든 버튼이 마지막 값을 쓴다(고전적 실수).
             int slot = index;
-            if (card.Button != null)
+            Hook(card.Button, () => HandleCardClicked(SquadIdAt(slot)));
+            Hook(card.RemoveButton, () => HandleRemove(SquadIdAt(slot)));
+            Hook(card.RallySetButton, () => HandleRallySet(SquadIdAt(slot)));
+            Hook(card.RallyClearButton, () => HandleRallyClear(SquadIdAt(slot)));
+
+            if (card.NameInput != null)
             {
-                card.Button.onClick.RemoveAllListeners();
-                card.Button.onClick.AddListener(() => HandleCardClicked(SquadIdAt(slot)));
-            }
-            if (card.RemoveButton != null)
-            {
-                card.RemoveButton.onClick.RemoveAllListeners();
-                card.RemoveButton.onClick.AddListener(() => HandleRemove(SquadIdAt(slot)));
+                card.NameInput.onEndEdit.RemoveAllListeners();
+                card.NameInput.onEndEdit.AddListener(v => HandleRename(SquadIdAt(slot), v));
             }
             return card;
+        }
+
+        /// <summary>
+        /// 부대 이름 입력창을 배선한다. <see cref="TMP_InputField"/> 는 표시용 텍스트와
+        /// 클리핑 영역을 <b>참조로</b> 들고 있어야 하는데, MCP 로는 씬 오브젝트 참조를 넣을 수
+        /// 없다(진행상황 8절 4번) — 그래서 하이라키(NameInput/TextArea/Name)만 MCP 로 만들고
+        /// 참조는 여기서 이어준다.
+        /// </summary>
+        static void BindNameInput(RectTransform root, Card card)
+        {
+            Transform node = root.Find("NameInput");
+            if (node == null) return;
+
+            var input = node.GetComponent<TMP_InputField>();
+            if (input == null) return;
+
+            var viewport = node.Find("TextArea") as RectTransform;
+            var text = viewport != null ? viewport.Find("Name")?.GetComponent<TMP_Text>() : null;
+
+            if (viewport != null) input.textViewport = viewport;
+            if (text != null) input.textComponent = text;
+
+            input.lineType = TMP_InputField.LineType.SingleLine;
+            input.richText = false;
+            card.NameInput = input;
+        }
+
+        static void Hook(Button button, UnityEngine.Events.UnityAction action)
+        {
+            if (button == null) return;
+            button.onClick.RemoveAllListeners();
+            button.onClick.AddListener(action);
         }
 
         int SquadIdAt(int index)
@@ -302,21 +353,18 @@ namespace LastSanctuary.UI
         {
             if (_squads == null) _squads = SquadService.Instance;
 
-            bool rallyMode = _rallyPointId != 0;
-            int rallyOwner = CurrentRallySquadId();
-
-            if (_titleText != null)
-                _titleText.text = rallyMode ? string.Format(titleRally, _rallyPointId) : titleAssign;
+            if (_titleText != null) _titleText.text = title;
 
             int squadCount = _squads != null ? _squads.Squads.Count : 0;
-            if (_hintText != null)
-                _hintText.text = squadCount == 0 ? hintNoSquad : (rallyMode ? hintRally : hintAssign);
+            if (_hintText != null) _hintText.text = squadCount == 0 ? hintNoSquad : hint;
 
             if (_addButton != null)
-                _addButton.interactable = _squads != null && _squads.CanCreate && !rallyMode;
+                _addButton.interactable = _squads != null && _squads.CanCreate;
+
+            RallyPointService rally = RallyPointService.Instance;
 
             // 표시 내용이 그대로면 건드리지 않는다 — 매 프레임 텍스처를 갈아끼우지 않게.
-            int signature = ComputeSignature(rallyMode, rallyOwner);
+            int signature = ComputeSignature(rally);
             if (signature == _shownSignature) return;
             _shownSignature = signature;
 
@@ -327,20 +375,20 @@ namespace LastSanctuary.UI
 
                 var squad = _squads.Squads[i];
 
-                if (card.Name != null)
-                {
-                    card.Name.text = squad.Name;
-                    card.Name.color = labelActive;
-                }
+                // 입력 중에는 건드리지 않는다 — 타이핑하는 글자를 매 갱신마다 덮어쓰게 된다.
+                if (card.NameInput != null && !card.NameInput.isFocused)
+                    card.NameInput.SetTextWithoutNotify(squad.Name);
+
                 if (card.Count != null)
+                {
                     card.Count.text = string.Format(memberFormat, squad.AliveCount);
+                    card.Count.color = labelActive;
+                }
 
                 if (card.Background != null)
-                {
-                    bool highlighted = rallyMode ? squad.Id == rallyOwner : squad.Id == SelectedSquadId;
-                    card.Background.color = !highlighted ? squadNormal
-                                          : (rallyMode ? squadRallyOwner : squadSelected);
-                }
+                    card.Background.color = squad.Id == SelectedSquadId ? squadSelected : squadNormal;
+
+                RefreshRallyButtons(card, squad.Id, rally);
 
                 // 부대원 초상화 — 캐릭터 정의의 일러스트를 그대로 쓴다.
                 for (int p = 0; p < card.Portraits.Count; p++)
@@ -354,21 +402,43 @@ namespace LastSanctuary.UI
                     slot.sprite = art;
                     slot.color = art != null ? Color.white : new Color(1f, 1f, 1f, 0.06f);
                 }
+            }
+        }
 
-                // 집결지 모드에서는 부대를 지우지 못하게 한다 — 그 창의 목적이 아니다.
-                if (card.RemoveButton != null) card.RemoveButton.gameObject.SetActive(!rallyMode);
+        void RefreshRallyButtons(Card card, int squadId, RallyPointService rally)
+        {
+            bool hasRally = rally != null && rally.HasRallyForSquad(squadId);
+            bool picking = rally != null && rally.IsPicking && rally.PickingSquadId == squadId;
+
+            if (card.RallySetButton != null)
+            {
+                card.RallySetButton.interactable = rally != null;
+                if (card.RallySetBackground != null)
+                    card.RallySetBackground.color = rally == null ? buttonOff
+                                                  : (picking ? buttonOn : buttonNormal);
+                if (card.RallySetLabel != null)
+                    card.RallySetLabel.text = picking ? rallySetPicking
+                                            : (hasRally ? rallySetMove : rallySetIdle);
+            }
+
+            if (card.RallyClearButton != null)
+            {
+                // 지울 것이 있을 때만 눌린다 (예전 액션 패널의 '집결지 해제' 와 같은 규칙).
+                card.RallyClearButton.interactable = hasRally;
+                if (card.RallyClearBackground != null)
+                    card.RallyClearBackground.color = hasRally ? buttonNormal : buttonOff;
+                if (card.RallyClearLabel != null) card.RallyClearLabel.text = rallyClear;
             }
         }
 
         /// <summary>표시에 영향을 주는 값들을 한 정수로 접는다 — 바뀔 때만 다시 그리려는 것.</summary>
-        int ComputeSignature(bool rallyMode, int rallyOwner)
+        int ComputeSignature(RallyPointService rally)
         {
             unchecked
             {
                 int h = 17;
-                h = h * 31 + (rallyMode ? 1 : 0);
-                h = h * 31 + rallyOwner;
                 h = h * 31 + SelectedSquadId;
+                h = h * 31 + (rally != null && rally.IsPicking ? rally.PickingSquadId + 1 : 0);
                 if (_squads != null)
                 {
                     var list = _squads.Squads;
@@ -376,6 +446,8 @@ namespace LastSanctuary.UI
                     for (int i = 0; i < list.Count; i++)
                     {
                         h = h * 31 + list[i].Id;
+                        h = h * 31 + (list[i].Name != null ? list[i].Name.GetHashCode() : 0);
+                        h = h * 31 + (rally != null && rally.HasRallyForSquad(list[i].Id) ? 1 : 0);
                         h = h * 31 + list[i].Members.Count;
                         for (int m = 0; m < list[i].Members.Count; m++)
                             h = h * 31 + (list[i].Members[m] != null ? list[i].Members[m].GetInstanceID() : 0);

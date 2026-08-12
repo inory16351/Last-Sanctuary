@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
@@ -8,24 +9,23 @@ using LastSanctuary.Units;
 namespace LastSanctuary.UI
 {
     /// <summary>
-    /// 집결지 지정. "집결지 설정" 버튼을 누르면 지정 모드로 들어가고, 맵을 클릭하면
-    /// 그 지점이 집결지가 된다.
-    ///
-    /// <b>대상 규칙</b>: 선택된 캐릭터가 있으면 그 캐릭터에게만, 없으면 전체에게 건다.
-    /// (목업의 "선택된 캐릭터에게만 적용" 과 같은 개념)
+    /// 집결지. <b>부대마다 하나씩</b> 가진다 — 만들고 지우는 조작은 전부
+    /// "부대 설정" 창(<see cref="SquadPanel"/>)의 부대 카드 안에 있다
+    /// (유저 확정 2026-08-12: 집결지 생성·해제·부대 지정 세 버튼을 하나로 합쳤다).
     ///
     /// 이동 자체는 새로 짜지 않는다 — <see cref="CharacterBehavior"/> 가 매 프레임
     /// 여기 물어보고, 집결지가 있으면 정찰·순찰 대신 그 지점을 목적지로 삼는다.
     /// 이 프로젝트가 이미 쓰는 "귀환 지점을 옮겨 이동 명령을 대신한다" 방식 그대로다(진행상황 12절).
     ///
-    /// 마커는 <see cref="markerTemplate"/> 하나를 복제해서 쓴다 — 오브젝트는 MCP 로
-    /// 하이라키에 만들고 반복되는 것만 스크립트가 복제한다는 규칙(준수사항 §10 H-2).
-    ///
-    /// <b>범위 표시</b>: 집결지는 점이 아니라 <see cref="RallyAreaSize"/> 지름의 <b>원형</b> 구역이다
-    /// (<see cref="CharacterBehavior"/> 가 그 구역 안에서 경계 순찰한다 — 유저 요청으로 사각형에서
-    /// 원형으로 바꿨다). 그래서 마커(점)뿐 아니라 그 구역 크기를 그대로 보여주는 반투명 원도 같이
-    /// 그린다 — 지정 모드로 들어가면 마우스를 따라 <b>미리보기</b>가 뜨고, 실제로 찍으면 그 자리에
-    /// <b>고정</b>된다. 이 클래스가 <see cref="RallyAreaSize"/> 의 정본이다 — <c>CharacterBehavior</c> 는
+    /// <b>화면 표시</b>(2026-08-12 개편 — 예전엔 노란 원이 계속 깔려 있었다):
+    /// <list type="bullet">
+    /// <item>확정된 집결지는 <b>깃발</b>(<see cref="RallyFlag"/>, 월드 스프라이트)로만 표시한다.
+    ///       깃대가 박히는 칸이 집결지 정중앙이다.</item>
+    /// <item>깃발 위에 <b>담당 부대 이름</b>이 뜬다(이름은 부대 설정 창에서 유저가 고칠 수 있다).</item>
+    /// <item>범위(<see cref="RallyAreaSize"/> 지름의 원)는 <b>평소에 그리지 않는다</b> —
+    ///       깃발을 클릭한 동안만 <b>테두리로</b> 보여준다. 지정 모드의 미리보기도 같은 테두리다.</item>
+    /// </list>
+    /// 이 클래스가 <see cref="RallyAreaSize"/> 의 정본이다 — <c>CharacterBehavior</c> 는
     /// 실제 순찰 반경을 정할 때 이 값을 그대로 읽어간다(화면에 보이는 범위와 실제 순찰 범위가
     /// 항상 같아야 하므로, 값을 두 곳에 따로 두지 않는다).
     /// </summary>
@@ -44,29 +44,53 @@ namespace LastSanctuary.UI
                  "이 값을 그대로 쓴다 — 화면에 보이는 범위와 실제 동작이 항상 일치하게")]
         [Min(2f)] [SerializeField] float rallyAreaSize = 10f;
 
-        [Header("마커 · 범위 (모체 하나씩 복제해서 쓴다 — 비활성으로 둘 것)")]
-        [Tooltip("집결지 위치에 표시할 점 마커의 원본. UI_Root 아래 비활성 오브젝트")]
-        [SerializeField] RectTransform markerTemplate;
+        [Header("깃발 (모체 하나를 복제해서 쓴다 — 비활성으로 둘 것)")]
+        [Tooltip("맵에 꽂을 깃발의 원본. 씬의 RallyFlags 아래 비활성 오브젝트")]
+        [SerializeField] RallyFlag flagTemplate;
 
-        [Tooltip("집결지 구역을 나타내는 원의 원본(RallyRange 스프라이트). UI_Root 아래 비활성 오브젝트")]
+        [Tooltip("깃발 위에 띄울 부대 이름표의 원본. UI_Root/RallyOverlay 아래 비활성 오브젝트")]
+        [SerializeField] RectTransform labelTemplate;
+
+        [Tooltip("이름표를 깃발 꼭대기에서 얼마나 더 띄울지(화면 픽셀)")]
+        [SerializeField] float labelScreenOffset = 6f;
+
+        [Header("범위 테두리 (모체 하나를 복제해서 쓴다 — 비활성으로 둘 것)")]
+        [Tooltip("집결지 구역을 나타내는 원의 원본. UI_Root/RallyOverlay 아래 비활성 오브젝트")]
         [SerializeField] RectTransform rangeTemplate;
 
-        [Tooltip("마커·범위를 그릴 캔버스. 비워두면 markerTemplate 의 부모를 쓴다")]
+        [Tooltip("범위 원에 씌울 '테두리만 있는 원' 그림의 Resources 경로 (확장자 없이). " +
+                 "MCP 로는 씬의 Image 에 Sprite 를 못 넣어서 코드로 꽂는다(진행상황 27-9절)")]
+        [SerializeField] string rangeOutlineResource = "UI/RallyRangeOutline";
+
+        [Tooltip("마커·범위를 그릴 캔버스. 비워두면 rangeTemplate 의 부모를 쓴다")]
         [SerializeField] RectTransform markerParent;
 
-        [Tooltip("지정 모드 중 미리보기(아직 찍지 않은 것)의 불투명도 배율. 1보다 작으면 " +
-                 "확정된 집결지보다 옅게 보여 구분된다")]
-        [Range(0.1f, 1f)] [SerializeField] float previewAlphaScale = 0.55f;
+        [Header("깃발 끌어 옮기기")]
+        [Tooltip("깃발을 이만큼 꾹 누르고 있으면 잔상이 분리되어 따라온다(초)")]
+        [Min(0.1f)] [SerializeField] float dragHoldSeconds = 1f;
+
+        [Header("색")]
+        [Tooltip("깃발을 눌러 펼쳐둔 범위 테두리")]
+        [SerializeField] Color rangeColor = new Color(1f, 0.86f, 0.42f, 0.95f);
+
+        [Tooltip("아직 찍지 않은 미리보기 테두리")]
+        [SerializeField] Color previewColor = new Color(0.55f, 0.92f, 0.85f, 0.75f);
+
+        [Tooltip("범위를 펼쳐둔 깃발에 입히는 색")]
+        [SerializeField] Color flagHighlight = new Color(1f, 1f, 1f, 1f);
+
+        [Tooltip("끌고 있는 동안 원래 자리에 남는 잔상의 색")]
+        [SerializeField] Color dragSourceColor = new Color(1f, 1f, 1f, 0.3f);
+
+        [Tooltip("마우스를 따라다니는 분신 깃발의 색")]
+        [SerializeField] Color dragGhostColor = new Color(1f, 0.96f, 0.8f, 0.85f);
 
         [Header("디버그")]
         [SerializeField] bool logChanges = true;
 
-        /// <summary>캐릭터별 집결지. 값이 없으면 부대·전체 집결지를 본다.</summary>
-        readonly Dictionary<CharacterUnit, Vector3> _perUnit = new Dictionary<CharacterUnit, Vector3>();
-
         /// <summary>
-        /// 맵에 찍힌 집결지 하나. <b>여러 개를 만들 수 있고</b>, 각각에 부대를 배정할 수 있다
-        /// (유저 확정 2026-08-11).
+        /// 맵에 찍힌 집결지 하나. <b>부대마다 하나</b>다 — 같은 부대로 다시 찍으면
+        /// 새로 생기지 않고 그 자리만 옮긴다.
         /// </summary>
         public class RallyPoint
         {
@@ -80,36 +104,61 @@ namespace LastSanctuary.UI
         readonly List<RallyPoint> _points = new List<RallyPoint>();
         int _nextPointId = 1;
 
-        /// <summary>집결지 목록이 바뀌었다(생성·해제·부대 배정). UI 가 표시를 다시 그린다.</summary>
+        /// <summary>집결지 목록이 바뀌었다(생성·이동·해제). UI 가 표시를 다시 그린다.</summary>
         public event System.Action OnPointsChanged;
 
         public IReadOnlyList<RallyPoint> Points => _points;
 
-        readonly List<RectTransform> _markers = new List<RectTransform>();
+        readonly List<RallyFlag> _flags = new List<RallyFlag>();
+        readonly List<RectTransform> _labels = new List<RectTransform>();
         readonly List<RectTransform> _ranges = new List<RectTransform>();
 
-        /// <summary>이번 프레임에 마커·범위를 그려야 할 월드 위치들. 인덱스 0 은 미리보기일 수 있다.</summary>
-        readonly List<Vector3> _activePoints = new List<Vector3>();
+        /// <summary>끌고 있는 동안 마우스를 따라다니는 분신 깃발. 모체를 한 번만 복제해 재사용한다.</summary>
+        RallyFlag _ghostFlag;
+
+        // 꾹 누르기 판정 — 눌린 깃발과 누르기 시작한 시각
+        int _pressFlagPointId;
+        float _pressStartTime;
+
+        /// <summary>지금 끌고 있는 집결지 id. 0 이면 안 끌고 있다.</summary>
+        int _dragPointId;
+        Vector3 _dragWorld;
+
+        /// <summary>집은 순간의 (깃발 밑동 − 커서) 차이. 이걸 유지해야 깃발이 손에서 안 튄다.</summary>
+        Vector3 _dragGrabOffset;
+
+        Sprite _outlineSprite;
+        bool _outlineLoaded;
 
         Vector3 _previewWorld;
         bool _hasPreview;
 
         Camera _camera;
         MapGenerator _map;
+        Transform _flagParent;
         Vector2 _pressPosition;
         bool _pressActive;
         bool _pressStartedOverUI;
 
-        /// <summary>집결지 구역의 한 변 길이(타일). 마커 범위 표시와 실제 순찰 반경이 공유하는 값.</summary>
+        /// <summary>집결지 구역의 지름(타일). 범위 표시와 실제 순찰 반경이 공유하는 값.</summary>
         public float RallyAreaSize => rallyAreaSize;
 
         /// <summary>마커·범위를 담는 컨테이너 이름. HUD 보다 뒤에 그려지도록 sortingOrder 를 낮춘 Canvas.</summary>
         const string OverlayName = "RallyOverlay";
 
+        /// <summary>깃발 복제본을 담는 씬 루트 이름.</summary>
+        const string FlagRootName = "RallyFlags";
+
         public static RallyPointService Instance { get; private set; }
 
         /// <summary>지금 맵 클릭을 기다리는 중인지.</summary>
         public bool IsPicking { get; private set; }
+
+        /// <summary>지정 모드에서 집결지를 받을 부대. 0 이면 부대 미지정(전체 공용).</summary>
+        public int PickingSquadId { get; private set; }
+
+        /// <summary>지금 범위 테두리를 펼쳐 둔 집결지 id. 0 이면 아무 것도 안 펼침.</summary>
+        public int ExpandedPointId { get; private set; }
 
         /// <summary>지정 모드가 켜지거나 꺼질 때.</summary>
         public event System.Action<bool> OnPickingChanged;
@@ -127,64 +176,114 @@ namespace LastSanctuary.UI
             _map = FindAnyObjectByType<MapGenerator>();
 
             // MCP 로는 씬 오브젝트 참조를 인스펙터에 넣을 수 없어서(진행상황 8절 4번),
-            // 비어 있으면 UI_Root 아래에서 이름으로 찾는다.
+            // 비어 있으면 이름으로 찾는다.
             // (GameObject.Find 는 비활성 오브젝트를 못 찾지만 Transform.Find 는 찾는다 —
-            //  마커 모체는 비활성이므로 이 차이가 중요하다.)
+            //  모체는 전부 비활성이므로 이 차이가 중요하다. 그래서 부모는 켜져 있어야 한다.)
             GameObject canvas = GameObject.Find("UI_Root");
 
-            // 마커·범위는 HUD 패널 아래(뒤)에 그려야 해서 별도 컨테이너
+            // 이름표·범위는 HUD 패널 아래(뒤)에 그려야 해서 별도 컨테이너
             // `UI_Root/RallyOverlay` 안에 있다 — 유저 피드백: "집결지 표시 위에 다른 UI 가
             // 있을 때 그 UI 를 가리면 안 된다". 그 컨테이너는 sortingOrder 를 낮춘 Canvas 라
             // 형제 순서와 무관하게 항상 HUD 보다 뒤에 그려진다.
-            // 예전 위치(UI_Root 직속)에 그대로 있는 씬도 계속 돌아가게 두 곳을 다 본다.
             Transform overlay = canvas != null ? canvas.transform.Find(OverlayName) : null;
             Transform lookupRoot = overlay != null ? overlay : canvas?.transform;
 
-            if (markerTemplate == null && lookupRoot != null)
-                markerTemplate = lookupRoot.Find("RallyMarkerTemplate") as RectTransform;
             if (rangeTemplate == null && lookupRoot != null)
                 rangeTemplate = lookupRoot.Find("RallyRangeTemplate") as RectTransform;
+            if (labelTemplate == null && lookupRoot != null)
+                labelTemplate = lookupRoot.Find("RallyLabelTemplate") as RectTransform;
 
-            // 컨테이너가 있으면 복제본도 그 안에 넣는다(그래야 같이 뒤로 깔린다).
             if (markerParent == null && overlay != null) markerParent = overlay as RectTransform;
+            if (markerParent == null && rangeTemplate != null) markerParent = rangeTemplate.parent as RectTransform;
 
-            if (markerParent == null)
-                markerParent = (markerTemplate != null ? markerTemplate.parent
-                              : rangeTemplate != null ? rangeTemplate.parent
-                              : null) as RectTransform;
+            GameObject flagRoot = GameObject.Find(FlagRootName);
+            if (flagRoot != null)
+            {
+                _flagParent = flagRoot.transform;
+                if (flagTemplate == null)
+                    flagTemplate = flagRoot.transform.Find("RallyFlagTemplate")?.GetComponent<RallyFlag>();
+            }
+            if (_flagParent == null && flagTemplate != null) _flagParent = flagTemplate.transform.parent;
 
-            if (markerTemplate != null) markerTemplate.gameObject.SetActive(false);
+            if (flagTemplate == null)
+                Debug.LogWarning("[Rally] 깃발 모체(RallyFlags/RallyFlagTemplate)를 찾지 못했습니다.", this);
+
             if (rangeTemplate != null) rangeTemplate.gameObject.SetActive(false);
+            if (labelTemplate != null) labelTemplate.gameObject.SetActive(false);
+            if (flagTemplate != null) flagTemplate.gameObject.SetActive(false);
         }
 
         void Update()
         {
+            PruneOrphanPoints();
             UpdatePreview();
-            if (IsPicking) HandlePicking();
-            else HandleRallyPointClick();
-            PruneDeadUnits();
+
+            if (IsDraggingFlag) HandleFlagDrag();
+            else if (IsPicking) HandlePicking();
+            else HandleFlagInput();
+
             UpdateOverlay();
         }
 
-        /// <summary>
-        /// 지정 모드가 아닐 때 <b>이미 찍힌 집결지를 클릭하면 부대 지정 창</b>을 연다(유저 확정).
-        ///
-        /// <b>캐릭터를 아무것도 선택하지 않은 상태에서만</b> 동작한다 — 캐릭터를 고른 채 맵을
-        /// 클릭하는 것은 <see cref="UnitSelector"/> 의 선택 해제이므로, 그걸 가로채면
-        /// 기존 조작이 망가진다.
-        /// </summary>
-        void HandleRallyPointClick()
+        void OnDisable()
         {
-            if (_points.Count == 0) return;
+            // 끌던 중에 꺼지면 카메라 패닝 잠금이 영영 남는다.
+            if (IsDraggingFlag) CancelFlagDrag();
+        }
+
+        // ------------------------------------------------------------------
+        // 깃발 클릭 — 범위 테두리 펼치기/접기 · 꾹 눌러 끌어 옮기기
+        // ------------------------------------------------------------------
+
+        /// <summary>지금 깃발을 끌고 있는지.</summary>
+        public bool IsDraggingFlag => _dragPointId != 0;
+
+        /// <summary>
+        /// 지정 모드가 아닐 때의 깃발 조작 두 가지(유저 확정 2026-08-12):
+        /// <list type="bullet">
+        /// <item><b>짧게 클릭</b> — 그 집결지의 범위를 테두리로 펼친다/접는다.</item>
+        /// <item><b><see cref="dragHoldSeconds"/> 만큼 꾹 누르기</b> — 잔상이 분리되어 마우스를
+        ///       따라온다. 누른 채로 옮겨 손을 떼면 그 자리로 집결지가 옮겨간다
+        ///       ("창에 매번 들어가서 위치 바꾸는 게 불편하다"는 요청).</item>
+        /// </list>
+        ///
+        /// 판정은 깃발의 <see cref="BoxCollider2D"/> 로 한다 — 그림과 정확히 같은 모양이라
+        /// "보이는 곳을 눌렀는데 안 눌린다"가 생기지 않는다. 거리 기반 판정(예전 방식)은
+        /// 집결지가 붙어 있으면 엉뚱한 것이 잡혔다(진행상황 미결 41번).
+        /// </summary>
+        void HandleFlagInput()
+        {
+            // 건설 자리를 찍는 중이면 그 클릭은 건설 것이다 — 두 기능이 같은 좌클릭을
+            // 나눠 쓰므로 명시적으로 비켜준다.
+            if (Buildings.BuildService.Instance != null && Buildings.BuildService.Instance.IsPicking) return;
 
             Mouse mouse = Mouse.current;
             if (mouse == null) return;
+
+            if (_camera == null) _camera = Camera.main;
+            if (_camera == null) return;
 
             if (mouse.leftButton.wasPressedThisFrame)
             {
                 _pressActive = true;
                 _pressPosition = mouse.position.ReadValue();
                 _pressStartedOverUI = IsPointerOverUI();
+
+                RallyFlag pressed = _pressStartedOverUI ? null : FindFlagAt(ScreenToWorld(_pressPosition));
+                _pressFlagPointId = pressed != null ? pressed.PointId : 0;
+                _pressStartTime = Time.unscaledTime;
+                return;
+            }
+
+            // 누르고 있는 동안 — 꾹 누르기 판정
+            if (_pressActive && _pressFlagPointId != 0 && mouse.leftButton.isPressed)
+            {
+                // 임계값을 넘게 움직였으면 카메라 드래그다 — 꾹 누르기 후보에서 뺀다.
+                // (안 그러면 화면을 끌다가 1초가 지나는 순간 깃발이 딸려온다.)
+                if ((mouse.position.ReadValue() - _pressPosition).magnitude >= clickThresholdPixels)
+                    _pressFlagPointId = 0;
+                else if (Time.unscaledTime - _pressStartTime >= dragHoldSeconds)
+                    BeginFlagDrag(_pressFlagPointId);
                 return;
             }
 
@@ -192,40 +291,112 @@ namespace LastSanctuary.UI
 
             bool wasPress = _pressActive;
             _pressActive = false;
+            _pressFlagPointId = 0;
             if (!wasPress || _pressStartedOverUI) return;
-
-            // 캐릭터가 선택돼 있으면 이 클릭은 선택 조작이다 — 건드리지 않는다.
-            if (UnitSelector.Instance != null && UnitSelector.Instance.Selected != null) return;
 
             // 카메라를 끌었던 것이면 클릭이 아니다 (UnitSelector 와 같은 규칙).
             Vector2 release = mouse.position.ReadValue();
             if ((release - _pressPosition).magnitude >= clickThresholdPixels) return;
 
-            if (_camera == null) _camera = Camera.main;
-            if (_camera == null) return;
+            RallyFlag hit = FindFlagAt(ScreenToWorld(release));
+            int id = hit != null ? hit.PointId : 0;
 
-            Vector3 world = _camera.ScreenToWorldPoint(release);
-            world.z = 0f;
-
-            RallyPoint hit = FindPointNear(world, rallyAreaSize * 0.5f);
-            if (hit == null) return;
-
-            SquadPanel panel = ResolveSquadPanel();
-            if (panel != null) panel.OpenForRallyPoint(hit.Id);
+            // 같은 깃발을 다시 누르면 접는다. 빈 곳을 누르면 그냥 접힌다.
+            ExpandedPointId = (id != 0 && id == ExpandedPointId) ? 0 : id;
         }
 
-        SquadPanel _squadPanel;
-
         /// <summary>
-        /// 부대 지정 창을 찾는다. <b>평소 비활성이라 <c>SquadPanel.Instance</c> 는 아직 null 이다</b> —
-        /// <c>Awake</c> 가 한 번도 안 돌았기 때문이다. <c>ActionPanel</c> 과 같은 방식으로
-        /// 비활성 오브젝트까지 포함해 직접 찾는다.
+        /// 잔상을 분리해 끌기 시작한다. <b>카메라 패닝을 잠근다</b> — 좌클릭 드래그를 카메라와
+        /// 나눠 쓰기 때문에, 안 막으면 깃발을 옮기는 내내 화면이 같이 밀린다.
         /// </summary>
-        SquadPanel ResolveSquadPanel()
+        void BeginFlagDrag(int pointId)
         {
-            if (_squadPanel == null)
-                _squadPanel = FindAnyObjectByType<SquadPanel>(FindObjectsInactive.Include);
-            return _squadPanel;
+            RallyPoint point = _points.Find(p => p.Id == pointId);
+            if (point == null) return;
+
+            _dragPointId = pointId;
+            _dragWorld = point.World;
+            _pressActive = false;
+            _pressFlagPointId = 0;
+
+            // ⚠️ 커서 위치를 그대로 깃대 밑동으로 쓰면 안 된다 — 깃발은 세로 2타일이라
+            // 보통 깃대 위쪽(천 부분)을 누르게 되고, 그러면 집는 순간 깃발이 2타일 아래로
+            // 툭 떨어진다. 집은 순간의 차이를 유지해서 손에 붙어 있게 한다.
+            _dragGrabOffset = _camera != null
+                            ? point.World - ScreenToWorld(_pressPosition)
+                            : Vector3.zero;
+
+            ExpandedPointId = pointId;      // 옮기는 동안 범위를 같이 보여준다
+            CameraControl.CameraRigController.PanSuppressed = true;
+
+            HudLog.Add($"{SquadLabel(point.SquadId)} 집결지 이동 — 원하는 자리에서 손을 떼세요", HudLogKind.Warn);
+        }
+
+        void HandleFlagDrag()
+        {
+            Mouse mouse = Mouse.current;
+
+            // 끌던 집결지가 사라졌으면(부대 삭제 등) 조용히 끝낸다.
+            if (mouse == null || _points.Find(p => p.Id == _dragPointId) == null) { CancelFlagDrag(); return; }
+
+            if ((Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+                || mouse.rightButton.wasPressedThisFrame)
+            {
+                CancelFlagDrag();
+                HudLog.Add("집결지 이동 취소");
+                return;
+            }
+
+            if (_camera == null) _camera = Camera.main;
+            if (_camera == null) { CancelFlagDrag(); return; }
+
+            // UI 위에 있어도 좌표는 계속 따라간다 — 커서가 잠깐 HUD 를 스쳐도 분신이 멈추면
+            // 손에 붙은 느낌이 끊긴다. 실제로 놓을 때만 자리가 유효한지 Snap 이 판단한다.
+            _dragWorld = Snap(ScreenToWorld(mouse.position.ReadValue()) + _dragGrabOffset);
+
+            // wasReleasedThisFrame 만 보면 창 밖에서 손을 뗐을 때 영영 끌린 채로 남는다.
+            if (!mouse.leftButton.isPressed) CommitFlagDrag();
+        }
+
+        void CommitFlagDrag()
+        {
+            int pointId = _dragPointId;
+            Vector3 world = _dragWorld;
+            EndFlagDrag();
+            MovePoint(pointId, world);
+        }
+
+        void CancelFlagDrag() => EndFlagDrag();
+
+        void EndFlagDrag()
+        {
+            _dragPointId = 0;
+            _pressActive = false;
+            _pressFlagPointId = 0;
+            CameraControl.CameraRigController.PanSuppressed = false;
+
+            if (_ghostFlag != null) _ghostFlag.gameObject.SetActive(false);
+        }
+
+        Vector3 ScreenToWorld(Vector2 screen)
+        {
+            Vector3 world = _camera.ScreenToWorldPoint(screen);
+            world.z = 0f;
+            return world;
+        }
+
+        /// <summary>월드 한 점에 걸리는 깃발. 콜라이더 판정이라 그림 밖은 안 잡힌다.</summary>
+        RallyFlag FindFlagAt(Vector3 world)
+        {
+            // 장애물 타일맵의 거대한 CompositeCollider2D 도 같이 잡히므로 RallyFlag 로 걸러낸다.
+            Collider2D[] hits = Physics2D.OverlapPointAll(world);
+            for (int i = 0; i < hits.Length; i++)
+            {
+                if (hits[i] == null) continue;
+                var flag = hits[i].GetComponentInParent<RallyFlag>();
+                if (flag != null) return flag;
+            }
+            return null;
         }
 
         /// <summary>
@@ -254,31 +425,35 @@ namespace LastSanctuary.UI
         // 지정 모드
         // ------------------------------------------------------------------
 
-        /// <summary>지정 모드를 켠다/끈다.</summary>
-        public void TogglePicking()
+        /// <summary>
+        /// 이 부대의 집결지를 찍는 모드를 켠다/끈다. 같은 부대로 다시 부르면 끈다
+        /// (부대 카드의 "집결지 설정" 버튼이 토글로 동작하게).
+        /// </summary>
+        public void TogglePickingForSquad(int squadId)
         {
-            if (IsPicking) CancelPicking();
-            else BeginPicking();
+            if (IsPicking && PickingSquadId == squadId) { CancelPicking(); return; }
+            BeginPickingForSquad(squadId);
         }
 
-        public void BeginPicking()
+        public void BeginPickingForSquad(int squadId)
         {
-            if (IsPicking) return;
-            IsPicking = true;
+            PickingSquadId = squadId;
             _pressActive = false;
-            OnPickingChanged?.Invoke(true);
 
-            CharacterUnit selected = UnitSelector.Instance != null ? UnitSelector.Instance.Selected : null;
-            HudLog.Add(selected != null
-                           ? $"집결지 지정 — {selected.name}. 맵을 클릭하세요"
-                           : "집결지 지정 — 전체. 맵을 클릭하세요",
-                       HudLogKind.Warn);
+            if (!IsPicking)
+            {
+                IsPicking = true;
+                OnPickingChanged?.Invoke(true);
+            }
+
+            HudLog.Add($"{SquadLabel(squadId)} 집결지 지정 — 맵을 클릭하세요 (Esc 취소)", HudLogKind.Warn);
         }
 
         public void CancelPicking()
         {
             if (!IsPicking) return;
             IsPicking = false;
+            PickingSquadId = 0;
             OnPickingChanged?.Invoke(false);
         }
 
@@ -294,11 +469,11 @@ namespace LastSanctuary.UI
             Mouse mouse = Mouse.current;
             if (mouse == null) return;
 
-            // 우클릭은 해제.
+            // 우클릭은 지정 취소 (해제는 부대 카드의 "집결지 해제" 버튼이 한다).
             if (mouse.rightButton.wasPressedThisFrame)
             {
-                ClearForCurrentTarget();
                 CancelPicking();
+                HudLog.Add("집결지 지정 취소");
                 return;
             }
 
@@ -326,7 +501,7 @@ namespace LastSanctuary.UI
             Vector3 world = _camera.ScreenToWorldPoint(release);
             world.z = 0f;
 
-            SetRallyPoint(Snap(world));
+            SetRallyPoint(Snap(world), PickingSquadId);
             CancelPicking();
         }
 
@@ -349,44 +524,60 @@ namespace LastSanctuary.UI
         // ------------------------------------------------------------------
 
         /// <summary>
-        /// 집결지를 <b>새로 하나 만든다</b>. 캐릭터가 선택돼 있으면 그 캐릭터 전용 집결지가 되고,
-        /// 아니면 부대 미지정(전체 공용) 집결지가 된다 — 부대 배정은 만든 뒤에
-        /// <see cref="AssignSquad"/> 로 붙인다(집결지를 클릭하면 부대 지정 창이 뜬다).
+        /// 이 부대의 집결지를 <paramref name="world"/> 에 둔다.
+        /// <b>부대마다 하나</b>라 이미 있으면 새로 만들지 않고 자리만 옮긴다 —
+        /// 안 그러면 "집결지 설정"을 누를 때마다 깃발이 쌓이고, 어느 것이 유효한지
+        /// (<see cref="TryGetRallyPoint"/> 는 먼저 찾은 것을 쓴다) 알 수 없게 된다.
         /// </summary>
-        public RallyPoint SetRallyPoint(Vector3 world)
+        public RallyPoint SetRallyPoint(Vector3 world, int squadId)
         {
-            CharacterUnit selected = UnitSelector.Instance != null ? UnitSelector.Instance.Selected : null;
+            RallyPoint point = squadId != 0 ? FindBySquad(squadId) : null;
 
-            if (selected != null)
+            if (point != null)
             {
-                _perUnit[selected] = world;
-                if (logChanges) Debug.Log($"[Rally] {selected.DisplayName} 집결지 → {world}", selected);
-                HudLog.Add($"{selected.DisplayName} 집결지 지정", HudLogKind.Good);
-                OnPointsChanged?.Invoke();
-                return null;
+                point.World = world;
+                if (logChanges) Debug.Log($"[Rally] 집결지 #{point.Id} 이동 → {world} ({SquadLabel(squadId)})");
+                HudLog.Add($"{SquadLabel(squadId)} 집결지 이동", HudLogKind.Good);
+            }
+            else
+            {
+                point = new RallyPoint { Id = _nextPointId++, World = world, SquadId = squadId };
+                _points.Add(point);
+
+                if (logChanges) Debug.Log($"[Rally] 집결지 #{point.Id} 생성 → {world} ({SquadLabel(squadId)})");
+                HudLog.Add($"{SquadLabel(squadId)} 집결지 지정", HudLogKind.Good);
             }
 
-            var point = new RallyPoint { Id = _nextPointId++, World = world, SquadId = 0 };
-            _points.Add(point);
-
-            if (logChanges) Debug.Log($"[Rally] 집결지 #{point.Id} 생성 → {world} (총 {_points.Count}개)");
-            HudLog.Add($"집결지 #{point.Id} 생성 — 클릭해서 부대를 지정하세요", HudLogKind.Good);
             OnPointsChanged?.Invoke();
             return point;
         }
 
-        /// <summary>집결지 하나에 부대를 배정한다. <paramref name="squadId"/> 가 0 이면 전체 공용으로 되돌린다.</summary>
+        /// <summary>집결지 하나에 담당 부대를 바꿔 단다. 0 이면 전체 공용으로 되돌린다.</summary>
         public void AssignSquad(int pointId, int squadId)
         {
             RallyPoint point = _points.Find(p => p.Id == pointId);
             if (point == null) return;
 
             point.SquadId = squadId;
+            if (logChanges) Debug.Log($"[Rally] 집결지 #{point.Id} → {SquadLabel(squadId)}");
+            HudLog.Add($"집결지 #{point.Id} → {SquadLabel(squadId)}", HudLogKind.Good);
+            OnPointsChanged?.Invoke();
+        }
 
-            var squad = SquadService.Instance != null ? SquadService.Instance.Find(squadId) : null;
-            string label = squad != null ? squad.Name : "전체";
-            if (logChanges) Debug.Log($"[Rally] 집결지 #{point.Id} → {label}");
-            HudLog.Add($"집결지 #{point.Id} → {label}", HudLogKind.Good);
+        /// <summary>
+        /// 집결지 하나를 그 자리로 옮긴다. 깃발을 끌어 놓았을 때 쓴다 —
+        /// <see cref="SetRallyPoint"/> 는 부대 기준이라 부대 미지정(SquadId 0) 집결지를
+        /// 옮길 수 없다(새로 만들어버린다). 그래서 id 로 옮기는 경로를 따로 둔다.
+        /// </summary>
+        public void MovePoint(int pointId, Vector3 world)
+        {
+            RallyPoint point = _points.Find(p => p.Id == pointId);
+            if (point == null) return;
+            if (point.World == world) return;
+
+            point.World = world;
+            if (logChanges) Debug.Log($"[Rally] 집결지 #{point.Id} 이동 → {world} ({SquadLabel(point.SquadId)})");
+            HudLog.Add($"{SquadLabel(point.SquadId)} 집결지 이동", HudLogKind.Good);
             OnPointsChanged?.Invoke();
         }
 
@@ -397,58 +588,87 @@ namespace LastSanctuary.UI
             if (index < 0) return;
 
             _points.RemoveAt(index);
+            if (ExpandedPointId == pointId) ExpandedPointId = 0;
+
             HudLog.Add($"집결지 #{pointId} 해제");
             OnPointsChanged?.Invoke();
         }
 
-        /// <summary>
-        /// 지금 대상(선택된 캐릭터 또는 전체)의 집결지를 해제한다.
-        /// 캐릭터가 선택돼 있으면 그 캐릭터 것만, 아니면 <b>전부</b> 지운다.
-        /// </summary>
-        public void ClearForCurrentTarget()
+        /// <summary>이 부대의 집결지를 해제한다. 없으면 아무 일도 하지 않는다.</summary>
+        public bool RemoveForSquad(int squadId)
         {
-            CharacterUnit selected = UnitSelector.Instance != null ? UnitSelector.Instance.Selected : null;
+            RallyPoint point = FindBySquad(squadId);
+            if (point == null) return false;
 
-            if (selected != null)
-            {
-                if (_perUnit.Remove(selected)) HudLog.Add($"{selected.DisplayName} 집결지 해제");
-            }
-            else
-            {
-                _points.Clear();
-                _perUnit.Clear();
-                HudLog.Add("집결지 전체 해제");
-            }
+            _points.Remove(point);
+            if (ExpandedPointId == point.Id) ExpandedPointId = 0;
+            if (IsPicking && PickingSquadId == squadId) CancelPicking();
+
+            HudLog.Add($"{SquadLabel(squadId)} 집결지 해제");
+            OnPointsChanged?.Invoke();
+            return true;
+        }
+
+        /// <summary>집결지를 전부 지운다.</summary>
+        public void ClearAll()
+        {
+            if (_points.Count == 0) return;
+
+            _points.Clear();
+            ExpandedPointId = 0;
+            HudLog.Add("집결지 전체 해제");
             OnPointsChanged?.Invoke();
         }
 
-        /// <summary>집결지가 하나라도 걸려 있는지. 버튼 문구를 정할 때 쓴다.</summary>
-        public bool HasAnyRally => _points.Count > 0 || _perUnit.Count > 0;
+        public RallyPoint FindBySquad(int squadId)
+        {
+            if (squadId == 0) return null;
+            for (int i = 0; i < _points.Count; i++)
+                if (_points[i].SquadId == squadId) return _points[i];
+            return null;
+        }
+
+        public bool HasRallyForSquad(int squadId) => FindBySquad(squadId) != null;
+
+        /// <summary>집결지가 하나라도 있는지.</summary>
+        public bool HasAnyRally => _points.Count > 0;
 
         /// <summary>
-        /// 화면 클릭 지점에서 가장 가까운 집결지. 반경 안에 없으면 null —
-        /// "아무것도 선택하지 않은 채 집결지를 누르면 부대 지정 창"을 위한 히트 판정이다.
+        /// 없어진 부대의 집결지는 남겨봐야 아무도 안 쓴다 — 부대를 지우면 같이 지운다.
+        /// (<see cref="SquadService"/> 가 아직 없는 첫 프레임에는 아무 것도 하지 않는다.)
         /// </summary>
-        public RallyPoint FindPointNear(Vector3 world, float radiusTiles)
+        void PruneOrphanPoints()
         {
-            RallyPoint best = null;
-            float bestSqr = radiusTiles * radiusTiles;
+            if (_points.Count == 0) return;
 
-            for (int i = 0; i < _points.Count; i++)
+            SquadService squads = SquadService.Instance;
+            if (squads == null) return;
+
+            bool changed = false;
+            for (int i = _points.Count - 1; i >= 0; i--)
             {
-                float sqr = (_points[i].World - world).sqrMagnitude;
-                if (sqr > bestSqr) continue;
-                bestSqr = sqr;
-                best = _points[i];
+                RallyPoint p = _points[i];
+                if (p.SquadId == 0 || squads.Find(p.SquadId) != null) continue;
+
+                if (ExpandedPointId == p.Id) ExpandedPointId = 0;
+                _points.RemoveAt(i);
+                changed = true;
             }
-            return best;
+            if (changed) OnPointsChanged?.Invoke();
+        }
+
+        static string SquadLabel(int squadId)
+        {
+            if (squadId == 0) return "전체";
+            var squad = SquadService.Instance != null ? SquadService.Instance.Find(squadId) : null;
+            return squad != null ? squad.Name : $"부대 #{squadId}";
         }
 
         /// <summary>
         /// 이 캐릭터가 지금 가야 할 집결지. <see cref="CharacterBehavior"/> 가 매 프레임 물어본다.
         /// 서비스가 없거나 지정된 곳이 없으면 false — 그 경우 캐릭터는 원래 정찰·방어 로직으로 돈다.
         ///
-        /// 우선순위: <b>① 캐릭터 개별 지정 → ② 자기 부대에 배정된 집결지 → ③ 부대 미지정(전체 공용) 집결지</b>.
+        /// 우선순위: <b>① 자기 부대에 배정된 집결지 → ② 부대 미지정(전체 공용) 집결지</b>.
         /// 부대에 배정된 집결지가 있으면 전체 공용보다 그쪽이 먼저다 — 부대별로 다른 곳을
         /// 지키게 하려고 만든 기능이라, 전체 지정이 부대 지정을 덮으면 의미가 없다.
         /// </summary>
@@ -457,8 +677,6 @@ namespace LastSanctuary.UI
             point = default;
             RallyPointService service = Instance;
             if (service == null || unit == null) return false;
-
-            if (service._perUnit.TryGetValue(unit, out point)) return true;
 
             int squadId = SquadService.Instance != null ? SquadService.Instance.SquadIdOf(unit) : 0;
 
@@ -483,114 +701,190 @@ namespace LastSanctuary.UI
         }
 
         // ------------------------------------------------------------------
-        // 마커
+        // 표시 — 깃발(월드) · 이름표(UI) · 범위 테두리(UI)
         // ------------------------------------------------------------------
 
-        /// <summary>죽은 캐릭터의 개별 집결지는 들고 있어봐야 의미가 없다.</summary>
-        void PruneDeadUnits()
-        {
-            if (_perUnit.Count == 0) return;
-
-            List<CharacterUnit> dead = null;
-            foreach (var pair in _perUnit)
-            {
-                if (pair.Key != null && pair.Key.IsAlive) continue;
-                (dead ??= new List<CharacterUnit>()).Add(pair.Key);
-            }
-            if (dead == null) return;
-
-            for (int i = 0; i < dead.Count; i++) _perUnit.Remove(dead[i]);
-        }
-
-        /// <summary>
-        /// 표시할 집결지 목록(미리보기 + 확정된 것들)을 모아 마커·범위 오브젝트를 그 개수만큼
-        /// 맞추고 화면 좌표로 옮긴다. 미리보기가 있으면 항상 인덱스 0 이다.
-        /// </summary>
         void UpdateOverlay()
         {
-            if (markerParent == null) return;
             if (_camera == null) _camera = Camera.main;
             if (_camera == null) return;
 
-            _activePoints.Clear();
-            if (_hasPreview) _activePoints.Add(_previewWorld);
-            for (int i = 0; i < _points.Count; i++) _activePoints.Add(_points[i].World);
-            foreach (var pair in _perUnit) _activePoints.Add(pair.Value);
-
-            SyncPool(_markers, markerTemplate, "RallyMarker");
-            SyncPool(_ranges, rangeTemplate, "RallyRange");
-
-            int slots = Mathf.Max(_markers.Count, _ranges.Count);
-            for (int i = 0; i < slots; i++)
-            {
-                bool used = i < _activePoints.Count;
-                // 미리보기(인덱스 0, _hasPreview 일 때)는 옅게 — 확정 전이라는 걸 구분해준다.
-                float alphaScale = used && _hasPreview && i == 0 ? previewAlphaScale : 1f;
-
-                PlaceOverlayItem(_markers, i, used, alphaScale, isRange: false);
-                PlaceOverlayItem(_ranges, i, used, alphaScale, isRange: true);
-            }
+            UpdateFlags();
+            UpdateLabels();
+            UpdateRanges();
         }
 
-        /// <summary>모자라면 모체를 복제해 채운다 (§10 H-2 템플릿 복제). 템플릿이 없으면 아무 것도 안 한다.</summary>
-        void SyncPool(List<RectTransform> pool, RectTransform template, string namePrefix)
+        /// <summary>깃발은 집결지 개수만큼. 월드 오브젝트라 줌은 저절로 따라간다.</summary>
+        void UpdateFlags()
         {
-            if (template == null) return;
-            while (pool.Count < _activePoints.Count)
+            if (flagTemplate == null) return;
+
+            while (_flags.Count < _points.Count)
             {
-                RectTransform clone = Instantiate(template, markerParent);
-                clone.name = $"{namePrefix}_{pool.Count + 1}";
-                pool.Add(clone);
+                RallyFlag clone = Instantiate(flagTemplate, _flagParent);
+                clone.name = $"RallyFlag_{_flags.Count + 1}";
+                _flags.Add(clone);
+            }
+
+            for (int i = 0; i < _flags.Count; i++)
+            {
+                RallyFlag flag = _flags[i];
+                if (flag == null) continue;
+
+                bool used = i < _points.Count;
+                if (flag.gameObject.activeSelf != used) flag.gameObject.SetActive(used);
+                if (!used) continue;
+
+                RallyPoint p = _points[i];
+                flag.transform.position = p.World;
+                flag.Bind(p.Id);
+
+                // 끌고 있는 깃발은 원래 자리에 옅은 잔상으로 남는다 — 분신이 어디서 떨어져
+                // 나왔는지, 취소하면 어디로 돌아가는지가 보여야 한다.
+                flag.SetTint(p.Id == _dragPointId ? dragSourceColor
+                           : p.Id == ExpandedPointId ? flagHighlight
+                           : flag.DefaultTint);
+            }
+
+            UpdateGhostFlag();
+        }
+
+        /// <summary>
+        /// 마우스를 따라다니는 분신 깃발. 모체를 <b>한 번만</b> 복제해 두고 켜고 끈다 —
+        /// 끌 때마다 만들고 지우면 GC 가 돈다(다른 오버레이 풀과 같은 방식).
+        /// </summary>
+        void UpdateGhostFlag()
+        {
+            if (!IsDraggingFlag)
+            {
+                if (_ghostFlag != null && _ghostFlag.gameObject.activeSelf)
+                    _ghostFlag.gameObject.SetActive(false);
+                return;
+            }
+
+            if (_ghostFlag == null)
+            {
+                if (flagTemplate == null) return;
+                _ghostFlag = Instantiate(flagTemplate, _flagParent);
+                _ghostFlag.name = "RallyFlagGhost";
+
+                // 분신은 클릭 대상이 아니다 — 켜져 있으면 자기 자신을 집어 올리게 된다.
+                var col = _ghostFlag.GetComponent<Collider2D>();
+                if (col != null) col.enabled = false;
+            }
+
+            if (!_ghostFlag.gameObject.activeSelf) _ghostFlag.gameObject.SetActive(true);
+            _ghostFlag.transform.position = _dragWorld;
+            _ghostFlag.SetTint(dragGhostColor);
+        }
+
+        /// <summary>이름표는 깃발 꼭대기 위에 뜬다. UI 라 줌과 무관하게 항상 같은 크기로 읽힌다.</summary>
+        void UpdateLabels()
+        {
+            if (labelTemplate == null || markerParent == null) return;
+
+            while (_labels.Count < _points.Count)
+            {
+                RectTransform clone = Instantiate(labelTemplate, markerParent);
+                clone.name = $"RallyLabel_{_labels.Count + 1}";
+                _labels.Add(clone);
+            }
+
+            for (int i = 0; i < _labels.Count; i++)
+            {
+                RectTransform label = _labels[i];
+                if (label == null) continue;
+
+                bool used = i < _points.Count && i < _flags.Count && _flags[i] != null;
+                if (label.gameObject.activeSelf != used) label.gameObject.SetActive(used);
+                if (!used) continue;
+
+                // 끌고 있는 집결지의 이름표는 잔상이 아니라 분신을 따라간다 — 지금 어디로
+                // 옮기는 중인지가 이름과 함께 보여야 한다.
+                bool followsGhost = _points[i].Id == _dragPointId
+                                 && _ghostFlag != null && _ghostFlag.gameObject.activeSelf;
+
+                Vector3 screen = _camera.WorldToScreenPoint(followsGhost ? _ghostFlag.TopWorld
+                                                                        : _flags[i].TopWorld);
+                if (screen.z < 0f) { label.gameObject.SetActive(false); continue; }
+
+                screen.y += labelScreenOffset;
+                RectTransformUtility.ScreenPointToLocalPointInRectangle(markerParent, screen, null,
+                                                                         out Vector2 local);
+                label.anchoredPosition = local;
+
+                var text = label.GetComponent<TMP_Text>();
+                if (text != null) text.text = SquadLabel(_points[i].SquadId);
             }
         }
 
         /// <summary>
-        /// 마커 하나(점 또는 범위 원)를 화면 위치·크기·투명도까지 갱신한다.
-        /// 범위 원만 <paramref name="isRange"/> 로 표시해 매 프레임 실제 월드 크기로 다시 잰다 —
-        /// 카메라 줌이 바뀌면 같은 10타일이 화면에서 차지하는 픽셀 크기도 바뀐다(진행상황 §11,
-        /// 월드 공간 UI는 줌에 따라 크기가 튄다). 점 마커는 고정 픽셀 크기라 크기 갱신이 필요 없다.
+        /// 범위 테두리는 <b>최대 2개</b>만 있으면 된다 — 미리보기 하나, 펼쳐둔 집결지 하나.
+        /// 예전처럼 집결지마다 원을 깔지 않는다(유저 요청: "노랗게 계속 표시되지 않게").
         /// </summary>
-        void PlaceOverlayItem(List<RectTransform> pool, int index, bool used, float alphaScale, bool isRange)
+        void UpdateRanges()
         {
-            if (index >= pool.Count) return;
-            RectTransform item = pool[index];
+            if (rangeTemplate == null || markerParent == null) return;
+
+            while (_ranges.Count < 2)
+            {
+                RectTransform clone = Instantiate(rangeTemplate, markerParent);
+                clone.name = $"RallyRange_{_ranges.Count + 1}";
+                ApplyOutlineSprite(clone);
+                _ranges.Add(clone);
+            }
+
+            PlaceRange(_ranges[0], _hasPreview, _previewWorld, previewColor);
+
+            // 끌고 있는 동안에는 원래 자리가 아니라 <b>지금 놓으려는 자리</b>의 범위를 보여준다 —
+            // "여기 놓으면 부대가 어디까지 퍼지는지"가 판단 기준이기 때문.
+            RallyPoint expanded = ExpandedPointId != 0 ? _points.Find(p => p.Id == ExpandedPointId) : null;
+            Vector3 rangeWorld = IsDraggingFlag && expanded != null && expanded.Id == _dragPointId
+                               ? _dragWorld
+                               : (expanded?.World ?? Vector3.zero);
+            PlaceRange(_ranges[1], expanded != null, rangeWorld, rangeColor);
+        }
+
+        /// <summary>
+        /// 원본 Image 의 스프라이트를 <b>코드에서</b> 테두리 그림으로 바꾼다 —
+        /// MCP 로는 씬의 Image.m_Sprite 를 못 바꾼다(진행상황 27-9절에서 확인된 한계).
+        /// </summary>
+        void ApplyOutlineSprite(RectTransform item)
+        {
+            if (!_outlineLoaded)
+            {
+                _outlineLoaded = true;
+                if (!string.IsNullOrEmpty(rangeOutlineResource))
+                {
+                    _outlineSprite = Resources.Load<Sprite>(rangeOutlineResource);
+                    if (_outlineSprite == null)
+                        Debug.LogWarning($"[Rally] 범위 테두리 그림 'Resources/{rangeOutlineResource}' 을 " +
+                                         "찾지 못했습니다. 예전 원판 그림 그대로 그립니다.", this);
+                }
+            }
+            if (_outlineSprite == null) return;
+
+            var image = item.GetComponent<UnityEngine.UI.Image>();
+            if (image != null) image.sprite = _outlineSprite;
+        }
+
+        void PlaceRange(RectTransform item, bool used, Vector3 world, Color color)
+        {
+            if (item == null) return;
 
             if (item.gameObject.activeSelf != used) item.gameObject.SetActive(used);
             if (!used) return;
 
-            Vector3 world = _activePoints[index];
             Vector3 screen = _camera.WorldToScreenPoint(world);
-
-            // 카메라 뒤로 넘어가면(2D 에선 드물지만) 화면 밖으로 치운다.
             if (screen.z < 0f) { item.gameObject.SetActive(false); return; }
 
             RectTransformUtility.ScreenPointToLocalPointInRectangle(markerParent, screen, null,
                                                                      out Vector2 local);
             item.anchoredPosition = local;
-
-            if (isRange) item.sizeDelta = WorldSizeToLocalSize(world, rallyAreaSize);
-
-            var graphic = item.GetComponent<UnityEngine.UI.Graphic>();
-            if (graphic != null)
-            {
-                Color c = graphic.color;
-                c.a = BaseAlphaOf(item) * alphaScale;
-                graphic.color = c;
-            }
-        }
-
-        // 마커·범위는 원본 알파(디자인 시 정한 투명도)를 유지한 채 미리보기일 때만 더 옅게
-        // 만들어야 하므로, 매 프레임 원본 알파를 다시 계산하지 않고 오브젝트마다 한 번만 기억해둔다.
-        readonly Dictionary<RectTransform, float> _baseAlpha = new Dictionary<RectTransform, float>();
-
-        float BaseAlphaOf(RectTransform item)
-        {
-            if (_baseAlpha.TryGetValue(item, out float a)) return a;
+            item.sizeDelta = WorldSizeToLocalSize(world, rallyAreaSize);
 
             var graphic = item.GetComponent<UnityEngine.UI.Graphic>();
-            a = graphic != null ? graphic.color.a : 1f;
-            _baseAlpha[item] = a;
-            return a;
+            if (graphic != null) graphic.color = color;
         }
 
         /// <summary>

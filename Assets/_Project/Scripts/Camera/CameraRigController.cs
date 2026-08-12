@@ -171,10 +171,25 @@ namespace LastSanctuary.CameraControl
 
         // ------------------------------------------------------------------ 드래그
 
+        /// <summary>
+        /// 다른 시스템이 <b>같은 좌클릭 드래그를 쓰는 동안</b> 카메라 패닝을 막는다
+        /// (지금은 집결지 깃발 끌기 — <c>RallyPointService</c>). 켜져 있으면 진행 중이던
+        /// 드래그도 즉시 끊어서, 깃발을 옮기는 내내 화면이 같이 밀리지 않게 한다.
+        ///
+        /// ⚠️ 켠 쪽이 반드시 끄는 책임을 진다. 도메인 리로드가 꺼져 있어도 값이 남지 않도록
+        /// <see cref="ResetStatics"/> 에서 초기화한다.
+        /// </summary>
+        public static bool PanSuppressed { get; set; }
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics() => PanSuppressed = false;
+
         void HandleDragPan(float dt)
         {
             var mouse = Mouse.current;
             if (mouse == null || dragButton == DragButton.None) return;
+
+            if (PanSuppressed) { CancelDrag(); return; }
 
             bool pressed = IsDragButtonPressed(mouse, out bool wasPressed, out bool wasReleased);
             Vector2 pos = mouse.position.ReadValue();

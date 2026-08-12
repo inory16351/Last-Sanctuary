@@ -35,6 +35,10 @@ namespace LastSanctuary.Units
         [Tooltip("새 부대 이름 형식. {0} 에 번호가 들어간다")]
         [SerializeField] string squadNameFormat = "{0}부대";
 
+        [Tooltip("유저가 직접 지을 수 있는 부대 이름의 최대 글자 수. 깃발 위 이름표가 " +
+                 "너무 길어지지 않게 하는 값이라 화면을 보고 조정할 것")]
+        [Min(1)] [SerializeField] int maxNameLength = 10;
+
         [Header("디버그")]
         [SerializeField] bool logChanges = true;
 
@@ -109,6 +113,27 @@ namespace LastSanctuary.Units
         }
 
         public Squad Find(int squadId) => _squads.Find(s => s.Id == squadId);
+
+        /// <summary>
+        /// 부대 이름을 유저가 지은 것으로 바꾼다(유저 확정 2026-08-12 — 깃발 위에 이 이름이 뜬다).
+        /// <b>빈 이름은 거부</b>한다 — 깃발에 아무 글자도 없으면 어느 부대 것인지 알 수 없다.
+        /// 길이는 <c>maxNameLength</c> 로 자른다(인스펙터).
+        /// </summary>
+        public bool Rename(int squadId, string name)
+        {
+            Squad squad = Find(squadId);
+            if (squad == null) return false;
+
+            string trimmed = (name ?? string.Empty).Trim();
+            if (trimmed.Length == 0) return false;
+            if (trimmed.Length > maxNameLength) trimmed = trimmed.Substring(0, maxNameLength);
+            if (trimmed == squad.Name) return false;
+
+            squad.Name = trimmed;
+            if (logChanges) Debug.Log($"[Squad] 부대 #{squadId} 이름 → {trimmed}", this);
+            OnSquadsChanged?.Invoke();
+            return true;
+        }
 
         /// <summary>이 캐릭터가 속한 부대. 무소속이면 null.</summary>
         public Squad SquadOf(CharacterUnit unit)
