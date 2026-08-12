@@ -47,6 +47,24 @@ namespace LastSanctuary.Combat
         Disgusting = 11,
     }
 
+    public static class MentalErrorTypes
+    {
+        /// <summary>
+        /// <b>유저에게 이득을 주는 효과인지.</b> 데이터 테이블은 이 구분을 컬럼으로 갖고 있지 않고
+        /// 문서(진행상황 54-6절 표)에서 <c>(+)</c> 로만 표시한다 — 진정·각성·고조 셋이다.
+        ///
+        /// 코드에서 판정하는 이유: 패시브 '강철의 의지'(비기오르)의 정의문이
+        /// <b>"좋은 효과가 발동할 확률이 N배 높다"</b> 이므로 이 구분이 없으면 그 스킬을 구현할 수 없다.
+        /// 표에 컬럼을 새로 만들지 않은 것은, 이 분류가 <b>밸런스 값이 아니라 효과의 성질</b>이라
+        /// 값이 바뀔 여지가 없기 때문이다(각성이 나쁜 효과가 되는 일은 없다).
+        /// 새 종류를 추가하면 여기도 같이 고쳐야 한다.
+        /// </summary>
+        public static bool IsGood(MentalErrorType type) =>
+            type == MentalErrorType.SettleDown ||
+            type == MentalErrorType.Arousal ||
+            type == MentalErrorType.Upsurge;
+    }
+
     /// <summary>
     /// 정신 이상이 캐릭터의 <b>이동·임무 결정</b>을 어떻게 가로채는지.
     /// <c>CharacterBehavior</c> 가 이 값을 보고 평소 임무 판단(정찰·방어·집결·건설·사냥)을

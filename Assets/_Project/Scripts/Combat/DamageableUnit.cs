@@ -96,6 +96,36 @@ namespace LastSanctuary.Combat
         public virtual float CriticalChancePercent => 0f;
 
         // ------------------------------------------------------------------
+        // 패시브 스킬용 피해 보정 훅 (2026-08-12)
+        //
+        // 왜 여기(베이스)에 두는가 — 보정을 받는 쪽이 캐릭터일 수도 몬스터일 수도 있다.
+        // 예: '부식'(피올로)은 <b>몬스터</b>의 방어력을 깎고, '광란'(프레이야)은 <b>캐릭터</b>의
+        // 공격력을 올린다. 파생 클래스마다 따로 두면 두 벌이 되고, 능력치 자체
+        // (<c>DefenseStat</c>/<c>AttackStat</c>)를 건드리면 UI 표시값까지 흔들린다 —
+        // <b>피해 계산에만</b> 얹히는 별도 칸으로 둔다.
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// 피해 계산에서 이 유닛의 방어력에 더해지는 값(음수 가능). 정신 이상·패시브가 쓴다.
+        /// 능력치 자체는 바뀌지 않으므로 로스터·성장 창의 표시값은 그대로다.
+        /// 여러 효과가 겹칠 수 있으므로 <b>더하고 빼서</b> 쓴다(덮어쓰지 않는다).
+        /// </summary>
+        public int DefenseModifier { get; private set; }
+
+        /// <summary>방어력 보정을 더한다. 해제할 때 같은 값을 음수로 넣는다.</summary>
+        public void AddDefenseModifier(int delta) => DefenseModifier += delta;
+
+        /// <summary>
+        /// <b>다음 한 번의 공격에만</b> 더해지는 공격력. '유혈 낭자'(엘린)처럼
+        /// "때릴 때 체력을 깎고 그만큼을 공격력에 더한다" 는 효과가 쓴다.
+        ///
+        /// <see cref="OnAnyAttack"/> 이 피해 계산 <b>전에</b> 발생하므로, 그 이벤트를 받은 쪽이
+        /// 이 값을 채워 넣으면 바로 그 공격에 반영된다. 쓰고 나면 스스로 비워진다 —
+        /// 안 비우면 다음 공격까지 새어나간다.
+        /// </summary>
+        public int OneShotAttackBonus { get; set; }
+
+        // ------------------------------------------------------------------
 
         public BalanceConfigSO Balance => balance;
         public int CurrentHp => currentHp;
@@ -239,7 +269,13 @@ namespace LastSanctuary.Combat
             }
 
             // ② 기본 피해
-            int damage = balance.Damage(attacker.AttackStat, DefenseStat);
+            //    패시브 보정을 여기서만 얹는다 — 능력치 프로퍼티를 건드리지 않으므로
+            //    UI 표시값과 성장 계산은 영향을 받지 않는다(위 훅 주석 참조).
+            //    공격력 일회성 보정은 쓰는 즉시 비운다(다음 공격으로 새어나가지 않게).
+            int attackStat = attacker.AttackStat + attacker.OneShotAttackBonus;
+            attacker.OneShotAttackBonus = 0;
+            int defenseStat = Mathf.Max(0, DefenseStat + DefenseModifier);
+            int damage = balance.Damage(attackStat, defenseStat);
 
             // ③ 치명타 판정
             float crit = attacker.CriticalChancePercent;

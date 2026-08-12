@@ -202,7 +202,9 @@ namespace LastSanctuary.Combat
 
         void Trigger(ErosionService service)
         {
-            MentalErrorDefinitionSO def = service.RollDefinition();
+            // 패시브 보정을 반영한 추첨 — '강철의 의지'(좋은 효과 가중치 ×N) ·
+            // '광란'(이기심·광분으로 고정)이 여기서 작동한다.
+            MentalErrorDefinitionSO def = service.RollDefinition(_character);
             if (def == null)
             {
                 // 정의가 없으면 상한에서 매 프레임 재시도하게 되므로 조금 떨어뜨려 둔다.
@@ -322,6 +324,13 @@ namespace LastSanctuary.Combat
                     break;
             }
         }
+
+        /// <summary>
+        /// <b>밖에서</b> 정신 이상을 해제한다 — 패시브 '정신 안정'(피올로)이 쓴다.
+        /// 내부 <see cref="ClearActive"/> 와 같은 경로를 지나므로 지속 효과가 정확히 되돌아간다
+        /// (해제 로직을 두 벌로 만들면 하나를 고칠 때 다른 하나가 남는다).
+        /// </summary>
+        public void ClearActiveExternally() => ClearActive();
 
         /// <summary>지속 효과를 전부 되돌리고 상태를 비운다. 만료·사망·중첩 모두 이 한 곳을 지난다.</summary>
         void ClearActive()

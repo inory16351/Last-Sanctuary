@@ -162,6 +162,39 @@ namespace LastSanctuary.Combat
         /// 발동할 정신 이상 한 종류를 가중치로 뽑는다. 테이블의 확률 합이 1.00 이라
         /// 이 값들은 "발동 시 어느 종류가 나오는지"의 분포다(<see cref="MentalErrorDefinitionSO"/> 참조).
         /// </summary>
+        /// <summary>
+        /// <paramref name="unit"/> 의 <b>패시브 보정을 반영해</b> 한 종류를 뽑는다.
+        ///
+        /// 보정을 여기서 처리하는 이유 — 가중치 추첨은 이 한 곳뿐이므로, 여기에 배수를 얹으면
+        /// '강철의 의지'(좋은 효과 ×N)와 '광란'(이기심·광분으로 고정)이 <b>추첨 로직을 복제하지
+        /// 않고</b> 성립한다. 배수 0 은 "그 종류는 뽑히지 않는다" 로 자연스럽게 떨어진다.
+        ///
+        /// <paramref name="unit"/> 이 null 이거나 패시브가 없으면 <see cref="RollDefinition()"/> 과
+        /// 완전히 같은 결과다 — 몬스터·확장 전 캐릭터의 동작이 바뀌지 않는다.
+        /// </summary>
+        public MentalErrorDefinitionSO RollDefinition(CharacterUnit unit)
+        {
+            var passives = unit != null ? unit.GetComponent<CharacterPassives>() : null;
+            if (passives == null) return RollDefinition();
+
+            float total = 0f;
+            for (int i = 0; i < _definitions.Count; i++)
+                total += _definitions[i].activationProbability *
+                         passives.MentalWeightMultiplier(_definitions[i]);
+
+            // 보정이 모든 후보를 0 으로 만들었다 — 보정 없는 추첨으로 떨어진다(발동을 삼키지 않는다).
+            if (total <= 0f) return RollDefinition();
+
+            float roll = (float)_rng.NextDouble() * total;
+            for (int i = 0; i < _definitions.Count; i++)
+            {
+                roll -= _definitions[i].activationProbability *
+                        passives.MentalWeightMultiplier(_definitions[i]);
+                if (roll <= 0f) return _definitions[i];
+            }
+            return _definitions[_definitions.Count - 1];   // 부동소수 오차 보정
+        }
+
         public MentalErrorDefinitionSO RollDefinition()
         {
             if (_definitions.Count == 0)

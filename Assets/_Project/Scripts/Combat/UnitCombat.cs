@@ -643,13 +643,27 @@ namespace LastSanctuary.Combat
         public float Standoff => _standoffTiles;
 
         /// <summary>지금 공격 유형에서 실제로 때릴 수 있는 거리(타일).</summary>
-        public float EffectiveAttackRange => attackType switch
+        public float EffectiveAttackRange => Mathf.Max(0.2f, _attackRangeBonus + attackType switch
         {
             TacticalAttackType.Ranged => rangedRangeTiles,
             TacticalAttackType.Magic  => magicMaxRangeTiles,
             TacticalAttackType.Heal   => healRangeTiles,
             _                         => attackRange,
-        };
+        });
+
+        /// <summary>
+        /// 패시브가 얹는 사거리 보너스(타일). 직렬화하지 않는다 — 임시 상태이고 정본은
+        /// <c>CharacterPassives</c> 가 들고 있다.
+        ///
+        /// <b>왜 유형별 필드를 직접 안 고치는가</b> — 사거리는 공격 유형에 따라 읽는 필드가
+        /// 다르다(위 switch). 유형이 바뀌면 어느 필드에 보너스를 넣었는지 추적해야 하고,
+        /// 전술 지침으로 유형이 바뀔 때 값이 새거나 두 번 걸린다. <b>합산 지점 한 곳</b>에
+        /// 얹으면 유형이 바뀌어도 항상 정확하다.
+        /// </summary>
+        float _attackRangeBonus;
+
+        /// <summary>사거리 보너스를 더한다. 해제할 때 같은 값을 음수로 넣는다.</summary>
+        public void AddAttackRangeBonus(float delta) => _attackRangeBonus += delta;
 
         /// <summary>
         /// 실제 인식 거리. 사거리가 인식 거리보다 길면(원거리 5 / 마법 6 vs 인식 7 이하) 때릴 수

@@ -65,11 +65,59 @@ namespace LastSanctuary.Units
         public int EffectiveStat(StatType type)
         {
             int raw = stats[type];
-            if (_statPercentBonus == 0) return raw;
+            int flat = FlatStatBonus(type);
+
+            if (_statPercentBonus == 0)
+                return flat == 0 ? raw : Mathf.Max(1, raw + flat);
 
             int scaled = Mathf.RoundToInt(raw * (100 + _statPercentBonus) / 100f);
             int cap = Balance != null ? Balance.statMax : 100;
-            return Mathf.Clamp(scaled, 1, cap);
+            scaled = Mathf.Clamp(scaled, 1, cap);
+
+            // ★ 고정 보정은 <b>상한을 적용한 뒤에</b> 더한다 — 패시브 정의문이 명시적으로
+            //   "이 수치는 최대 능력치 표기 값을 초월할 수 있다" 라고 못박고 있다
+            //   ('로 아이아스' 방어력 +8 · '광란' 공격력 +10 · '희열' 공속·이속).
+            return Mathf.Max(1, scaled + flat);
+        }
+
+        // ------------------------------------------------------------------
+        // 고정(flat) 능력치 보정 — 패시브 스킬용 (2026-08-12)
+        //
+        // <see cref="AddStatPercentBonus"/>(퍼센트)와 갈라 둔 이유: 퍼센트 보정은 상한에 걸리고
+        // 능력치 전체에 걸리는데, 패시브는 <b>특정 능력치 하나</b>에 <b>상한을 넘겨</b> 더한다.
+        // 같은 칸을 공유하면 정신 이상 '각성'(전체 +10%)과 서로를 지운다.
+        // ------------------------------------------------------------------
+
+        /// <summary>스탯 종류별 고정 보정. 값이 0 인 항목은 넣지 않는다(대부분 비어 있다).</summary>
+        System.Collections.Generic.Dictionary<StatType, int> _flatBonus;
+
+        int FlatStatBonus(StatType type) =>
+            _flatBonus != null && _flatBonus.TryGetValue(type, out int v) ? v : 0;
+
+        /// <summary>
+        /// 능력치 하나에 고정값을 더한다. 해제할 때 같은 값을 음수로 넣는다 —
+        /// 그래야 여러 패시브가 겹쳐도 서로의 값을 지우지 않는다.
+        ///
+        /// 체력에 걸면 최대 체력이 즉시 바뀌므로 <b>현재 체력 비율을 유지</b>한다
+        /// (<see cref="AddStatPercentBonus"/> 와 같은 이유).
+        /// </summary>
+        public void AddFlatStatBonus(StatType type, int delta)
+        {
+            if (delta == 0) return;
+
+            _flatBonus ??= new System.Collections.Generic.Dictionary<StatType, int>();
+            _flatBonus.TryGetValue(type, out int now);
+            int next = now + delta;
+            if (next == 0) _flatBonus.Remove(type);
+            else _flatBonus[type] = next;
+
+            if (type != StatType.Hp) return;
+
+            float ratio = HpRatio;
+            SetupHealth(Balance, fillHp: false);
+            int target = Mathf.Clamp(Mathf.RoundToInt(MaxHp * ratio), 1, MaxHp);
+            if (target > CurrentHp) Heal(target - CurrentHp);
+            else if (target < CurrentHp) ApplyDamage(CurrentHp - target);
         }
 
         public override int MaxHp => Balance != null ? Balance.MaxHp(EffectiveStat(StatType.Hp)) : 0;
