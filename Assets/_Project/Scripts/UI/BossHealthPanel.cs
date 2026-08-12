@@ -75,6 +75,10 @@ namespace LastSanctuary.UI
                 return;
             }
 
+            // 스프라이트가 비어 있으면 fillAmount 가 무시되어 보스 체력바가 항상 꽉 찬 것처럼
+            // 보인다 — UiFillBar 문서 참조.
+            UiFillBar.Prepare(hpFill);
+
             SetVisible(false);
         }
 

@@ -334,6 +334,10 @@ namespace LastSanctuary.UI
             _hpGhost = FindImage("Info/HpBack/HpGhost");
             _erosion.Bind(transform, "Info/ErosionBack");
 
+            // 스프라이트가 비어 있으면 fillAmount 가 무시되어 막대 길이가 안 변한다 —
+            // UiFillBar 문서 참조.
+            UiFillBar.Prepare(_hpFill, _hpGhost, _retreatBarFill);
+
             // 후퇴 기준 막대 — 눌러서/끌어서 1% 단위로 고른다. 아래 ± 버튼(5% 단위)은 그대로 둔다:
             // 막대는 대충 잡을 때, 버튼은 정확히 맞출 때 쓰라는 것.
             var dragBar = transform.Find("Col2/RetreatBar")?.GetComponent<UiDragBar>();

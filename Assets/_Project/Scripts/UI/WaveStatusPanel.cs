@@ -25,6 +25,7 @@ namespace LastSanctuary.UI
         [SerializeField] Color battleColor = new Color(0.98f, 0.72f, 0.35f, 1f);
         [SerializeField] Color defeatColor = new Color(0.96f, 0.42f, 0.42f, 1f);
         [SerializeField] Color enrageColor = new Color(0.92f, 0.18f, 0.35f, 1f);
+        [SerializeField] Color victoryColor = new Color(1f, 0.88f, 0.45f, 1f);
 
         [Tooltip("남은 시간이 이 값 아래로 내려가면 타이머가 붉게 바뀐다(초)")]
         [Min(0f)] [SerializeField] float urgentSeconds = 10f;
@@ -64,6 +65,7 @@ namespace LastSanctuary.UI
 
             _wave.OnWaveSpawned += HandleWaveSpawned;
             _wave.OnDefeat += HandleDefeat;
+            _wave.OnVictory += HandleVictory;
         }
 
         void OnDestroy()
@@ -71,6 +73,7 @@ namespace LastSanctuary.UI
             if (_wave == null) return;
             _wave.OnWaveSpawned -= HandleWaveSpawned;
             _wave.OnDefeat -= HandleDefeat;
+            _wave.OnVictory -= HandleVictory;
         }
 
         void Update()
@@ -105,6 +108,17 @@ namespace LastSanctuary.UI
                     _shownSeconds = -3;
                     timerLabel.text = "패배";
                     timerLabel.color = defeatColor;
+                }
+                return;
+            }
+
+            if (phase == WavePhase.Victory)
+            {
+                if (_shownSeconds != -5)
+                {
+                    _shownSeconds = -5;
+                    timerLabel.text = "승리";
+                    timerLabel.color = victoryColor;
                 }
                 return;
             }
@@ -144,13 +158,21 @@ namespace LastSanctuary.UI
             WavePhase.Battle      => "전투",
             WavePhase.Enrage      => "광폭화",
             WavePhase.Defeat      => "패배",
+            WavePhase.Victory     => "승리",
             _                     => phase.ToString(),
         };
 
         void HandleWaveSpawned(int wave) =>
             HudLog.Add($"웨이브 {wave} 몬스터 소환", HudLogKind.Warn);
 
+        /// <summary>패배 사유는 <see cref="WaveManager.Reason"/> 이 정본이다 — 문구를 여기서 짐작하지 않는다.</summary>
         void HandleDefeat() =>
-            HudLog.Add("넥서스가 파괴되었습니다", HudLogKind.Danger);
+            HudLog.Add(_wave != null && _wave.Reason == DefeatReason.AllCharactersLost
+                           ? "캐릭터가 전멸했습니다"
+                           : "넥서스가 파괴되었습니다",
+                       HudLogKind.Danger);
+
+        void HandleVictory(int wave) =>
+            HudLog.Add($"웨이브 {wave} 클리어 — 승리!", HudLogKind.Good);
     }
 }

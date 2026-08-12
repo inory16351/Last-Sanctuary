@@ -35,7 +35,15 @@ namespace LastSanctuary.UI
     {
         [Header("문구")]
         [SerializeField] string titleText = "패배";
+
+        [Tooltip("사유를 알 수 없을 때 쓰는 기본 문구. 사유별 문구는 아래 두 필드가 쓰인다")]
         [SerializeField] string reasonText = "중앙 건물이 파괴되었습니다.";
+
+        [Tooltip("넥서스 파괴로 졌을 때")]
+        [SerializeField] string reasonNexusText = "중앙 건물이 파괴되었습니다.";
+
+        [Tooltip("캐릭터 전멸로 졌을 때 (다시 생성할 에너지도, 남은 포탑도 없는 상태)")]
+        [SerializeField] string reasonPartyText = "캐릭터가 전멸하고, 다시 세울 수단도 남지 않았습니다.";
 
         [Tooltip("{0}=도달 웨이브, {1}=생존 시간, {2}=남은 캐릭터 수")]
         [SerializeField] string summaryFormat = "웨이브 {0} 도달 · 생존 {1} · 남은 인원 {2}명";
@@ -69,6 +77,7 @@ namespace LastSanctuary.UI
         int _finalWave;
         float _finalSeconds;
         int _finalAlive;
+        DefeatReason _finalReason;
 
         void Awake() => BuildBindings();
 
@@ -114,16 +123,25 @@ namespace LastSanctuary.UI
             _finalWave = _wave != null ? _wave.WaveNumber : 0;
             _finalSeconds = Time.unscaledTime - _startedAt;
             _finalAlive = CountAliveCharacters();
+            _finalReason = _wave != null ? _wave.Reason : DefeatReason.None;
 
             _showAt = Time.unscaledTime + showDelaySeconds;
         }
+
+        /// <summary>패배 사유에 맞는 한 줄. 사유를 모르면 기본 문구로 떨어진다.</summary>
+        string ReasonLine() => _finalReason switch
+        {
+            DefeatReason.NexusDestroyed    => reasonNexusText,
+            DefeatReason.AllCharactersLost => reasonPartyText,
+            _                              => reasonText,
+        };
 
         void Show()
         {
             _shown = true;
 
             if (_title != null) _title.text = titleText;
-            if (_reason != null) _reason.text = reasonText;
+            if (_reason != null) _reason.text = ReasonLine();
             if (_summary != null)
                 _summary.text = string.Format(summaryFormat, _finalWave,
                                               FormatDuration(_finalSeconds), _finalAlive);
@@ -134,7 +152,7 @@ namespace LastSanctuary.UI
             // 멈추는 것은 화면을 띄우는 시점이다 — 넥서스가 부서지는 순간은 그대로 보여준다.
             if (pauseGameOnDefeat) Time.timeScale = 0f;
 
-            HudLog.Add("패배 — 중앙 건물이 파괴되었습니다", HudLogKind.Danger);
+            HudLog.Add($"패배 — {ReasonLine()}", HudLogKind.Danger);
         }
 
         /// <summary>

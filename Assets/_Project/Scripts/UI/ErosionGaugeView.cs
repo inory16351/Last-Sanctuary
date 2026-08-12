@@ -57,6 +57,10 @@ namespace LastSanctuary.UI
             _fill = back.Find("ErosionFill")?.GetComponent<Image>();
             _label = back.Find("ErosionLabel")?.GetComponent<TMP_Text>();
 
+            // 스프라이트가 비어 있으면 fillAmount 가 무시되어 게이지가 항상 꽉 찬 것처럼
+            // 보인다 — UiFillBar 문서 참조.
+            UiFillBar.Prepare(_fill);
+
             _bound = _fill != null || _label != null;
         }
 

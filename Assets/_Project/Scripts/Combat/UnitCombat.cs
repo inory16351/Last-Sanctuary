@@ -86,6 +86,14 @@ namespace LastSanctuary.Combat
         [Tooltip("이 거리(타일) 안의 동료가 맞고 있을 때만 도우러 간다")]
         [Min(0.5f)] [SerializeField] float allyCallRange = 12f;
 
+        [Header("사냥 (탐험 유형 '사냥' 이 물린 중립 몬스터)")]
+        [Tooltip("사냥감을 물면 <b>죽을 때까지</b> 쫓는다 — 이 값은 그 예외인 '추격 포기 한계'다.\n" +
+                 "사냥을 시작한 지점에서 사냥감이 이 거리(타일) 밖으로 도망가면 포기하고 원래 " +
+                 "임무로 돌아간다. 0 이면 한계 없음(맵 끝까지 쫓는다).\n" +
+                 "⚠️ 일반 목줄(leashRange)은 사냥에 적용하지 않는다 — 목줄의 기준점이 " +
+                 "'지금 걸어가는 탐험 목적지' 라서, 적용하면 사냥감을 물린 즉시 놓아버린다")]
+        [Min(0f)] [SerializeField] float huntPursuitTiles = 24f;
+
         [Header("교전 개시 위치")]
         [Tooltip("원거리·마법이 교전을 시작하기 전 최대 사거리까지 물러나 자리를 잡을 때, " +
                  "시작 지점에서 이 거리(타일)까지만 물러난다. 넘으면 그 자리에서 교전을 고정한다 — " +
@@ -174,6 +182,10 @@ namespace LastSanctuary.Combat
         // "이 상대를 지금 공격하라"고 외부에서 지정하는 타겟. 설정돼 있으면 일반 탐색보다
         // 우선한다 — CharacterBehavior 가 이 훅으로 사냥을 건다.
         DamageableUnit _huntOverrideTarget;
+
+        // 사냥을 시작한 자리. 추격 포기 한계(huntPursuitTiles)의 기준점이다 — 목줄의 기준점
+        // (_homePosition = 지금 걸어가는 탐험 목적지)을 쓰면 사냥이 시작조차 못 한다.
+        Vector3 _huntOrigin;
 
         // ── 전술 지침 런타임 상태 ────────────────────────────────────────────
         // 직렬화하지 않는다 — 지침의 정본은 CharacterTactics 이고, 여기 값은 그것이
@@ -315,6 +327,9 @@ namespace LastSanctuary.Combat
         const int EmbedEscapeAttempts = 6;
         const int EmbedEscapeSearchRadius = 8;
 
+        // 갇힘 탈출 직선 판정의 표본 간격(타일). 한 칸보다 촘촘해야 칸을 건너뛰지 않는다.
+        const float EmbedEscapeLosStepTiles = 0.25f;
+
         public CombatState State => _state;
         public DamageableUnit Target => _target;
 
@@ -434,15 +449,23 @@ namespace LastSanctuary.Combat
         public Vector3 Home => _homePosition;
 
         /// <summary>
-        /// 평소 진영 판정을 건너뛰고 이 상대를 사냥하도록 강제한다 (정찰 중 중립 몬스터 조우 등).
+        /// 평소 진영 판정을 건너뛰고 이 상대를 사냥하도록 강제한다 (탐험 중 중립 몬스터 조우 등).
         /// 다음 <see cref="AcquireTargetIfNeeded"/> 에서 즉시 <see cref="Target"/> 으로 잡힌다.
-        /// 대상이 <see cref="leashRange"/>(귀환 지점 기준) 밖으로 벗어나면 자동으로 포기한다.
+        ///
+        /// <b>★ 한 번 물면 죽을 때까지 놓지 않는다</b>(유저 확정 2026-08-12: "우선 타깃으로 설정한
+        /// 몬스터는 잡고 나서 합류하는 로직"). 그래서 이 시점의 <b>자기 위치</b>를 사냥 시작점으로
+        /// 기억해 두고, 포기 판정을 그 지점 기준 <see cref="huntPursuitTiles"/> 하나로만 한다 —
+        /// 자세한 이유는 <see cref="AcquireTargetIfNeeded"/> 의 사냥 블록 주석 참조.
         /// </summary>
         public void SetHuntTarget(DamageableUnit target)
         {
             // 중립 적대가 억제된 상태(탐험 유형 '탐색')에서는 사냥감 자체를 받지 않는다 —
             // 억제를 한 곳에서만 검사하려면 들어오는 입구도 같이 막아야 한다.
             if (_neutralHostilitySuppressed && target != null && target.Faction == Faction.Neutral) return;
+
+            // 사냥감이 바뀌는 순간에만 시작점을 다시 찍는다 — 매 프레임 갱신하면 추격 한계가
+            // 계속 밀려나서 "한계 없음" 과 같아진다(같은 사냥감을 매 프레임 다시 넣는 호출부가 있다).
+            if (!ReferenceEquals(_huntOverrideTarget, target)) _huntOrigin = transform.position;
             _huntOverrideTarget = target;
         }
 
@@ -685,10 +708,20 @@ namespace LastSanctuary.Combat
         /// <see cref="MapGenerator.TryFindPlaceableNear"/> 가 "가장 가까운 빈 칸"을 순수 거리로만
         /// 찾는다는 것 — 그 칸이 벽 반대편이면 직선 탈출 경로가 벽·다른 포탑을 그대로 관통한다
         /// (특히 후퇴 지점이 넥서스 주변 좁은 반경이라 포탑이 몰려 있어 실제로 자주 걸렸다).
-        /// 그래서 후보를 거리순으로 받아보되 <see cref="GridPathfinder.HasLineOfSight"/> 로
+        /// 그래서 후보를 거리순으로 받아보되 <see cref="HasEscapeLineOfSight"/> 로
         /// "직선 경로가 실제로 뚫려 있는지"까지 확인하고, 막혀 있으면 그 칸을 제외하고 다음으로
         /// 가까운 칸을 다시 찾는다 — 탈출 자체(막힌 칸에서 첫걸음 떼기)는 그대로 충돌 무시를
         /// 유지하면서, 그 직선이 다른 벽을 관통하지는 않게 보장한다.
+        ///
+        /// <b>★ 재수정(유저 리포트 2026-08-12: "건설 완료 시 캐릭터가 건물에 끼어서 못 움직인다")</b> —
+        /// 위 직선 확인을 <see cref="GridPathfinder.HasLineOfSight"/> 로 하고 있었는데, 그 판정은
+        /// <b>출발 지점(i=0)부터</b> 검사한다. 지금 서 있는 칸은 정의상 막힌 칸이므로
+        /// <b>어느 후보를 넣어도 첫 표본에서 곧바로 false</b>가 되고, 후보를 6번 다 걸러낸 뒤
+        /// <c>false</c> 를 돌려줘 탈출 자체가 취소됐다 → <see cref="TryMoveTo"/> 의 모든 후보가
+        /// 같은 막힌 칸이라 전부 실패 → <b>캐릭터가 영구히 얼어붙는다.</b> 포탑을 다 지은 그 자리에
+        /// 건설자가 서 있는 경우가 바로 이 상황이라 매번 재현됐다.
+        /// 그래서 <b>출발 지점에 붙어 있는 막힌 구간(=지금 갇혀 있는 구조물)은 건너뛰고</b>
+        /// 그 뒤에 또 벽이 나오는지만 보는 전용 판정(<see cref="HasEscapeLineOfSight"/>)으로 바꿨다.
         /// </summary>
         /// <returns>탈출 중이면 true — 이 프레임의 다른 이동은 건너뛴다.</returns>
         bool EscapeIfEmbedded(float dt)
@@ -716,30 +749,74 @@ namespace LastSanctuary.Combat
 
         /// <summary>
         /// <see cref="EscapeIfEmbedded"/> 가 쓸 탈출 목표 칸. 거리순으로 후보를 받아보다가,
-        /// 지금 위치에서 그 칸까지 직선이 실제로 뚫려 있는(<see cref="GridPathfinder.HasLineOfSight"/>)
+        /// 지금 위치에서 그 칸까지 직선이 실제로 뚫려 있는(<see cref="HasEscapeLineOfSight"/>)
         /// 첫 번째 칸을 쓴다 — 벽 너머의 "가장 가까운 빈 칸"을 그대로 뚫고 가지 않기 위함이다.
-        /// 길찾기가 없는 유닛(<c>usePathfinding</c> 꺼짐)은 직선 확인을 할 수 없으므로 예전처럼
-        /// 첫 후보를 그대로 쓴다.
+        ///
+        /// ⚠️ <b>어느 후보도 통과하지 못하면 "가장 가까운 빈 칸"을 그대로 쓴다</b>(마지막 폴백).
+        /// 여기서 <c>false</c> 를 돌려주면 <see cref="EscapeIfEmbedded"/> 가 아무것도 하지 않고,
+        /// 그 결과 유닛이 <b>영구히 얼어붙는다</b> — 벽을 잠깐 스치는 것보다 훨씬 나쁜 결과다.
+        /// (직선 확인은 "가능하면 안 뚫는다" 는 개선이고, 탈출 자체는 포기해선 안 된다.)
         /// </summary>
         bool TryFindEscapeCell(Vector3Int fromCell, out Vector3Int free)
         {
             _embedRejectScratch.Clear();
+            bool haveFallback = false;
+            Vector3Int fallback = default;
 
             for (int attempt = 0; attempt < EmbedEscapeAttempts; attempt++)
             {
                 if (!_mapGenerator.TryFindPlaceableNear(fromCell, EmbedEscapeSearchRadius,
                                                         _embedRejectScratch.Contains, out free))
-                    return false;   // 반경 안에 (제외한 것 말고는) 더 이상 후보가 없다
+                    break;   // 반경 안에 (제외한 것 말고는) 더 이상 후보가 없다
 
-                if (_pathfinder == null ||
-                    _pathfinder.HasLineOfSight(transform.position, _mapGenerator.CellCenterWorld(free)))
+                if (!haveFallback) { fallback = free; haveFallback = true; }   // 가장 가까운 빈 칸
+
+                if (HasEscapeLineOfSight(transform.position, _mapGenerator.CellCenterWorld(free)))
                     return true;
 
                 _embedRejectScratch.Add(free);
             }
 
-            free = default;
-            return false;
+            free = fallback;
+            return haveFallback;
+        }
+
+        /// <summary>
+        /// <b>막힌 칸에 갇힌 상태에서의</b> 직선 통행 판정.
+        /// <see cref="GridPathfinder.HasLineOfSight"/> 와 같은 방식으로 선을 훑지만,
+        /// <b>출발 지점에 붙어 있는 막힌 구간은 통과로 본다</b> — 그게 지금 갇혀 있는 구조물
+        /// (발밑에 세워진 포탑·넥서스 발판) 자신이기 때문이다. 그 구간을 벗어난 뒤에 다시
+        /// 막힌 칸이 나오면 그때는 "벽 너머" 이므로 false.
+        ///
+        /// 이 구분이 없으면 첫 표본(=자기 칸)에서 무조건 막혀서 <b>탈출이 아예 시작되지 않는다</b>
+        /// — 그게 "건설 완료 시 캐릭터가 건물에 끼어서 못 움직인다" 버그의 원인이었다.
+        /// <see cref="GridPathfinder"/> 쪽을 고치지 않은 이유는 그 판정이 <b>정상 이동·경로 평활화</b>
+        /// 에서도 쓰이기 때문이다 — 거기서는 출발 칸이 막혀 있으면 실제로 막힌 것이 맞다.
+        /// </summary>
+        bool HasEscapeLineOfSight(Vector3 fromWorld, Vector3 toWorld)
+        {
+            if (_mapGenerator == null) return false;
+
+            Vector2 d = toWorld - fromWorld;
+            float dist = d.magnitude;
+            if (dist < 1e-4f) return _mapGenerator.IsCellPlaceable(_mapGenerator.WorldToCell(fromWorld));
+
+            int steps = Mathf.Max(1, Mathf.CeilToInt(dist / EmbedEscapeLosStepTiles));
+            bool leftStart = false;
+
+            for (int i = 0; i <= steps; i++)
+            {
+                Vector3 p = fromWorld + (Vector3)(d * (i / (float)steps));
+                bool placeable = _mapGenerator.IsCellPlaceable(_mapGenerator.WorldToCell(p));
+
+                if (placeable) { leftStart = true; continue; }
+
+                // 아직 출발 구조물 안이면 통과. 한 번 나온 뒤라면 그건 진짜 벽이다.
+                if (leftStart) return false;
+            }
+
+            // 목표 칸 자체는 반드시 빈 칸이어야 한다(빈 칸을 찾아온 것이므로 보통 참).
+            return leftStart;
         }
 
         /// <summary>
@@ -788,16 +865,32 @@ namespace LastSanctuary.Combat
             // 치유 유형은 적을 아예 노리지 않는다 — "공격 대신 회복"이 이 유형의 정의다.
             if (attackType == TacticalAttackType.Heal) { AcquireHealTarget(); return; }
 
+            // ★ 사냥은 <b>잡을 때까지</b> 고정한다 (유저 확정 2026-08-12).
+            //
+            // ⚠️ 예전에는 여기서 <c>leashRange</c>(귀환 지점 기준 목줄)로 사냥감을 놓았다.
+            //    그게 유저가 리포트한 "사냥으로 설정하면 그냥 때리다가 바로 돌아가 버린다" 의
+            //    정체다 — 목줄의 기준점 <c>_homePosition</c> 은 <b>지금 걸어가고 있는 탐험
+            //    목적지</b>(CharacterBehavior 가 14~60타일 밖으로 잡는다)이고, 사냥감은
+            //    <b>자기 주변</b> huntDetectRange(10타일) 에서 고른다. 두 기준이 달라서
+            //    거의 항상 "목줄 밖" 으로 판정됐고, 사냥감을 물린 다음 프레임에 바로 놓고
+            //    (중립은 진영 타겟팅에 안 걸리므로) 순찰 목적지로 되돌아갔다. 호출부가 매 프레임
+            //    같은 사냥감을 다시 넣으니 붙었다 놓았다를 반복하며 "한두 대 때리고 돌아간다"가 됐다.
+            //
+            // 그래서 포기 조건을 <b>사냥 시작점 기준 추격 한계</b> 하나로 바꿨다 — 기준점이
+            // 사냥을 시작한 자리이므로 "이 근처에서 시작한 싸움은 끝까지 한다" 가 성립하고,
+            // 사냥감이 도망쳐 맵을 가로지르는 경우만 걸러진다. 사냥감이 죽으면 여기서 스스로
+            // 비워지고, 그 순간 <c>CharacterBehavior</c> 가 평소 임무 판단으로 떨어져
+            // 집결지·부대로 <b>합류</b>한다(진행상황 46-1절의 그 경로 그대로다 — 추가 코드 없음).
             if (_huntOverrideTarget != null)
             {
                 if (!_huntOverrideTarget.IsAlive)
                 {
-                    _huntOverrideTarget = null;   // 사냥감이 죽었다 — 다음부터 일반 탐색으로 돌아간다
+                    _huntOverrideTarget = null;   // 사냥감이 죽었다 — 이제 평소 임무로 돌아간다
                 }
-                else if (leashRange > 0f &&
-                         Vector2.Distance(_huntOverrideTarget.transform.position, _homePosition) > leashRange)
+                else if (huntPursuitTiles > 0f &&
+                         Vector2.Distance(_huntOverrideTarget.transform.position, _huntOrigin) > huntPursuitTiles)
                 {
-                    _huntOverrideTarget = null;   // 서식지 밖으로 너무 멀어졌다 — 사냥을 포기한다
+                    _huntOverrideTarget = null;   // 사냥 시작점에서 너무 멀리 도망갔다 — 포기한다
                 }
                 else
                 {
@@ -1103,8 +1196,13 @@ namespace LastSanctuary.Combat
                 // 몬스터(advanceToObjective)에는 적용하지 않는다.
                 // ⚠️ 동료를 때리는 적을 잡으러 가는 중이면 대기하지 않는다 — 그 상황만이
                 //    자리를 뜨는 유일한 사유다(유저 지시).
+                // ⚠️ <b>사냥감도 예외다</b>(유저 확정 2026-08-12) — 사냥은 "찾아가서 잡는" 행동이라
+                //    대기와 뜻이 정면으로 어긋난다. 여기서 막으면 사냥감이 사거리를 벗어나는 순간
+                //    <b>자기 자리로 되돌아가</b>(아래 Chase→_homePosition) "때리다가 돌아간다"가 된다.
+                bool huntingThisTarget = _huntOverrideTarget != null &&
+                                         ReferenceEquals(_target, _huntOverrideTarget);
                 if (_reaction == TacticalAttackReaction.HoldGround && !advanceToObjective &&
-                    !_answeringAllyCall)
+                    !_answeringAllyCall && !huntingThisTarget)
                 {
                     _holdingGround = true;
                     _state = Vector2.Distance(transform.position, _homePosition) > 0.3f

@@ -398,6 +398,10 @@ namespace LastSanctuary.UI
 
                 Transform percentLabel = hpBack.Find("HpPercentLabel");
                 if (percentLabel != null) row.HpPercentLabel = percentLabel.GetComponent<TMP_Text>();
+
+                // 스프라이트가 비어 있으면 fillAmount 가 아예 무시되어 막대가 렉트 전체로
+                // 칠해진다(색만 바뀌고 길이는 안 변한다) — UiFillBar 문서 참조.
+                UiFillBar.Prepare(row.HpFill, row.HpGhost);
             }
 
             // 침식 게이지는 체력바와 형제로 둔다(HpBack 아래) — 체력이 보이는 곳엔 침식도

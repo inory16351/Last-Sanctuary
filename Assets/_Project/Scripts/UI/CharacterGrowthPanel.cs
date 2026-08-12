@@ -550,6 +550,10 @@ namespace LastSanctuary.UI
             _hpFill = FindImage("Info/HpBack/HpFill");
             _hpGhost = FindImage("Info/HpBack/HpGhost");
             _erosion.Bind(transform, "Info/ErosionBack");
+
+            // 스프라이트가 비어 있으면 fillAmount 가 무시되어 막대 길이가 안 변한다 —
+            // UiFillBar 문서 참조.
+            UiFillBar.Prepare(_hpFill, _hpGhost);
             _portraitSprite = FindImage("Info/Portrait/Sprite");
             _portraitHint = transform.Find("Info/Portrait/Hint")?.gameObject;
             _costText = FindText("Info/CostValue");
