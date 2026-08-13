@@ -1806,3 +1806,95 @@ UI-15·17·18·19·20·21·22 와 같은 종류의 크로싱이다.
 ### 씬반영요청 목록
 
 없음.
+
+---
+
+## UI-24. 시야 밖 적 공격 불가 · 전방 캐릭터 확인 이동 · 엘린 시야 사각형화 (2026-08-13)
+
+> 상세는 `진행상황.md` **75·76절**. (⚠️ 73절은 이 로그에 항목이 없다 — 그 세션이 빠뜨렸다.
+> 이 항목은 **75절**에 대응한다.)
+
+### 무엇을 했나
+
+| # | 변경 | 파일 |
+|---|---|---|
+| 1 | **시야 밖 적 공격 불가** — `respectFogOfWar` 가 타겟 선정 필터에만 걸려 있어 **반격(`FindRetaliationTarget`) · 동료 구원(`FindAllyAttacker`) · `TryAttack`** 세 경로가 안개를 우회했다. 판정을 신규 `IsFogVisible` 한 곳으로 모았다(치유는 아군 대상이라 예외) | `Combat/UnitCombat.cs` |
+| 2 | **전방 캐릭터가 확인하러 간다** — 안 보이는 적에게 맞으면 경보를 남기고 전방 중 가장 가까운 한 명만 이동. 누가 그 자리를 보면 경보 자동 해제 | `Combat/SightAlertService.cs` **(신규)** · `Units/CharacterBehavior.cs` |
+| 3 | **엘린 시야 원형 → 그림 크기 사각형** — 원은 모서리까지 닿아야 해 넓이가 그림의 3.54배(19.9 vs 5.62타일²)였다 | `Fog/VisionSource.cs` · `Fog/FogOfWarService.cs` · `Combat/CharacterPassives.cs` |
+
+### 씬 변경 여부 — **없음**
+
+사각 시야는 스킬이 **런타임에** 넣고(`SetVisionBox`), 신규 `[SerializeField]` 4개
+(`investigateUnseenAttacks` / `investigateRange` / `investigateTtlSeconds` /
+`investigateMergeTiles`)는 씬에 저장돼 있지 않아 코드 기본값이 적용된다 — UI-9 이후 계속 쓰는 방식.
+캐릭터 템플릿의 `visionTiles` 7 · `respectFogOfWar` 1 도 그대로다.
+
+### ⚠️ 검증 — Unity 가 닫혀 있어 `dotnet build` 로 했다
+
+유저 지시는 "mcp 연결해서 수정" 이었으나 작업 시점에 **Unity 에디터가 실행 중이 아니었다**
+(`Get-Process Unity` → 없음, MCP 는 전부 60초 큐 타임아웃). 이번 변경은 씬 수정이 필요 없어
+작업 자체는 완결됐다.
+
+```
+dotnet build Assembly-CSharp.csproj   →  오류 0개 · 경고 0개
+```
+
+★ **앞으로 쓸 수 있는 수단** — Unity 가 닫혀 있어도 이 명령으로 컴파일 검증이 된다.
+지금까지는 `recompile_scripts` 가 유일한 수단인 줄 알았다.
+
+⚠️ 단, **신규 `.cs` 파일은 `Assembly-CSharp.csproj` 의 `<Compile Include>` 목록에 없다** —
+이 csproj 는 Unity 가 생성하고 `.gitignore` 대상이라 에디터를 안 켜면 갱신되지 않는다.
+한 줄 추가해 빌드했고, Unity 를 켜면 다시 생성되므로 저장소에는 영향이 없다.
+
+⚠️ `dotnet build` 는 Unity 의 임포트·직렬화 단계를 거치지 않는다 — **에디터를 켠 뒤
+`recompile_scripts` 로 한 번 더 확인하는 편이 안전하다**(미결 151번).
+
+### 소유권 (§2)
+
+UI 소유 — `Scripts/Combat/**`(`UnitCombat` · `CharacterPassives` · `SightAlertService` 신규).
+`Scripts/Units/CharacterBehavior.cs` 는 UI-13·UI-14 와 같은 전제(전투 AI 이관 이후 이 브랜치 소유).
+⚠️ **`Scripts/Fog/**` 는 §2 상 PROTO 소유**다(`VisionSource` · `FogOfWarService`).
+이번엔 **기존 원형 동작을 건드리지 않고 사각 모드를 덧붙이는 방식**으로만 고쳤다
+(원형 경로는 한 줄도 안 바뀌었다) — 그래도 경계를 넘었으므로 §2 갱신 여부는 유저 판단이 필요하다.
+
+### 씬반영요청 목록
+
+없음.
+
+---
+
+## UI-25. 캐릭터가 몬스터에게 끌려가던 원인 2가지 + 확인 담당 폴백 (2026-08-13)
+
+> 상세는 `진행상황.md` **77·78절**.
+
+### 무엇을 했나
+
+유저 피드백: **"빌드 후에 테스트 해보는데 종종 캐릭터가 몬스터에게 끌려가는 상황이 나온다"**
+→ 조사해보니 **원인이 둘**이었고 둘 다 고쳤다.
+
+| # | 원인 | 조치 | 파일 |
+|---|---|---|---|
+| 1 | **목줄이 정상 탐색 경로에만** 걸려 있었다. 반격·동료 구원은 목줄을 안 보고 거리 기준이 **자기 위치**라, 걸어갈수록 판정 범위가 따라와 **래칫처럼 끌려갔다** | 목줄 관문을 **하나로 모으고 기준점을 언제나 귀환 지점**으로. 경로별 허용 거리만 다르다 — 전부 `max(leashRange, …)` 라 **최소 보장** 의미다. 씬 템플릿(`leashRange` 7) 기준 실효값 **탐색 7 · 반격 8 · 동료 구원 12타일** | `Combat/UnitCombat.cs` |
+| 2 | **밀림(separation)에 크기 상한이 없었다.** 유닛마다 힘을 더하므로 몬스터 5마리면 1.4×5=7 이 되어 길이 1 인 방향 벡터가 묻히고 **진군 무리에 그대로 휩쓸렸다** | `separationMaxInfluence`(신규, 0.7) 로 `ClampMagnitude` — 가려던 방향이 항상 주도권을 갖는다 | `Combat/UnitCombat.cs` |
+| 3 | 전방 포지션이 없으면 아무도 확인하러 안 갔다(UI-24 의 미결) | `PickInvestigator()` 신설 — 전방이 있으면 그중 경보에 가장 가까운 한 명, **없으면 넥서스에서 가장 먼**(제일 앞선) 캐릭터 | `Units/CharacterBehavior.cs` |
+
+⚠️ **1번은 이 저장소가 같은 버그를 두 번째로 밟은 것이다** — 진행상황 73-12절이 중립 몬스터에서
+똑같이 겪고 *"판정 기준을 움직이지 않는 지점으로 옮겨야 한다"* 고 기록했는데,
+**캐릭터 쪽에는 그 교훈이 적용돼 있지 않았다.**
+
+### 검증
+
+`dotnet build Assembly-CSharp.csproj` → **오류 0 · 경고 0** (UI-24 의 방법. Unity 는 여전히 미실행).
+사냥 추격 한계(`huntPursuitTiles`)의 기준점이 `_huntOrigin`(고정)인 것을 확인 — 래칫 아님.
+
+**씬 변경 없음** — 신규 `[SerializeField]` 1개(`separationMaxInfluence`)는 씬에 없어 코드 기본값 0.7 적용.
+
+### 소유권 (§2)
+
+⚠️ **UI-24 가 넘은 `Scripts/Fog/**` 경계는 유저가 승인**했다("경계는 넘어도 되고").
+§2 의 소유권 표를 실제에 맞게 갱신하는 것이 남았다(미결 154번).
+이번 변경 자체는 `Scripts/Combat/**`(UI 소유) + `Units/CharacterBehavior.cs`(UI-13 이후 전제)뿐이다.
+
+### 씬반영요청 목록
+
+없음.

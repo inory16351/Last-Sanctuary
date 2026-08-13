@@ -141,6 +141,11 @@ namespace LastSanctuary.Combat
         [Min(0f)] [SerializeField] float separationRadius = 0.55f;
         [Min(0f)] [SerializeField] float separationStrength = 1.4f;
 
+        [Tooltip("밀림이 이동 방향을 이길 수 없게 하는 상한. 1 이 '가려던 방향과 같은 세기'다. " +
+                 "⚠️ 상한이 없으면 주변 유닛 수만큼 힘이 더해져(5마리면 7배) 가려던 방향이 " +
+                 "묻히고 몬스터 무리에 그대로 휩쓸려 끌려간다")]
+        [Min(0.05f)] [SerializeField] float separationMaxInfluence = 0.7f;
+
         [Header("바라보는 방향")]
         [Tooltip("켜면 좌우로 이동할 때 스프라이트를 뒤집어 진행 방향을 보게 한다. " +
                  "코어 키퍼·스타듀 밸리 방식 — 위아래로 이동할 때는 뒤집지 않고 " +
@@ -945,21 +950,19 @@ namespace LastSanctuary.Combat
                 : UnitRegistry.FindTarget(transform.position, _self.Faction, detectRange,
                                           targetPriority, filter);
 
-            // 목줄 밖의 적은 쫓지 않는다 (전진하지 않는 유닛에만 적용)
-            if (found != null && !advanceToObjective && leashRange > 0f)
-            {
-                float d = Vector2.Distance(found.transform.position, _homePosition);
-                if (d > leashRange) found = null;
-            }
+            // ★ 이 타겟을 <b>귀환 지점에서 얼마나 멀리까지</b> 쫓아도 되는지.
+            //   경로마다 다르므로 여기서 같이 들고 간다 — 아래 하나뿐인 목줄 관문이 쓴다.
+            float leashAllowance = leashRange;
 
             // 아무도 못 찾았으면 "나를 때린 상대" 를 본다 — <b>선공 유닛도 맞으면 반격한다</b>
             // (유저 정의: "중립 몬스터는 언제든 공격받으면 반격해야 한다").
             // 이게 없으면 인식 범위(detectRange)나 목줄 밖에서 맞을 때 가만히 서서 맞기만 한다 —
-            // 원거리 캐릭터가 사거리 밖에서 쏘는 상황이 정확히 그렇다. 반격 경로가
-            // 비선공(canAcquireTargets=false) 유닛에만 붙어 있어서 생긴 구멍이었다.
-            // 무한정 쫓지 않는 것은 FindRetaliationTarget 이 이미 보장한다
-            // (공격력 0 · 8초 경과 · retaliateChaseRange 밖이면 놓는다).
-            if (found == null) found = FindRetaliationTarget();
+            // 원거리 캐릭터가 사거리 밖에서 쏘는 상황이 정확히 그렇다.
+            if (found == null)
+            {
+                found = FindRetaliationTarget();
+                if (found != null) leashAllowance = Mathf.Max(leashRange, retaliateChaseRange);
+            }
 
             // ★ 동료를 때리는 적 — 내 사거리 밖이라도 이쪽으로 간다 (유저 지시 2026-08-11).
             //
@@ -968,13 +971,53 @@ namespace LastSanctuary.Combat
             if (answerAllyCalls && !_retreatFiring && (found == null || !InAttackRange(found)))
             {
                 DamageableUnit caller = FindAllyAttacker();
-                if (caller != null) found = caller;
+                if (caller != null)
+                {
+                    found = caller;
+                    leashAllowance = Mathf.Max(leashRange, allyCallRange);
+                }
             }
+
+            // ★★ <b>하나뿐인 목줄 관문</b> — 기준점은 언제나 <b>귀환 지점</b>(움직이지 않는 점)이다.
+            //
+            // <b>왜 이렇게 바꿨나 (유저 리포트 2026-08-13: "캐릭터가 몬스터에게 끌려간다")</b> —
+            // 예전에는 목줄이 <b>정상 탐색 경로에만</b> 걸려 있었고, 반격·동료 구원은
+            // 목줄을 아예 안 보면서 <b>자기 위치 기준</b>으로만 거리를 봤다. 그래서
+            // 걸어갈수록 판정 범위도 같이 따라와 <b>래칫처럼 얼마든지 끌려갔다</b> —
+            // 73-12절이 중립 몬스터에서 똑같이 겪고 "판정 기준을 움직이지 않는 점으로
+            // 옮겨야 한다"고 기록한 것과 같은 구조의 버그다.
+            //
+            // 이제 <b>모든 경로</b>가 이 한 곳을 지나고, 경로마다 허용 거리만 다르다:
+            //   정상 탐색 = leashRange · 반격 = max(leashRange, retaliateChaseRange)
+            //   동료 구원 = max(leashRange, allyCallRange)
+            //
+            // ⚠️ 전부 <b>max()</b> 다 — 각 경로의 값은 "최소 이만큼은 보장한다"는 뜻이고,
+            //    <c>leashRange</c> 를 더 크게 올리면 그쪽이 이긴다. 씬의 캐릭터 템플릿 기준
+            //    실효값은 정상 탐색 7 · 반격 8 · 동료 구원 12타일이다(leashRange 가 7).
+            // (사냥·치유는 위에서 각자 규칙으로 이미 return 했다.)
+            if (found != null && !advanceToObjective && leashAllowance > 0f &&
+                Vector2.Distance(found.transform.position, _homePosition) > leashAllowance)
+                found = null;
 
             // 후퇴 사격 중에는 <b>때릴 수 있는 적만</b> 잡는다 — 쫓아가지 않는 것이 이 상태의 정의다.
             if (_retreatFiring && found != null && !InAttackRange(found)) found = null;
 
             _target = found;
+        }
+
+        /// <summary>
+        /// ★ 그 자리가 <b>지금 우리 진영의 시야 안</b>인지. 안개를 안 보는 유닛
+        /// (<see cref="respectFogOfWar"/> 가 꺼진 몬스터)이나 안개 서비스가 없으면 항상 true 다 —
+        /// 즉 <b>기존 동작이 그대로 유지</b>되고, 캐릭터만 이 규칙에 걸린다.
+        ///
+        /// 안개는 진영 공용 텍스처 하나라 <b>동료가 밝힌 곳도 "보이는" 것으로 잡힌다</b> —
+        /// 엘린의 「타고난 섬세함」(공유 시야의 적에게 사거리 +2)이 그 위에서 성립한다.
+        /// </summary>
+        public bool IsFogVisible(Vector3 worldPos)
+        {
+            if (!respectFogOfWar) return true;
+            if (_fog == null || !_fog.IsReady) return true;
+            return _fog.IsVisibleWorld(worldPos);
         }
 
         /// <summary>타겟이 지금 당장 때릴 수 있는 거리인지 (못 때리는 최소 거리도 함께 본다).</summary>
@@ -1012,6 +1055,10 @@ namespace LastSanctuary.Combat
 
                 DamageableUnit attacker = AttackerOf(ally);
                 if (attacker == null) continue;
+
+                // ★ 안 보이는 적을 도우러 달려가지는 않는다 — 가서도 때릴 수 없다
+                //   (유저 지시 2026-08-13). 그 자리는 '확인할 지점'으로 따로 처리된다.
+                if (!IsFogVisible(attacker.transform.position)) continue;
 
                 float sqr = ((Vector2)(attacker.transform.position - myPos)).sqrMagnitude;
                 // 인식 범위 밖까지 달려가지는 않는다 — 목줄과 같은 취지의 안전장치.
@@ -1074,6 +1121,16 @@ namespace LastSanctuary.Combat
 
             DamageableUnit attacker = _self.LastAttacker;
             if (attacker == null || !attacker.IsAlive) return null;
+
+            // ★ 안 보이는 상대에게는 반격하지 않는다 (유저 지시 2026-08-13:
+            //   "시야 밖에 있는 적은 공격 못하게").
+            //
+            //   ⚠️ 이 경로가 안개 판정의 <b>가장 큰 구멍</b>이었다 — 타겟 선정 필터
+            //   (<see cref="BuildTargetFilter"/>)는 안개를 보는데 반격은 안 봐서,
+            //   <b>사거리 밖에서 쏘는 안 보이는 적을 그대로 쫓아갔다.</b>
+            //   대신 <c>CharacterBehavior</c> 가 그 자리를 "확인할 지점"으로 남긴다
+            //   (<see cref="SightAlertService"/>).
+            if (!IsFogVisible(attacker.transform.position)) return null;
 
             // 탐험 유형 '탐색' — 중립(선공 몹)에게 맞아도 반격하지 않는다(유저 확정 2026-08-12).
             // 그 자리를 벗어나는 것은 CharacterBehavior 의 도망 로직이 맡는다.
@@ -1343,6 +1400,16 @@ namespace LastSanctuary.Combat
                 Vector2.Distance(transform.position, _target.transform.position) < MinAttackDistance)
                 return;
 
+            // ★ <b>안 보이는 적은 때리지 못한다</b> (유저 지시 2026-08-13). 타겟을 고를 때
+            //   이미 걸렀지만(<see cref="BuildTargetFilter"/>), 재탐색은 0.2초 간격이라
+            //   그 사이에 적이 시야를 벗어날 수 있다 — <b>마지막 관문을 여기 둔다.</b>
+            //
+            //   ⚠️ 치유 유형은 예외다 — 이때 <c>_target</c> 은 <b>적이 아니라 아군</b>이고,
+            //   아군을 시야 때문에 못 살리는 것은 이 규칙의 취지가 아니다.
+            if (attackType != TacticalAttackType.Heal && _target != null &&
+                !IsFogVisible(_target.transform.position))
+                return;
+
             // 능력치(공격 속도)가 있으면 그게 최우선이다 — 캐릭터만 해당하고,
             // 몬스터·포탑은 0 을 돌려주므로 기존 경로(인스펙터 값 → 밸런스 폴백)를 그대로 탄다.
             float statAps = _self.StatAttacksPerSecond;
@@ -1522,7 +1589,17 @@ namespace LastSanctuary.Combat
 
         void Step(Vector2 direction, float dt)
         {
-            Vector2 move = direction + Separation() * separationStrength;
+            // ★ 밀림은 <b>가려던 방향을 이길 수 없다</b> (유저 리포트 2026-08-13:
+            //   "캐릭터가 몬스터에게 끌려간다").
+            //
+            //   <see cref="Separation"/> 은 주변 유닛마다 힘을 <b>더하기</b> 때문에 크기 상한이
+            //   없었다 — 몬스터 5마리가 붙으면 최대 5 × 1.4 = 7 이 되어 방향 벡터(길이 1)가
+            //   완전히 묻힌다. 그러면 넥서스로 진군하는 무리에 <b>그대로 휩쓸려 같이 흘러간다.</b>
+            //   상한을 걸면 겹침 방지는 그대로 되면서 진행 방향이 항상 주도권을 갖는다.
+            Vector2 push = Vector2.ClampMagnitude(Separation() * separationStrength,
+                                                  separationMaxInfluence);
+
+            Vector2 move = direction + push;
             if (move.sqrMagnitude > 0.0001f) move.Normalize();
 
             FaceMovement(move);

@@ -223,8 +223,17 @@ namespace LastSanctuary.Combat
             Vector2 size = anim != null ? anim.RenderedSizeTiles : Vector2.zero;
             if (size.x <= 0.01f || size.y <= 0.01f) return false;   // 아직 스킨이 없다 — 다음 Refresh 에
 
-            float radius = Mathf.Sqrt(size.x * size.x * 0.25f + size.y * size.y);
-            vision.SetVision(radius * 2f);
+            // ★ 그림 크기의 <b>사각형</b>으로 밝힌다 (유저 지시 2026-08-13:
+            //   "시야가 딱 캐릭터의 이미지 만큼의 공간만 가져야 하는데 지금 시야가 너무 넓음").
+            //
+            //   처음에는 원형 반경을 √((가로/2)² + 세로²) 로 잡았는데, 원이 그림의 모서리까지
+            //   닿아야 하므로 <b>밝히는 넓이가 그림의 3.5배</b>가 됐다
+            //   (엘린: 그림 2.61x2.15 = 5.6타일² vs 반경 2.52 원 = 19.9타일²).
+            //   사각형이면 딱 그림만 덮는다.
+            //
+            //   오프셋 y 에 높이의 절반을 넣는 이유: 캐릭터 피벗이 <b>발밑</b>이라 그림이
+            //   위로만 솟는다. 0 으로 두면 상자의 아래 절반이 바닥 아래로 빠져 머리가 잘린다.
+            vision.SetVisionBox(size, new Vector2(0f, size.y * 0.5f));
             return true;
         }
 

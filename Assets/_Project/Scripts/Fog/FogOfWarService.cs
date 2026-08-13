@@ -165,13 +165,62 @@ namespace LastSanctuary.Fog
             {
                 VisionSource src = sources[s];
                 if (src == null) continue;
-                RevealCircle(src.transform.position, src.VisionRadius);
+
+                // 사각 시야를 쓰는 유닛은 상자만 밝힌다 — 「타고난 섬세함」의 엘린이 그렇다.
+                // 원형으로 같은 그림을 덮으려면 모서리까지 닿는 반경이 필요해 넓이가 3~4배가 된다.
+                if (src.UsesBox)
+                    RevealRect(src.transform.position, src.VisionBoxTiles, src.VisionBoxOffsetTiles);
+                else
+                    RevealCircle(src.transform.position, src.VisionRadius);
             }
 
             if (!_dirty) return;
             _texture.SetPixels32(_pixels);
             _texture.Apply(false);
             _dirty = false;
+        }
+
+        /// <summary>
+        /// ★ <b>사각형 영역</b>을 시야 안으로 만든다. <paramref name="sizeTiles"/> 가 상자의
+        /// 가로·세로(타일), <paramref name="offsetTiles"/> 가 <paramref name="worldPos"/> 기준
+        /// 중심 오프셋이다(캐릭터는 피벗이 발밑이라 y 에 높이의 절반을 넣는다).
+        ///
+        /// <b>왜 원형과 따로 두나</b> — "그림만 딱 덮는다"는 요구는 원으로 만족시킬 수 없다.
+        /// 원이 그림의 네 모서리까지 닿아야 하므로 밝히는 넓이가 그림의 3~4배가 된다
+        /// (엘린 실측: 그림 5.6타일² vs 반경 2.52 원 19.9타일²). 유저 지시
+        /// "시야가 딱 캐릭터의 이미지 만큼의 공간만" 을 지키려면 사각형이어야 한다(2026-08-13).
+        ///
+        /// <b>경계 처리</b> — 상자가 <b>조금이라도 걸치는 칸은 전부</b> 밝힌다. 그래야 그림이
+        /// 걸쳐 있는 칸에 안개가 남아 <b>몸의 일부만 어둡게 보이는</b> 일이 없다
+        /// (73-7-1절이 고치려던 증상이 그것이다).
+        /// </summary>
+        public void RevealRect(Vector3 worldPos, Vector2 sizeTiles, Vector2 offsetTiles)
+        {
+            if (_state == null) return;
+            if (sizeTiles.x <= 0f || sizeTiles.y <= 0f) return;
+
+            Vector3 center = worldPos + (Vector3)offsetTiles;
+            Vector3 half = new Vector3(sizeTiles.x * 0.5f, sizeTiles.y * 0.5f, 0f);
+
+            // 걸치는 칸을 하나도 빠뜨리지 않으려면 두 모서리를 각각 칸으로 바꿔 그 사이를 전부 훑는다.
+            Vector3Int min = WorldToCell(center - half);
+            Vector3Int max = WorldToCell(center + half);
+
+            for (int y = min.y; y <= max.y; y++)
+            {
+                for (int x = min.x; x <= max.x; x++)
+                {
+                    if (!TryIndex(x, y, out int idx)) continue;
+
+                    _visibleLastRefresh.Add(idx);
+                    if (_state[idx] == Visible) continue;
+
+                    if (_state[idx] == Unexplored) ExploredCount++;
+                    _state[idx] = Visible;
+                    _pixels[idx] = new Color32(0, 0, 0, 0);
+                    _dirty = true;
+                }
+            }
         }
 
         /// <summary>지정 위치 주변을 시야 안으로 만든다.</summary>

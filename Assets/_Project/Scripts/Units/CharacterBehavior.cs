@@ -30,6 +30,12 @@ namespace LastSanctuary.Units
         /// 반격하지 않고 그 자리를 벗어난다(유저 확정 2026-08-12). 체력 후퇴와 달리
         /// <b>넥서스로 돌아가지 않고</b> 때린 상대의 반대 방향으로만 물러난다.</summary>
         Flee,
+
+        /// <summary>확인 — <b>시야 밖</b>에서 날아온 공격의 출처를 보러 가는 중
+        /// (유저 지시 2026-08-13). <b>전방 포지션 캐릭터만</b> 맡는다.
+        /// 안 보이는 적은 때릴 수 없게 막은 대신 둔 반응이다 —
+        /// <see cref="LastSanctuary.Combat.SightAlertService"/> 참조.</summary>
+        Investigate,
     }
 
     /// <summary>
@@ -64,6 +70,23 @@ namespace LastSanctuary.Units
 
         [Tooltip("미탐사 지점을 찾을 최대 거리(타일)")]
         [Min(4f)] [SerializeField] float scoutSearchRadius = 60f;
+
+        [Header("시야 밖 피격 확인 (전방 캐릭터가 확인하러 간다)")]
+        [Tooltip("켜면, 시야 밖의 적에게 맞았을 때 그 자리를 경보로 남기고 " +
+                 "전방 포지션 캐릭터 중 가장 가까운 한 명이 확인하러 간다. " +
+                 "끄면 안 보이는 적에게 맞아도 아무 반응이 없다")]
+        [SerializeField] bool investigateUnseenAttacks = true;
+
+        [Tooltip("확인하러 갈 최대 거리(타일). 이보다 먼 경보는 무시한다 — " +
+                 "맵 끝까지 달려가면 전열이 비어버린다")]
+        [Min(2f)] [SerializeField] float investigateRange = 30f;
+
+        [Tooltip("경보를 유지하는 시간(초). 지나면 아무도 확인하지 않은 채 사라진다")]
+        [Min(1f)] [SerializeField] float investigateTtlSeconds = 12f;
+
+        [Tooltip("이 거리(타일) 안의 보고는 같은 경보로 합친다. " +
+                 "0 에 가까우면 저격수 한 명에 경보가 수십 개 쌓인다")]
+        [Min(0.5f)] [SerializeField] float investigateMergeTiles = 4f;
 
         [Tooltip("정찰 목표 주변에서 적을 쫓을 수 있는 거리(타일)")]
         [Min(1f)] [SerializeField] float scoutLeash = 6f;
@@ -200,6 +223,15 @@ namespace LastSanctuary.Units
         CharacterDuty _duty = CharacterDuty.Guard;
         Vector3 _destination;
         float _repickTime;
+
+        /// <summary>지금 확인하러 가고 있는 경보. 없으면 null (<see cref="TickInvestigate"/>).</summary>
+        SightAlertService.Alert _investigating;
+
+        /// <summary>경보 목록 청소를 다시 돌릴 시각. 캐릭터마다 매 프레임 돌 필요가 없다.</summary>
+        float _nextAlertPrune;
+
+        /// <summary>경보 청소 간격(초). 공용 목록이라 누가 부르든 결과가 같다.</summary>
+        const float AlertPruneInterval = 0.5f;
         System.Random _rng;
 
         // ── 전술 지침 (CharacterTactics 가 밀어 넣는다. 여기선 직렬화하지 않는다) ────
@@ -448,6 +480,11 @@ namespace LastSanctuary.Units
             //   쫓아가며 부대가 갈라진 채로 각자 놀게 된다.
             if (_combat.IsHunting && IsFarFromSquadLeader()) _combat.ClearHuntTarget();
 
+            // ★ 시야 밖에서 맞았으면 그 자리를 경보로 남긴다 (유저 지시 2026-08-13).
+            //   <b>교전 판정보다 앞에 둔다</b> — 다른 적과 싸우는 중에 저격당하는 경우가
+            //   정확히 이 기능이 필요한 상황인데, 아래 교전 분기에서 return 하면 영영 안 돈다.
+            ReportUnseenAttacker();
+
             // 교전 중에는 이동을 UnitCombat 에 맡기고 목적지를 건드리지 않는다
             // (사냥 중인 중립 몬스터도 이 시점엔 이미 Target 으로 잡혀 있다).
             // 다만 <b>얼마나 떨어져 싸울지</b>는 전술 포지션이 정하므로 그것만 밀어 넣는다 —
@@ -485,6 +522,11 @@ namespace LastSanctuary.Units
             // 원래 아예 시도하지 않았는데, 이제 <b>웨이브 반응이 '탐험 우선'이면 웨이브 중에도
             // 탐험·건설을 계속한다</b>(유저 확정 2026-08-12) — 그 판정이 <see cref="CanDoExpeditionWork"/> 다.
             bool expeditionWork = CanDoExpeditionWork();
+
+            // ★ 확인하러 가기 — 시야 밖에서 날아온 공격의 출처를 <b>전방 캐릭터가</b> 보러 간다.
+            //   건설·사냥·순찰보다 앞이다: 지금 우리가 <b>맞고 있는데 반격을 못 하는</b> 상황이라
+            //   원인을 찾는 것이 먼저다. 교전 중이면 위에서 이미 return 했으므로 여기 오지 않는다.
+            if (TickInvestigate()) return;
 
             if (expeditionWork && TryBuild()) return;
 
@@ -774,6 +816,181 @@ namespace LastSanctuary.Units
         /// </summary>
         bool CanDoExpeditionWork() =>
             !IsWaveTimePhase() || _waveReaction == TacticalWaveReaction.KeepExploring;
+
+        // ------------------------------------------------------------------
+        // 시야 밖 피격 확인 — 안 보이는 적을 못 때리게 막은 대신 둔 반응
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// ★ <b>안 보이는 적에게 맞았으면 그 자리를 경보로 남긴다</b> (유저 지시 2026-08-13).
+        ///
+        /// <b>왜 폴링인가</b> — <see cref="DamageableUnit.LastAttacker"/> /
+        /// <see cref="DamageableUnit.LastAttackedTime"/> 이 이미 "누가 언제 나를 때렸나"를
+        /// 들고 있다(반격·동료 구원이 쓰는 것과 같은 값). 새 이벤트를 구독하면 같은 사실을
+        /// 두 곳에서 관리하게 되고, 정적 이벤트는 도메인 리로드 처리까지 딸려온다.
+        ///
+        /// 같은 자리 보고는 <see cref="SightAlertService.Report"/> 가 합쳐주므로
+        /// 매 프레임 불러도 경보가 쌓이지 않는다.
+        /// </summary>
+        void ReportUnseenAttacker()
+        {
+            if (!investigateUnseenAttacks || _self == null) return;
+
+            // 방금 맞은 것만 본다 — 오래된 기록으로 경보를 되살리지 않는다.
+            if (Time.time - _self.LastAttackedTime > investigateTtlSeconds) return;
+
+            DamageableUnit attacker = _self.LastAttacker;
+            if (attacker == null || !attacker.IsAlive) return;
+
+            // 보이는 적이면 평소대로 싸우면 된다 — 확인할 것이 없다.
+            if (_combat.IsFogVisible(attacker.transform.position)) return;
+
+            SightAlertService.Report(attacker.transform.position, investigateMergeTiles);
+        }
+
+        /// <summary>
+        /// ★ <b>전방 캐릭터가 경보 지점으로 가서 확인한다.</b> 맡았으면 true 를 돌려
+        /// 아래의 건설·사냥·순찰 판단을 건너뛰게 한다.
+        ///
+        /// <b>왜 전방만인가</b> — 유저 지시가 "전방의 캐릭터가 그 곳으로 가서 확인"이다.
+        /// 중위·후방이 자리를 뜨면 전열이 앞뒤로 갈라진다.
+        /// ⚠️ 그래서 <b>전방 포지션 캐릭터가 한 명도 없으면 아무도 확인하지 않는다</b> —
+        /// 경보는 수명이 지나 사라진다(의도한 동작, 미결로 기록).
+        ///
+        /// <b>여러 전방이 같이 달려가지 않게</b> 하려고, 경보에 담당자를 하나만 등록하고
+        /// (<see cref="SightAlertService.TryClaim"/>) <b>그 경보에 가장 가까운 전방</b>만
+        /// 집는다. 판정을 서비스가 아니라 여기서 하는 이유는 서비스가 누가 전방인지 모르기 때문이다.
+        ///
+        /// 확인이 끝나는 조건은 <b>도착</b>이다. 도착하면 자기 시야로 그 자리를 밝히므로,
+        /// 적이 실제로 있었다면 그 순간 평소 전투가 이어받는다(교전 분기가 위에 있다).
+        /// </summary>
+        bool TickInvestigate()
+        {
+            if (!investigateUnseenAttacks) { ReleaseInvestigation(false); return false; }
+
+            // 오래된 경보와 이미 눈으로 확인된 경보를 치운다 — 캐릭터마다 매 프레임 돌 필요가
+            // 없으므로 간격을 둔다(어느 캐릭터가 부르든 결과는 같은 공용 목록이다).
+            if (Time.time >= _nextAlertPrune)
+            {
+                _nextAlertPrune = Time.time + AlertPruneInterval;
+                SightAlertService.Prune(investigateTtlSeconds, pos => _combat.IsFogVisible(pos));
+            }
+
+            // 확인을 맡을 자격이 없으면 들고 있던 담당도 내려놓는다.
+            if (!CanInvestigate()) { ReleaseInvestigation(false); return false; }
+
+            // 이미 맡은 경보가 있으면 그쪽으로 계속 간다.
+            if (_investigating != null)
+            {
+                // Prune 이 지웠거나(누가 봤다) 남이 가로챘으면 놓는다.
+                if (!SightAlertService.Contains(_investigating) ||
+                    !SightAlertService.TryClaim(_investigating, this))
+                {
+                    ReleaseInvestigation(false);
+                    return false;
+                }
+
+                if (Vector2.Distance(transform.position, _investigating.Position) <= arriveDistance ||
+                    _combat.DestinationUnreachable)
+                {
+                    // 도착(또는 길이 막힘) — 확인 완료로 처리한다. 적이 있었다면 도착하면서
+                    // 시야에 들어와 위쪽 교전 분기가 이미 이어받았을 것이다.
+                    ReleaseInvestigation(true);
+                    return false;
+                }
+
+                _duty = CharacterDuty.Investigate;
+                if ((_destination - _investigating.Position).sqrMagnitude > 0.01f)
+                {
+                    _destination = _investigating.Position;
+                    _combat.SetHome(_destination, investigateRange);
+                }
+                return true;
+            }
+
+            // 새로 맡을 경보 찾기 — 내가 그 경보에 가장 가까운 전방일 때만 집는다.
+            var alert = SightAlertService.FindUnclaimedNearest(transform.position, investigateRange);
+            if (alert == null) return false;
+            if (!ReferenceEquals(PickInvestigator(alert.Position), this)) return false;
+            if (!SightAlertService.TryClaim(alert, this)) return false;
+
+            _investigating = alert;
+            _duty = CharacterDuty.Investigate;
+            _destination = alert.Position;
+            _combat.SetHome(_destination, investigateRange);
+            return true;
+        }
+
+        /// <summary>
+        /// 죽거나 파괴될 때 맡고 있던 경보의 담당을 풀어 <b>다른 전방이 이어받게</b> 한다.
+        /// (유니티의 <c>Object == null</c> 이 파괴를 잡아주므로 없어도 동작하지만,
+        /// 담당이 바로 풀리는 편이 다음 캐릭터가 한 프레임이라도 빨리 출발한다.)
+        /// </summary>
+        void OnDisable() => ReleaseInvestigation(false);
+
+        /// <summary>맡고 있던 경보를 내려놓는다. <paramref name="resolved"/> 면 경보 자체를 지운다.</summary>
+        void ReleaseInvestigation(bool resolved)
+        {
+            if (_investigating == null) return;
+            SightAlertService.Release(_investigating, this, resolved);
+            _investigating = null;
+            _repickTime = 0f;   // 다음 프레임에 원래 임무의 목적지를 다시 고른다
+        }
+
+        /// <summary>
+        /// 지금 확인을 맡을 수 있는 상태인지 — 후퇴·도망·정신 이상 중이면 못 맡는다.
+        /// <b>포지션 조건은 여기서 보지 않는다</b>(누가 갈지는 <see cref="PickInvestigator"/> 가 정한다).
+        /// </summary>
+        bool CanInvestigate() =>
+            !_retreating && !_fleeing && _mental == MentalOverride.None;
+
+        /// <summary>
+        /// ★ <b>이 경보를 누가 확인하러 갈지</b> 정한다. 후보 전체를 한 번 훑어 한 명을 고르므로
+        /// 캐릭터마다 같은 답이 나오고, 그래서 <b>여럿이 몰려가지 않는다.</b>
+        ///
+        /// 규칙 (유저 확정 2026-08-13):
+        /// <list type="number">
+        /// <item><b>전방 포지션 캐릭터가 있으면</b> 그중 경보에 <b>가장 가까운</b> 한 명.</item>
+        /// <item><b>전방이 한 명도 없으면</b> "제일 앞에 있는 캐릭터" — 즉 <b>넥서스에서 가장 먼</b>
+        ///       캐릭터가 대신 간다. 이 프로젝트가 전열을 정의하는 기준(넥서스로부터의 거리,
+        ///       36절)을 그대로 쓴다.</item>
+        /// </list>
+        ///
+        /// 처음에는 전방만 맡게 했는데, <b>전방을 아무도 지정하지 않으면 경보가 수명이 다할 때까지
+        /// 방치</b>됐다(75-3절의 미결 148번) — 유저 지시로 폴백을 넣었다.
+        /// </summary>
+        CharacterBehavior PickInvestigator(Vector3 worldPos)
+        {
+            CharacterBehavior bestFront = null;
+            float bestFrontSqr = float.MaxValue;
+
+            CharacterBehavior frontmost = null;
+            float frontmostSqr = -1f;
+            Vector3 nexus = NexusPosition();
+
+            var all = UnitRegistry.All;
+            for (int i = 0; i < all.Count; i++)
+            {
+                DamageableUnit u = all[i];
+                if (u == null || !u.IsAlive) continue;
+                if (u.Faction != _self.Faction || u.Kind != UnitKind.Character) continue;
+
+                var who = u.GetComponent<CharacterBehavior>();
+                if (who == null || !who.CanInvestigate()) continue;
+
+                if (who._position == TacticalPosition.Front)
+                {
+                    float sqr = ((Vector2)(worldPos - u.transform.position)).sqrMagnitude;
+                    if (sqr < bestFrontSqr) { bestFrontSqr = sqr; bestFront = who; }
+                }
+
+                // 폴백 후보 — 넥서스에서 가장 먼 캐릭터(= 제일 앞에 있는 캐릭터)
+                float fromNexus = ((Vector2)(u.transform.position - nexus)).sqrMagnitude;
+                if (fromNexus > frontmostSqr) { frontmostSqr = fromNexus; frontmost = who; }
+            }
+
+            return bestFront != null ? bestFront : frontmost;
+        }
 
         // ------------------------------------------------------------------
         // 후퇴 — 전술 지침의 "후퇴 판단 기준"
