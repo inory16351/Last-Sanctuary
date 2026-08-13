@@ -24,4 +24,4 @@ MonoBehaviour:
   coolTime: 0
   iconName: 'icon_spirit_sense'
   flavorText: '엘린은 보이지 않는 적이라 할지라도 타고난 섬세함으로 감지할 수 있습니다.'
-  effectTemplate: '엘린의 시야 값이 0이 되지만 공유된 시야의 적을 공격할 때 사거리가 {value_01}만큼 늘어난다.'
+  effectTemplate: '엘린의 시야가 자기 몸을 겨우 덮는 정도로 줄어들지만, 공유된 시야의 적을 공격할 때 사거리가 {value_01}만큼 늘어난다.'

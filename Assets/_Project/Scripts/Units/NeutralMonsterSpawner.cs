@@ -246,9 +246,14 @@ namespace LastSanctuary.Units
             // ⚠ 여기서 넘기는 바깥 반지름은 <b>스폰에 쓴 것과 같은 값</b>이어야 한다 — 예전에는
             //   무한대를 넘기고 배회 쪽에서 임의의 60타일로 잘라, 스폰 범위와 배회 범위가
             //   서로 달랐다(최상위 종이 스폰 가능 구역 밖으로 걸어나갔다).
+            //
+            // ★ 세 번째 인자는 <b>고리 밖으로 쫓아갈 수 있는 거리</b>다(유저 확정 2026-08-13:
+            //   "추적 범위까진 쫓아가고, 배회 가능 범위에서 추적 타일 거리까지 멀어지면
+            //   추격 포기하고 복귀"). 표의 `leashRangeTiles` 를 그대로 쓴다 — 그 칸의 뜻이
+            //   원래 "이 반경 밖의 적은 쫓지 않고 돌아온다" 라서 값이 두 개로 갈리지 않는다.
             var wander = unit.gameObject.GetComponent<NeutralMonsterWander>();
             if (wander == null) wander = unit.gameObject.AddComponent<NeutralMonsterWander>();
-            wander.Init(minDist, ResolveOuterRadius(minDist, maxDist));
+            wander.Init(minDist, ResolveOuterRadius(minDist, maxDist), entry.definition.leashRangeTiles);
 
             PruneAndGet(entry.definition).Add(unit);
         }
