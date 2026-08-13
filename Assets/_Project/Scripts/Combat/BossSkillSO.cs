@@ -13,7 +13,14 @@ namespace LastSanctuary.Combat
     ///
     /// <b>값의 뜻</b> (스트링 테이블 <c>skill_type_desc_*</c> 그대로):
     /// "가장 가까운/먼 적을 향해 단탈리온이 존재하는 칸을 포함하여 {value_01}(가로) x
-    /// {value_02}(세로) 범위의 적을 단탈리온의 근거리 공격력{value_03}%로 공격한다"
+    /// {value_02}(세로) 범위의 적을 단탈리온의 근거리 공격력{value_03}%로 공격한다.
+    /// 맞은 적은 침식이 {value_04} 만큼 오른다."
+    ///
+    /// <b>value_04(침식)는 2026-08-13 유저 지시로 추가된 컬럼</b> — 기존 9칸 뒤에 그대로
+    /// 붙였다(순서·형식을 바꾸지 않는다). 이전에는 "보스 공격에 맞으면 침식 +10"을
+    /// <c>GameSystems/ErosionService</c> 의 전역 상수로 뒀었는데, **스킬마다 침식량이
+    /// 다르다**(타락한 무덤 5 · 공허의 광선 10)는 요구가 나와서 시스템 값이 아니라
+    /// <b>스킬 데이터 자체</b>로 옮겼다 — 시스템 로직을 늘리지 않고 표 한 칸으로 표현된다.
     /// </summary>
     [CreateAssetMenu(fileName = "BossSkill_", menuName = "Last Sanctuary/Boss Skill")]
     public class BossSkillSO : ScriptableObject
@@ -44,6 +51,15 @@ namespace LastSanctuary.Combat
         [Tooltip("value_03 — 피해량(근거리 공격력의 %). 150 이면 평타의 1.5배")]
         public float value03;
 
+        [Tooltip("value_04 — 이 스킬에 맞은 캐릭터가 즉시 얻는 침식 수치. 표에 새로 추가된 " +
+                 "컬럼(2026-08-13, 기존 9칸 뒤에 그대로 붙였다) — 유저 확정: 타락한 무덤 5 / " +
+                 "공허의 광선 10.\n" +
+                 "⚠ 이 값은 시스템(GameSystems/ErosionService)이 아니라 <b>스킬 데이터</b>가 들고 " +
+                 "있다 — 보스 스킬마다 침식량이 다르므로 시스템 전역 상수로 두면 이 차이를 표현할 " +
+                 "수 없다. 적용은 CharacterErosion.AddErosion 을 직접 부르는 " +
+                 "BossSkillCaster.TryCast 가 한다")]
+        public float value04;
+
         [Tooltip("cool_time — 재사용 대기시간(초)")]
         public float coolTime = 10f;
 
@@ -65,6 +81,9 @@ namespace LastSanctuary.Combat
 
         /// <summary>피해 배율(%). 표가 비어 있으면 평타(100%)로 떨어진다.</summary>
         public int DamagePercent => value03 > 0f ? Mathf.RoundToInt(value03) : 100;
+
+        /// <summary>이 스킬에 맞으면 오르는 침식 수치. 음수는 0 으로 자른다.</summary>
+        public float ErosionValue => Mathf.Max(0f, value04);
 
         /// <summary>이 에셋이 쓸 만한지 — 종류를 못 알아보면 시전하지 않는다.</summary>
         public bool IsUsable => Type != BossSkillType.None && coolTime > 0f;

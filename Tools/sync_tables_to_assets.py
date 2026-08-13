@@ -368,6 +368,10 @@ def sync_boss_skills():
         body += '  value01: %s\n' % num(row[3])
         body += '  value02: %s\n' % num(row[4])
         body += '  value03: %s\n' % num(row[5])
+        # value_04(침식 수치, 2026-08-13) - 기존 9칸 뒤에 붙은 10번째 칸. 시스템(GameSystems)
+        # 이 아니라 이 스킬 데이터가 들고 있다(BossSkillSO.value04 주석 참조) - 스킬마다
+        # 침식량이 다르기 때문. 표에 컬럼이 없던 시절 에셋에는 0(자동 폴백)으로 채워진다.
+        body += '  value04: %s\n' % (num(row[9]) if len(row) > 9 else 0)
         body += '  coolTime: %s\n' % num(row[6])
 
         path = os.path.join(folder, name + '.asset')
@@ -379,8 +383,9 @@ def sync_boss_skills():
                 f.write(ASSET_META.format(guid=guid_for(rel)))
 
         made.append(sid)
-        print('  %s: %s · %s x %s 타일 · 공격력 %s%% · 쿨 %s초'
-              % (name, row[2], num(row[3]), num(row[4]), num(row[5]), num(row[6])))
+        print('  %s: %s · %s x %s 타일 · 공격력 %s%% · 침식 +%s · 쿨 %s초'
+              % (name, row[2], num(row[3]), num(row[4]), num(row[5]),
+                 num(row[9]) if len(row) > 9 else 0, num(row[6])))
 
     # 최종보스 시트의 boss_skill_1~3 을 그 보스의 정의 에셋으로 옮긴다.
     # 표에 없는 몬스터(잡몹·중간보스)는 스킬 칸 자체가 없으므로 건드리지 않는다.

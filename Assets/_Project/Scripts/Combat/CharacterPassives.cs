@@ -43,6 +43,19 @@ namespace LastSanctuary.Combat
         float _calmDownReadyAt;
         float _purifyReadyAt;
 
+        /// <summary>
+        /// <b>시도 순서</b> — 이 캐릭터가 가진 쿨타임 스킬(희생·정신 안정·정화의 손길) 중
+        /// 해금된 것만, <see cref="PassiveSkillSO.coolTime"/> <b>내림차순</b>으로 담아둔다
+        /// (유저 지시 2026-08-13: "쿨이 동시에 돌면 쿨타임이 더 긴 스킬부터 쓰도록" —
+        /// <see cref="BossSkillCaster"/> 와 완전히 같은 규칙을 캐릭터에도 적용한다).
+        ///
+        /// 한 캐릭터가 이 셋 중 <b>둘 다</b> 가진 경우는 지금 피올로(정신 안정 180초 ·
+        /// 정화의 손길 120초)뿐이지만, 다른 캐릭터가 나중에 겹치더라도 그대로 동작한다.
+        ///
+        /// <see cref="Refresh"/> 가 해금 목록이 바뀔 때만 다시 계산한다 — 매 프레임 정렬하지 않는다.
+        /// </summary>
+        readonly List<PassiveSkillType> _cooldownPriority = new List<PassiveSkillType>(3);
+
         // 정화의 손길 — 발동 중이면 만료 시각
         float _purifyEndTime;
 
@@ -115,7 +128,28 @@ namespace LastSanctuary.Combat
             }
 
             ApplyAlwaysOn();
+            RebuildCooldownPriority();
         }
+
+        /// <summary>
+        /// 쿨타임 스킬(희생·정신 안정·정화의 손길) 중 이 캐릭터가 가진 것만 골라
+        /// 쿨타임 내림차순으로 정렬해둔다. <see cref="TickCooldownSkills"/> 가 이 순서로 시도한다.
+        /// </summary>
+        void RebuildCooldownPriority()
+        {
+            _cooldownPriority.Clear();
+            foreach (PassiveSkillType type in CooldownSkillTypes)
+                if (Has(type)) _cooldownPriority.Add(type);
+
+            _cooldownPriority.Sort((a, b) =>
+                Find(b).coolTime.CompareTo(Find(a).coolTime));
+        }
+
+        /// <summary>쿨타임으로 게이트되는 스킬 종류 전부. 새 쿨타임 스킬을 추가하면 이 배열에도 넣을 것.</summary>
+        static readonly PassiveSkillType[] CooldownSkillTypes =
+        {
+            PassiveSkillType.Sacrifice, PassiveSkillType.CalmDown, PassiveSkillType.PurifyingTouch,
+        };
 
         /// <summary>이 캐릭터가 그 패시브를 지금 쓸 수 있는지 (해금 + 표에 있는 종류).</summary>
         public bool Has(PassiveSkillType type) => Find(type) != null;
@@ -176,9 +210,28 @@ namespace LastSanctuary.Combat
             TickEcstasy();
             TickDefenseAura();
             TickBlazingWings(dt);
-            TickSacrifice();
-            TickCalmDown();
-            TickPurifyingTouch();
+            TickCooldownSkills();
+        }
+
+        /// <summary>
+        /// 희생·정신 안정·정화의 손길 중 <b>쿨타임이 된 것을 우선순위(내림차순) 순서로 시도</b>해
+        /// 최대 하나만 발동시킨다 — 동시 발동 방지 규칙(위 <see cref="_cooldownPriority"/> 주석).
+        /// 앞 순위가 쿨타임이 안 됐거나 조건(다친 동료 없음 등)이 안 맞으면 다음 순위로 넘어간다 —
+        /// 큰 스킬 하나가 계속 막혀 있다고 작은 스킬까지 영원히 못 나가게 하지 않기 위해서다.
+        /// </summary>
+        void TickCooldownSkills()
+        {
+            for (int i = 0; i < _cooldownPriority.Count; i++)
+            {
+                bool fired = _cooldownPriority[i] switch
+                {
+                    PassiveSkillType.Sacrifice => TrySacrifice(),
+                    PassiveSkillType.CalmDown => TryCalmDown(),
+                    PassiveSkillType.PurifyingTouch => TryPurifyingTouch(),
+                    _ => false,
+                };
+                if (fired) return;   // 한 프레임에 하나만 (BossSkillCaster.Update 와 같은 규칙)
+            }
         }
 
         /// <summary>광란 — 체력 50% 미만에서 켜지고, 다시 50% 이상이 되면 꺼진다(정의문 그대로).</summary>
@@ -344,27 +397,29 @@ namespace LastSanctuary.Combat
         /// 반경이 정의문에 없어서(“엘린의 주변”) <see cref="PassiveSkillService.assistRadius"/> 를
         /// 쓴다 — 인스펙터 값이다(값을 코드에 박지 않는다는 이 프로젝트의 규칙, 35절).
         /// </summary>
-        void TickSacrifice()
+        /// <summary>발동했으면 true — <see cref="TickCooldownSkills"/> 의 우선순위 시도가 이 값을 본다.</summary>
+        bool TrySacrifice()
         {
             PassiveSkillSO so = Find(PassiveSkillType.Sacrifice);
-            if (so == null || Time.time < _sacrificeReadyAt) return;
+            if (so == null || Time.time < _sacrificeReadyAt) return false;
 
             float needLostRatio = so.value01 * 0.01f;
             float ratio = so.value02 * 0.01f;
-            if (ratio <= 0f) return;
+            if (ratio <= 0f) return false;
 
             // 자기 체력을 깎는 효과이므로 자기가 위험하면 하지 않는다 — 안 그러면 자살한다.
             int cost = Mathf.RoundToInt(_unit.MaxHp * ratio);
-            if (cost <= 0 || _unit.CurrentHp <= cost) return;
+            if (cost <= 0 || _unit.CurrentHp <= cost) return false;
 
             DamageableUnit target = FindWoundedAlly(needLostRatio);
-            if (target == null) return;
+            if (target == null) return false;
 
             _sacrificeReadyAt = Time.time + Mathf.Max(0f, so.coolTime);
             _unit.ApplyDamage(cost);
             target.Heal(Mathf.RoundToInt(target.MaxHp * ratio));
 
             UI.HudLog.Add($"{_unit.DisplayName}의 희생 — {target.name} 회복", UI.HudLogKind.Good);
+            return true;
         }
 
         DamageableUnit FindWoundedAlly(float needLostRatio)
@@ -401,12 +456,13 @@ namespace LastSanctuary.Combat
         /// 두 캐릭터의 집결지 좌표가 같으면 같은 집결지다(부대당 하나이므로 47-3절 기준으로
         /// 사실상 "같은 부대" 와 같다). 집결지가 없는 캐릭터끼리는 이 스킬이 작동하지 않는다.
         /// </summary>
-        void TickCalmDown()
+        /// <summary>발동했으면 true — <see cref="TickCooldownSkills"/> 의 우선순위 시도가 이 값을 본다.</summary>
+        bool TryCalmDown()
         {
             PassiveSkillSO so = Find(PassiveSkillType.CalmDown);
-            if (so == null || Time.time < _calmDownReadyAt) return;
+            if (so == null || Time.time < _calmDownReadyAt) return false;
 
-            if (!UI.RallyPointService.TryGetRallyPoint(_unit, out Vector3 myRally)) return;
+            if (!UI.RallyPointService.TryGetRallyPoint(_unit, out Vector3 myRally)) return false;
 
             var all = UnitRegistry.All;
             for (int i = 0; i < all.Count; i++)
@@ -427,8 +483,9 @@ namespace LastSanctuary.Combat
 
                 UI.HudLog.Add($"{_unit.DisplayName}의 정신 안정 — {ally.DisplayName} 회복",
                               UI.HudLogKind.Good);
-                return;   // 쿨타임당 한 명
+                return true;   // 쿨타임당 한 명
             }
+            return false;
         }
 
         /// <summary>
@@ -436,18 +493,20 @@ namespace LastSanctuary.Combat
         /// 지속 중 때린 적에게 '정화' 표식이 붙고, 그 적을 때린 <b>아군</b>이 회복한다
         /// (표식 처리는 <see cref="PassiveSkillService"/> 의 공격 이벤트 쪽).
         /// </summary>
-        void TickPurifyingTouch()
+        /// <summary>발동했으면 true — <see cref="TickCooldownSkills"/> 의 우선순위 시도가 이 값을 본다.</summary>
+        bool TryPurifyingTouch()
         {
             PassiveSkillSO so = Find(PassiveSkillType.PurifyingTouch);
-            if (so == null) return;
+            if (so == null) return false;
 
-            if (PurifyActive) return;
-            if (Time.time < _purifyReadyAt) return;
-            if (_unit.HpRatio > so.value03 * 0.01f) return;
+            if (PurifyActive) return false;
+            if (Time.time < _purifyReadyAt) return false;
+            if (_unit.HpRatio > so.value03 * 0.01f) return false;
 
             _purifyEndTime = Time.time + Mathf.Max(0.1f, so.value02);
             _purifyReadyAt = Time.time + Mathf.Max(0f, so.coolTime);
             UI.HudLog.Add($"{_unit.DisplayName}의 정화의 손길 발동", UI.HudLogKind.Good);
+            return true;
         }
 
         /// <summary>정화의 손길이 지금 켜져 있는지.</summary>

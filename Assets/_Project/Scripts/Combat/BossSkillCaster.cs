@@ -69,6 +69,16 @@ namespace LastSanctuary.Combat
         /// <summary>슬롯별 다음 사용 가능 시각.</summary>
         readonly List<float> _nextUseTime = new List<float>();
 
+        /// <summary>
+        /// <b>시도 순서</b> — 슬롯 인덱스를 <see cref="BossSkillSO.coolTime"/> <b>내림차순</b>으로
+        /// 정렬해둔 것(유저 지시 2026-08-13: "쿨이 동시에 돌면 쿨타임이 더 긴 스킬부터 쓰도록").
+        ///
+        /// <b>왜 매 프레임 정렬하지 않는가</b> — 스킬 목록·쿨타임은 <see cref="EnsureResolved"/>
+        /// 이후 바뀌지 않으므로, 순서를 그때 한 번만 계산해두면 <see cref="Update"/> 는 매 프레임
+        /// 정렬 없이 이 순서를 그대로 읽기만 하면 된다.
+        /// </summary>
+        readonly List<int> _priorityOrder = new List<int>();
+
         float _nextAnyUseTime;
         bool _resolved;
 
@@ -95,6 +105,7 @@ namespace LastSanctuary.Combat
             _resolved = false;
             _skills.Clear();
             _nextUseTime.Clear();
+            _priorityOrder.Clear();
             _nextAnyUseTime = Time.time + initialDelaySeconds;
         }
 
@@ -146,9 +157,15 @@ namespace LastSanctuary.Combat
                 _nextUseTime.Add(Time.time + initialDelaySeconds + found.coolTime * 0.5f * _skills.Count);
             }
 
+            // 시도 순서 = 쿨타임 내림차순. List.Sort 는 불안정 정렬이지만 슬롯 수가 2~3개뿐이라
+            // 동률(같은 쿨타임)이 실제로 문제될 일이 없다.
+            for (int i = 0; i < _skills.Count; i++) _priorityOrder.Add(i);
+            _priorityOrder.Sort((a, b) => _skills[b].coolTime.CompareTo(_skills[a].coolTime));
+
             if (logCasts && _skills.Count > 0)
-                Debug.Log($"[보스스킬] {def.DisplayName} 스킬 {_skills.Count}종 준비 — " +
-                          string.Join(" · ", _skills.ConvertAll(s => s.DisplayName)), this);
+                Debug.Log($"[보스스킬] {def.DisplayName} 스킬 {_skills.Count}종 준비 " +
+                          $"(쿨타임 긴 순 {string.Join(" → ", _priorityOrder.ConvertAll(i => _skills[i].DisplayName))})",
+                          this);
         }
 
         static BossSkillSO[] LoadSkills(string folder)
@@ -173,8 +190,13 @@ namespace LastSanctuary.Combat
             if (_self == null || !_self.IsAlive) return;
             if (Time.time < _nextAnyUseTime) return;
 
-            for (int slot = 0; slot < _skills.Count; slot++)
+            // 동시 발동 방지 — <see cref="_priorityOrder"/>(쿨타임 내림차순)로 시도해
+            // 쿨이 같이 돌면 <b>더 긴 쿨타임의 스킬을 먼저</b> 쓴다. 그 스킬이 대상이 없어
+            // 못 나가면(requireTarget) 다음 순위로 넘어간다 — 큰 스킬만 계속 막혀 있다고
+            // 작은 스킬까지 영원히 못 나가게 하지 않기 위해서다.
+            for (int oi = 0; oi < _priorityOrder.Count; oi++)
             {
+                int slot = _priorityOrder[oi];
                 if (Time.time < _nextUseTime[slot]) continue;
                 if (!TryCast(slot, _skills[slot])) continue;
 
@@ -228,6 +250,12 @@ namespace LastSanctuary.Combat
                 if (u == null || !u.IsAlive) continue;
                 u.TakeDamageFrom(_self, skill.DamagePercent);
                 hits++;
+
+                // 침식은 이 스킬 데이터의 값이다(BossSkillSO.value04, 유저 지시 2026-08-13) —
+                // GameSystems 의 전역 규칙이 아니라 "이 스킬에 맞으면 얼마나 오르는지"를
+                // 표에서 그대로 읽어 여기서 직접 적용한다. 캐릭터만 침식이 있다(구조물 제외).
+                if (u.IsAlive && u is CharacterUnit character && skill.ErosionValue > 0f)
+                    CharacterErosion.EnsureOn(character)?.AddErosion(skill.ErosionValue);
             }
 
             string bossName = _self.Definition != null ? _self.Definition.DisplayName : _self.name;

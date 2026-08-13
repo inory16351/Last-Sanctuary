@@ -45,29 +45,6 @@ namespace LastSanctuary.Combat
         [Tooltip("회복이 시작된 뒤 1초에 줄어드는 침식량. 기본 1.0 = 정비 100초에 100 회복")]
         [Min(0f)] [SerializeField] float erosionRecoverPerSecond = 1f;
 
-        // ------------------------------------------------------------------
-        // 보스에게 맞으면 즉시 오르는 침식 (유저 확정 2026-08-13)
-        //
-        // "보스의 공격에 피격 당하면 즉시 10의 침식 수치가 오른다" — 위의 초당 누적과
-        // 성격이 다르다. 누적은 "웨이브와 오래 붙어 있으면 정신이 갉인다"이고, 이쪽은
-        // <b>한 방</b>이다. 그래서 잡몹에게 맞는 것과 달리 보스전은 정신 이상이 훨씬 빨리 뜬다.
-        // ------------------------------------------------------------------
-
-        [Header("보스 피격 — 즉시 침식")]
-        [Tooltip("보스의 공격에 맞을 때마다 즉시 오르는 침식량. 유저 확정 기본값 10 " +
-                 "(상한 100 이므로 10대만 맞아도 정신 이상이 터진다)")]
-        [Min(0f)] [SerializeField] float erosionPerBossHit = 10f;
-
-        [Tooltip("중간보스(혈인·공허의 속삭임)도 보스로 볼지. 끄면 최종보스(단탈리온)의 " +
-                 "공격만 이 규칙을 적용한다")]
-        [SerializeField] bool midBossCountsAsBoss = true;
-
-        [Tooltip("한 번 오른 뒤 이 시간(초) 안에 또 맞으면 다시 오르지 않는다. " +
-                 "0 이면 맞을 때마다 전부 적용(유저가 말한 규칙 그대로). " +
-                 "보스 스킬은 광역이라 한 번 시전에 여러 대상을 때리는데, 같은 캐릭터가 " +
-                 "겹쳐 맞는 구성이 생기면 여기에 0.5 정도를 넣어 완충할 수 있다")]
-        [Min(0f)] [SerializeField] float bossHitErosionCooldown = 0f;
-
         [Header("발동")]
         [Tooltip("침식 상한. 이 값에 닿으면 정신 이상이 발동한다")]
         [Min(1)] [SerializeField] int erosionMax = 100;
@@ -117,7 +94,6 @@ namespace LastSanctuary.Combat
         public float InstantStateDisplaySeconds => instantStateDisplaySeconds;
         public bool LogMentalErrors => logMentalErrors;
         public bool EnableErosion => enableErosion;
-        public float ErosionPerBossHit => erosionPerBossHit;
 
         /// <summary>정신 이상이 발동할 때마다 발생 (대상, 발동한 종류). UI·연출이 구독할 수 있다.</summary>
         public static event System.Action<CharacterUnit, MentalErrorDefinitionSO> OnMentalErrorTriggered;
@@ -132,57 +108,6 @@ namespace LastSanctuary.Combat
         void OnDestroy()
         {
             if (Instance == this) Instance = null;
-        }
-
-        // ------------------------------------------------------------------
-        // 보스 피격 — 즉시 침식
-        //
-        // <b>왜 여기서 구독하나</b> — 침식의 규칙은 전부 이 서비스에 모아둔다는 것이
-        // 29-2절의 구조다(상태만 <see cref="CharacterErosion"/>). 몬스터 쪽
-        // (<c>MonsterUnit</c>/<c>UnitCombat</c>)에 침식 코드를 넣으면 PROTO 소유 파일에
-        // 규칙이 새어나가고, 규칙을 고칠 때 두 군데를 봐야 한다.
-        //
-        // <b>왜 <c>OnAnyHit</c> 인가</b> — <c>OnAnyAttack</c> 은 명중 판정 <b>전에</b> 나므로
-        // 빗나간 공격도 센다. 유저 규칙은 "피격 당하면" 이다.
-        // ------------------------------------------------------------------
-
-        void OnEnable() => DamageableUnit.OnAnyHit += HandleHit;
-        void OnDisable() => DamageableUnit.OnAnyHit -= HandleHit;
-
-        /// <summary>캐릭터별 마지막 보스 피격 침식 시각 — <see cref="bossHitErosionCooldown"/> 용.</summary>
-        readonly Dictionary<CharacterErosion, float> _lastBossHitTime =
-            new Dictionary<CharacterErosion, float>();
-
-        void HandleHit(DamageableUnit attacker, DamageableUnit target, int damage)
-        {
-            if (!enableErosion || erosionPerBossHit <= 0f) return;
-            if (attacker == null || target == null) return;
-
-            var character = target as CharacterUnit;
-            if (character == null || !character.IsAlive) return;
-
-            var monster = attacker as MonsterUnit;
-            if (monster == null) return;
-
-            // 중립 몬스터는 MonsterUnit 이 아니라 NeutralMonsterUnit 이므로 여기 안 걸린다 —
-            // 침식이 "웨이브의 압박"이라는 29-2절의 정의가 그대로 유지된다.
-            if (monster.Tier == MonsterTier.Normal) return;
-            if (monster.Tier == MonsterTier.MidBoss && !midBossCountsAsBoss) return;
-
-            CharacterErosion erosion = CharacterErosion.EnsureOn(character);
-            if (erosion == null) return;
-
-            // 완충을 안 쓰면(기본값) 표 자체를 만들지 않는다 — 죽은 캐릭터의 항목이
-            // 쌓이지 않게. 쓸 때만 캐릭터 12명 분량이라 크기 걱정이 없다.
-            if (bossHitErosionCooldown > 0f)
-            {
-                if (_lastBossHitTime.TryGetValue(erosion, out float last) &&
-                    Time.time - last < bossHitErosionCooldown)
-                    return;
-                _lastBossHitTime[erosion] = Time.time;
-            }
-
-            erosion.AddErosion(erosionPerBossHit);
         }
 
         void LoadDefinitions()

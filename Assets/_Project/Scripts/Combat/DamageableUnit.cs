@@ -43,7 +43,6 @@ namespace LastSanctuary.Combat
             OnAnyDied = null;
             OnAnyMissed = null;
             OnAnyCritical = null;
-            OnAnyHit = null;
         }
 
         bool _wasInCombat;
@@ -306,18 +305,7 @@ namespace LastSanctuary.Combat
 
             // ④ 적용
             ApplyDamage(damage);
-
-            // ⑤ "실제로 맞았다" 를 알린다 — <see cref="OnAnyAttack"/> 은 <b>명중 판정 전에</b>
-            //    발생하므로(빗나가도 발생한다, 위 주석 참조) 피격을 세는 데 쓸 수 없다.
-            //    보스에게 맞으면 침식이 오르는 규칙(<c>ErosionService</c>)이 이걸 구독한다.
-            OnAnyHit?.Invoke(attacker, this, damage);
         }
-
-        /// <summary>
-        /// 피해가 <b>실제로 적용됐다</b> (공격자, 대상, 피해량). <see cref="OnAnyAttack"/> 과 달리
-        /// 빗나간 공격에서는 발생하지 않는다 — "피격당했다"를 세야 하는 쪽이 쓴다.
-        /// </summary>
-        public static event System.Action<DamageableUnit, DamageableUnit, int> OnAnyHit;
 
         /// <summary>공격이 빗나갔다 (공격자, 대상). MISS 연출용 — 아직 구독자가 없다.</summary>
         public static event System.Action<DamageableUnit, DamageableUnit> OnAnyMissed;
