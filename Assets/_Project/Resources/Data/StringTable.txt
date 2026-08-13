@@ -37,8 +37,8 @@ mon_name_1002	역겨운 덩어리 2
 mon_name_1003	역겨운 덩어리 3	
 monster_name_100001	지옥 송곳니	HellFang
 monster_name_100002	영혼 사수	SoulArcher
-monster_name_110001	혈인	
-monster_name_110002	공허의 속삭임	
+monster_name_110001	혈인	BloodMark
+monster_name_110002	공허의 속삭임	VoidWhisper
 monster_name_120001	단탈리온	Dantalian
 skill_explain_130001	단탈리온이 적들을 타락의 무덤으로 인도합니다	
 skill_explain_130002	단탈리온이 발하는 빛은 적을 파멸로 이끕니다	

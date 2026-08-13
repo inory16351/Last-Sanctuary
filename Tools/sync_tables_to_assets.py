@@ -5,20 +5,27 @@
 정신 이상 11종 · 웨이브 몬스터(잡몹·중간보스·최종보스) · 포탑/중앙건물 · 웨이브 구성표.
 
 진행상황 54절(다른 PC 의 테이블 재밸런싱)이 "게임 미반영" 으로 남긴 항목들을 실제로 반영하는
-파이프라인이다. 54-10절이 손으로 옮겨야 한다고 적어둔 것을 스크립트로 만든 것 —
+파이프라인이다. 54-10절이 손으로 옮겨야 한다고 적어둔 것을 스크립트로 만든 것 -
 표가 정본이고 이 스크립트가 그대로 옮긴다. **값을 손으로 옮겨 적지 않는다.**
 
-⚠ 왜 스크립트인가 (MCP 가 아니라) — MCP 에는 **ScriptableObject 에셋(.asset)을 다루는 도구가
+⚠ 왜 스크립트인가 (MCP 가 아니라) - MCP 에는 **ScriptableObject 에셋(.asset)을 다루는 도구가
   없다.** `update_component` 는 씬의 GameObject 컴포넌트만 만진다. 그래서 씬 오브젝트는 MCP 로,
   에셋은 이 스크립트로 갈라 놓는다(진행상황 5절·8절부터 이 프로젝트가 쓰는 방식이고,
   33-5절의 `gen_character_assets.py` 도 같은 이유로 스크립트다).
 
 ⚠ .asset YAML 에 **빈 줄을 넣으면 Unity 파서가 그 뒤 필드를 전부 무시한다**(8절 3번).
-  이 스크립트는 기존 파일의 필드 값만 **한 줄씩 치환**하고 구조는 건드리지 않는다 —
+  이 스크립트는 기존 파일의 필드 값만 **한 줄씩 치환**하고 구조는 건드리지 않는다 -
   전체를 다시 쓰면 내가 모르는 필드(나중에 추가된 것)를 날릴 수 있기 때문이다.
 """
 import os
 import re
+import sys
+
+# 콘솔이 cp949 라 한글 출력에서 죽는다 - 출력만 UTF-8 로 바꾼다(파일 내용과 무관).
+try:
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+except Exception:
+    pass
 import hashlib
 import openpyxl
 
@@ -61,7 +68,7 @@ MonoBehaviour:
 
 
 def guid_for(key):
-    """gen_character_assets.py 와 같은 규칙 — 경로에서 결정적으로 만든다(다시 돌려도 같은 guid)."""
+    """gen_character_assets.py 와 같은 규칙 - 경로에서 결정적으로 만든다(다시 돌려도 같은 guid)."""
     return hashlib.md5(('LastSanctuary/' + key).encode('utf-8')).hexdigest()
 
 
@@ -110,7 +117,7 @@ def patch_fields(path, changes, label):
 
 
 # ---------------------------------------------------------------------------
-# 1) 정신 이상 11종 — 54-6절 (after_erosion 45~55 로 낮춤 · 가중치 재배분)
+# 1) 정신 이상 11종 - 54-6절 (after_erosion 45~55 로 낮춤 · 가중치 재배분)
 # ---------------------------------------------------------------------------
 def sync_mental_errors():
     print('[정신 이상]')
@@ -146,7 +153,7 @@ def sync_mental_errors():
 
 
 # ---------------------------------------------------------------------------
-# 2) 웨이브 몬스터 — 잡몹 2종 + 최종보스 갱신, 중간보스 2종 신규 생성
+# 2) 웨이브 몬스터 - 잡몹 2종 + 최종보스 갱신, 중간보스 2종 신규 생성
 # ---------------------------------------------------------------------------
 # 표의 monster_id → 기존 에셋 파일명. 중간보스는 아직 에셋이 없어서 새로 만든다(아래).
 MONSTER_ASSET_BY_ID = {
@@ -155,18 +162,22 @@ MONSTER_ASSET_BY_ID = {
     120001: 'Monster_Dantalian',
 }
 
-# 중간보스 — 54-4절. tier=MidBoss(1).
+# 중간보스 - 54-4절. tier=MidBoss(1).
 #
-# ⚠ **전투 파라미터를 지어내지 않는다** — 같은 공격 타입의 잡몹 에셋에서 그대로 물려받는다
+# ⚠ **전투 파라미터를 지어내지 않는다** - 같은 공격 타입의 잡몹 에셋에서 그대로 물려받는다
 #   (`inherit` 이 그 에셋 이름이다). 유저 지시 4번이 "중간 보스 인게임 모션은 임시로 일반
 #   몬스터 스킨을 그대로 쓰는 것이니 신경 쓰지 말고 냅둬" 였고, 표에도 사거리·인식범위 칸이
 #   없다. 표에 있는 것(능력치·체력보정)만 표에서 가져오고 나머지는 물려받는 것이 정확하다.
 #
-# ⚠ **외형(template)은 이 에셋에 넣을 수 없다** — ScriptableObject 는 씬 오브젝트를 참조할 수
+# ⚠ **외형(template)은 이 에셋에 넣을 수 없다** - ScriptableObject 는 씬 오브젝트를 참조할 수
 #   없다(진행상황 5절). 스포너의 슬롯이 템플릿을 지정하는 구조이므로 씬에서 MCP 로 연결한다.
+# ⚠ 에셋 이름은 **표의 `character_name_EG`** 를 따른다(2026-08-13). 예전에는 물려받는
+#   잡몹 이름(`Monster_MidBoss_HellFang`)을 그대로 썼는데, 그러면 하이라키·에셋 목록에서
+#   중간보스가 잡몹으로 보인다. 표에 영어 이름 컬럼이 아예 없어서 그랬던 것이라
+#   컬럼을 만들고(BloodMark · VoidWhisper) 그 값으로 개명했다.
 MID_BOSS = {
-    110001: dict(asset='Monster_MidBoss_HellFang', name='혈인', inherit='Monster_HellFang'),
-    110002: dict(asset='Monster_MidBoss_SoulArcher', name='공허의 속삭임', inherit='Monster_SoulArcher'),
+    110001: dict(asset='Monster_MidBoss_BloodMark', name='혈인', inherit='Monster_HellFang', render_h=3),
+    110002: dict(asset='Monster_MidBoss_VoidWhisper', name='공허의 속삭임', inherit='Monster_SoulArcher', render_h=3),
 }
 
 # 능력치 → 공속/이속 치환은 게임이 인스펙터 값을 그대로 쓰므로(몬스터는 StatMoveSpeedTiles 0)
@@ -235,13 +246,16 @@ def sync_monsters():
         body += "  attacksPerSecond: %s\n" % aspd_from_stat(num(r[8]))
         body += "  moveSpeedTiles: %s\n" % mspd_from_stat(num(r[9]))
         body += "  footprintTiles: %s\n" % inherited('footprintTiles', '1')
-        # 크기 — 유저 확정 2026-08-12: "중간보스는 크기만 일반 몬스터 두 배로 키워서
-        # 일단 에셋은 동일하게 써서". 발판 2x2 · 균등 스케일 2배(비율 유지).
+        # 크기 - <b>기준은 타일</b>이다(유저 확정 2026-08-13, 진행상황 61절).
+        # 예전 값(spriteScale 2 = "잡몹 스킨의 2배")은 원화 픽셀에 매인 배율이라
+        # 스킨이 바뀌면 크기가 같이 흔들렸다. 이제 "몇 타일로 보일지"만 적는다.
+        # bodyWidth/Height·spriteScale 은 스킨이 없는 경우의 폴백으로만 남는다.
         # ⚠ 이 블록이 없으면 이 스크립트를 다시 돌릴 때마다 크기가 초기화된다
         #   (중간보스 에셋은 갱신이 아니라 전체 재작성이다).
         body += "  bodyWidthTiles: 2\n"
         body += "  bodyHeightTiles: 2\n"
         body += "  spriteScale: 2\n"
+        body += "  renderHeightTiles: %s\n" % spec.get('render_h', 3)
 
         with open(path, 'w', encoding='utf-8', newline='\n') as f:
             f.write(body)
@@ -256,7 +270,7 @@ def sync_monsters():
 
 
 # ---------------------------------------------------------------------------
-# 3) 건물 — 54-7절 (포탑 상향 · 중앙건물은 이미 게임 값과 같다)
+# 3) 건물 - 54-7절 (포탑 상향 · 중앙건물은 이미 게임 값과 같다)
 # ---------------------------------------------------------------------------
 def sync_buildings():
     print('[건물]')
@@ -283,7 +297,7 @@ def sync_buildings():
     n = patch_fields(os.path.join(ASSETS, 'Data', 'Buildings', 'Building_Turret.asset'),
                      changes, 'Building_Turret')
 
-    # 중앙건물(10001) — 게임은 능력치 치환(체력스탯 100 × 보정 250% = 2,600)으로 같은 값을
+    # 중앙건물(10001) - 게임은 능력치 치환(체력스탯 100 × 보정 250% = 2,600)으로 같은 값을
     # 이미 만들고 있다(54-7절이 "시트를 게임에 맞췄다"). 표의 HP/DEF 와 실제 값이 같은지만 검사한다.
     core = const.get(10001)
     if core is not None:
@@ -302,7 +316,7 @@ def sync_buildings():
 
 
 # ---------------------------------------------------------------------------
-# 4) 웨이브 구성표 — 54-5절 (중간보스 수량 컬럼 신설 + 5·15웨이브 잡몹 감소)
+# 4) 웨이브 구성표 - 54-5절 (중간보스 수량 컬럼 신설 + 5·15웨이브 잡몹 감소)
 # ---------------------------------------------------------------------------
 def sync_waves():
     print('[웨이브 구성표]')
@@ -310,7 +324,7 @@ def sync_waves():
     with open(path, encoding='utf-8') as f:
         text = f.read()
 
-    # 증원(reinforce*)은 표에 없는 값이다 — 27절이 코드/에셋 쪽에서 정한 것이므로
+    # 증원(reinforce*)은 표에 없는 값이다 - 27절이 코드/에셋 쪽에서 정한 것이므로
     # 표를 반영할 때 **덮어쓰지 않고 기존 값을 그대로 유지**한다(54-8절과 같은 취지).
     keep = {}
     for m in re.finditer(r'- waveNumber: (\d+)(.*?)(?=\n  - waveNumber:|\Z)', text, re.S):
@@ -348,4 +362,4 @@ if __name__ == '__main__':
     sync_monsters()
     sync_buildings()
     sync_waves()
-    print('\n완료 — Unity 에서 Assets/Refresh 를 실행할 것.')
+    print('\n완료 - Unity 에서 Assets/Refresh 를 실행할 것.')

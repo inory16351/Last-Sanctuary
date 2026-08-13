@@ -71,6 +71,10 @@ RULES = [
     ]),
     ('웨이브 몬스터 테이블.xlsx', 'wave_mid_boss', 'monster_id', [
         ('monster_name', 'monster_name', 'kr'),
+        # 2026-08-13: 중간보스에는 영어 이름 컬럼 자체가 없었다(잡몹·최종보스에는 있었다).
+        # 표에 `character_name_EG` 를 만들어 BloodMark(혈인) · VoidWhisper(공허의 속삭임)를
+        # 넣었고, 게임 에셋·씬 템플릿 이름도 이 값을 따른다("테이블이 무조건 상위 기준").
+        ('character_name_EG', 'monster_name', 'en'),
     ]),
     ('웨이브 몬스터 테이블.xlsx', 'wave_top_boss', 'monster_id', [
         ('monster_name', 'monster_name', 'kr'),
