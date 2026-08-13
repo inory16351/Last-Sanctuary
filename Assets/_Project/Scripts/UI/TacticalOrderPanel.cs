@@ -228,8 +228,17 @@ namespace LastSanctuary.UI
             }
 
             if (_hintText != null) _hintText.text = has ? selectionHint : noSelectionHint;
+
+            // ★ 이 칸은 "탐험 유형" 버튼(사냥/정찰/탐색) 바로 아래에 있다 — 유저 지시
+            //   2026-08-13: "탐색과 정찰에 대한 기능을 디테일하게 아래 설명칸에 기입, 예시:
+            //   탐색 버튼을 눌렀을 때 아래 설명칸에 탐색에 대한 설명". 지금 선택된 탐험 유형이
+            //   바뀔 때마다(버튼을 누를 때마다 RefreshAll 이 다시 불린다) 그 유형의 상세 설명으로
+            //   갈아 끼운다. 예전에는 전체 지침을 한 문장으로 압축한 Order.Summarize() 를
+            //   보여줬지만, 다른 항목은 버튼 색(선택 표시)만 봐도 뜻이 분명한 반면 탐험 유형
+            //   세 가지는 "맞으면 반격하는지" · "도망가는지" 같은 차이가 버튼만으론 안 보여서
+            //   이 칸이 필요했다 — 그래서 이 칸의 역할을 탐험 유형 설명으로 좁혔다.
             if (_summaryText != null)
-                _summaryText.text = has ? _tactics.Order.Summarize() : "-";
+                _summaryText.text = has ? TacticalOrder.Description(_tactics.Order.expeditionType) : "-";
 
             RefreshRetreat();
             RefreshLiveValues();

@@ -37,6 +37,11 @@ namespace LastSanctuary.Units
         [Header("캐릭터 생성")]
         [Min(0)] [SerializeField] int characterCount = 3;
 
+        [Tooltip("게임 시작 시 생성되는 캐릭터들을 새 부대 하나에 자동으로 편성한다" +
+                 "(SquadService 가 씬에 있을 때만 동작). 이후 캐릭터 생성 UI 로 늘어나는 " +
+                 "인원은 대상이 아니다 — 최초 편성만 고정한다")]
+        [SerializeField] bool autoSquadInitialCharacters = true;
+
         [Tooltip("넥서스로부터 몇 칸 떨어진 곳부터 배치를 시도할지")]
         [Min(1)] [SerializeField] int spawnRingRadius = 3;
 
@@ -98,6 +103,7 @@ namespace LastSanctuary.Units
 
             SpawnNexus(centerCell);
             SpawnCharacters(centerCell);
+            AutoSquadInitialCharacters();
         }
 
         /// <summary>생성된 유닛을 모두 제거한다. 템플릿은 건드리지 않는다.</summary>
@@ -198,6 +204,30 @@ namespace LastSanctuary.Units
 
             // 배치 각도를 계속 균등하게 나누려면 분모가 실제 인원 수와 함께 커져야 한다.
             return SpawnCharacterAt(centerCell, index, Mathf.Max(characterCount, index + 1));
+        }
+
+        /// <summary>
+        /// 게임 시작 시 생성된 캐릭터들을 새 부대 하나에 자동으로 편성한다(유저 지시
+        /// 2026-08-13: "게임 시작 시 생성되는 3명의 캐릭터들을 임의로 한 부대에 고정되서
+        /// 생성되게 해"). <see cref="SpawnOneCharacter"/> 로 나중에 늘어나는 캐릭터는
+        /// 대상이 아니다 — 지시가 "게임 시작 시 생성되는" 최초 인원만 가리키기 때문이다.
+        ///
+        /// 편성 자체는 <see cref="SquadService"/> 가 이미 갖고 있는 규칙(협동 탐험 기본값·
+        /// 인원 상한 등)을 그대로 타므로 여기서 새 규칙을 만들지 않는다.
+        /// </summary>
+        void AutoSquadInitialCharacters()
+        {
+            if (!autoSquadInitialCharacters) return;
+            if (SquadService.Instance == null) return;   // 부대 시스템이 씬에 없으면 조용히 건너뜀
+            if (SpawnedCharacters.Count < 2) return;      // 혼자면 "부대"의 의미가 없다
+
+            SquadService.Squad squad = SquadService.Instance.CreateSquad();
+            if (squad == null) return;                    // 부대 상한(maxSquads)에 걸린 경우
+
+            foreach (CharacterUnit unit in SpawnedCharacters)
+                SquadService.Instance.Assign(unit, squad.Id);
+
+            Debug.Log($"[UnitSpawner] 초기 캐릭터 {SpawnedCharacters.Count}명을 {squad.Name} 에 편성", this);
         }
 
         /// <summary>캐릭터 한 명을 실제로 만든다. 최초 생성과 추가 생성이 이 경로를 공유한다.</summary>

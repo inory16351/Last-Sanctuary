@@ -16,8 +16,8 @@ MonoBehaviour:
   nameKey: mon_name_1003
   displayName: 역겨운 덩어리 3
   template: {fileID: 0}
-  minEnergy: 55
-  maxEnergy: 90
+  minEnergy: 66
+  maxEnergy: 108
   attackStat: 11
   hpStat: 14
   defenseStat: 5
@@ -28,7 +28,7 @@ MonoBehaviour:
   attacksPerSecond: 0.968
   moveSpeedTiles: 2.455
   leashRangeTiles: 6
-  maxAlive: 18
-  respawnSeconds: 16
+  maxAlive: 34
+  respawnSeconds: 9
   spawnRangeMinTiles: 200
   spawnRangeMaxTiles: 320
