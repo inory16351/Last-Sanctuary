@@ -15,7 +15,9 @@ import os
 from PIL import Image
 
 SRC = r'C:\Project\Last-Sanctuary-Vault\리소스\illust\char'
-DST = r'C:\Project\Last Sanctuary\Assets\_Project\Resources\Illust'
+# ⚠ 프로젝트 경로는 2026-08-12 에 `Last Sanctuary` → `Last-Sanctuary` 로 바뀌었다(53절).
+#   옛 경로가 그대로 남아 있어서 이 스크립트를 돌려도 아무 데도 안 써졌다 — 2026-08-13 정정.
+DST = r'C:\Project\Last-Sanctuary\Assets\_Project\Resources\Illust'
 
 # 초상화 Sprite 칸: Portrait(226x200) 에 -16 인셋 → 210x184
 TARGET_W, TARGET_H = 210, 184
@@ -30,6 +32,7 @@ FACES = [
     ('illust_Elin.png',   'illust_Elin',   800,  415, 520),   # 1402x1122 — 가시관 쓴 얼굴
     ('illust_Bigior.png', 'illust_Bigior', 147,   70, 115),   # 298x453  — 투구 얼굴
     ('ilust_Preyja.png',  'illust_Preyja', 515,  210, 250),   # 1024x1536 — 후광 아래 얼굴
+    ('illust_Piolo.png',  'illust_Piolo',  555,  425, 290),   # 1024x1535 — 실크햇 + 역병의사 마스크
 ]
 
 
