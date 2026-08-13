@@ -29,7 +29,7 @@ namespace LastSanctuary.UI
     /// 하이라키는 MCP 로 직접 만들고(준수사항 §10 H-1), 스크립트는 <b>경로로 찾아서</b> 연결한다
     /// — MCP 로는 인스펙터의 오브젝트 참조를 채울 수 없기 때문이다(진행상황 8절 4번).
     /// </summary>
-    public class TacticalOrderPanel : MonoBehaviour
+    public class TacticalOrderPanel : MonoBehaviour, IExclusiveHudPanel
     {
         [Header("갱신")]
         [Tooltip("체력 % 등 값이 계속 변하는 표시를 다시 읽는 주기(초)")]
@@ -146,9 +146,10 @@ namespace LastSanctuary.UI
 
         public void SetOpen(bool open)
         {
-            // 캐릭터 성장 창과 동시에 열리면 화면 같은 자리에 겹친다(둘 다 HUD_Tactics 와 같은
-            // 위치·크기) — 유저 확정: 이 창을 열면 캐릭터 성장 창은 자동으로 닫힌다.
-            if (open) CharacterGrowthPanel.Instance?.Close();
+            // 같은 자리에 겹치는 다른 창과 맵 클릭 모드를 전부 닫는다.
+            // ⚠ 예전에는 여기서 CharacterGrowthPanel 만 닫았다 — 부대 설정은 그대로 열려 있어서
+            //   두 창이 겹쳐 보였다(유저 리포트 2026-08-13). 규칙을 HudExclusive 한 곳으로 모았다.
+            if (open) HudExclusive.OpenOnly(this);
 
             gameObject.SetActive(open);
             if (open) RebindToSelection();   // 열릴 때 지금 선택을 즉시 반영

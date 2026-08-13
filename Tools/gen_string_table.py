@@ -63,28 +63,28 @@ FONT = 'Arial'
 #   ★ 같은 키에 kr 과 en 을 각각 넣는 것이 이 표의 요점이다 —
 #     예전에는 `character_name` 과 `character_name_EG` 두 컬럼으로 갈라져 있었다.
 # ---------------------------------------------------------------------------
+# ★ 2026-08-13 — 원본 표의 <b>영어 이름 컬럼(`*_EG`)을 전부 지웠다</b>(유저 지시:
+#   "스트링 테이블로 영어 이름 배정해야 하는데 지금 영어 이름 칼럼이 삭제되지 않고
+#   남아있는 것들 확인해서 없애줘"). 같은 값을 두 곳에 적어두면 반드시 어긋나기 때문이다.
+#   <b>이제 영어는 이 파일(스트링 키 테이블)의 `en` 칸이 유일한 정본</b>이고, 아래 규칙에서도
+#   수집 대상이 아니다. 이미 들어간 en 값은 merge 규칙(기존 우선)상 그대로 남는다 —
+#   `--rebuild` 를 주면 수집값으로 덮으므로, 지금 상태에서 `--rebuild` 를 돌리면
+#   ⚠ <b>영어 이름이 전부 비워진다.</b> 절대 그렇게 돌리지 말 것.
 RULES = [
     # ── 웨이브 몬스터 테이블 ────────────────────────────────────────────────
     ('웨이브 몬스터 테이블.xlsx', 'wave_nom', 'monster_id', [
         ('monster_name', 'monster_name', 'kr'),
-        ('character_name_EG', 'monster_name', 'en'),
     ]),
     ('웨이브 몬스터 테이블.xlsx', 'wave_mid_boss', 'monster_id', [
         ('monster_name', 'monster_name', 'kr'),
-        # 2026-08-13: 중간보스에는 영어 이름 컬럼 자체가 없었다(잡몹·최종보스에는 있었다).
-        # 표에 `character_name_EG` 를 만들어 BloodMark(혈인) · VoidWhisper(공허의 속삭임)를
-        # 넣었고, 게임 에셋·씬 템플릿 이름도 이 값을 따른다("테이블이 무조건 상위 기준").
-        ('character_name_EG', 'monster_name', 'en'),
         # 2026-08-13: 중간보스에도 칭호 칸을 만들었다(H열). 최종보스에만 있던 것이라
         # 체력바에 띄울 칭호가 없었다 — 유저 지시 "보스 몬스터는 소환되면 체력바에
-        # 타이틀을 붙여서 표기". 영어 칭호 칸은 아직 없다(한국어만).
+        # 타이틀을 붙여서 표기". 영어 칭호는 스트링 키 테이블에서 직접 채운다.
         ('boss_title', 'boss_title', 'kr'),
     ]),
     ('웨이브 몬스터 테이블.xlsx', 'wave_top_boss', 'monster_id', [
         ('monster_name', 'monster_name', 'kr'),
-        ('character_name_EG', 'monster_name', 'en'),
         ('boss_title', 'boss_title', 'kr'),
-        ('boss_title_EG', 'boss_title', 'en'),
     ]),
     ('웨이브 몬스터 테이블.xlsx', 'Skill', 'skill_id', [
         ('skill_name', 'skill_name', 'kr'),
@@ -97,7 +97,9 @@ RULES = [
     # ── 캐릭터 테이블 ──────────────────────────────────────────────────────
     ('캐릭터 테이블.xlsx', 'Character', 'character_id', [
         ('character_name', 'character_name', 'kr'),
-        ('character_name_EG', 'character_name', 'en'),
+        # `character_name_EG` 는 2026-08-13 에 삭제됐다 — 위 ★ 주석 참조.
+        # ⚠ 이 en 값은 `gen_character_assets.py` 가 <b>에셋 파일 이름</b>으로 쓴다
+        #   (`Character_9001_Elin`). 스트링 키 테이블에서 지우면 guid 가 바뀌어 참조가 끊긴다.
     ]),
     ('캐릭터 테이블.xlsx', 'Skill', 'skill_id', [
         ('skill_name', 'skill_name', 'kr'),

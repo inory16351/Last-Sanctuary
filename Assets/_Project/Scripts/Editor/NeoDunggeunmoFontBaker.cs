@@ -19,7 +19,20 @@ namespace LastSanctuary.EditorTools
     public static class NeoDunggeunmoFontBaker
     {
         const string SourceFontPath = "Assets/TextMesh Pro/Fonts/neodgm.ttf";
-        const string OutputFolder = "Assets/_Project/Art/Fonts";
+
+        /// ★ <b>반드시 <c>Resources/Fonts</c> 여야 한다</b> (준수사항 §10 H-4, 2026-08-13 수정).
+        ///
+        /// 예전 값은 <c>Assets/_Project/Art/Fonts</c> 였다. 그 경로에는 <b>에셋이 없었으므로</b>
+        /// 이 메뉴를 실행하면 <c>LoadOrBake</c> 가 "없다"고 판단해 <b>폰트를 새로 굽고</b>,
+        /// 이어서 <c>ApplyToLoadedScenes</c> 가 씬의 TMP 텍스트 <b>전부를 그 새 에셋으로
+        /// 갈아끼웠다.</b> 실제로 2026-08-13 에 이 메뉴를 한 번 눌러 씬의 폰트 참조 234개가
+        /// 통째로 바뀌었다(38MB 씬이 전면 재작성됐다).
+        ///
+        /// 프로젝트의 정본 폰트는 <c>Resources/Fonts/NeoDunggeunmo SDF.asset</c> 다 —
+        /// 런타임에 <c>Resources.Load</c> 로도 읽는 자리다. 여기를 가리키면
+        /// <c>LoadOrBake</c> 가 <b>기존 에셋을 그대로 재사용</b>하므로 이 사고가 재발하지 않고,
+        /// 새로 추가한 텍스트에만 같은 폰트가 붙는다(이 메뉴의 원래 목적).
+        const string OutputFolder = "Assets/_Project/Resources/Fonts";
         const string OutputPath = OutputFolder + "/NeoDunggeunmo SDF.asset";
 
         // 네오 둥근모는 16px 기준으로 만든 픽셀 폰트다. 그 정수배(32)로 구워야

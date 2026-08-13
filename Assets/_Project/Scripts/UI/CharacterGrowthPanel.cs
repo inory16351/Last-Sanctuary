@@ -32,7 +32,7 @@ namespace LastSanctuary.UI
     /// 매 프레임 갈아끼우는 그 스프라이트라 애니메이션도 그대로 따라온다). 선택이 없으면 원래
     /// 플레이스홀더 문구("캐릭터 일러스트 (추후 연동)")로 되돌린다.
     /// </summary>
-    public class CharacterGrowthPanel : MonoBehaviour
+    public class CharacterGrowthPanel : MonoBehaviour, IExclusiveHudPanel
     {
         [Header("갱신")]
         [Tooltip("체력 % 등 값이 계속 변하는 표시를 다시 읽는 주기(초)")]
@@ -228,9 +228,10 @@ namespace LastSanctuary.UI
 
         public void SetOpen(bool open)
         {
-            // 전술 지침 창과 동시에 열리면 화면 같은 자리에 겹친다(둘 다 HUD_Tactics 와 같은
-            // 위치·크기) — 유저 확정: 이 창을 열면 전술 지침 창은 자동으로 닫힌다.
-            if (open) TacticalOrderPanel.Instance?.Close();
+            // 같은 자리에 겹치는 다른 창과 맵 클릭 모드를 전부 닫는다.
+            // ⚠ 예전에는 여기서 TacticalOrderPanel 만 닫았다 — 부대 설정은 그대로 열려 있었다
+            //   (유저 리포트 2026-08-13). 규칙을 HudExclusive 한 곳으로 모았다.
+            if (open) HudExclusive.OpenOnly(this);
 
             gameObject.SetActive(open);
             if (open) RebindToSelection();

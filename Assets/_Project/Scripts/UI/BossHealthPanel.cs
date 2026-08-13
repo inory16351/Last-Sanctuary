@@ -48,8 +48,10 @@ namespace LastSanctuary.UI
                  "레이아웃을 건드리지 않는 쪽이 안전하다")]
         [SerializeField] bool showTitle = true;
 
-        [Tooltip("칭호 글자 크기(이름 대비 %). rich text <size> 태그로 들어간다")]
-        [Range(40, 100)] [SerializeField] int titleSizePercent = 72;
+        [Tooltip("칭호 글자 크기(이름 대비 %). rich text <size> 태그로 들어간다.\n" +
+                 "2026-08-13 유저 요청으로 72 → 92 로 키웠다. 이름과 거의 같은 크기지만 색이 " +
+                 "흐려서 이름이 먼저 읽힌다. 100 을 넘겨도 되게 상한을 150 까지 열어뒀다")]
+        [Range(40, 150)] [SerializeField] int titleSizePercent = 92;
 
         [Tooltip("칭호 색. 이름보다 흐리게 두어 이름이 먼저 읽히도록 한다")]
         [SerializeField] Color titleColor = new Color(0.85f, 0.72f, 0.55f, 1f);

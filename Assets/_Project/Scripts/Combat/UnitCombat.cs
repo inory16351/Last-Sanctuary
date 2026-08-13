@@ -396,6 +396,14 @@ namespace LastSanctuary.Combat
         public void SetCanAcquireTargets(bool value) => canAcquireTargets = value;
 
         /// <summary>
+        /// 맞았을 때 반격할지. <b>스폰할 때 데이터가 템플릿 값을 덮어쓰기 위해</b> 둔다 —
+        /// 중립 몬스터의 선공/비선공은 표(<c>atk_take</c>) 한 칸이 정본인데, 템플릿 인스펙터에
+        /// 이 값이 따로 켜져 있으면 표와 다르게 동작한다(유저 리포트 2026-08-13
+        /// "비선공 선공 체크가 여러개 되어 있던데"). <see cref="SetCanAcquireTargets"/> 와 짝이다.
+        /// </summary>
+        public void SetCanRetaliate(bool value) => canRetaliate = value;
+
+        /// <summary>
         /// 절대 움직이지 않는 유닛(포탑 등)으로 만든다.
         ///
         /// <b>이동속도 0 으로는 부족하다</b> — <see cref="CurrentSpeed"/> 는 0 을 "설정 안 함"

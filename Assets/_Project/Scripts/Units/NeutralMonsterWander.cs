@@ -100,21 +100,40 @@ namespace LastSanctuary.Units
                 PickDestination();
         }
 
+        /// <summary>
+        /// 다음 배회 지점을 고른다.
+        ///
+        /// ★ <b>체비셰프 고리(사각 링) 위에서 뽑는다</b>(2026-08-13 개정) —
+        /// <c>NeutralMonsterSpawner.SampleRingCell</c> 과 <b>완전히 같은 방식</b>이라
+        /// 배회 범위와 스폰 범위가 정확히 일치한다.
+        ///
+        /// 예전에는 <b>각도 + 유클리드 반지름</b>으로 뽑고 <b>체비셰프</b>로만 하한을 검사했다.
+        /// 두 거리는 대각선에서 √2 배 차이가 나므로 결과가 고리 <b>안쪽</b>으로 쏠렸고, 상한은
+        /// 아예 검사하지 않았다 — 유저가 말한 "계속 중앙으로 중립몹이 모인다" 가 이것이다.
+        /// 이제 상·하한을 <b>둘 다</b> 지킨다.
+        /// </summary>
         void PickDestination()
         {
             Vector3 nexus = NexusPosition();
 
             for (int attempt = 0; attempt < Attempts; attempt++)
             {
-                double angle = _rng.NextDouble() * System.Math.PI * 2.0;
-                float radius = Mathf.Lerp(_minRadius, _maxRadius, (float)_rng.NextDouble());
+                float d = Mathf.Lerp(_minRadius, _maxRadius, (float)_rng.NextDouble());
+                float along = Mathf.Lerp(-d, d, (float)_rng.NextDouble());
 
-                Vector3 candidate = nexus + new Vector3(
-                    Mathf.Cos((float)angle) * radius,
-                    Mathf.Sin((float)angle) * radius, 0f);
+                Vector3 offset = _rng.Next(4) switch
+                {
+                    0 => new Vector3(along, d, 0f),
+                    1 => new Vector3(along, -d, 0f),
+                    2 => new Vector3(d, along, 0f),
+                    _ => new Vector3(-d, along, 0f),
+                };
 
+                Vector3 candidate = nexus + offset;
                 if (!IsWalkable(candidate)) continue;
-                if (ChebyshevDistance(candidate, nexus) < _minRadius) continue;
+
+                float cheb = ChebyshevDistance(candidate, nexus);
+                if (cheb < _minRadius || cheb > _maxRadius) continue;
 
                 _destination = candidate;
                 break;

@@ -37,6 +37,7 @@ XLSX_MENTAL = os.path.join(VAULT, '정신 이상 테이블.xlsx')
 XLSX_WAVE_MON = os.path.join(VAULT, '웨이브 몬스터 테이블.xlsx')
 XLSX_WAVE = os.path.join(VAULT, '웨이브테이블.xlsx')
 XLSX_BUILDING = os.path.join(VAULT, 'Last_Sanctuary_건물데이터시트_Ver05.xlsx')
+XLSX_NEUTRAL = os.path.join(VAULT, '임시용 중립 몬스터.xlsx')
 
 SCRIPT_GUID_MONSTER = '5dbe527860d1cbe42a3efae9fd5cb4b2'   # MonsterDefinitionSO.cs
 
@@ -104,6 +105,34 @@ def read_sheet(path, sheet, first_row=4):
         vals = [ws.cell(r, c).value for c in range(1, ws.max_column + 1)]
         if vals and vals[0] is not None:
             rows.append(vals)
+    return rows
+
+
+def read_rows(path, sheet, first_row=4):
+    """`{필드명: 값}` 사전 목록으로 읽는다 — <b>컬럼 위치에 의존하지 않는다.</b>
+
+    ⚠ 왜 필요했나: 2026-08-13 에 표에서 영어 이름 컬럼(`character_name_EG` 등)을 지우자
+      그 뒤 컬럼이 전부 한 칸씩 밀렸고, `row[8]` 처럼 위치로 읽던 코드가 조용히 엉뚱한
+      값을 읽었다. 65-2절이 "컬럼은 맨 뒤에만 붙인다"고 정한 것과 같은 뿌리의 문제인데,
+      <b>삭제는 그 규약으로도 못 막는다.</b> 컬럼이 바뀔 여지가 있는 시트는 이 함수를 쓸 것.
+
+    필드명(2행)의 앞뒤 공백은 없앤다 — 이 표에는 ' resistance' 처럼 앞 공백이 붙은 헤더가
+    실제로 있다.
+    """
+    wb = openpyxl.load_workbook(path, data_only=True)
+    ws = wb[sheet]
+
+    names = {}
+    for c in range(1, ws.max_column + 1):
+        v = ws.cell(2, c).value
+        if v is not None and str(v).strip():
+            names[c] = str(v).strip()
+
+    rows = []
+    for r in range(first_row, ws.max_row + 1):
+        if ws.cell(r, 1).value is None:
+            continue
+        rows.append({name: ws.cell(r, c).value for c, name in names.items()})
     return rows
 
 
@@ -271,10 +300,12 @@ def boss_title_ids():
       실패해 조용히 빈 문자열이 되고, 인스펙터만 보면 "칭호가 있는데 왜 안 뜨지"가 된다.
     """
     ids = set()
-    for sheet, col in (('wave_top_boss', 6), ('wave_mid_boss', 7)):
-        for row in read_sheet(XLSX_WAVE_MON, sheet):
-            if len(row) > col and row[col] not in (None, ''):
-                ids.add(int(num(row[0])))
+    for sheet in ('wave_top_boss', 'wave_mid_boss'):
+        # ⚠ 위치가 아니라 <b>필드명</b>으로 읽는다 - 2026-08-13 에 영어 이름 컬럼을 지우면서
+        #   뒤 컬럼이 한 칸씩 밀렸다(read_rows 주석 참조).
+        for row in read_rows(XLSX_WAVE_MON, sheet):
+            if row.get('boss_title') not in (None, ''):
+                ids.add(int(num(row.get('monster_id'))))
     return ids
 
 
@@ -448,14 +479,16 @@ def sync_boss_skills():
 
     # 최종보스 시트의 boss_skill_1~3 을 그 보스의 정의 에셋으로 옮긴다.
     # 표에 없는 몬스터(잡몹·중간보스)는 스킬 칸 자체가 없으므로 건드리지 않는다.
-    for row in read_sheet(XLSX_WAVE_MON, 'wave_top_boss'):
-        mid = int(num(row[0]))
+    # ⚠ 필드명으로 읽는다 - 영어 이름 컬럼 삭제(2026-08-13)로 위치가 밀렸다.
+    for row in read_rows(XLSX_WAVE_MON, 'wave_top_boss'):
+        mid = int(num(row.get('monster_id')))
         asset = MONSTER_ASSET_BY_ID.get(mid)
         if asset is None:
             print('  ! 최종보스 id %d 에 해당하는 에셋 이름을 모릅니다' % mid)
             continue
 
-        ids = [int(num(row[c])) for c in (8, 9, 10) if len(row) > c and int(num(row[c])) > 0]
+        ids = [int(num(row.get(k))) for k in ('boss_skill_1', 'boss_skill_2', 'boss_skill_3')
+               if int(num(row.get(k))) > 0]
         missing = [i for i in ids if i not in made]
         if missing:
             print('  ! %s 의 스킬 %s 가 Skill 시트에 없습니다' % (asset, missing))
@@ -499,6 +532,80 @@ def write_int_list(path, key, values, label):
     with open(path, 'w', encoding='utf-8', newline='\n') as f:
         f.writelines(lines)
     print('  %s: %s = %s' % (label, key, values or '없음'))
+
+
+# ---------------------------------------------------------------------------
+# 2-c) 중립 몬스터 - `임시용 중립 몬스터.xlsx` → NeutralMonster_1~3.asset (2026-08-13)
+#
+# 유저 지시: "중립 몬스터에도 퍼스트 스탯 시트 추가해서 넣어줘 ... 2, 3번째 중립 몬스터
+# 개체량을 조금 늘려 스폰 주기도 조절하고 ... 후반에 멀리까지 가서 사냥할 당위성이 생기게
+# 조절해서 테이블에 기입하고 게임내에 넣어".
+#
+# 그전까지 이 표는 <b>게임에 전혀 반영되지 않았다</b> - 22절에서 손으로 옮겨 적은 뒤로
+# 파이프라인이 없었다(54절이 다른 표에 대해 지적한 "엑셀만, 게임 미반영" 과 같은 상황).
+# 이제 다른 표와 똑같이 여기서 옮긴다.
+#
+# ⚠ `first_Stat` 시트가 능력치의 정본이고, `neutrality_mon` 은 식별·등장범위·보상·개체수를
+#   맡는다. 두 시트 모두 <b>필드명으로</b> 읽는다(read_rows) - 컬럼이 늘거나 줄어도 안 깨진다.
+# ---------------------------------------------------------------------------
+NEUTRAL_ASSET_BY_ID = {
+    1001: 'NeutralMonster_1',
+    1002: 'NeutralMonster_2',
+    1003: 'NeutralMonster_3',
+}
+
+
+def sync_neutral_monsters():
+    print('[중립 몬스터]')
+    if not os.path.exists(XLSX_NEUTRAL):
+        print('  ! 표가 없습니다:', XLSX_NEUTRAL)
+        return 0
+
+    stats = {int(num(r.get('mon_id'))): r for r in read_rows(XLSX_NEUTRAL, 'first_Stat')} \
+        if 'first_Stat' in openpyxl.load_workbook(XLSX_NEUTRAL, read_only=True).sheetnames else {}
+    if not stats:
+        print('  ! first_Stat 시트가 없습니다 - 능력치는 기존 값을 유지합니다')
+
+    folder = os.path.join(ASSETS, 'Data', 'Units')
+    total = 0
+
+    for row in read_rows(XLSX_NEUTRAL, 'neutrality_mon'):
+        mid = int(num(row.get('mon_id')))
+        asset = NEUTRAL_ASSET_BY_ID.get(mid)
+        if asset is None:
+            print('  ! 중립 id %d 에 해당하는 에셋 이름을 모릅니다' % mid)
+            continue
+
+        changes = {
+            'spawnRangeTiles': int(num(row.get('spawn_range'), 100)),
+            'minEnergy': int(num(row.get('min_energy'))),
+            'maxEnergy': int(num(row.get('max_energy'))),
+            # ★ 선공/비선공은 이 한 칸이 전부다(유저 확정) - 게임 쪽에서도 스폰할 때
+            #   UnitCombat 의 canAcquireTargets·canRetaliate 를 이 값으로 덮어쓴다.
+            'aggressive': 1 if int(num(row.get('atk_take'))) else 0,
+            'maxAlive': int(num(row.get('max_alive'))),
+            'respawnSeconds': num(row.get('respawn_seconds')),
+        }
+
+        st = stats.get(mid)
+        if st is not None:
+            changes.update({
+                'hpStat': int(num(st.get('hp'), 1)),
+                'attackStat': int(num(st.get('melee_atk'))),
+                'defenseStat': int(num(st.get('def'))),
+                'regenStat': int(num(st.get('hp_recovery'))),
+                # 공속·이속은 웨이브 몬스터와 같은 38-1절 공식으로 미리 풀어서 넣는다.
+                'attacksPerSecond': aspd_from_stat(num(st.get('atk_speed'))),
+                'moveSpeedTiles': mspd_from_stat(num(st.get('movement_speed'))),
+            })
+
+        total += patch_fields(os.path.join(folder, asset + '.asset'), changes, asset,
+                              add_missing=('maxAlive', 'respawnSeconds'))
+        print('    %s: 등장 %s타일부터 · 에너지 %s~%s · %s · 최대 %s마리 · 재생성 %s초'
+              % (asset, changes['spawnRangeTiles'], changes['minEnergy'], changes['maxEnergy'],
+                 '선공' if changes['aggressive'] else '비선공',
+                 changes['maxAlive'], changes['respawnSeconds']))
+    return total
 
 
 # ---------------------------------------------------------------------------
@@ -596,6 +703,7 @@ if __name__ == '__main__':
     sync_mental_errors()
     sync_monsters()
     sync_boss_skills()
+    sync_neutral_monsters()
     sync_buildings()
     sync_waves()
     print('\n완료 - Unity 에서 Assets/Refresh 를 실행할 것.')

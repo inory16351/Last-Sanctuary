@@ -95,7 +95,8 @@ def guid_for(key):
 STRING_XLSX = r'C:\Project\Last-Sanctuary-Vault\데이터 테이블\스트링 키 테이블.xlsx'
 
 
-def load_strings():
+def load_strings(column=2):
+    """스트링 키 테이블에서 `{키: 문구}` 를 읽는다. column 2 = 한국어(kr), 3 = 영어(en)."""
     if not os.path.exists(STRING_XLSX):
         print('  ! 스트링 키 테이블이 없습니다 — 리터럴 폴백이 비게 됩니다.')
         return {}
@@ -105,11 +106,25 @@ def load_strings():
     for r in range(4, ws.max_row + 1):
         k = ws.cell(r, 1).value
         if k:
-            out[str(k).strip()] = (ws.cell(r, 2).value or '')
+            out[str(k).strip()] = (ws.cell(r, column).value or '')
     return out
 
 
 _STRINGS = load_strings()
+
+# ★ 영어 이름은 <b>스트링 키 테이블의 en 칸</b>이 정본이다 (2026-08-13).
+#   예전에는 캐릭터 테이블의 `character_name_EG` 컬럼을 읽어 에셋 파일 이름
+#   (`Character_9001_Elin`)을 만들었다. 유저 지시로 그 컬럼을 지웠으므로
+#   ("영어 이름 칼럼이 삭제되지 않고 남아있는 것들 확인해서 없애줘") 여기서 읽는다.
+#   ⚠ 에셋 <b>파일 이름</b>에 쓰이므로 값이 비면 guid 가 바뀌어 참조가 끊긴다 —
+#   비면 아래에서 에러를 내고 멈춘다.
+_STRINGS_EN = load_strings(column=3)
+
+
+def english_name(key, fallback=''):
+    """스트링 키의 영어 문구. 공백은 지운다 — 파일 이름에 쓰이기 때문이다."""
+    s = str(_STRINGS_EN.get(key, '') or '').strip()
+    return s.replace(' ', '') if s else fallback
 
 
 def looks_like_key(text):
@@ -229,6 +244,21 @@ for r in range(4, wsst.max_row + 1):
     vals = {STAT_COLS[i]: num(wsst.cell(r, 2 + i).value) for i in range(len(STAT_COLS))}
     stats_by_id[int(cid)] = vals
 
+# ⚠ Character 시트는 <b>필드명으로</b> 읽는다 — 2026-08-13 에 `character_name_EG` 컬럼을
+#   지우면서 뒤 컬럼(skill_01~03 · illust)이 전부 한 칸씩 밀렸다. 위치로 읽으면 스킬 자리에
+#   일러스트 이름이 들어가고도 "생성 완료"만 찍힌다.
+_CHAR_COL = {}
+for c in range(1, wc.max_column + 1):
+    v = wc.cell(2, c).value
+    if v is not None and str(v).strip():
+        _CHAR_COL[str(v).strip()] = c
+
+
+def char_cell(row, field):
+    c = _CHAR_COL.get(field)
+    return wc.cell(row, c).value if c else None
+
+
 made = 0
 skipped = []
 for r in range(4, wc.max_row + 1):
@@ -236,10 +266,18 @@ for r in range(4, wc.max_row + 1):
     if not cid:
         continue
     cid = int(cid)
-    cname = text_of(wc.cell(r, 2).value)          # 셀은 이제 키다 — 문구로 되돌린다
-    cname_en = (wc.cell(r, 3).value or '').strip()
-    sk = [wc.cell(r, 4).value, wc.cell(r, 5).value, wc.cell(r, 6).value]
-    illust = (wc.cell(r, 7).value or '').strip()
+    cname = text_of(char_cell(r, 'character_name'))   # 셀은 이제 키다 — 문구로 되돌린다
+    # 영어 이름은 스트링 키 테이블의 en 칸이 정본이다(위 english_name 주석).
+    cname_en = english_name('character_name_%d' % cid)
+    sk = [char_cell(r, 'skill_01'), char_cell(r, 'skill_02'), char_cell(r, 'skill_03')]
+    illust = (char_cell(r, 'illust') or '').strip()
+
+    if not cname_en:
+        raise SystemExit(
+            '스트링 키 테이블에 character_name_%d 의 영어(en) 이름이 없습니다. '
+            '에셋 파일 이름에 쓰이므로 비면 guid 가 바뀌어 참조가 끊깁니다 — '
+            '스트링 키 테이블을 먼저 채우세요.' % cid)
+
     if cid in EXCLUDE_CHARACTER_IDS:
         skipped.append(cname)
         continue

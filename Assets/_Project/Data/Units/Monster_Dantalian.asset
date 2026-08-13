@@ -20,7 +20,7 @@ MonoBehaviour:
   attackStat: 8
   defenseStat: 35
   regenStat: 2
-  hpPercent: 900
+  hpPercent: 1500
   attackType: 0
   detectRange: 10
   attackRange: 2.0
@@ -31,8 +31,8 @@ MonoBehaviour:
   bodyHeightTiles: 3
   bodyWidthTiles: 2
   renderHeightTiles: 0
-  colliderWidthTiles: 7.1
-  colliderHeightTiles: 5
+  colliderWidthTiles: 11
+  colliderHeightTiles: 7.5
   bossSkillIds:
   - 130001
   - 130002

@@ -17,15 +17,17 @@ MonoBehaviour:
   displayName: 역겨운 덩어리 2
   template: {fileID: 0}
   spawnRangeTiles: 100
-  minEnergy: 15
-  maxEnergy: 25
-  attackStat: 4
-  hpStat: 6
-  defenseStat: 1
+  minEnergy: 22
+  maxEnergy: 38
+  attackStat: 6
+  hpStat: 8
+  defenseStat: 2
   regenStat: 1
   aggressive: 1
   detectRange: 6
   attackRange: 1.2
-  attacksPerSecond: 0.7
-  moveSpeedTiles: 1.8
+  attacksPerSecond: 0.873
+  moveSpeedTiles: 2.321
   leashRangeTiles: 6
+  maxAlive: 14
+  respawnSeconds: 22

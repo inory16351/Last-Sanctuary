@@ -19,13 +19,15 @@ MonoBehaviour:
   spawnRangeTiles: 15
   minEnergy: 5
   maxEnergy: 10
-  attackStat: 0
-  hpStat: 3
+  attackStat: 2
+  hpStat: 4
   defenseStat: 0
   regenStat: 0
   aggressive: 0
   detectRange: 6
   attackRange: 1.2
-  attacksPerSecond: 0.7
-  moveSpeedTiles: 1.8
+  attacksPerSecond: 0.77
+  moveSpeedTiles: 2.176
   leashRangeTiles: 6
+  maxAlive: 8
+  respawnSeconds: 45

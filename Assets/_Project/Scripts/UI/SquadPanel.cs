@@ -19,7 +19,7 @@ namespace LastSanctuary.UI
     ///
     /// 다른 패널(<c>TacticalOrderPanel</c>·<c>CharacterGrowthPanel</c>)과 같은 API 모양을 쓴다.
     /// </summary>
-    public class SquadPanel : MonoBehaviour
+    public class SquadPanel : MonoBehaviour, IExclusiveHudPanel
     {
         public static SquadPanel Instance { get; private set; }
 
@@ -136,9 +136,11 @@ namespace LastSanctuary.UI
         {
             if (open)
             {
-                // 같은 자리에 겹치는 창들은 서로 닫는다 (전술·성장 창과 같은 규칙).
-                TacticalOrderPanel.Instance?.Close();
-                CharacterGrowthPanel.Instance?.Close();
+                // 같은 자리에 겹치는 다른 창과 맵 클릭 모드를 전부 닫는다.
+                // ⚠ 셋이 서로를 직접 닫던 구조에서 HudExclusive 한 곳으로 옮겼다 —
+                //   창이 하나 늘 때마다 조합이 N² 로 늘어 반드시 빠뜨리기 때문이다
+                //   (2026-08-13 유저 리포트: 부대 설정을 켠 채로 다른 둘이 열렸다).
+                HudExclusive.OpenOnly(this);
             }
             else
             {

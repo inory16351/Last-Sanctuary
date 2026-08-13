@@ -49,21 +49,44 @@ namespace LastSanctuary.Units
         [Tooltip("처치 시 획득하는 에너지의 최대값 (포함)")]
         [Min(0)] public int maxEnergy = 10;
 
-        [Header("능력치 1~100 (테이블 atk/hp/def/hp_regen)")]
-        [Tooltip("웨이브 몬스터와 같은 BalanceConfigSO 치환 공식을 그대로 쓴다")]
+        [Header("개체 수 · 재생성 (테이블 max_alive / respawn_seconds)")]
+        [Tooltip("이 종류가 맵에 동시에 존재할 수 있는 최대 개체 수. 표가 정본이다.\n" +
+                 "0 이면 씬 스포너의 Spawn Table 에 적힌 값으로 떨어진다(예전 동작)")]
+        [Min(0)] public int maxAlive;
+
+        [Tooltip("부족분을 다시 채우는 간격(초). 종마다 다르게 둘 수 있다 — 가까운 종을 느리게, " +
+                 "먼 종을 빠르게 두면 후반에 멀리 나갈 이유가 생긴다(유저 지시 2026-08-13).\n" +
+                 "0 이면 씬 스포너의 Restock Interval 로 떨어진다")]
+        [Min(0f)] public float respawnSeconds;
+
+        [Header("능력치 1~100 (테이블 first_Stat 시트)")]
+        [Tooltip("웨이브 몬스터와 같은 BalanceConfigSO 치환 공식을 그대로 쓴다.\n" +
+                 "★ 2026-08-13 부터 `임시용 중립 몬스터.xlsx` 의 <b>first_Stat 시트</b>가 정본이다 — " +
+                 "웨이브 몬스터 테이블과 같은 형식(웨이브 몬스터의 first_Stat 을 그대로 따랐다)")]
         [Range(0, 100)] public int attackStat = 0;
         [Range(1, 100)] public int hpStat = 3;
         [Range(0, 100)] public int defenseStat = 0;
         [Range(0, 100)] public int regenStat = 0;
 
-        [Header("선공 여부 (테이블 atk_take)")]
-        [Tooltip("켜면 캐릭터를 발견 즉시 먼저 공격한다(UnitCombat 로 순찰). " +
-                 "끄면 전투 능력이 없는 무해한 사냥감으로 취급 — UnitCombat 을 붙이지 않는다")]
+        [Header("★ 선공 여부 (테이블 atk_take) — 이 한 칸이 전부다")]
+        [Tooltip("★ <b>중립 몬스터의 적대 판정은 이 값 하나로 정해진다</b> (유저 확정 2026-08-13).\n\n" +
+                 "  <b>켜짐(선공)</b>   — 적이 보이면 먼저 다가가서 때린다.\n" +
+                 "  <b>꺼짐(비선공)</b> — <b>맞기 전까지는</b> 공격하지 않는다. 맞으면 반격한다.\n\n" +
+                 "⚠ 예전에는 이 값 말고도 템플릿의 <c>UnitCombat.canAcquireTargets</c>·" +
+                 "<c>canRetaliate</c> 가 인스펙터에 따로 노출돼 있어서 '선공 체크가 여러 개' 로 " +
+                 "보였고, 세 값이 어긋나면 표와 다르게 동작했다(유저 리포트). 이제 스포너가 " +
+                 "스폰할 때마다 이 값 하나로 <b>둘 다 덮어쓴다</b> — 템플릿에 뭐가 켜져 있든 " +
+                 "표가 이긴다(NeutralMonsterSpawner.SpawnOne).")]
         public bool aggressive = false;
 
-        [Header("전투 파라미터 (타일) — aggressive 일 때만 사용")]
+        [Header("전투 파라미터 (타일)")]
+        [Tooltip("이 거리 안의 적을 인식한다. <b>선공일 때만</b> 스스로 찾아간다 — " +
+                 "비선공은 맞았을 때의 반격 거리로만 쓰인다")]
         [Min(0.5f)] public float detectRange = 6f;
+
+        [Tooltip("공격 사거리(타일). 중립 몬스터는 전부 <b>근거리</b>다(유저 지시 2026-08-13)")]
         [Min(0.2f)] public float attackRange = 1.2f;
+
         [Min(0.05f)] public float attacksPerSecond = 0.7f;
         [Min(0.1f)] public float moveSpeedTiles = 1.8f;
 
