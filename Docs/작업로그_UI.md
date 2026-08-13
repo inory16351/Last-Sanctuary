@@ -1341,3 +1341,73 @@ UI-15·17·18·19 와 같은 종류의 크로싱이고 PROTO 는 `7047af4` 이�
 ### 씬반영요청 목록
 
 없음.
+
+---
+
+## UI-21. 보스 피격 침식을 스킬 테이블 컬럼으로 이전 · 보스/캐릭터 스킬 동시발동 방지 (2026-08-13)
+
+> 상세는 `진행상황.md` **68절**.
+
+### 무엇을 했나
+
+유저가 UI-20의 침식 구현을 정정: "시스템 로직 변경 게임 시스템에 넣지말고 보스 스킬
+테이블에 침식 수치 칼럼 추가" + "쿨이 동시에 돌면 쿨타임이 더 긴 스킬부터 쓰도록
+로직 만들어 보스/캐릭터 둘 다 동일 사항".
+
+1. **침식 값을 시스템(`GameSystems/ErosionService`)에서 스킬 데이터로 이전.**
+   웨이브 몬스터 테이블.xlsx / `Skill` 시트에 `value_04`(밸류타입_04) 컬럼을 기존
+   9칸 형식 그대로 뒤에 붙였다(타락한 무덤 5 · 공허의 광선 10). 스트링 키 테이블의
+   두 `skill_type_desc_*` 설명문에도 "맞은 적은 침식이 {value_04} 만큼 오른다"를
+   추가했다. `BossSkillSO.value04`/`ErosionValue` 신설, `BossSkillCaster.TryCast`
+   가 피해를 넣은 직후 대상이 `CharacterUnit`이면 `CharacterErosion.AddErosion`을
+   직접 부른다. `ErosionService`의 `erosionPerBossHit`/`midBossCountsAsBoss`/
+   `bossHitErosionCooldown`과 `DamageableUnit.OnAnyHit`(이 용도로만 썼다)를 제거해
+   29-2절 원래 형태로 되돌렸다.
+2. **동시발동 방지 — 쿨타임 긴 스킬 우선.** `BossSkillCaster`에 `_priorityOrder`
+   (슬롯을 `coolTime` 내림차순으로 정렬한 목록, `EnsureResolved`에서 한 번만 계산)를
+   추가해 `Update()`가 인덱스 순서 대신 이 순서로 시도하게 바꿨다. 캐릭터 쪽도 같은
+   패턴 — `CharacterPassives`에 `_cooldownPriority`를 추가하고, 기존
+   `TickSacrifice`/`TickCalmDown`/`TickPurifyingTouch`를 `bool`을 돌려주는
+   `TrySacrifice`/`TryCalmDown`/`TryPurifyingTouch`로 바꿔 `TickCooldownSkills()`가
+   우선순위 순으로 시도하다 하나가 발동하면 그 프레임엔 멈춘다. 지금 이 셋을 동시에
+   가진 캐릭터는 피올로(정신 안정 180초 · 정화의 손길 120초)뿐이지만 구조는 임의의
+   조합에 대해 일반적으로 동작한다.
+3. **보스 스킬 시전 모션(`SpecialShockwave`/`SpecialBeam`)은 UI-20에서 이미 스킨에
+   배선돼 있었다** — 이번에 다시 확인만 했고 코드·에셋 변경은 없었다.
+
+### 겪은 함정
+
+- 스트링 키 테이블의 문장을 마침표 없이 그대로 이어붙였다가("...공격한다 맞은 적은...")
+  다른 `skill_type_desc_*` 항목들이 마침표로 문장을 가르는 관례라는 걸 늦게
+  확인했다. 백업에서 되돌리고 마침표를 넣어 다시 적용했다.
+- 웨이브 몬스터 테이블.xlsx의 `Skill` 시트에는 `skill_name`·`skill_explain` 칸에
+  스트링 키 테이블로 넘어가는 하이퍼링크가 걸려 있다(UI-17이 이미 겪은 함정) —
+  openpyxl 로 저장하면 날아가므로 새 스크립트(`add_boss_skill_erosion_column.py`)도
+  Excel COM 으로만 셀 값을 바꿨다. 편집 후 하이퍼링크 4개(B/I열 두 행)가 그대로
+  남아있는 것을 다시 열어 확인했다.
+
+### 소유권 (§2)
+
+**UI 소유** — `Scripts/Combat/BossSkillCaster.cs · BossSkillSO.cs · CharacterPassives.cs ·
+DamageableUnit.cs · ErosionService.cs`, `Resources/BossSkills/**`,
+`Resources/Data/StringTable.txt`, `Assets/Scenes/Proto_01.unity`.
+
+**⚠ PROTO 소유 파일을 건드렸다** — `Tools/sync_tables_to_assets.py`(컬럼 읽기 한 줄) ·
+신규 `Tools/add_boss_skill_erosion_column.py · add_boss_skill_erosion_string.py`.
+UI-15·17·18·19·20 과 같은 종류의 크로싱.
+
+### 씬 변경 여부 — **있음** (MCP 불필요, recompile 후 저장만)
+
+`GameSystems/ErosionService`에서 필드 3개가 빠진 것 외에 하이라키 변경 없음.
+
+### 검증
+
+`recompile_scripts` 에러 0·경고 0 · 콘솔 에러 0 · `sync_tables_to_assets.py` 재실행
+멱등(두 스킬 에셋 내용 불변) · `BossSkill_130001/130002.asset`에 `value04: 5`/`10`
+반영 확인 · 하이퍼링크 4개 보존 확인.
+**플레이 모드 검증은 안 했다** — 유저가 직접 볼 것(우선순위 로직이 실제로 큰 스킬을
+먼저 내보내는지, 침식이 스킬마다 다르게 오르는지).
+
+### 씬반영요청 목록
+
+없음.
