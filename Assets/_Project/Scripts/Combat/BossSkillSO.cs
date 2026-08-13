@@ -63,8 +63,33 @@ namespace LastSanctuary.Combat
         [Tooltip("cool_time — 재사용 대기시간(초)")]
         public float coolTime = 10f;
 
+        [Header("연출 · 범위 모양 (2026-08-13 신설)")]
+        [Tooltip("cast_time — <b>이 스킬</b>의 시전 모션·범위 연출이 화면에 머무는 시간(초).\n" +
+                 "예전에는 BossSkillCaster 의 castSeconds 하나로 <b>모든 스킬이 같은 시간</b>이었다 " +
+                 "— 유저 지시(2026-08-13) \"에딧 모드에서 Cast Seconds 를 각 스킬마다 설정할 수 " +
+                 "있게\" 로 스킬 데이터로 내렸다. 공허의 광선처럼 길게 보여야 하는 기술은 이 값만 " +
+                 "키우면 된다.\n" +
+                 "⚠ 피해는 시전과 <b>동시에</b> 들어간다 — 이 값은 연출 길이일 뿐 판정 시점이 아니다.\n" +
+                 "0 이면 BossSkillCaster 의 castSeconds(전역 기본값)로 떨어진다")]
+        [Min(0f)] public float castSeconds;
+
+        [Tooltip("range_type — 범위 모양. 'Line'(기본) = 조준 방향으로 뻗는 직사각형(각도 제한 없음), " +
+                 "'Circle' = 보스 중심 원형(지름 = value_01).\n" +
+                 "표에서 이 칸만 바꾸면 코드 수정 없이 모양이 바뀐다")]
+        public string rangeType = "";
+
         /// <summary>분기용 식별자. 문자열 비교는 여기서 한 번만 한다.</summary>
         public BossSkillType Type => BossSkillTypes.Parse(skillType);
+
+        /// <summary>범위 모양. 표의 <c>range_type</c> 칸이 비어 있으면 직사각형이다.</summary>
+        public BossSkillShape Shape => BossSkillShapes.Parse(rangeType);
+
+        /// <summary>
+        /// 이 스킬의 연출 길이(초). 표에 값이 없으면 <paramref name="fallbackSeconds"/>
+        /// (<see cref="BossSkillCaster"/> 인스펙터의 전역 기본값)로 떨어진다.
+        /// </summary>
+        public float CastSecondsOr(float fallbackSeconds) =>
+            castSeconds > 0f ? castSeconds : fallbackSeconds;
 
         /// <summary>화면·로그에 쓸 이름 — 스트링 테이블이 먼저, 없으면 리터럴.</summary>
         public string DisplayName => Data.StringTable.Get(nameKey, string.IsNullOrEmpty(displayName)

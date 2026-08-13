@@ -32,6 +32,20 @@ namespace LastSanctuary.Units
         /// <summary>화면에 보여줄 이름 — 스트링 테이블이 먼저, 없으면 리터럴.</summary>
         public string DisplayName => Data.StringTable.Get(nameKey, displayName);
 
+        [Tooltip("보스 <b>칭호</b>의 스트링 키 (예: boss_title_120001 → \"끝없는 형상의 군주\").\n" +
+                 "표의 boss_title 칸을 Tools/sync_tables_to_assets.py 가 그대로 옮긴다 — 손으로 " +
+                 "적지 말 것. 잡몹은 비어 있고, 비어 있으면 체력바에 칭호 줄이 아예 안 뜬다.\n" +
+                 "유저 지시 2026-08-13: \"보스 몬스터는 소환되면 체력바에 타이틀을 붙여서 표기\"")]
+        public string titleKey = "";
+
+        /// <summary>
+        /// 보스 칭호. 스트링 테이블에서 읽고, 키가 없거나 문구가 비어 있으면 <b>빈 문자열</b>이다
+        /// (체력바가 이 값이 비었는지로 칭호 줄을 켜고 끈다).
+        /// </summary>
+        public string Title =>
+            string.IsNullOrWhiteSpace(titleKey) ? string.Empty
+                                                : Data.StringTable.Get(titleKey, string.Empty);
+
         [Header("외형 템플릿")]
         [Tooltip("복제할 원본. 종류마다 다른 템플릿을 지정한다")]
         public MonsterUnit template;

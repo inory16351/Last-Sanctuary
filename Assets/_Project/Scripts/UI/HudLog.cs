@@ -32,6 +32,25 @@ namespace LastSanctuary.UI
         public static void Add(string message, HudLogKind kind = HudLogKind.Info) =>
             OnLine?.Invoke(message, kind);
 
+        /// <summary>
+        /// <b>스킬 발동 한 줄의 형식</b> — "누가 · 무슨 스킬 (덧붙일 말)".
+        ///
+        /// 유저 지시(2026-08-13): "로그에 스킬 쓰면 스킬 이름이랑 같이 나오게 해줘
+        /// 누가 썼는지랑". 그전에는 보스는 <c>"단탈리온 — 공허의 광선!"</c>, 캐릭터는
+        /// <c>"엘린의 희생 — …"</c> 처럼 <b>호출부마다 형식이 달랐고 스킬 이름도 코드에
+        /// 한글로 박혀 있었다</b>(표의 스킬 이름이 바뀌어도 로그는 안 바뀐다).
+        /// 형식을 여기 한 곳에 모아 두면 세 군데(보스·패시브·앞으로 생길 것)를 따로 고칠
+        /// 일이 없고, 스킬 이름은 언제나 표(<c>DisplayName</c>)에서 온다.
+        /// </summary>
+        /// <param name="caster">시전자 표시 이름 (<c>DisplayName</c>).</param>
+        /// <param name="skill">스킬 표시 이름 (<c>PassiveSkillSO/BossSkillSO.DisplayName</c>).</param>
+        /// <param name="detail">"3명 피격" · "엘린 회복" 처럼 덧붙일 말. 없으면 생략된다.</param>
+        public static string SkillLine(string caster, string skill, string detail = null)
+        {
+            string head = string.IsNullOrWhiteSpace(caster) ? skill : $"{caster} · {skill}";
+            return string.IsNullOrWhiteSpace(detail) ? head : $"{head} — {detail}";
+        }
+
         public static Color ColorOf(HudLogKind kind) => kind switch
         {
             HudLogKind.Good   => HudTheme.TextAccent,

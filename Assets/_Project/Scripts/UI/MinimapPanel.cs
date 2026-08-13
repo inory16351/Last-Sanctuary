@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using LastSanctuary.CameraControl;
 using LastSanctuary.Combat;
 using LastSanctuary.Fog;
 using LastSanctuary.Map;
@@ -39,7 +41,7 @@ namespace LastSanctuary.UI
     /// (장애물 타일맵 기준)로 굽는다 — 자세한 이유는 <see cref="EnsureTexture"/> 참조.
     /// 처음 구현에서 <c>Walkable</c> 을 썼다가 플레이 모드에서 미니맵이 계속 텅 비는 문제가 있었다.
     /// </summary>
-    public class MinimapPanel : MonoBehaviour
+    public class MinimapPanel : MonoBehaviour, IPointerDownHandler, IDragHandler
     {
         [Header("하이라키 연결")]
         [Tooltip("미니맵 텍스처를 그릴 RawImage")]
@@ -66,6 +68,15 @@ namespace LastSanctuary.UI
         [Tooltip("점멸 주기(초). 이 시간의 절반은 켜지고 절반은 꺼진다")]
         [Min(0.1f)] [SerializeField] float spawnAlertBlinkPeriod = 0.8f;
 
+        [Header("클릭 이동 (2026-08-13 신설)")]
+        [Tooltip("지도를 클릭하면 그 지점으로 카메라가 간다. 누른 채로 끌면 계속 따라간다 — " +
+                 "롤(LoL) 미니맵과 같은 조작이다")]
+        [SerializeField] bool clickToMoveCamera = true;
+
+        [Tooltip("클릭 이동 시 카메라를 <b>즉시</b> 옮긴다(SnapTo). 끄면 부드럽게 미끄러져 간다" +
+                 "(FocusOn) — 먼 거리를 클릭했을 때 어디로 가는지 눈으로 따라갈 수 있다")]
+        [SerializeField] bool snapCamera = true;
+
         MapGenerator _map;
         FogOfWarService _fog;
         WaveManager _wave;
@@ -80,6 +91,9 @@ namespace LastSanctuary.UI
         readonly List<Vector3> _spawnPoints = new List<Vector3>();
         bool _alertActive;
         float _nextRefresh;
+
+        CameraRigController _camera;
+        Canvas _canvas;
 
         void Start()
         {
@@ -109,6 +123,14 @@ namespace LastSanctuary.UI
                 _wave.OnWaveSpawned += HandleWaveSpawned;
                 _wave.OnPhaseChanged += HandlePhaseChanged;
             }
+
+            _camera = FindAnyObjectByType<CameraRigController>();
+            _canvas = GetComponentInParent<Canvas>();
+
+            // 클릭을 받으려면 지도 이미지가 레이캐스트를 먹어야 한다. 씬 값이 꺼져 있어도
+            // (기본 RawImage 는 켜져 있지만 미니맵은 "클릭을 가로막지 않게" 꺼둘 수 있는 자리다)
+            // 클릭 이동을 켠 이상 여기서 맞춰준다 — 값 보정이라 §10 H-1 위반이 아니다.
+            if (clickToMoveCamera && view != null) view.raycastTarget = true;
         }
 
         void OnDestroy()
@@ -289,6 +311,77 @@ namespace LastSanctuary.UI
             for (int i = 0; i < _spawnPoints.Count; i++)
                 DrawRing(WorldToLocal(_spawnPoints[i]), spawnAlertRadius, spawnAlertThickness,
                          HudTheme.MapEnemy);
+        }
+
+        // ------------------------------------------------------------------
+        // 클릭 이동 — 롤(LoL) 미니맵 방식 (유저 지시 2026-08-13)
+        //
+        // 지도를 누르면 그 지점으로 카메라가 가고, 누른 채로 끌면 계속 따라간다.
+        //
+        // <b>왜 이 컴포넌트가 직접 받는가</b> — 클릭을 받는 것은 자식인 <c>View</c>(RawImage)
+        // 인데, 유니티 이벤트 시스템은 핸들러를 <b>부모로 거슬러 올라가며</b> 찾는다
+        // (<c>ExecuteEvents.ExecuteHierarchy</c>). 그래서 <c>View</c> 에 스크립트를 따로 붙이지
+        // 않아도 여기서 받을 수 있다 — 씬에 오브젝트·컴포넌트를 하나도 더 만들지 않는다.
+        //
+        // <b>카메라 드래그와 충돌하지 않는다</b> — <c>CameraRigController</c> 는
+        // <c>ignoreDragOverUI</c> 로 UI 위에서 시작한 드래그를 무시하고,
+        // <c>UnitSelector</c> 도 <c>IsPointerOverGameObject()</c> 로 UI 클릭을 거른다
+        // (준수사항 U-D8). 미니맵은 UI 라서 두 시스템 모두 자동으로 비켜난다.
+        // ------------------------------------------------------------------
+
+        public void OnPointerDown(PointerEventData eventData) => MoveCameraTo(eventData);
+
+        public void OnDrag(PointerEventData eventData) => MoveCameraTo(eventData);
+
+        void MoveCameraTo(PointerEventData eventData)
+        {
+            if (!clickToMoveCamera || _camera == null || view == null || _map == null) return;
+            if (_texture == null) return;                     // 아직 지형을 안 구웠다
+            if (eventData.button != PointerEventData.InputButton.Left) return;
+
+            if (!TryScreenToWorld(eventData, out Vector3 world)) return;
+
+            if (snapCamera) _camera.SnapTo(world);
+            else _camera.FocusOn(world);
+        }
+
+        /// <summary>
+        /// 화면 좌표 → 월드 좌표. 지도 밖을 눌렀으면 false.
+        ///
+        /// 지도는 <b>맵 한 칸 = 텍스처 한 픽셀</b>로 그려져 있으므로, 이미지 안에서의
+        /// 정규화 좌표(0~1)가 곧 맵 안에서의 비율이다 — 텍스처 크기·화면 크기·줌과 무관하게
+        /// 항상 맞는다.
+        ///
+        /// <paramref name="eventData"/> 의 <c>pressEventCamera</c> 를 쓴다: 캔버스가
+        /// Screen Space - Overlay 면 null 이고, Camera 모드면 그 카메라다. 어느 쪽이든
+        /// <see cref="RectTransformUtility"/> 가 알아서 처리한다.
+        /// </summary>
+        bool TryScreenToWorld(PointerEventData eventData, out Vector3 world)
+        {
+            world = default;
+
+            RectTransform rt = view.rectTransform;
+            Camera cam = eventData.pressEventCamera;
+            if (cam == null && _canvas != null && _canvas.renderMode != RenderMode.ScreenSpaceOverlay)
+                cam = _canvas.worldCamera;
+
+            if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                    rt, eventData.position, cam, out Vector2 local))
+                return false;
+
+            Rect r = rt.rect;
+            float u = Mathf.InverseLerp(r.xMin, r.xMax, local.x);
+            float v = Mathf.InverseLerp(r.yMin, r.yMax, local.y);
+            if (u < 0f || u > 1f || v < 0f || v > 1f) return false;
+
+            // 정규화 → 셀. 마지막 칸을 누른 경우 반올림으로 맵 밖을 가리키지 않게 잘라둔다.
+            var cell = new Vector3Int(
+                _origin.x + Mathf.Clamp(Mathf.FloorToInt(u * _size.x), 0, _size.x - 1),
+                _origin.y + Mathf.Clamp(Mathf.FloorToInt(v * _size.y), 0, _size.y - 1),
+                0);
+
+            world = _map.CellCenterWorld(cell);
+            return true;
         }
 
         // ------------------------------------------------------------------

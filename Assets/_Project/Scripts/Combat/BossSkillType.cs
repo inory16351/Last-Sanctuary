@@ -47,4 +47,46 @@ namespace LastSanctuary.Combat
             }
         }
     }
+
+    /// <summary>
+    /// 스킬 범위의 <b>모양</b>. 표 <c>Skill.range_type</c> 칸이 정본이다(2026-08-13 신설).
+    ///
+    /// <b>왜 칸을 새로 뒀나</b> — 유저 지시가 "360도 범위 값으로 적용 가능하게 ... 원형으로"
+    /// 였는데, 단탈리온의 두 스킬은 원화가 <b>가로로 긴 파동·광선</b>이라 그대로 원형으로 만들면
+    /// 그림과 판정이 어긋난다. 그래서 <b>모양을 표에서 고르게</b> 하고, 기본값인
+    /// <see cref="Line"/> 은 조준을 4방향에서 <b>자유각(360도)</b>으로 풀어 "대각선 적을 못
+    /// 때린다"는 문제만 정확히 해소한다. 진짜 원형이 필요한 스킬은 표에서 <c>Circle</c> 로
+    /// 바꾸면 코드 수정 없이 원형으로 돈다.
+    /// </summary>
+    public enum BossSkillShape
+    {
+        /// <summary>
+        /// 조준 방향으로 뻗는 <b>직사각형</b>(기본). 각도 제한이 없다 —
+        /// <see cref="UnitRegistry.CollectEnemiesInOrientedRect"/> 로 상자를 통째로 돌린다.
+        /// </summary>
+        Line = 0,
+
+        /// <summary>
+        /// 보스를 중심으로 한 <b>원형</b>. 반지름 = <c>value_01</c>(지름, 타일) ÷ 2.
+        /// 방향이라는 개념이 없으므로 어느 각도의 적이든 거리만 맞으면 전부 맞는다.
+        /// </summary>
+        Circle = 1,
+    }
+
+    public static class BossSkillShapes
+    {
+        /// <summary>표 문자열 → enum. 비었거나 못 알아보면 <see cref="BossSkillShape.Line"/>.</summary>
+        public static BossSkillShape Parse(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return BossSkillShape.Line;
+
+            switch (raw.Trim().ToLowerInvariant())
+            {
+                case "circle":
+                case "round":
+                case "radial": return BossSkillShape.Circle;
+                default:       return BossSkillShape.Line;
+            }
+        }
+    }
 }

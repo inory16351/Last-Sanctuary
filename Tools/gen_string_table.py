@@ -75,6 +75,10 @@ RULES = [
         # 표에 `character_name_EG` 를 만들어 BloodMark(혈인) · VoidWhisper(공허의 속삭임)를
         # 넣었고, 게임 에셋·씬 템플릿 이름도 이 값을 따른다("테이블이 무조건 상위 기준").
         ('character_name_EG', 'monster_name', 'en'),
+        # 2026-08-13: 중간보스에도 칭호 칸을 만들었다(H열). 최종보스에만 있던 것이라
+        # 체력바에 띄울 칭호가 없었다 — 유저 지시 "보스 몬스터는 소환되면 체력바에
+        # 타이틀을 붙여서 표기". 영어 칭호 칸은 아직 없다(한국어만).
+        ('boss_title', 'boss_title', 'kr'),
     ]),
     ('웨이브 몬스터 테이블.xlsx', 'wave_top_boss', 'monster_id', [
         ('monster_name', 'monster_name', 'kr'),

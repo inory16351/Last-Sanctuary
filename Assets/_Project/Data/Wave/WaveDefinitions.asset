@@ -21,6 +21,7 @@ MonoBehaviour:
     statPercent: 50
     reinforceIntervalSeconds: 0
     reinforceCount: 0
+    spawnGroupSize: 2
   - waveNumber: 2
     meleeCount: 5
     rangedCount: 5
@@ -29,6 +30,7 @@ MonoBehaviour:
     statPercent: 65
     reinforceIntervalSeconds: 0
     reinforceCount: 0
+    spawnGroupSize: 2
   - waveNumber: 3
     meleeCount: 7
     rangedCount: 7
@@ -37,6 +39,7 @@ MonoBehaviour:
     statPercent: 90
     reinforceIntervalSeconds: 0
     reinforceCount: 0
+    spawnGroupSize: 3
   - waveNumber: 4
     meleeCount: 9
     rangedCount: 9
@@ -45,6 +48,7 @@ MonoBehaviour:
     statPercent: 120
     reinforceIntervalSeconds: 0
     reinforceCount: 0
+    spawnGroupSize: 3
   - waveNumber: 5
     meleeCount: 10
     rangedCount: 10
@@ -53,6 +57,7 @@ MonoBehaviour:
     statPercent: 170
     reinforceIntervalSeconds: 0
     reinforceCount: 0
+    spawnGroupSize: 4
   - waveNumber: 6
     meleeCount: 11
     rangedCount: 11
@@ -61,6 +66,7 @@ MonoBehaviour:
     statPercent: 210
     reinforceIntervalSeconds: 0
     reinforceCount: 0
+    spawnGroupSize: 4
   - waveNumber: 7
     meleeCount: 12
     rangedCount: 12
@@ -69,6 +75,7 @@ MonoBehaviour:
     statPercent: 250
     reinforceIntervalSeconds: 0
     reinforceCount: 0
+    spawnGroupSize: 4
   - waveNumber: 8
     meleeCount: 13
     rangedCount: 13
@@ -77,6 +84,7 @@ MonoBehaviour:
     statPercent: 300
     reinforceIntervalSeconds: 0
     reinforceCount: 0
+    spawnGroupSize: 5
   - waveNumber: 9
     meleeCount: 14
     rangedCount: 14
@@ -85,6 +93,7 @@ MonoBehaviour:
     statPercent: 340
     reinforceIntervalSeconds: 0
     reinforceCount: 0
+    spawnGroupSize: 5
   - waveNumber: 10
     meleeCount: 7
     rangedCount: 7
@@ -93,6 +102,7 @@ MonoBehaviour:
     statPercent: 430
     reinforceIntervalSeconds: 0
     reinforceCount: 0
+    spawnGroupSize: 5
   - waveNumber: 11
     meleeCount: 13
     rangedCount: 13
@@ -101,6 +111,7 @@ MonoBehaviour:
     statPercent: 460
     reinforceIntervalSeconds: 0
     reinforceCount: 0
+    spawnGroupSize: 5
   - waveNumber: 12
     meleeCount: 14
     rangedCount: 14
@@ -109,6 +120,7 @@ MonoBehaviour:
     statPercent: 500
     reinforceIntervalSeconds: 0
     reinforceCount: 0
+    spawnGroupSize: 5
   - waveNumber: 13
     meleeCount: 14
     rangedCount: 14
@@ -117,6 +129,7 @@ MonoBehaviour:
     statPercent: 540
     reinforceIntervalSeconds: 0
     reinforceCount: 0
+    spawnGroupSize: 6
   - waveNumber: 14
     meleeCount: 15
     rangedCount: 15
@@ -125,6 +138,7 @@ MonoBehaviour:
     statPercent: 580
     reinforceIntervalSeconds: 0
     reinforceCount: 0
+    spawnGroupSize: 6
   - waveNumber: 15
     meleeCount: 15
     rangedCount: 15
@@ -133,6 +147,7 @@ MonoBehaviour:
     statPercent: 660
     reinforceIntervalSeconds: 0
     reinforceCount: 0
+    spawnGroupSize: 6
   - waveNumber: 16
     meleeCount: 15
     rangedCount: 15
@@ -141,6 +156,7 @@ MonoBehaviour:
     statPercent: 690
     reinforceIntervalSeconds: 0
     reinforceCount: 0
+    spawnGroupSize: 6
   - waveNumber: 17
     meleeCount: 16
     rangedCount: 16
@@ -149,6 +165,7 @@ MonoBehaviour:
     statPercent: 730
     reinforceIntervalSeconds: 0
     reinforceCount: 0
+    spawnGroupSize: 6
   - waveNumber: 18
     meleeCount: 17
     rangedCount: 17
@@ -157,6 +174,7 @@ MonoBehaviour:
     statPercent: 770
     reinforceIntervalSeconds: 0
     reinforceCount: 0
+    spawnGroupSize: 7
   - waveNumber: 19
     meleeCount: 18
     rangedCount: 18
@@ -165,6 +183,7 @@ MonoBehaviour:
     statPercent: 820
     reinforceIntervalSeconds: 0
     reinforceCount: 0
+    spawnGroupSize: 7
   - waveNumber: 20
     meleeCount: 12
     rangedCount: 12
@@ -173,3 +192,4 @@ MonoBehaviour:
     statPercent: 900
     reinforceIntervalSeconds: 0
     reinforceCount: 0
+    spawnGroupSize: 7

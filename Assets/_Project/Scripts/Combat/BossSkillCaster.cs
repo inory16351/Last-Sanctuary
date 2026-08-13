@@ -24,9 +24,20 @@ namespace LastSanctuary.Combat
     ///
     /// <b>범위의 모양</b> (스트링 테이블 <c>skill_type_desc_*</c> 그대로):
     /// "…단탈리온이 존재하는 칸을 포함하여 {가로} x {세로} 범위".
-    /// 자기 칸에서 <b>조준 방향으로</b> 가로 길이만큼 뻗고, 두께는 세로다. 조준은
-    /// 4방향으로 자른다 — 맵이 타일 격자이고 표의 값도 칸 수라, 비스듬한 상자를 만들면
-    /// 표의 "5 x 3" 이 화면에서 몇 칸인지 셀 수 없어진다.
+    /// 자기 칸에서 <b>조준 방향으로</b> 가로 길이만큼 뻗고, 두께는 세로다.
+    ///
+    /// <b>★ 2026-08-13 개정 — 조준을 4방향에서 360도로 풀었다.</b>
+    /// 예전에는 조준 방향을 상·하·좌·우로 스냅했다("표의 5 x 3 이 화면에서 몇 칸인지 셀 수
+    /// 있게"). 그 결과 <b>대각선에만 적이 있으면 아무도 못 맞히는</b> 문제가 실제로 나왔다
+    /// (유저 리포트: "4방향에 적이 없으면 대각선 방향 적을 못 때리니까 의도랑 안 맞음").
+    /// 이제 상자를 조준 방향 그대로 돌리고
+    /// (<see cref="UnitRegistry.CollectEnemiesInOrientedRect"/>), 지면 연출도 같은 각도로
+    /// 돌려서 <b>연출과 판정이 어떤 각도에서도 일치</b>한다. 표에서
+    /// <c>range_type = Circle</c> 로 두면 방향 자체가 없는 원형으로 돈다.
+    ///
+    /// <b>★ 범위는 연출 원화 비율에 맞춰 다시 잡힌다</b> — 표의 상자 안에 그림을 비율
+    /// 유지로 최대한 넣고(contain), 그렇게 <b>실제로 그려진 크기</b>를 피해 범위로 쓴다
+    /// (<see cref="ResolveArea"/>). 66절이 유닛 콜라이더에 쓴 로직과 같은 것이다.
     /// </summary>
     [RequireComponent(typeof(MonsterUnit))]
     [DisallowMultipleComponent]
@@ -45,12 +56,22 @@ namespace LastSanctuary.Combat
                  "나가지 않게 한다 — 겹쳐 맞으면 전열이 통째로 증발한다")]
         [Min(0f)] [SerializeField] float globalCooldownSeconds = 2f;
 
-        [Tooltip("시전 모션·범위 연출이 화면에 머무는 시간(초). 피해는 시전과 동시에 들어간다")]
+        [Tooltip("시전 모션·범위 연출이 화면에 머무는 시간(초) — <b>스킬 표에 값이 없을 때만</b> " +
+                 "쓰는 기본값이다. 스킬마다 다르게 주려면 표(Skill 시트)의 cast_time 칸을 채울 것 " +
+                 "(BossSkillSO.castSeconds). 피해는 시전과 동시에 들어간다")]
         [Min(0.05f)] [SerializeField] float castSeconds = 0.55f;
 
         [Tooltip("이 안에 맞을 적이 하나도 없으면 시전하지 않는다(쿨타임도 안 돈다). " +
                  "끄면 허공에도 쏜다 — 연출 확인용")]
         [SerializeField] bool requireTarget = true;
+
+        [Tooltip("★ <b>범위를 연출 원화 비율에 맞춰 다시 잡는다</b> (유저 지시 2026-08-13: " +
+                 "\"이미지에 맞춰서 타격 범위 재 조정\").\n" +
+                 "표의 상자(가로 x 세로 타일) 안에 <b>비율을 유지한 채</b> 원화를 최대로 넣고 " +
+                 "(contain), 그렇게 <b>실제로 그려진 크기</b>를 피해 범위로 쓴다 — 66절의 " +
+                 "콜라이더 로직과 완전히 같은 방식이다. 그래서 '보이는 범위 = 맞는 범위' 가 된다.\n" +
+                 "끄면 표 값을 그대로 쓰고 그림만 늘어난다(비율이 깨진다)")]
+        [SerializeField] bool fitAreaToSkillArt = true;
 
         [Header("디버그")]
         [Tooltip("시전할 때마다 콘솔에 남긴다 (HUD 로그는 이 값과 무관하게 항상 남는다)")]
@@ -79,6 +100,15 @@ namespace LastSanctuary.Combat
         /// </summary>
         readonly List<int> _priorityOrder = new List<int>();
 
+        /// <summary>
+        /// 슬롯별 <b>실제</b> 피해 범위(타일). 표의 상자에 연출 원화를 비율 유지로 넣어
+        /// (<see cref="fitAreaToSkillArt"/>) 나온 크기다 — x = 뻗는 길이, y = 두께.
+        ///
+        /// 원화·표가 런타임에 바뀌지 않으므로 <see cref="EnsureResolved"/> 에서 한 번만 계산한다
+        /// (스킨은 <c>OnEnable</c> 에서 정해지고, 그 뒤 <see cref="EnsureResolved"/> 가 돈다).
+        /// </summary>
+        readonly List<Vector2> _areaTiles = new List<Vector2>();
+
         float _nextAnyUseTime;
         bool _resolved;
 
@@ -106,6 +136,7 @@ namespace LastSanctuary.Combat
             _skills.Clear();
             _nextUseTime.Clear();
             _priorityOrder.Clear();
+            _areaTiles.Clear();
             _nextAnyUseTime = Time.time + initialDelaySeconds;
         }
 
@@ -157,6 +188,9 @@ namespace LastSanctuary.Combat
                 _nextUseTime.Add(Time.time + initialDelaySeconds + found.coolTime * 0.5f * _skills.Count);
             }
 
+            // 실제 피해 범위 — 표 상자에 연출 원화를 비율 유지로 맞춘 결과(아래 ResolveArea).
+            for (int i = 0; i < _skills.Count; i++) _areaTiles.Add(ResolveArea(i, _skills[i]));
+
             // 시도 순서 = 쿨타임 내림차순. List.Sort 는 불안정 정렬이지만 슬롯 수가 2~3개뿐이라
             // 동률(같은 쿨타임)이 실제로 문제될 일이 없다.
             for (int i = 0; i < _skills.Count; i++) _priorityOrder.Add(i);
@@ -166,6 +200,47 @@ namespace LastSanctuary.Combat
                 Debug.Log($"[보스스킬] {def.DisplayName} 스킬 {_skills.Count}종 준비 " +
                           $"(쿨타임 긴 순 {string.Join(" → ", _priorityOrder.ConvertAll(i => _skills[i].DisplayName))})",
                           this);
+        }
+
+        /// <summary>
+        /// 이 슬롯의 <b>실제</b> 피해 범위(타일). x = 조준 방향으로 뻗는 길이, y = 두께.
+        ///
+        /// <b>표 상자 → 원화 비율로 contain → 그려진 크기 = 판정 크기</b> (유저 지시 2026-08-13).
+        /// 66절이 유닛 콜라이더에 쓴 로직과 <b>같은 계산</b>이다:
+        /// <code>배율 = min(상자가로 / 원화가로, 상자세로 / 원화세로)</code>
+        /// 한 축은 표 값과 정확히 같고 다른 축은 비율 때문에 작아진다. 그래서 표에는 사람이
+        /// 외우기 쉬운 값(5 x 3 · 15 x 3)만 적으면 되고, 화면에 보이는 범위와 실제로 맞는
+        /// 범위가 <b>절대 어긋나지 않는다</b>.
+        ///
+        /// <b>왜 에셋에 안 적어두나</b> — 원화(스킨)를 바꾸면 결과도 같이 바뀌어야 하기 때문이다.
+        /// 66-2절이 콜라이더에 대해 내린 결론과 같은 이유로 <b>런타임 계산이 정본</b>이다.
+        ///
+        /// 연출 원화가 없는 보스(중간보스는 전용 Fx 가 없다)는 표 값을 그대로 쓴다 —
+        /// 맞출 그림이 없으면 맞출 것도 없다.
+        /// </summary>
+        Vector2 ResolveArea(int slot, BossSkillSO skill)
+        {
+            var box = new Vector2(skill.LengthTiles, skill.WidthTiles);
+            if (!fitAreaToSkillArt) return box;
+
+            Sprite[] fx = _animator != null && _animator.Skin != null
+                ? _animator.Skin.SkillFx(slot)
+                : null;
+            if (fx == null || fx.Length == 0 || fx[0] == null) return box;
+
+            // 맵 한 칸 = 1 월드 유닛이므로 bounds.size 가 곧 "원화가 몇 타일인지"다.
+            // 여기서 실제로 쓰는 것은 <b>비율</b> 뿐이라 PPU 가 몇이든 결과가 같다.
+            Vector3 art = fx[0].bounds.size;
+            if (art.x <= 0.0001f || art.y <= 0.0001f) return box;
+
+            float s = Mathf.Min(box.x / art.x, box.y / art.y);
+            var fitted = new Vector2(art.x * s, art.y * s);
+
+            if (logCasts)
+                Debug.Log($"[보스스킬] {skill.DisplayName} 범위 표 {box.x:0.#}x{box.y:0.#} → " +
+                          $"원화 비율({art.x / art.y:0.##}:1)에 맞춰 {fitted.x:0.##}x{fitted.y:0.##}타일", this);
+
+            return fitted;
         }
 
         static BossSkillSO[] LoadSkills(string folder)
@@ -213,33 +288,63 @@ namespace LastSanctuary.Combat
         /// <summary>시전했으면 true. 대상이 없어 못 썼으면 false — 쿨타임을 돌리지 않는다.</summary>
         bool TryCast(int slot, BossSkillSO skill)
         {
-            float length = skill.LengthTiles;
-            float width = skill.WidthTiles;
+            // 표 값이 아니라 <b>연출 원화에 맞춘 실제 범위</b>다 (ResolveArea 참조).
+            Vector2 area = slot < _areaTiles.Count
+                ? _areaTiles[slot]
+                : new Vector2(skill.LengthTiles, skill.WidthTiles);
+            float length = area.x;
+            float width = area.y;
 
+            // ── 원형 범위 ───────────────────────────────────────────────
+            // 방향이라는 개념이 없으므로 조준도 필요 없다 — 반지름 안이면 전부 맞는다.
+            if (skill.Shape == BossSkillShape.Circle)
+            {
+                float radius = length * 0.5f;
+                UnitRegistry.CollectEnemiesInRadius(transform.position, radius, _self.Faction, _scratch);
+                if (requireTarget && _scratch.Count == 0) return false;
+
+                // 그림은 지름 x 지름 정사각으로 깐다(회전 없음 — 원형이라 방향이 없다).
+                PlayFx(slot, skill, transform.position, Vector2.right,
+                       length, length, NearestOf(_scratch));
+                return ApplyDamage(slot, skill, length, length, "원형");
+            }
+
+            // ── 직사각형 범위 (기본) ────────────────────────────────────
+            // ★ 조준을 <b>4방향으로 자르지 않는다</b>(2026-08-13 개정) — 예전에는 상·하·좌·우로
+            //   스냅해서 <b>대각선에만 적이 있으면 아무도 못 맞히는</b> 문제가 있었다.
+            //   이제 상자를 조준 방향 그대로 돌린다(CollectEnemiesInOrientedRect).
             DamageableUnit aim = PickAim(skill.Type, length);
             if (aim == null && requireTarget) return false;
 
-            // 조준 방향을 4방향으로 자른다 (위 클래스 주석 참조).
             Vector2 dir = aim != null
-                ? AxisDirection(aim.transform.position - transform.position)
+                ? AimDirection(aim.transform.position - transform.position)
                 : Vector2.right;
 
+            // ★ <b>대상이 어디에 있든 항상 최대 사거리까지</b> 뻗는다 (유저 지시 2026-08-13:
+            //   "긴 사거리를 가진 보스 스킬은 타격 대상이 어디에 있든 최대 사거리까지 발사").
+            //   조준은 <b>방향</b>만 정하고 길이는 언제나 표(→ 원화 보정) 값 그대로다.
+            //
             // 자기 칸을 <b>포함해서</b> 앞으로 뻗는다:
             //   내 칸 중심에서 앞으로 (길이-1)/2 만큼 상자 중심을 밀고, 반길이는 길이/2.
             // 그래서 상자 뒤쪽 경계가 내 칸의 뒤쪽 경계와 정확히 맞는다.
             Vector3 center = transform.position + (Vector3)(dir * ((length - 1f) * 0.5f));
+            var half = new Vector2(length * 0.5f, width * 0.5f);
 
-            bool horizontal = Mathf.Abs(dir.x) > Mathf.Abs(dir.y);
-            var half = horizontal
-                ? new Vector2(length * 0.5f, width * 0.5f)
-                : new Vector2(width * 0.5f, length * 0.5f);
-
-            UnitRegistry.CollectEnemiesInRect(center, half, _self.Faction, _scratch);
+            UnitRegistry.CollectEnemiesInOrientedRect(center, half, dir, _self.Faction, _scratch);
             if (requireTarget && _scratch.Count == 0) return false;
 
             // 연출을 피해보다 먼저 띄운다 — 맞고 죽어 사라진 대상의 자리에도 범위가 보이게.
             PlayFx(slot, skill, center, dir, length, width, aim);
+            return ApplyDamage(slot, skill, length, width, "직선");
+        }
 
+        /// <summary>
+        /// <see cref="_scratch"/> 에 모인 대상 전부에 피해·침식을 넣고 로그를 남긴다.
+        /// 두 범위 모양(원형·직사각형)이 <b>같은 규칙</b>을 쓰도록 한 곳에 모아둔 것이다.
+        /// 항상 true 를 돌려준다 — 여기까지 왔다는 것은 이미 시전이 성립했다는 뜻이다.
+        /// </summary>
+        bool ApplyDamage(int slot, BossSkillSO skill, float length, float width, string shapeLabel)
+        {
             // 공격한 쪽도 전투 상태로 기록해야 재생 대기 시간이 갱신된다(UnitCombat.TryAttack 과 같다).
             _self.MarkCombatAction();
 
@@ -258,13 +363,37 @@ namespace LastSanctuary.Combat
                     CharacterErosion.EnsureOn(character)?.AddErosion(skill.ErosionValue);
             }
 
+            // 로그 형식은 캐릭터 스킬(CharacterPassives)과 <b>같은 규칙</b>이다 —
+            // "누가 · 무슨 스킬" (유저 지시 2026-08-13: "로그에 스킬 쓰면 스킬 이름이랑
+            // 같이 나오게 해줘 누가 썼는지랑"). 형식 문자열은 UI.HudLog.SkillLine 한 곳에 있다.
             string bossName = _self.Definition != null ? _self.Definition.DisplayName : _self.name;
-            string line = $"{bossName} — {skill.DisplayName}!";
+            string line = UI.HudLog.SkillLine(bossName, skill.DisplayName,
+                                              hits > 0 ? $"{hits}명 피격" : null);
             UI.HudLog.Add(line, UI.HudLogKind.Danger);
+
             if (logCasts)
-                Debug.Log($"[보스스킬] {line} 범위 {length:0.#}x{width:0.#}타일 · " +
-                          $"공격력 {skill.DamagePercent}% · {hits}명 피격", this);
+                Debug.Log($"[보스스킬] {line} · {shapeLabel} 범위 {length:0.##}x{width:0.##}타일 · " +
+                          $"공격력 {skill.DamagePercent}%", this);
             return true;
+        }
+
+        /// <summary>목록에서 <b>가장 가까운</b> 대상. 원형 범위에서 시전 모션이 볼 쪽을 정하는 데 쓴다.</summary>
+        DamageableUnit NearestOf(List<DamageableUnit> units)
+        {
+            DamageableUnit best = null;
+            float bestSqr = float.MaxValue;
+            for (int i = 0; i < units.Count; i++)
+            {
+                DamageableUnit u = units[i];
+                if (u == null || !u.IsAlive) continue;
+
+                float sqr = ((Vector2)(u.transform.position - transform.position)).sqrMagnitude;
+                if (sqr >= bestSqr) continue;
+
+                best = u;
+                bestSqr = sqr;
+            }
+            return best;
         }
 
         /// <summary>
@@ -273,17 +402,19 @@ namespace LastSanctuary.Combat
         ///
         /// 후보는 <b>스킬이 닿는 거리 안</b>에서만 고른다 — 그래야 "가장 먼 적"이 15타일
         /// 밖에 있어서 빔이 아무에게도 안 닿는 헛시전이 안 생긴다.
+        ///
+        /// ⚠ 후보 수집을 <b>원형</b>으로 한다(예전에는 정사각 상자였다). 상자로 모으면 대각선
+        /// 방향이 √2 배 더 멀리까지 후보로 잡혀, 조준은 됐는데 실제 범위 밖이라 헛시전이 되는
+        /// 경우가 생긴다. 어차피 아래에서 거리로 다시 자르던 것을 수집 단계로 옮긴 것이다.
+        ///
         /// 안개는 보지 않는다: 몬스터는 원래 지도 전체가 밝혀진 것처럼 싸운다(13절).
         /// </summary>
         DamageableUnit PickAim(BossSkillType type, float reachTiles)
         {
-            UnitRegistry.CollectEnemiesInRect(transform.position,
-                                              new Vector2(reachTiles, reachTiles),
-                                              _self.Faction, _scratch);
+            UnitRegistry.CollectEnemiesInRadius(transform.position, reachTiles, _self.Faction, _scratch);
 
             DamageableUnit best = null;
             float bestSqr = type == BossSkillType.VoidLaser ? -1f : float.MaxValue;
-            float reachSqr = reachTiles * reachTiles;
 
             for (int i = 0; i < _scratch.Count; i++)
             {
@@ -291,7 +422,6 @@ namespace LastSanctuary.Combat
                 if (u == null || !u.IsAlive) continue;
 
                 float sqr = ((Vector2)(u.transform.position - transform.position)).sqrMagnitude;
-                if (sqr > reachSqr) continue;
 
                 bool better = type == BossSkillType.VoidLaser ? sqr > bestSqr : sqr < bestSqr;
                 if (!better) continue;
@@ -302,14 +432,13 @@ namespace LastSanctuary.Combat
             return best;
         }
 
-        /// <summary>가장 큰 성분만 남긴 4방향 단위벡터. 0 벡터면 오른쪽으로 본다.</summary>
-        static Vector2 AxisDirection(Vector2 delta)
-        {
-            if (Mathf.Abs(delta.x) < 0.0001f && Mathf.Abs(delta.y) < 0.0001f) return Vector2.right;
-            return Mathf.Abs(delta.x) >= Mathf.Abs(delta.y)
-                ? new Vector2(Mathf.Sign(delta.x), 0f)
-                : new Vector2(0f, Mathf.Sign(delta.y));
-        }
+        /// <summary>
+        /// 조준 단위벡터 — <b>자르지 않은 실제 방향</b>이다(360도).
+        /// 예전의 <c>AxisDirection</c>(4방향 스냅)을 대체한다: 상자를 통째로 돌릴 수 있게 되면서
+        /// 방향을 축에 맞출 이유가 없어졌다. 0 벡터면 오른쪽으로 본다.
+        /// </summary>
+        static Vector2 AimDirection(Vector2 delta) =>
+            delta.sqrMagnitude > 0.000001f ? delta.normalized : Vector2.right;
 
         /// <summary>시전 모션 + 지면 범위 연출. 둘 다 없으면 조용히 넘어간다(피해는 그대로 들어간다).</summary>
         void PlayFx(int slot, BossSkillSO skill, Vector3 center, Vector2 dir,
@@ -317,22 +446,29 @@ namespace LastSanctuary.Combat
         {
             if (_animator == null) _animator = GetComponent<CharacterAnimator>();
 
+            // 연출 길이는 <b>이 스킬</b>의 값이 먼저다 — 표(Skill 시트)의 cast_time 칸.
+            // 비어 있으면 이 컴포넌트의 castSeconds(전역 기본값)로 떨어진다.
+            float seconds = skill.CastSecondsOr(castSeconds);
+
             Vector3 lookAt = aim != null ? aim.transform.position
                                          : transform.position + (Vector3)dir;
-            _animator?.PlaySkillMotion(slot, castSeconds, lookAt);
+            _animator?.PlaySkillMotion(slot, seconds, lookAt);
 
             Sprite[] fx = _animator != null && _animator.Skin != null
                 ? _animator.Skin.SkillFx(slot)
                 : null;
             if (fx == null) return;
 
-            // 그림은 +X 를 향해 그려져 있다 — 세로로 쏠 때만 90도 돌린다.
-            // 크기는 <b>회전 전(그림 기준)</b>으로 넘긴다: x = 뻗는 길이, y = 두께.
-            float angle = Mathf.Abs(dir.x) > Mathf.Abs(dir.y)
-                ? (dir.x >= 0f ? 0f : 180f)
-                : (dir.y >= 0f ? 90f : -90f);
+            // 그림은 +X 를 향해 그려져 있다 — <b>조준 각도 그대로</b> 돌린다(360도).
+            // 예전에는 0/90/180/-90 네 값만 썼는데, 판정 상자가 자유각으로 돌아가게 되면서
+            // 그림만 축에 맞추면 <b>연출과 피해 범위가 최대 45도까지 어긋난다</b>.
+            // 원형(Circle)은 방향이 없으므로 0도로 그대로 깐다.
+            float angle = skill.Shape == BossSkillShape.Circle
+                ? 0f
+                : Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
 
-            CombatProjectileFx.PlayArea(fx, center, new Vector2(length, width), angle, _self, castSeconds);
+            // 크기는 <b>회전 전(그림 기준)</b>으로 넘긴다: x = 뻗는 길이, y = 두께.
+            CombatProjectileFx.PlayArea(fx, center, new Vector2(length, width), angle, _self, seconds);
         }
     }
 }

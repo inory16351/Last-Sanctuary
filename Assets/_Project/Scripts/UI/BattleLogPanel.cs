@@ -101,7 +101,7 @@ namespace LastSanctuary.UI
             if (unit.Faction == Faction.Angel)
             {
                 if (!logAllyDeaths) return;
-                Append(unit.Kind == UnitKind.Nexus ? "넥서스 파괴" : $"{unit.name} 사망",
+                Append(unit.Kind == UnitKind.Nexus ? "넥서스 파괴" : $"{NameOf(unit)} 사망",
                        HudLogKind.Danger);
                 return;
             }
@@ -109,7 +109,24 @@ namespace LastSanctuary.UI
             if (!logKills) return;
 
             string what = unit is NeutralMonsterUnit ? "중립 몬스터" : "몬스터";
-            Append($"{what} 처치 — {unit.name}", HudLogKind.Good);
+            Append($"{what} 처치 — {NameOf(unit)}", HudLogKind.Good);
+        }
+
+        /// <summary>
+        /// 로그에 쓸 이름 — <b>표의 이름</b>이 먼저다.
+        ///
+        /// 예전에는 <c>unit.name</c>(오브젝트 이름)을 그대로 찍었다. 몬스터는 스포너가
+        /// 복제할 때마다 이름 뒤에 일련번호를 붙였기 때문에 로그가 "지옥 송곳니_7 처치"
+        /// 처럼 나왔다(유저 지시 2026-08-13: "몬스터 뒤에 번호 붙는 거 없애줘 캐릭터랑
+        /// 동일하게 그냥 이름으로"). 스포너 쪽에서 번호를 뗐고, 여기서도 표시 이름을
+        /// 명시적으로 읽어 <b>하이라키 이름이 어떻든 로그가 흔들리지 않게</b> 한다.
+        /// </summary>
+        static string NameOf(DamageableUnit unit)
+        {
+            if (unit == null) return string.Empty;
+            if (unit is CharacterUnit c) return c.DisplayName;
+            if (unit is MonsterUnit m) return m.DisplayName;
+            return unit.name;
         }
 
         void HandleEnergyChanged(int delta, int total)

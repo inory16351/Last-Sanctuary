@@ -418,7 +418,10 @@ namespace LastSanctuary.Combat
             _unit.ApplyDamage(cost);
             target.Heal(Mathf.RoundToInt(target.MaxHp * ratio));
 
-            UI.HudLog.Add($"{_unit.DisplayName}의 희생 — {target.name} 회복", UI.HudLogKind.Good);
+            // 스킬 이름을 코드에 적지 않는다 — 표(so.DisplayName)에서 온다.
+            // 형식은 보스 스킬과 같은 UI.HudLog.SkillLine 한 곳이 정한다.
+            UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName,
+                                              $"{DisplayNameOf(target)} 회복"), UI.HudLogKind.Good);
             return true;
         }
 
@@ -481,8 +484,8 @@ namespace LastSanctuary.Combat
                 ero.ClearActiveExternally();
                 ero.AddErosion(-so.value01);
 
-                UI.HudLog.Add($"{_unit.DisplayName}의 정신 안정 — {ally.DisplayName} 회복",
-                              UI.HudLogKind.Good);
+                UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName,
+                                                  $"{ally.DisplayName} 회복"), UI.HudLogKind.Good);
                 return true;   // 쿨타임당 한 명
             }
             return false;
@@ -505,8 +508,22 @@ namespace LastSanctuary.Combat
 
             _purifyEndTime = Time.time + Mathf.Max(0.1f, so.value02);
             _purifyReadyAt = Time.time + Mathf.Max(0f, so.coolTime);
-            UI.HudLog.Add($"{_unit.DisplayName}의 정화의 손길 발동", UI.HudLogKind.Good);
+            UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName),
+                          UI.HudLogKind.Good);
             return true;
+        }
+
+        /// <summary>
+        /// 로그에 쓸 대상 이름. 캐릭터·몬스터는 <b>표의 이름</b>(<c>DisplayName</c>)을 쓰고,
+        /// 그것이 없는 유닛(넥서스·포탑)만 오브젝트 이름으로 떨어진다 —
+        /// 복제본 뒤에 붙는 번호가 로그에 새어나오지 않게 하는 규칙이다(유저 지시 2026-08-13).
+        /// </summary>
+        static string DisplayNameOf(DamageableUnit u)
+        {
+            if (u == null) return string.Empty;
+            if (u is CharacterUnit c) return c.DisplayName;
+            if (u is MonsterUnit m) return m.DisplayName;
+            return u.name;
         }
 
         /// <summary>정화의 손길이 지금 켜져 있는지.</summary>

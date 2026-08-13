@@ -38,6 +38,22 @@ namespace LastSanctuary.UI
         [Tooltip("보스가 없을 때 패널 자체를 숨긴다. 끄면 빈 바가 계속 보인다(레이아웃 확인용)")]
         [SerializeField] bool hideWhenNoBoss = true;
 
+        [Header("칭호 (2026-08-13 신설)")]
+        [Tooltip("보스 <b>칭호</b>를 이름 앞에 같이 띄운다 — 단탈리온이면 \"끝없는 형상의 군주\".\n" +
+                 "문구는 표(wave_top_boss.boss_title → MonsterDefinitionSO.titleKey)에서 오고, " +
+                 "칭호가 비어 있는 몬스터는 이름만 나온다.\n" +
+                 "★ 라벨을 새로 만들지 않고 <b>같은 줄에 rich text 로</b> 붙인다 — 줄을 하나 더 " +
+                 "만들면 Name·HpBack·Body 세 RectTransform 을 전부 다시 잡아야 하고, MCP 로 " +
+                 "앵커 필드를 넣으면 조용히 무시되는 경우가 있다(준수사항 §10). 38MB 씬의 " +
+                 "레이아웃을 건드리지 않는 쪽이 안전하다")]
+        [SerializeField] bool showTitle = true;
+
+        [Tooltip("칭호 글자 크기(이름 대비 %). rich text <size> 태그로 들어간다")]
+        [Range(40, 100)] [SerializeField] int titleSizePercent = 72;
+
+        [Tooltip("칭호 색. 이름보다 흐리게 두어 이름이 먼저 읽히도록 한다")]
+        [SerializeField] Color titleColor = new Color(0.85f, 0.72f, 0.55f, 1f);
+
         MonsterUnit _boss;
         float _shownRatio = 1f;
         int _shownHp = -1;
@@ -119,7 +135,7 @@ namespace LastSanctuary.UI
         void Refresh(MonsterUnit boss)
         {
             // 이름은 바뀔 일이 거의 없으니 바뀔 때만 쓴다 (TMP 는 대입할 때마다 메시를 다시 굽는다).
-            string bossName = boss.Definition != null ? boss.Definition.DisplayName : boss.name;
+            string bossName = NameLine(boss);
             if (bossName != _shownName)
             {
                 _shownName = bossName;
@@ -143,6 +159,26 @@ namespace LastSanctuary.UI
                 _shownMax = max;
                 hpLabel.text = $"{hp} / {max}  ({Mathf.RoundToInt(target * 100f)}%)";
             }
+        }
+
+        /// <summary>
+        /// 체력바 맨 윗줄 — <b>칭호 + 이름</b>. 유저 지시 2026-08-13:
+        /// "단탈리온처럼 보스 몬스터는 소환되면 체력바에 타이틀을 붙여서 표기".
+        ///
+        /// 칭호가 없는 보스(중간보스 2종은 표에 칭호 칸이 채워지기 전까지 비어 있다)는
+        /// <b>이름만</b> 나온다 — 빈 칭호 자리가 생기지 않게 문자열 단계에서 걸러낸다.
+        /// </summary>
+        string NameLine(MonsterUnit boss)
+        {
+            string bossName = boss.DisplayName;
+            if (!showTitle) return bossName;
+
+            string title = boss.Title;
+            if (string.IsNullOrWhiteSpace(title)) return bossName;
+
+            // TMP rich text. 색은 인스펙터 값을 그대로 16진수로 넘긴다.
+            return $"<size={titleSizePercent}%><color=#{ColorUtility.ToHtmlStringRGB(titleColor)}>" +
+                   $"{title}</color></size>  {bossName}";
         }
 
         void SetVisible(bool visible)

@@ -38,6 +38,16 @@ namespace LastSanctuary.Combat
                  "끊기는 것을 막는다")]
         [Min(0f)] [SerializeField] float minAttackHoldSeconds = 0.18f;
 
+        [Tooltip("★ <b>이동 모션을 최소 이 시간(초)은 유지한다</b> (2026-08-13 신설).\n" +
+                 "유저 리포트: \"보스 스킨 이동 모션이랑 대기 모션 자꾸 겹쳐서 나와서 어색하다\".\n" +
+                 "원인은 <b>이동 판정이 한 프레임 이동량 하나로 결정</b>된다는 것이다 — 이동속도가 " +
+                 "느린 유닛(단탈리온 1.4타일/초)은 프레임당 이동량이 임계값 근처라, 프레임률이 " +
+                 "조금만 흔들려도 걷기↔대기가 <b>매 프레임 번갈아</b> 나온다. 두 모션이 섞여 " +
+                 "보이는 것의 실체가 이것이다.\n" +
+                 "한 번 '이동 중'이 되면 이 시간만큼은 걷기를 유지해 그 떨림을 없앤다. 0 이면 " +
+                 "예전처럼 프레임 단위로 즉시 전환한다")]
+        [Min(0f)] [SerializeField] float moveMotionHoldSeconds = 0.2f;
+
         [Header("디버그")]
         [Tooltip("어떤 스킨이 뽑혔는지 콘솔에 남긴다")]
         [SerializeField] bool logSkinChoice = false;
@@ -65,6 +75,9 @@ namespace LastSanctuary.Combat
         Vector3 _lastPosition;
         float _attackUntil;
 
+        /// <summary>이 시각까지는 걷기 모션을 유지한다 — <see cref="moveMotionHoldSeconds"/> 참조.</summary>
+        float _walkUntil;
+
         /// <summary>시전 중인 보스 스킬 슬롯. -1 이면 시전 중이 아니다.</summary>
         int _skillSlot = -1;
         float _skillUntil;
@@ -87,6 +100,11 @@ namespace LastSanctuary.Combat
         {
             // 스포너가 템플릿을 복제해 활성화하는 순간이 곧 "생성"이다 — 그때 외형을 뽑는다.
             if (_skin == null) SetSkin(PickRandomSkin());
+
+            // 켜질 때는 대기부터 — 이전 생애의 걷기 유지 시간이 남아 있으면 소환 직후
+            // 제자리에서 걷는 것처럼 보인다.
+            _walkUntil = 0f;
+            _lastPosition = transform.position;
             if (_combat != null) _combat.OnAttackPerformed += HandleAttackPerformed;
         }
 
@@ -263,6 +281,11 @@ namespace LastSanctuary.Combat
         /// </summary>
         Sprite[] ResolveFrames(float moved, out float fps)
         {
+            // ★ 이동 판정을 <b>먼저</b> 갱신한다 — 공격·시전 중에도 위치는 계속 바뀌므로,
+            //   여기서 안 재면 공격이 끝난 첫 프레임에 걷기 유지 시간이 0 인 채로 시작해
+            //   "공격 → 대기 → 걷기" 로 한 프레임 튄다.
+            if (moved > moveThreshold) _walkUntil = Time.time + moveMotionHoldSeconds;
+
             // 보스 스킬 시전이 가장 앞이다 — 시전 중에 평타·걷기 모션이 섞이면
             // "뭔가 큰 걸 쓰고 있다"는 신호가 사라진다.
             if (InSkillMotion)
@@ -283,7 +306,10 @@ namespace LastSanctuary.Combat
             }
 
             fps = _skin.framesPerSecond;
-            return moved > moveThreshold ? _skin.Walk(_facingRight) : _skin.Idle(_facingRight);
+
+            // 한 프레임 이동량을 그대로 보지 않고 <b>유지 시간</b>을 본다 —
+            // 걷기와 대기가 매 프레임 번갈아 나오던 떨림이 이 한 줄로 사라진다.
+            return Time.time < _walkUntil ? _skin.Walk(_facingRight) : _skin.Idle(_facingRight);
         }
 
         /// <summary>

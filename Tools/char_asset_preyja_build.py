@@ -391,6 +391,116 @@ def synth_walk_from_idle(idle_frames, facing_right):
     return out
 
 
+# ======================================================================
+# ★ 머리 위 검은 선 제거 (2026-08-13, 유저 지시)
+#
+# 유저: "프레이야 스킨 머리 위에 검은색 선 생기는 거 없애줘 이미지 분석해보고".
+#
+# ■ 분석 결과 — <b>오른쪽 방향 프레임 전부</b>에 있었다(왼쪽에는 없다).
+#   Idle/Walk/MeleeAttack/RangedAttack 의 Right 프레임 19장 모두, 캐릭터 몸통과
+#   <b>완전히 떨어진</b> 가로로 긴 어두운 띠가 머리 위에 떠 있었다:
+#       Idle_Right_00  → y 24~26 (3줄) · x 48~170 (123px) · 310픽셀 · 밝기 37~42
+#       Walk_Right_04  → y 22~24 (3줄) · x 52~174 (123px)
+#       Melee_Right_02 → y 12~17 (6줄) · x 42~184 (143px)
+#   가로 100~165px · 세로 2~6줄 · 몸통 최상단보다 위 — 캐릭터 그림일 수 없는 모양이다.
+#   원본 시트를 자를 때 <b>위쪽 행의 밑동이 한 조각 딸려 들어온 것</b>이다
+#   (파일 상단 1번의 "한 컷에 캐릭터가 1.5명씩" 과 같은 뿌리의 슬라이스 사고).
+#
+# ■ 왜 PNG 를 손으로 고치지 않고 여기에 넣나
+#   Assets 쪽 PNG 는 <b>이 스크립트가 매번 다시 쓴다.</b> 손으로 지우면 다음 실행에
+#   그대로 되살아난다 — 64-4절이 크기 값으로 똑같이 겪은 사고다. 원본(볼트)은
+#   건드리지 않는다는 이 파일의 원칙도 지킨다.
+#
+# ■ 지우는 조건 (전부 만족해야 지운다 — 날개·창·잔광을 잘못 지우지 않기 위해)
+#   ① 몸통(가장 큰 덩어리)과 <b>떨어져 있다</b>
+#   ② 세로 BAR_MAX_H 줄 이하로 <b>납작</b>하고
+#   ③ 가로 BAR_MIN_W 픽셀 이상으로 <b>길고</b> (가로/세로 비 BAR_MIN_RATIO 이상)
+#   ④ 그림 <b>위쪽</b> BAR_TOP_RATIO 안에 있다
+#   실제 데이터로 확인: 지워지는 것은 위의 띠 19개뿐이고, 세로로 긴 창 자국
+#   (Melee_*_05 의 y0~146 x189~191)이나 발밑 조각(y126~146)은 조건 ②④에서 걸러진다.
+# ======================================================================
+
+BAR_MAX_H = 8         # 이보다 두꺼우면 그림의 일부로 본다
+BAR_MIN_W = 40        # 이보다 짧으면 먼지로 보고 두 번째 조건으로 넘긴다
+BAR_MIN_RATIO = 8.0   # 가로 / 세로
+BAR_TOP_RATIO = 0.40  # 그림 위에서 이 비율 안에 있어야 '머리 위'다
+
+
+def _components(mask):
+    """8방향 연결 요소. scipy 가 없는 환경이라 직접 훑는다(프레임이 218x147 이라 충분히 빠르다)."""
+    from collections import deque
+
+    h, w = mask.shape
+    label = np.zeros((h, w), np.int32)
+    boxes = []            # (픽셀수, ymin, ymax, xmin, xmax)
+    cur = 0
+
+    for sy in range(h):
+        for sx in range(w):
+            if not mask[sy, sx] or label[sy, sx]:
+                continue
+            cur += 1
+            q = deque([(sy, sx)])
+            label[sy, sx] = cur
+            n = 0
+            ymin = ymax = sy
+            xmin = xmax = sx
+            while q:
+                cy, cx = q.popleft()
+                n += 1
+                if cy < ymin: ymin = cy
+                if cy > ymax: ymax = cy
+                if cx < xmin: xmin = cx
+                if cx > xmax: xmax = cx
+                for dy in (-1, 0, 1):
+                    for dx in (-1, 0, 1):
+                        ny, nx = cy + dy, cx + dx
+                        if 0 <= ny < h and 0 <= nx < w and mask[ny, nx] and not label[ny, nx]:
+                            label[ny, nx] = cur
+                            q.append((ny, nx))
+            boxes.append((n, ymin, ymax, xmin, xmax))
+    return label, boxes
+
+
+def strip_detached_bars(img):
+    """머리 위에 떠 있는 가로 띠를 지운다. 지운 개수를 같이 돌려준다(위 설명 참조)."""
+    arr = np.array(img)
+    mask = arr[:, :, 3] > ALPHA_ANY
+    if not mask.any():
+        return img, 0
+
+    label, boxes = _components(mask)
+    if len(boxes) <= 1:
+        return img, 0
+
+    main = int(np.argmax([b[0] for b in boxes])) + 1
+    content_top = boxes[main - 1][1]
+    content_bottom = boxes[main - 1][2]
+    limit = content_top + (content_bottom - content_top) * BAR_TOP_RATIO
+
+    removed = 0
+    for i, (n, ymin, ymax, xmin, xmax) in enumerate(boxes, start=1):
+        if i == main:
+            continue
+        bar_h = ymax - ymin + 1
+        bar_w = xmax - xmin + 1
+        if bar_h > BAR_MAX_H:                     # ② 납작한가
+            continue
+        if bar_w < BAR_MIN_W:                     # ③ 긴가
+            continue
+        if bar_w / float(bar_h) < BAR_MIN_RATIO:
+            continue
+        if ymax > limit:                          # ④ 위쪽인가
+            continue
+
+        arr[label == i] = (0, 0, 0, 0)
+        removed += 1
+
+    if removed == 0:
+        return img, 0
+    return Image.fromarray(arr, "RGBA"), removed
+
+
 def trim(img):
     """투명 여백을 잘라낸다 (알파 문턱 기준)."""
     a = np.array(img)[:, :, 3]
@@ -421,7 +531,19 @@ def collect_body_frames():
             else:
                 frames = raw
                 print(f"  {motion} {side}: {len(frames)}프레임")
-            result[(motion, side)] = [(f, 0) for f in frames]
+
+            # ★ 머리 위 검은 띠 제거 — <b>trim/정렬보다 먼저</b> 해야 한다.
+            #   띠가 남아 있으면 그것이 그림의 최상단으로 잡혀 캔버스가 그만큼 높아지고
+            #   (normalize_body 의 height 계산) 캐릭터가 아래로 밀린다.
+            cleaned, wiped = [], 0
+            for f in frames:
+                f2, n = strip_detached_bars(f)
+                cleaned.append(f2)
+                wiped += n
+            if wiped:
+                print(f"    └ 머리 위 검은 띠 {wiped}개 제거")
+
+            result[(motion, side)] = [(f, 0) for f in cleaned]
 
     # ★ 걷기는 원본 Move 가 아니라 Idle 에서 만든다 (파일 상단 4번)
     for side in ["Left", "Right"]:

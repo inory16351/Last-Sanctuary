@@ -129,6 +129,9 @@ namespace LastSanctuary.Units
         bool _hasPendingReinforcements;
         int _currentEnragePercent = 100;
 
+        /// <summary>증원 무리가 나올 포탈을 돌아가며 정하기 위한 순번.</summary>
+        int _reinforceBatchIndex;
+
         /// <summary>이번 웨이브에 열린 포탈들. 초기 소환과 증원이 같은 포탈을 쓴다.</summary>
         readonly List<Vector3Int> _portals = new List<Vector3Int>();
 
@@ -279,9 +282,16 @@ namespace LastSanctuary.Units
 
             // 증원도 이번 웨이브에 이미 열려 있는 포탈에서 나온다 — 도중에 새 방향이
             // 생기면 플레이어가 대비해둔 전열이 의미를 잃는다.
+            //
+            // ★ 한 무리는 <b>한 포탈에서</b> 통째로 나온다(2026-08-13). 예전에는 PortalAt(i)
+            //   로 마리마다 포탈을 돌려서, 증원 4마리가 네 방향에 한 마리씩 흩어졌다 —
+            //   초기 소환에서 고친 "각개 격파" 문제와 정확히 같은 것이다. 어느 포탈에서
+            //   나올지는 무리마다 돌아가며 정한다(_reinforceBatchIndex).
+            Vector3Int portal = PortalAt(_reinforceBatchIndex++);
+            int spread = GroupSpread(queue.Count);
             for (int i = 0; i < queue.Count; i++)
-                SpawnOne(queue[i].def, queue[i].template, PortalAt(i),
-                         comp.statPercent, comp.statPercent, rng);
+                SpawnOne(queue[i].def, queue[i].template, portal,
+                         comp.statPercent, comp.statPercent, rng, spread);
 
             // 지금 광폭화 중이었다면(이론상 드묾 — 증원은 Battle 구간에서만 돌지만, 안전하게)
             // 방금 온 증원도 곧바로 같은 배율을 받는다.
@@ -309,6 +319,7 @@ namespace LastSanctuary.Units
 
             int hpScale, atkScale;
             var queue = new List<(MonsterDefinitionSO def, MonsterUnit template)>();
+            int groupSize = 1;
 
             // 웨이브 테이블에 이 웨이브 행이 있으면 그 구성(마리 수·능력치 배율)을 그대로 쓴다.
             // 표가 없거나 행이 없으면(예전 씬 그대로) 기존 선형 공식 + 고정 spawnTable 로 돌아간다 —
@@ -320,6 +331,7 @@ namespace LastSanctuary.Units
                 AppendToQueue(queue, rangedSlot, wave.rangedCount);
                 AppendToQueue(queue, bossSlot, wave.bossCount);
                 AppendMidBosses(queue, wave.midBossCount, rng);
+                groupSize = Mathf.Max(1, wave.spawnGroupSize);
             }
             else
             {
@@ -337,18 +349,31 @@ namespace LastSanctuary.Units
                 (queue[i], queue[j]) = (queue[j], queue[i]);
             }
 
-            float interval = ResolveSpawnInterval(queue.Count);
+            // ★ <b>무리 단위</b>로 내보낸다 (유저 지시 2026-08-13 — WaveMonsterComposition.
+            //   spawnGroupSize 주석 참조). 주기는 <b>무리 개수</b>로 역산해야 마지막 무리가
+            //   예전의 마지막 한 마리와 같은 시각에 도착한다 — 마리 수로 계산하면 무리 하나에
+            //   한 번씩만 기다리므로 전체 소환이 groupSize 배 빨리 끝나버린다.
+            int groupCount = Mathf.CeilToInt(queue.Count / (float)groupSize);
+            float interval = ResolveSpawnInterval(groupCount);
 
             Debug.Log($"[MonsterSpawner] 웨이브 {waveNumber} 시작 · {queue.Count}마리 · " +
                       $"체력 {hpScale}% 공격 {atkScale}% · 포탈 {_portals.Count}개 · " +
-                      $"소환 주기 {interval:0.##}초 (총 {interval * Mathf.Max(0, queue.Count - 1):0.#}초에 걸쳐 등장)",
+                      $"무리 {groupSize}마리씩 {groupCount}무리 · " +
+                      $"소환 주기 {interval:0.##}초 (총 {interval * Mathf.Max(0, groupCount - 1):0.#}초에 걸쳐 등장)",
                       this);
 
-            // 포탈이 여러 개면 한 마리씩 돌아가며 배정한다 — 무작위로 뽑으면 한 포탈에
-            // 몰리는 웨이브가 생겨 "방향을 갈라 놓는다"는 목적이 흐려진다.
-            for (int i = 0; i < queue.Count; i++)
+            // 포탈이 여러 개면 <b>무리 단위로</b> 돌아가며 배정한다. 예전에는 한 마리씩
+            // 돌렸는데, 그러면 무리를 만들어도 그 안의 개체가 다시 사방으로 흩어져
+            // "떼로 밀려온다"가 성립하지 않는다.
+            for (int g = 0; g < groupCount; g++)
             {
-                SpawnOne(queue[i].def, queue[i].template, PortalAt(i), hpScale, atkScale, rng);
+                Vector3Int portal = PortalAt(g);
+                int from = g * groupSize;
+                int to = Mathf.Min(queue.Count, from + groupSize);
+
+                for (int i = from; i < to; i++)
+                    SpawnOne(queue[i].def, queue[i].template, portal, hpScale, atkScale, rng,
+                             GroupSpread(to - from));
 
                 if (interval > 0f) yield return new WaitForSeconds(interval);
             }
@@ -524,8 +549,24 @@ namespace LastSanctuary.Units
             return fallback.template != null ? fallback.template : fallback.definition?.template;
         }
 
+        /// <summary>
+        /// 무리 <paramref name="count"/> 마리가 흩어질 반경(타일).
+        ///
+        /// 포탈 구역(<see cref="portalAreaTiles"/>, 기본 3x3 = 9칸)은 원래 <b>한 마리씩</b>
+        /// 나오던 시절에 정한 크기다. 무리가 7마리면 9칸에 몰려 한 덩어리로 겹쳐 나오고,
+        /// 그 직후 밀어내기(separation)가 한꺼번에 걸려 사방으로 튄다. 무리 크기에 맞춰
+        /// 반경을 넓혀 처음부터 벌어진 채로 나오게 한다.
+        ///
+        /// <c>ceil(√개수)</c> 는 "n 마리가 정사각으로 늘어설 한 변"이다 — 7마리면 3,
+        /// 즉 반경 3(7x7칸)이라 겹칠 여지가 충분히 생긴다. 포탈 구역이 더 크게 설정돼
+        /// 있으면 그쪽을 존중한다.
+        /// </summary>
+        int GroupSpread(int count) =>
+            Mathf.Max(Mathf.Max(0, portalAreaTiles / 2),
+                      Mathf.CeilToInt(Mathf.Sqrt(Mathf.Max(1, count))));
+
         void SpawnOne(MonsterDefinitionSO def, MonsterUnit template, Vector3Int portalCell,
-                      int hpScale, int atkScale, System.Random rng)
+                      int hpScale, int atkScale, System.Random rng, int spreadTiles = -1)
         {
             if (template == null)
             {
@@ -540,7 +581,7 @@ namespace LastSanctuary.Units
             Vector3Int cell = portalCell;
             if (mapGenerator != null)
             {
-                int half = Mathf.Max(0, portalAreaTiles / 2);
+                int half = spreadTiles >= 0 ? spreadTiles : Mathf.Max(0, portalAreaTiles / 2);
                 var jitter = new Vector3Int(portalCell.x + rng.Next(-half, half + 1),
                                             portalCell.y + rng.Next(-half, half + 1), 0);
                 if (!mapGenerator.TryFindPlaceableNear(jitter, 8, null, out cell))
@@ -549,7 +590,12 @@ namespace LastSanctuary.Units
 
             MonsterUnit unit = Instantiate(template, CellCenter(cell),
                                            Quaternion.identity, _root);
-            unit.name = $"{def.DisplayName}_{_alive.Count + 1}";
+            // 이름에 <b>일련번호를 붙이지 않는다</b>(유저 지시 2026-08-13) — 캐릭터
+            // (CharacterUnit.ApplyDefinition: gameObject.name = def.DisplayName)와 같은 규칙이다.
+            // 예전에는 "_1", "_2" 를 붙여 하이라키에서 구별했는데, 로그가 그 이름을 그대로 찍어
+            // "지옥 송곳니_7 처치" 처럼 나왔다. 구별이 필요하면 하이라키의 순서·instanceId 로
+            // 충분하고, 화면에 나가는 이름은 MonsterUnit.DisplayName 하나로 통일한다.
+            unit.name = def.DisplayName;
             unit.gameObject.SetActive(true);
 
             StatBlock scaled = def.BuildStats(hpScale, atkScale, balance.statMax);

@@ -26,6 +26,33 @@ namespace LastSanctuary.Units
         public MonsterTier Tier => definition != null ? definition.tier : MonsterTier.Normal;
 
         /// <summary>
+        /// 화면·로그에 쓸 이름. <see cref="CharacterUnit.DisplayName"/> 과 <b>같은 규칙</b>이다 —
+        /// 표의 이름이 먼저고, 없을 때만 오브젝트 이름으로 떨어진다.
+        ///
+        /// <b>왜 오브젝트 이름을 직접 쓰지 않나</b>(유저 지시 2026-08-13: "로그에 템플릿 복제
+        /// 될 때마다 몬스터 뒤에 번호 붙는 거 없애줘 캐릭터랑 동일하게 그냥 이름으로 처리") —
+        /// 스포너가 복제본을 구별하려고 이름 뒤에 일련번호를 붙이던 시절이 있었고, 로그가
+        /// 그 이름을 그대로 찍어 "지옥 송곳니_7 처치"처럼 나왔다. 표시 이름을 여기 하나로
+        /// 모아두면 하이라키 이름을 어떻게 짓든 로그가 흔들리지 않는다.
+        /// </summary>
+        public string DisplayName =>
+            definition != null && !string.IsNullOrWhiteSpace(definition.DisplayName)
+                ? definition.DisplayName
+                : name;
+
+        /// <summary>
+        /// 보스 <b>칭호</b>(예: 단탈리온의 "끝없는 형상의 군주"). 없으면 빈 문자열.
+        /// 보스 체력바가 이름 위에 띄운다(유저 지시 2026-08-13).
+        /// </summary>
+        public string Title => definition != null ? definition.Title : string.Empty;
+
+        /// <summary>
+        /// 보스급(중간보스·최종보스)인지 — <see cref="MonsterTier.Normal"/> 이 아니면 보스다.
+        /// 체력바·BGM 이 이미 같은 판정을 각자 하고 있어서 한 곳으로 모아둔다.
+        /// </summary>
+        public bool IsBoss => Tier != MonsterTier.Normal;
+
+        /// <summary>
         /// 몸집 반경(타일) — <b>근거리 유닛이 어디까지 다가가야 때릴 수 있는지</b>.
         /// 이 프로젝트의 유닛에는 <c>Collider2D</c> 가 없으므로(준수사항 U-D9) <b>이 값이 곧
         /// 콜라이더</b>다. <c>UnitCombat.TargetRadius</c> 가 이걸 읽는다.

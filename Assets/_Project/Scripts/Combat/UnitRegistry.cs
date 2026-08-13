@@ -192,8 +192,8 @@ namespace LastSanctuary.Combat
         ///
         /// <see cref="CollectEnemiesInBox"/> 와 달리 가로·세로 반지름을 따로 받는다 —
         /// 보스 스킬은 "5 x 3", "15 x 3" 처럼 한 방향으로 긴 범위라 정사각으로는 표현할 수 없다.
-        /// 상자 자체를 돌리지는 않는다: <see cref="BossSkillCaster"/> 가 조준 방향을 4방향으로
-        /// 잘라 가로·세로를 바꿔 넣기 때문에 축 정렬 검사만으로 충분하다(맵도 타일 격자다).
+        /// 상자 자체를 돌리지는 않는다 — <b>축 정렬</b> 검사다. 임의 각도로 돌아간 범위가
+        /// 필요하면 <see cref="CollectEnemiesInOrientedRect"/> 를 쓸 것.
         /// </summary>
         public static void CollectEnemiesInRect(Vector3 center, Vector2 halfSizeTiles, Faction myFaction,
                                                 List<DamageableUnit> into)
@@ -208,6 +208,67 @@ namespace LastSanctuary.Combat
 
                 Vector3 d = u.transform.position - center;
                 if (Mathf.Abs(d.x) <= halfSizeTiles.x && Mathf.Abs(d.y) <= halfSizeTiles.y) into.Add(u);
+            }
+        }
+
+        /// <summary>
+        /// <b>임의 각도로 돌아간 직사각형</b> 범위 안의 적을 모은다 (보스 스킬 — 2026-08-13 개정).
+        ///
+        /// <b>왜 필요했나</b> — 예전에는 조준을 상·하·좌·우 <b>4방향으로 잘라</b> 축 정렬 상자만
+        /// 썼다. 그래서 <b>대각선에만 적이 있으면 아무도 못 맞히는</b> 상황이 실제로 나왔다
+        /// (유저 리포트 2026-08-13: "4방향에 적이 없으면 대각선 방향 적을 못 때리니까 의도랑 안 맞음").
+        /// 이제 상자를 <b>조준 방향 그대로</b> 돌려서 360도 어느 각도로든 나간다.
+        ///
+        /// <b>계산</b> — 상자를 돌리는 대신 <b>대상을 스킬 좌표계로 옮겨</b> 검사한다:
+        /// <paramref name="forward"/> 방향 성분(앞뒤)과 그와 직각인 성분(좌우)을 내적으로 구하면
+        /// 회전 행렬을 만들 필요 없이 축 정렬 검사와 똑같이 비교할 수 있다.
+        ///
+        /// <paramref name="halfSizeTiles"/> 는 <b>스킬 좌표계 기준</b>이다:
+        /// x = <paramref name="forward"/> 로 뻗는 길이의 절반, y = 그와 직각인 두께의 절반.
+        /// </summary>
+        public static void CollectEnemiesInOrientedRect(Vector3 center, Vector2 halfSizeTiles,
+                                                        Vector2 forward, Faction myFaction,
+                                                        List<DamageableUnit> into)
+        {
+            into.Clear();
+            Faction enemy = myFaction.Opposite();
+
+            // 0 벡터가 들어오면 축 정렬(오른쪽)로 떨어진다 — 0 으로 나누지 않게.
+            Vector2 f = forward.sqrMagnitude > 0.000001f ? forward.normalized : Vector2.right;
+            var right = new Vector2(-f.y, f.x);      // f 를 +90도 돌린 것 = 두께 축
+
+            for (int i = 0; i < _units.Count; i++)
+            {
+                DamageableUnit u = _units[i];
+                if (u == null || !u.IsAlive || u.Faction != enemy) continue;
+
+                Vector2 d = (Vector2)(u.transform.position - center);
+                if (Mathf.Abs(Vector2.Dot(d, f)) > halfSizeTiles.x) continue;
+                if (Mathf.Abs(Vector2.Dot(d, right)) > halfSizeTiles.y) continue;
+
+                into.Add(u);
+            }
+        }
+
+        /// <summary>
+        /// <b>원형</b> 범위 안의 적을 모은다 (보스 스킬의 <c>Circle</c> 범위 타입).
+        /// <see cref="CollectAlliesInRadius"/> 의 적 버전이다 — 방향이라는 개념 자체가 없으므로
+        /// 조준이 어긋날 일이 없고, 그래서 "360도 어디에 있든 맞는다" 가 그대로 성립한다.
+        /// </summary>
+        public static void CollectEnemiesInRadius(Vector3 center, float radiusTiles, Faction myFaction,
+                                                  List<DamageableUnit> into)
+        {
+            into.Clear();
+            Faction enemy = myFaction.Opposite();
+            float maxSqr = radiusTiles * radiusTiles;
+
+            for (int i = 0; i < _units.Count; i++)
+            {
+                DamageableUnit u = _units[i];
+                if (u == null || !u.IsAlive || u.Faction != enemy) continue;
+                if (((Vector2)(u.transform.position - center)).sqrMagnitude > maxSqr) continue;
+
+                into.Add(u);
             }
         }
 

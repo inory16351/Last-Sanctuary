@@ -107,8 +107,16 @@ def read_sheet(path, sheet, first_row=4):
     return rows
 
 
-def patch_fields(path, changes, label):
-    """에셋 파일의 `  key: value` 줄만 치환한다. 없는 키는 조용히 건너뛴다(보고만 한다)."""
+def patch_fields(path, changes, label, add_missing=()):
+    """에셋 파일의 `  key: value` 줄만 치환한다. 없는 키는 조용히 건너뛴다(보고만 한다).
+
+    `add_missing` 에 넣은 키는 <b>없으면 파일 끝에 새로 만든다</b>. C# 에 필드를 새로
+    추가한 첫 실행에는 에셋 YAML 에 그 줄이 아예 없어서(이 파일들은 사람/스크립트가
+    쓴 것이라 Unity 가 기본값을 채워 넣어준 적이 없다) 그냥 두면 영원히 반영되지 않는다.
+
+    ⚠ .asset YAML 에 <b>빈 줄을 넣으면 Unity 가 그 뒤 필드를 전부 무시한다</b>(8절 3번) -
+      덧붙이기 전에 꼬리 빈 줄을 지운다(write_int_list 와 같은 규칙).
+    """
     if not os.path.exists(path):
         print('  ! 없는 파일:', path)
         return 0
@@ -116,17 +124,24 @@ def patch_fields(path, changes, label):
         text = f.read()
 
     hit = 0
+    appended = []
     for key, value in changes.items():
         pattern = re.compile(r'^(\s*%s:).*$' % re.escape(key), re.M)
         if not pattern.search(text):
-            print('  ! %s: 필드 %r 가 없습니다 (건너뜀)' % (label, key))
+            if key in add_missing:
+                text = text.rstrip('\n') + '\n  %s: %s\n' % (key, value)
+                appended.append(key)
+                hit += 1
+            else:
+                print('  ! %s: 필드 %r 가 없습니다 (건너뜀)' % (label, key))
             continue
         text, n = pattern.subn(lambda m: '%s %s' % (m.group(1), value), text, count=1)
         hit += n
 
     with open(path, 'w', encoding='utf-8', newline='\n') as f:
         f.write(text)
-    print('  %s: %d개 필드 갱신' % (label, hit))
+    print('  %s: %d개 필드 갱신%s'
+          % (label, hit, ' (신규 %s)' % ', '.join(appended) if appended else ''))
     return hit
 
 
@@ -244,9 +259,29 @@ def mspd_from_stat(s):
     return round(2.1 + 3.9 * s / (s + 50.0), 3)
 
 
+def boss_title_ids():
+    """칭호가 실제로 적혀 있는 몬스터 id 집합.
+
+    체력바에 칭호를 띄우려면 정의 에셋에 `titleKey` 가 있어야 한다(2026-08-13). 키는
+    id 로 조립하므로(`boss_title_<id>`) <b>칸에 뭐가 들어 있든</b> 상관없다 - 한국어
+    문구여도(중간보스) 이미 키로 바뀐 값이어도(최종보스) 똑같이 동작한다. 여기서는
+    "그 칸이 비어 있지 않은가" 만 본다.
+
+    ⚠ 칸이 비어 있으면 키를 안 넣는다 - 없는 키를 넣어두면 StringTable 조회가 매번
+      실패해 조용히 빈 문자열이 되고, 인스펙터만 보면 "칭호가 있는데 왜 안 뜨지"가 된다.
+    """
+    ids = set()
+    for sheet, col in (('wave_top_boss', 6), ('wave_mid_boss', 7)):
+        for row in read_sheet(XLSX_WAVE_MON, sheet):
+            if len(row) > col and row[col] not in (None, ''):
+                ids.add(int(num(row[0])))
+    return ids
+
+
 def sync_monsters():
     print('[웨이브 몬스터]')
     stats = {int(r[0]): r for r in read_sheet(XLSX_WAVE_MON, 'first_Stat')}
+    titled = boss_title_ids()
     folder = os.path.join(ASSETS, 'Data', 'Units')
     total = 0
 
@@ -259,13 +294,19 @@ def sync_monsters():
         melee, ranged = int(num(r[2])), int(num(r[3]))
         box_h = num(r[14]) if len(r) > 14 else 0     # collider_height_tiles
         box_w = num(r[15]) if len(r) > 15 else 0     # collider_width_tiles
-        total += patch_fields(os.path.join(folder, asset + '.asset'), {
+        changes = {
             'hpStat': int(num(r[1])),
             'attackStat': max(melee, ranged),      # atk_type 에 해당하는 칸만 채워져 있다
             'defenseStat': int(num(r[10])),
             'regenStat': int(num(r[11])),
             'hpPercent': int(num(r[13], 100)),
             'attacksPerSecond': aspd_from_stat(num(r[8])),
+            # ★ 이동속도도 표에서 온다 (2026-08-13). 예전에는 <b>중간보스만</b> 표를 따르고
+            #   잡몹·최종보스는 에셋에 손으로 적힌 값을 그대로 뒀다 - 그래서 최종보스에
+            #   공식과 무관한 1.4 가 박혀 있었고(잡몹 2.2), 보스가 자기 호위대보다 느렸다.
+            #   유저 지시 "보스 이동 속도 수정(증가) -> 너무 느림" 을 표에서 고칠 수 있게
+            #   여기로 끌어온다. 공식은 38-1절의 mspd_from_stat 하나뿐이다.
+            'moveSpeedTiles': mspd_from_stat(num(r[9])),
             # 콜라이더 상자 - 표가 정본이다(2026-08-13). 그림을 이 상자 안에 비율 유지로
             # 맞추고 콜라이더를 다시 그 그림 크기로 맞추는 것은 CharacterAnimator 가 한다.
             # 계산 결과를 에셋에 적어두지 않는 이유: 원화를 바꾸면 결과도 바뀌어야 한다.
@@ -274,7 +315,13 @@ def sync_monsters():
             # 세로 전용 폴백은 비운다 - 콜라이더 상자가 있으면 안 쓰이는데 값이 남아 있으면
             # 인스펙터에서 어느 쪽이 적용되는지 헷갈린다. 필드 자체는 지우지 않는다(U-D3).
             'renderHeightTiles': 0,
-        }, asset)
+        }
+        # 칭호 - 표에 칭호가 적힌 몬스터에만 키를 넣는다(위 boss_title_ids 주석).
+        if mid in titled:
+            changes['titleKey'] = 'boss_title_%d' % mid
+
+        total += patch_fields(os.path.join(folder, asset + '.asset'), changes, asset,
+                              add_missing=('titleKey',))
         report_collider_fit(mid, asset, box_w, box_h)
 
     # --- 중간보스 2종 신규 ---
@@ -298,6 +345,10 @@ def sync_monsters():
         body = HEADER.format(script_guid=SCRIPT_GUID_MONSTER, name=spec['asset'])
         body += "  nameKey: monster_name_%d\n" % mid
         body += "  displayName: %s\n" % spec['name']
+        # 칭호(2026-08-13) - 표 wave_mid_boss 의 boss_title 칸이 채워진 중간보스만.
+        # 체력바가 이 키로 스트링 테이블을 조회한다(BossHealthPanel.NameLine).
+        if mid in titled:
+            body += "  titleKey: boss_title_%d\n" % mid
         body += "  tier: 1\n"                       # MonsterTier.MidBoss
         body += "  template: {fileID: 0}\n"         # 스포너 슬롯이 지정한다 (위 ⚠ 참조)
         body += "  hpStat: %d\n" % int(num(r[1]))
@@ -373,6 +424,12 @@ def sync_boss_skills():
         # 침식량이 다르기 때문. 표에 컬럼이 없던 시절 에셋에는 0(자동 폴백)으로 채워진다.
         body += '  value04: %s\n' % (num(row[9]) if len(row) > 9 else 0)
         body += '  coolTime: %s\n' % num(row[6])
+        # cast_time(K) · range_type(L) - 2026-08-13 신설 컬럼.
+        #   cast_time  : 이 스킬의 연출 길이(초). 0 이면 BossSkillCaster 의 전역 기본값.
+        #                유저 지시로 "공허의 광선은 가시성을 위해 더 길게" 를 표에서 준다.
+        #   range_type : 범위 모양. 비어 있으면 Line(직사각형, 조준 방향 자유각).
+        body += '  castSeconds: %s\n' % (num(row[10]) if len(row) > 10 else 0)
+        body += '  rangeType: %s\n' % ((row[11] or '') if len(row) > 11 else '')
 
         path = os.path.join(folder, name + '.asset')
         with open(path, 'w', encoding='utf-8', newline='\n') as f:
@@ -383,9 +440,11 @@ def sync_boss_skills():
                 f.write(ASSET_META.format(guid=guid_for(rel)))
 
         made.append(sid)
-        print('  %s: %s · %s x %s 타일 · 공격력 %s%% · 침식 +%s · 쿨 %s초'
-              % (name, row[2], num(row[3]), num(row[4]), num(row[5]),
-                 num(row[9]) if len(row) > 9 else 0, num(row[6])))
+        print('  %s: %s · %s x %s 타일(%s) · 공격력 %s%% · 침식 +%s · 쿨 %s초 · 시전 %s초'
+              % (name, row[2], num(row[3]), num(row[4]),
+                 (row[11] if len(row) > 11 and row[11] else 'Line'), num(row[5]),
+                 num(row[9]) if len(row) > 9 else 0, num(row[6]),
+                 num(row[10]) if len(row) > 10 else '기본값'))
 
     # 최종보스 시트의 boss_skill_1~3 을 그 보스의 정의 에셋으로 옮긴다.
     # 표에 없는 몬스터(잡몹·중간보스)는 스킬 칸 자체가 없으므로 건드리지 않는다.
@@ -520,6 +579,9 @@ def sync_waves():
         out.append('    statPercent: %d' % round(float(num(r[5])) * 100))
         out.append('    reinforceIntervalSeconds: %s' % ri)
         out.append('    reinforceCount: %s' % rc)
+        # spawn_group_size(H) - 2026-08-13 신설. 포탈 한 곳에서 한 번에 나오는 마리 수.
+        # 0/1 이면 예전처럼 한 마리씩 나온다(동작 불변).
+        out.append('    spawnGroupSize: %d' % int(num(r[7], 1)))
 
     head = text[:text.index('  waves:')]
     with open(path, 'w', encoding='utf-8', newline='\n') as f:

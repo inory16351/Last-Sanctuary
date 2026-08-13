@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier:
   nameKey: monster_name_110001
   displayName: 혈인
+  titleKey: boss_title_110001
   tier: 1
   template: {fileID: 0}
   hpStat: 11
