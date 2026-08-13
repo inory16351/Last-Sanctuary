@@ -102,54 +102,110 @@ namespace LastSanctuary.Combat
         }
 
         // ------------------------------------------------------------------
-        // 크기 — <b>타일 기준</b> (유저 확정 2026-08-13)
+        // 크기 — <b>콜라이더 상자(타일)를 받아 그 안에 그림을 맞춘다</b> (유저 확정 2026-08-13)
         //
-        // 예전에는 "원화를 몇 배로 그릴지"(배율)를 적었고, 그 배율은 원화의 픽셀 크기와 PPU 를
-        // 보고 손으로 고른 값이었다. 그래서 <b>원화만 바꿔도 게임 안 크기가 흔들렸고</b>
-        // (피올로는 PPU 를 60→21 로 고쳐야 했고, 보스는 0.75 배율 때문에 잡몹보다 작아졌다),
-        // "이 유닛이 몇 타일짜리인가"를 어디에서도 읽을 수 없었다.
+        // <b>흐름</b>: 표에 콜라이더 크기를 대충 적는다(2.5 x 1.9 처럼 한 자리 소수)
+        //   → 그 상자 <b>안에 들어가는 최대 배율</b>을 비율 유지로 계산한다
+        //   → 그림을 그 크기로 그린다
+        //   → <b>콜라이더를 그 그림 크기로 다시 맞춘다</b>(<see cref="ColliderSizeTiles"/>)
+        // 그래서 최종적으로 <b>보이는 몸집 = 판정 몸집</b>이 되고, 표에는 사람이 외우기 쉬운
+        // 값만 적으면 된다. 한 축은 표 값과 정확히 같고, 다른 축은 비율 때문에 조금 작아진다.
         //
-        // 이제는 <b>목표 크기를 타일로 적고</b> 배율은 코드가 계산한다:
-        //     배율 = 목표 세로(타일) ÷ 스킨 실측 세로(타일)
+        // <b>왜 "안에 들어가게"(contain) 인가</b> — 상자를 넘치게(cover) 맞추면 그림이 판정
+        // 밖으로 삐져나가 "허공을 때리는" 것처럼 보인다. 유저 지시도 "해당 콜라이더 범위
+        // 내에서 최대한 유사한 크기"다.
+        //
+        // <b>왜 균등 배율인가</b> — 가로·세로를 따로 늘리면 원화가 찌그러진다. 60절에서 실제로
+        // 그렇게 해서 보스가 납작해졌고, 61절이 그걸 고쳤다. 배율은 언제나 한 값이다.
+        //
         // 실측값(<see cref="CharacterSkinSO.contentSizeTiles"/>)은 원화의 알파 경계를 잰 것이라
-        // PPU·캔버스 여백과 무관하다. <b>비율은 균등 배율이라 절대 안 깨진다.</b>
+        // PPU·캔버스 여백과 무관하다 — 그래서 원화를 바꿔도 게임 안 크기가 안 흔들린다.
         // ------------------------------------------------------------------
 
-        [Header("크기 (타일 기준)")]
-        [Tooltip("화면에 보이는 <b>세로</b> 크기(타일). 가로는 원화 비율대로 따라온다.\n" +
-                 "0 이면 크기를 건드리지 않는다(원화 PPU 그대로).\n" +
-                 "몬스터는 스폰할 때 정의 테이블(MonsterDefinitionSO.renderHeightTiles)이 덮어쓴다")]
+        [Header("크기 (콜라이더 상자, 타일)")]
+        [Tooltip("콜라이더 <b>가로</b>(타일). 세로와 함께 0 보다 크면 이 상자 안에 그림을 맞춘다.\n" +
+                 "몬스터는 스폰할 때 정의 테이블(colliderWidthTiles)이 덮어쓴다")]
+        [Min(0f)] [SerializeField] float colliderWidthTiles = 0f;
+
+        [Tooltip("콜라이더 <b>세로</b>(타일). 가로와 함께 0 보다 크면 이 상자 안에 그림을 맞춘다")]
+        [Min(0f)] [SerializeField] float colliderHeightTiles = 0f;
+
+        [Tooltip("⚠ 콜라이더 상자를 안 쓸 때의 <b>세로 전용</b> 폴백(타일). 가로는 원화 비율대로 " +
+                 "따라온다. 캐릭터가 이 경로를 쓴다(전원 같은 키라 상자가 필요 없다).\n" +
+                 "0 이면 크기를 건드리지 않는다(원화 PPU 그대로)")]
         [Min(0f)] [SerializeField] float renderHeightTiles = 0f;
 
         /// <summary>지금 목표로 삼은 세로 크기(타일). 0 이면 크기 보정을 하지 않는다.</summary>
         public float RenderHeightTiles => renderHeightTiles;
 
-        /// <summary>
-        /// 화면에 실제로 보이는 크기(타일). 발판·근접 거리 판정이 이 값을 읽는다 —
-        /// 그래야 "보이는 몸집"과 "때릴 수 있는 거리"가 어긋나지 않는다.
-        /// 크기 보정을 안 하는 경우(0)에는 스킨 실측값을 그대로 돌려준다.
-        /// </summary>
-        public Vector2 RenderedSizeTiles =>
-            _skin == null ? Vector2.zero
-                          : renderHeightTiles > 0f ? _skin.RenderedSizeTiles(renderHeightTiles)
-                                                   : _skin.contentSizeTiles;
+        /// <summary>표에서 받은 콜라이더 <b>희망</b> 크기(타일). 실제 판정 크기는 <see cref="ColliderSizeTiles"/>.</summary>
+        public Vector2 RequestedColliderTiles => new Vector2(colliderWidthTiles, colliderHeightTiles);
 
         /// <summary>
-        /// 목표 세로 크기(타일)를 지정한다. 스포너가 정의 테이블 값을 넣는다 —
+        /// 화면에 실제로 보이는 크기(타일). 근접 거리·선택 판정이 이 값을 읽는다 —
+        /// 그래야 "보이는 몸집"과 "때릴 수 있는 거리"가 어긋나지 않는다.
+        /// 크기 보정을 안 하는 경우에는 스킨 실측값을 그대로 돌려준다.
+        /// </summary>
+        public Vector2 RenderedSizeTiles
+        {
+            get
+            {
+                if (_skin == null) return Vector2.zero;
+                float s = ResolveScale();
+                return s > 0f ? _skin.contentSizeTiles * s : _skin.contentSizeTiles;
+            }
+        }
+
+        /// <summary>
+        /// <b>그림에 다시 맞춘 콜라이더 크기(타일).</b> 표에 적은 희망 크기가 아니라
+        /// <b>실제로 그려진 크기</b>다 — 유저 지시의 마지막 단계("해당 값에 맞춰 콜라이더 재설정").
+        /// 지금 구조에서 이 값을 읽는 곳이 곧 콜라이더 역할을 한다
+        /// (<see cref="LastSanctuary.Units.MonsterUnit.BodyRadiusTiles"/> → <c>UnitCombat.TargetRadius</c>).
+        /// </summary>
+        public Vector2 ColliderSizeTiles => RenderedSizeTiles;
+
+        /// <summary>
+        /// 콜라이더 상자(타일)를 지정한다. 스포너가 정의 테이블 값을 넣는다 —
         /// 같은 템플릿·같은 스킨을 쓰는 중간보스가 잡몹보다 크게 나오는 것도 이 한 줄로 된다.
         /// </summary>
+        public void SetColliderBoxTiles(float widthTiles, float heightTiles)
+        {
+            colliderWidthTiles = Mathf.Max(0f, widthTiles);
+            colliderHeightTiles = Mathf.Max(0f, heightTiles);
+            ApplyRenderSize();
+        }
+
+        /// <summary>세로 전용 폴백 경로(캐릭터용). 콜라이더 상자를 쓰면 이 값은 무시된다.</summary>
         public void SetRenderHeightTiles(float tiles)
         {
             renderHeightTiles = Mathf.Max(0f, tiles);
             ApplyRenderSize();
         }
 
-        /// <summary>목표 타일 크기에 맞춰 <b>균등</b> 스케일을 건다.</summary>
+        /// <summary>
+        /// 지금 걸어야 할 <b>균등</b> 배율. 0 이면 "크기를 건드리지 않는다".
+        /// 콜라이더 상자가 있으면 <b>그 안에 들어가는 최대 배율</b>(contain), 없으면 세로 폴백.
+        /// </summary>
+        float ResolveScale()
+        {
+            if (_skin == null) return 0f;
+
+            Vector2 art = _skin.contentSizeTiles;
+            if (art.x <= 0.0001f || art.y <= 0.0001f) return 0f;
+
+            if (colliderWidthTiles > 0f && colliderHeightTiles > 0f)
+                return Mathf.Min(colliderWidthTiles / art.x, colliderHeightTiles / art.y);
+
+            return renderHeightTiles > 0f ? renderHeightTiles / art.y : 0f;
+        }
+
+        /// <summary>계산한 배율을 <b>균등</b>하게 건다(비율이 절대 안 깨진다).</summary>
         void ApplyRenderSize()
         {
-            if (_skin == null || renderHeightTiles <= 0f) return;
+            if (_skin == null) return;
+            if (colliderWidthTiles <= 0f && colliderHeightTiles <= 0f && renderHeightTiles <= 0f) return;
 
-            if (_skin.contentSizeTiles.y <= 0.0001f)
+            if (_skin.contentSizeTiles.x <= 0.0001f || _skin.contentSizeTiles.y <= 0.0001f)
             {
                 // 실측값이 없는 스킨 — 배율을 계산할 수 없으므로 크기를 건드리지 않는다.
                 // (스케일 0 이 되어 유닛이 사라지는 것보다 원래 크기로 두는 편이 안전하다)
@@ -158,8 +214,8 @@ namespace LastSanctuary.Combat
                 return;
             }
 
-            float s = _skin.ScaleForHeightTiles(renderHeightTiles);
-            transform.localScale = new Vector3(s, s, 1f);
+            float s = ResolveScale();
+            if (s > 0f) transform.localScale = new Vector3(s, s, 1f);
         }
 
         void Update()

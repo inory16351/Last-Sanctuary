@@ -30,4 +30,5 @@ MonoBehaviour:
   bodyWidthTiles: 2
   bodyHeightTiles: 2
   spriteScale: 2
-  renderHeightTiles: 3
+  colliderWidthTiles: 4.1
+  colliderHeightTiles: 3

@@ -27,12 +27,16 @@ namespace LastSanctuary.Units
 
         /// <summary>
         /// 몸집 반경(타일) — <b>근거리 유닛이 어디까지 다가가야 때릴 수 있는지</b>.
-        /// 가로·세로 중 작은 쪽의 절반을 쓴다: 큰 쪽을 쓰면 몸 옆구리에서
-        /// 사거리 안으로 판정돼 <b>공중에서 때리는</b> 것처럼 보인다.
+        /// 이 프로젝트의 유닛에는 <c>Collider2D</c> 가 없으므로(준수사항 U-D9) <b>이 값이 곧
+        /// 콜라이더</b>다. <c>UnitCombat.TargetRadius</c> 가 이걸 읽는다.
         ///
-        /// <b>화면에 실제로 보이는 크기를 기준으로 한다</b>(유저 확정 2026-08-13) —
-        /// 발판 숫자를 따로 관리하면 그림이 커져도 근접 유닛이 몸 안으로 파고든다.
-        /// 스킨이 없어 보이는 크기를 알 수 없을 때만 정의의 발판 칸 수로 떨어진다.
+        /// <b>그림에 다시 맞춘 콜라이더를 쓴다</b>(유저 확정 2026-08-13) — 표에 적은 희망
+        /// 크기가 아니라 <b>실제로 그려진 크기</b>(<c>CharacterAnimator.ColliderSizeTiles</c>)다.
+        /// 표 값을 그대로 쓰면 비율 때문에 그림이 상자보다 작을 때 근접 유닛이 허공을 때린다.
+        ///
+        /// 가로·세로 중 <b>작은 쪽</b>의 절반을 쓴다: 큰 쪽을 쓰면 몸 옆구리에서 사거리 안으로
+        /// 판정돼 공중에서 때리는 것처럼 보인다.
+        /// 스킨이 없어 그림 크기를 알 수 없을 때만 정의의 발판 칸 수로 떨어지고,
         /// 둘 다 없으면 0 — <c>UnitCombat</c> 의 기존 기본값(0.4)이 그대로 쓰인다.
         /// </summary>
         public float BodyRadiusTiles
@@ -42,14 +46,27 @@ namespace LastSanctuary.Units
                 if (_animator == null) _animator = GetComponent<Combat.CharacterAnimator>();
                 if (_animator != null)
                 {
-                    Vector2 seen = _animator.RenderedSizeTiles;
-                    if (seen.x > 0.01f && seen.y > 0.01f)
-                        return Mathf.Min(seen.x, seen.y) * 0.5f;
+                    Vector2 box = _animator.ColliderSizeTiles;
+                    if (box.x > 0.01f && box.y > 0.01f)
+                        return Mathf.Min(box.x, box.y) * 0.5f;
                 }
 
                 return definition == null
                     ? 0f
                     : Mathf.Max(0f, Mathf.Min(definition.BodyWidth, definition.BodyHeight) * 0.5f);
+            }
+        }
+
+        /// <summary>
+        /// 그림에 다시 맞춘 콜라이더 크기(타일, 가로·세로). 디버그·UI 표시용 —
+        /// 전투 판정은 위 <see cref="BodyRadiusTiles"/> 하나만 쓴다(반경 기준이라 한 값이면 된다).
+        /// </summary>
+        public Vector2 ColliderSizeTiles
+        {
+            get
+            {
+                if (_animator == null) _animator = GetComponent<Combat.CharacterAnimator>();
+                return _animator != null ? _animator.ColliderSizeTiles : Vector2.zero;
             }
         }
 

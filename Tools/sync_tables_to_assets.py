@@ -202,23 +202,23 @@ def skin_content_tiles(skin_rel_path):
     return (float(m.group(1)), float(m.group(2))) if m else None
 
 
-def check_render_width(mid, height_tiles, table_width):
+def report_collider_fit(mid, name, box_w, box_h):
     """
-    표의 세로·가로 두 칸이 서로 어긋나지 않는지 검산한다.
+    표의 콜라이더 상자에 그림을 맞추면 실제로 어떤 크기가 나오는지 보여준다(계산만, 기록 안 함).
 
-    ⚠ **가로는 게임에 적용하지 않는다** - `CharacterAnimator` 는 세로 하나로 균등 배율을
-      계산하고 가로는 원화 비율대로 저절로 따라온다(61절, 비율이 안 깨지는 이유가 그것이다).
-      표의 가로 칸은 순수하게 "사람이 표만 보고도 두 크기를 알 수 있게" 하려는 참고용 기록이다 -
-      그래서 실제 계산값과 다르면 표를 잘못 채운 것이니 경고만 하고 진행한다(값을 강제하지 않는다).
+    게임에서 벌어지는 일과 **같은 계산**이다(`CharacterAnimator.ResolveScale`):
+      배율 = min(상자가로 / 원화가로, 상자세로 / 원화세로)   ← 상자 안에 들어가는 최대(contain)
+    그 배율로 그린 크기가 곧 **재설정된 콜라이더**다. 표 값과 한 축은 같고 다른 축은 조금 작다.
+
+    ⚠ 이 값을 에셋에 적어두지 않는다 - 원화(스킨)를 바꾸면 결과도 같이 바뀌어야 하므로
+      **런타임에 계산**하는 것이 정본이다. 여기서는 유저가 표를 채울 때 참고하도록 찍어만 준다.
     """
-    skin = SKIN_FOR_MONSTER.get(mid)
-    content = skin_content_tiles(skin) if skin else None
-    if content is None or content[1] <= 0:
+    art = skin_content_tiles(SKIN_FOR_MONSTER.get(mid, ''))
+    if art is None or art[0] <= 0 or art[1] <= 0 or box_w <= 0 or box_h <= 0:
         return
-    expected = content[0] * (height_tiles / content[1])
-    if table_width and abs(expected - table_width) / expected > 0.03:
-        print('  ! id %d: 표의 가로(%.3f) 가 실제 계산값(%.3f) 과 다릅니다 - 표를 확인할 것'
-              % (mid, table_width, expected))
+    s = min(box_w / art[0], box_h / art[1])
+    print('    %s 콜라이더 표 %.1f x %.1f -> 실제 %.2f x %.2f (원화 비율 %.2f:1)'
+          % (name, box_w, box_h, art[0] * s, art[1] * s, art[0] / art[1]))
 
 # 능력치 → 공속/이속 치환은 게임이 인스펙터 값을 그대로 쓰므로(몬스터는 StatMoveSpeedTiles 0)
 # 표의 공속·이속 스탯을 38-1절 공식으로 미리 풀어서 넣는다.
@@ -243,7 +243,8 @@ def sync_monsters():
             print('  ! 표에 id %d 가 없습니다' % mid)
             continue
         melee, ranged = int(num(r[2])), int(num(r[3]))
-        height = num(r[14]) if len(r) > 14 else 0
+        box_h = num(r[14]) if len(r) > 14 else 0     # collider_height_tiles
+        box_w = num(r[15]) if len(r) > 15 else 0     # collider_width_tiles
         total += patch_fields(os.path.join(folder, asset + '.asset'), {
             'hpStat': int(num(r[1])),
             'attackStat': max(melee, ranged),      # atk_type 에 해당하는 칸만 채워져 있다
@@ -251,13 +252,16 @@ def sync_monsters():
             'regenStat': int(num(r[11])),
             'hpPercent': int(num(r[13], 100)),
             'attacksPerSecond': aspd_from_stat(num(r[8])),
-            # 크기 - 표의 render_height_tiles 칸(2026-08-13). renderHeightTiles 가 정본이고
-            # 배율은 CharacterAnimator 가 계산한다(61절) - 몬스터가 바뀔 때마다 이 스크립트를
-            # 다시 돌리기만 하면 되고, 스크립트·에셋에 크기를 손으로 적어둘 필요가 없다.
-            'renderHeightTiles': height,
+            # 콜라이더 상자 - 표가 정본이다(2026-08-13). 그림을 이 상자 안에 비율 유지로
+            # 맞추고 콜라이더를 다시 그 그림 크기로 맞추는 것은 CharacterAnimator 가 한다.
+            # 계산 결과를 에셋에 적어두지 않는 이유: 원화를 바꾸면 결과도 바뀌어야 한다.
+            'colliderWidthTiles': box_w,
+            'colliderHeightTiles': box_h,
+            # 세로 전용 폴백은 비운다 - 콜라이더 상자가 있으면 안 쓰이는데 값이 남아 있으면
+            # 인스펙터에서 어느 쪽이 적용되는지 헷갈린다. 필드 자체는 지우지 않는다(U-D3).
+            'renderHeightTiles': 0,
         }, asset)
-        if height > 0 and len(r) > 15:
-            check_render_width(mid, height, num(r[15]))
+        report_collider_fit(mid, asset, box_w, box_h)
 
     # --- 중간보스 2종 신규 ---
     for mid, spec in MID_BOSS.items():
@@ -293,16 +297,18 @@ def sync_monsters():
         body += "  attacksPerSecond: %s\n" % aspd_from_stat(num(r[8]))
         body += "  moveSpeedTiles: %s\n" % mspd_from_stat(num(r[9]))
         body += "  footprintTiles: %s\n" % inherited('footprintTiles', '1')
-        # 크기 - <b>표의 render_height_tiles 칸에서 온다</b>(2026-08-13, 진행상황 64절).
-        # ⚠ 예전에는 이 값(3)을 이 스크립트 안 MID_BOSS 딕셔너리에 리터럴로 박아뒀다 -
+        # 콜라이더 상자 - <b>표의 collider_width/height_tiles 칸에서 온다</b>(2026-08-13, 65절).
+        # ⚠ 한때 이 값을 이 스크립트 안 MID_BOSS 딕셔너리에 리터럴로 박아뒀었다 -
         #   "값을 손으로 옮겨 적지 않는다"는 이 파일 맨 위 원칙을 정확히 어긴 것이었다.
-        #   표에 render_height_tiles 컬럼이 생겨서 다른 몬스터와 똑같이 읽어올 수 있다.
+        #   표에 컬럼이 생겨서 다른 몬스터와 똑같이 읽어온다.
         # bodyWidth/Height·spriteScale 은 스킨이 없을 때만 쓰는 폴백이라 그대로 둔다.
-        height = num(r[14], 3) if len(r) > 14 else 3
+        box_h = num(r[14], 3) if len(r) > 14 else 3
+        box_w = num(r[15], 0) if len(r) > 15 else 0
         body += "  bodyWidthTiles: 2\n"
         body += "  bodyHeightTiles: 2\n"
         body += "  spriteScale: 2\n"
-        body += "  renderHeightTiles: %s\n" % height
+        body += "  colliderWidthTiles: %s\n" % box_w
+        body += "  colliderHeightTiles: %s\n" % box_h
 
         with open(path, 'w', encoding='utf-8', newline='\n') as f:
             f.write(body)
@@ -310,8 +316,7 @@ def sync_monsters():
         if not os.path.exists(mp):
             with open(mp, 'w', encoding='utf-8', newline='\n') as f:
                 f.write(ASSET_META.format(guid=guid_for(rel)))
-        if len(r) > 15:
-            check_render_width(mid, height, num(r[15]))
+        report_collider_fit(mid, spec['asset'], box_w, box_h)
         print('  %s 생성 (id %d, HP스탯 %s, 보정 %s%%)'
               % (spec['asset'], mid, int(num(r[1])), int(num(r[13], 100))))
         total += 1

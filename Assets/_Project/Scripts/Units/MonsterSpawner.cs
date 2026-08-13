@@ -555,14 +555,18 @@ namespace LastSanctuary.Units
             StatBlock scaled = def.BuildStats(hpScale, atkScale, balance.statMax);
             unit.Initialize(def, scaled, balance);
 
-            // 크기 보정 — <b>기준은 타일</b>이다(유저 확정 2026-08-13).
-            // 정의 테이블에 "몇 타일로 보일지"만 적혀 있고, 배율은 애니메이터가 스킨 실측값으로
-            // 계산한다. 그래서 <b>같은 템플릿·같은 스킨을 쓰는 중간보스도 이 한 줄로 커진다</b>
-            // (중간보스는 잡몹 템플릿을 폴백으로 쓴다 — ResolveMidBossTemplate 참조).
+            // 크기 보정 — <b>표의 콜라이더 상자(타일)</b>를 넘긴다(유저 확정 2026-08-13).
+            // 애니메이터가 그 상자 안에 비율을 유지한 최대 크기로 그림을 맞추고, 콜라이더를
+            // 다시 그 그림 크기로 맞춘다. 그래서 <b>같은 템플릿·같은 스킨을 쓰는 중간보스도
+            // 이 한 줄로 커진다</b>(중간보스는 잡몹 템플릿을 폴백으로 쓴다 — ResolveMidBossTemplate).
             var anim = unit.GetComponent<Combat.CharacterAnimator>();
-            if (def.RenderHeightTiles > 0f && anim != null)
+            if (anim != null && def.HasColliderBox)
             {
-                anim.SetRenderHeightTiles(def.RenderHeightTiles);
+                anim.SetColliderBoxTiles(def.colliderWidthTiles, def.colliderHeightTiles);
+            }
+            else if (anim != null && def.RenderHeightTiles > 0f)
+            {
+                anim.SetRenderHeightTiles(def.RenderHeightTiles);   // 세로 전용 폴백
             }
             else
             {

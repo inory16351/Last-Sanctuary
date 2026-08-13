@@ -101,13 +101,38 @@ namespace LastSanctuary.Units
         // 아래 bodyWidthTiles/bodyHeightTiles 는 <b>스킨이 없는 유닛의 폴백</b>으로만 남는다.
         // ------------------------------------------------------------------
 
-        [Tooltip("화면에 보이는 <b>세로</b> 크기(타일). 가로는 원화 비율대로 따라온다.\n" +
-                 "0 이면 구식 spriteScale 을 쓴다.\n" +
-                 "단탈리온 5 (가로 7.1) · 중간보스 3 · 잡몹 1.7~1.9")]
+        [Tooltip("⚠ 세로 전용 폴백(타일). 아래 콜라이더 상자가 비어 있을 때만 쓰인다.\n" +
+                 "0 이면 구식 spriteScale 로 떨어진다")]
         [Min(0f)] public float renderHeightTiles;
 
         /// <summary>목표 세로 크기(타일). 0 이면 구식 배율 경로로 떨어진다.</summary>
         public float RenderHeightTiles => renderHeightTiles;
+
+        // ------------------------------------------------------------------
+        // 콜라이더 상자 — <b>표에 적는 값은 이것 하나뿐이다</b> (유저 확정 2026-08-13)
+        //
+        // 표에 콜라이더 크기를 대충 적으면(2.5 x 1.9 처럼 한 자리 소수),
+        //   ① 그 상자 <b>안에 들어가는 최대 배율</b>을 비율 유지로 계산해
+        //   ② 그림을 그리고
+        //   ③ <b>콜라이더를 그 그림 크기로 다시 맞춘다.</b>
+        // 계산·재설정은 <see cref="LastSanctuary.Combat.CharacterAnimator"/> 가 한다.
+        //
+        // ⚠ 여기 적은 값이 곧 최종 판정 크기는 아니다 — 비율 때문에 한 축은 조금 작아진다.
+        //   최종 판정 크기는 <c>CharacterAnimator.ColliderSizeTiles</c> 이고,
+        //   <see cref="MonsterUnit.BodyRadiusTiles"/> 가 그걸 읽는다.
+        // ------------------------------------------------------------------
+
+        [Header("콜라이더 (타일) — 표의 collider_width/height_tiles")]
+        [Tooltip("콜라이더 가로(타일). 세로와 함께 0 보다 커야 이 경로가 쓰인다.\n" +
+                 "그림은 이 상자 안에서 비율을 유지한 최대 크기로 그려지고, " +
+                 "콜라이더는 그 그림 크기로 다시 맞춰진다")]
+        [Min(0f)] public float colliderWidthTiles;
+
+        [Tooltip("콜라이더 세로(타일)")]
+        [Min(0f)] public float colliderHeightTiles;
+
+        /// <summary>콜라이더 상자를 쓸 수 있는지 (가로·세로 둘 다 적혀 있는지).</summary>
+        public bool HasColliderBox => colliderWidthTiles > 0f && colliderHeightTiles > 0f;
 
         /// <summary>발판 가로(칸). 안 정했으면 <see cref="footprintTiles"/> 정사각.</summary>
         public int BodyWidth => bodyWidthTiles > 0 ? bodyWidthTiles : Mathf.Max(1, footprintTiles);
