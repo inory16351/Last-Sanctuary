@@ -176,9 +176,49 @@ MONSTER_ASSET_BY_ID = {
 #   중간보스가 잡몹으로 보인다. 표에 영어 이름 컬럼이 아예 없어서 그랬던 것이라
 #   컬럼을 만들고(BloodMark · VoidWhisper) 그 값으로 개명했다.
 MID_BOSS = {
-    110001: dict(asset='Monster_MidBoss_BloodMark', name='혈인', inherit='Monster_HellFang', render_h=3),
-    110002: dict(asset='Monster_MidBoss_VoidWhisper', name='공허의 속삭임', inherit='Monster_SoulArcher', render_h=3),
+    110001: dict(asset='Monster_MidBoss_BloodMark', name='혈인', inherit='Monster_HellFang'),
+    110002: dict(asset='Monster_MidBoss_VoidWhisper', name='공허의 속삭임', inherit='Monster_SoulArcher'),
 }
+
+# 크기 검산용 - 이 몬스터가 실제로 쓰는 스킨(원화). renderHeightTiles(표) 로 스케일을
+# 잡았을 때 나오는 가로가 표의 render_width_tiles 와 맞는지 확인하는 데만 쓴다(아래 참조).
+# 중간보스는 전용 원화가 없어 잡몹 스킨을 그대로 쓴다(63절) - 그래서 같은 경로다.
+SKIN_FOR_MONSTER = {
+    100001: 'MonsterSkins/HellFang/Skin_HellFang',
+    100002: 'MonsterSkins/SoulArcher/Skin_SoulArcher',
+    120001: 'MonsterSkins/Dantalian/Skin_Dantalian',
+    110001: 'MonsterSkins/HellFang/Skin_HellFang',
+    110002: 'MonsterSkins/SoulArcher/Skin_SoulArcher',
+}
+
+
+def skin_content_tiles(skin_rel_path):
+    """스킨 에셋의 `contentSizeTiles`(measure_skin_tiles.py 가 알파 경계로 실측해 적어둔 값)."""
+    path = os.path.join(ASSETS, 'Resources', skin_rel_path + '.asset')
+    if not os.path.exists(path):
+        return None
+    with open(path, encoding='utf-8') as f:
+        m = re.search(r'contentSizeTiles:\s*\{x:\s*([0-9.]+),\s*y:\s*([0-9.]+)\}', f.read())
+    return (float(m.group(1)), float(m.group(2))) if m else None
+
+
+def check_render_width(mid, height_tiles, table_width):
+    """
+    표의 세로·가로 두 칸이 서로 어긋나지 않는지 검산한다.
+
+    ⚠ **가로는 게임에 적용하지 않는다** - `CharacterAnimator` 는 세로 하나로 균등 배율을
+      계산하고 가로는 원화 비율대로 저절로 따라온다(61절, 비율이 안 깨지는 이유가 그것이다).
+      표의 가로 칸은 순수하게 "사람이 표만 보고도 두 크기를 알 수 있게" 하려는 참고용 기록이다 -
+      그래서 실제 계산값과 다르면 표를 잘못 채운 것이니 경고만 하고 진행한다(값을 강제하지 않는다).
+    """
+    skin = SKIN_FOR_MONSTER.get(mid)
+    content = skin_content_tiles(skin) if skin else None
+    if content is None or content[1] <= 0:
+        return
+    expected = content[0] * (height_tiles / content[1])
+    if table_width and abs(expected - table_width) / expected > 0.03:
+        print('  ! id %d: 표의 가로(%.3f) 가 실제 계산값(%.3f) 과 다릅니다 - 표를 확인할 것'
+              % (mid, table_width, expected))
 
 # 능력치 → 공속/이속 치환은 게임이 인스펙터 값을 그대로 쓰므로(몬스터는 StatMoveSpeedTiles 0)
 # 표의 공속·이속 스탯을 38-1절 공식으로 미리 풀어서 넣는다.
@@ -203,6 +243,7 @@ def sync_monsters():
             print('  ! 표에 id %d 가 없습니다' % mid)
             continue
         melee, ranged = int(num(r[2])), int(num(r[3]))
+        height = num(r[14]) if len(r) > 14 else 0
         total += patch_fields(os.path.join(folder, asset + '.asset'), {
             'hpStat': int(num(r[1])),
             'attackStat': max(melee, ranged),      # atk_type 에 해당하는 칸만 채워져 있다
@@ -210,7 +251,13 @@ def sync_monsters():
             'regenStat': int(num(r[11])),
             'hpPercent': int(num(r[13], 100)),
             'attacksPerSecond': aspd_from_stat(num(r[8])),
+            # 크기 - 표의 render_height_tiles 칸(2026-08-13). renderHeightTiles 가 정본이고
+            # 배율은 CharacterAnimator 가 계산한다(61절) - 몬스터가 바뀔 때마다 이 스크립트를
+            # 다시 돌리기만 하면 되고, 스크립트·에셋에 크기를 손으로 적어둘 필요가 없다.
+            'renderHeightTiles': height,
         }, asset)
+        if height > 0 and len(r) > 15:
+            check_render_width(mid, height, num(r[15]))
 
     # --- 중간보스 2종 신규 ---
     for mid, spec in MID_BOSS.items():
@@ -246,16 +293,16 @@ def sync_monsters():
         body += "  attacksPerSecond: %s\n" % aspd_from_stat(num(r[8]))
         body += "  moveSpeedTiles: %s\n" % mspd_from_stat(num(r[9]))
         body += "  footprintTiles: %s\n" % inherited('footprintTiles', '1')
-        # 크기 - <b>기준은 타일</b>이다(유저 확정 2026-08-13, 진행상황 61절).
-        # 예전 값(spriteScale 2 = "잡몹 스킨의 2배")은 원화 픽셀에 매인 배율이라
-        # 스킨이 바뀌면 크기가 같이 흔들렸다. 이제 "몇 타일로 보일지"만 적는다.
-        # bodyWidth/Height·spriteScale 은 스킨이 없는 경우의 폴백으로만 남는다.
-        # ⚠ 이 블록이 없으면 이 스크립트를 다시 돌릴 때마다 크기가 초기화된다
-        #   (중간보스 에셋은 갱신이 아니라 전체 재작성이다).
+        # 크기 - <b>표의 render_height_tiles 칸에서 온다</b>(2026-08-13, 진행상황 64절).
+        # ⚠ 예전에는 이 값(3)을 이 스크립트 안 MID_BOSS 딕셔너리에 리터럴로 박아뒀다 -
+        #   "값을 손으로 옮겨 적지 않는다"는 이 파일 맨 위 원칙을 정확히 어긴 것이었다.
+        #   표에 render_height_tiles 컬럼이 생겨서 다른 몬스터와 똑같이 읽어올 수 있다.
+        # bodyWidth/Height·spriteScale 은 스킨이 없을 때만 쓰는 폴백이라 그대로 둔다.
+        height = num(r[14], 3) if len(r) > 14 else 3
         body += "  bodyWidthTiles: 2\n"
         body += "  bodyHeightTiles: 2\n"
         body += "  spriteScale: 2\n"
-        body += "  renderHeightTiles: %s\n" % spec.get('render_h', 3)
+        body += "  renderHeightTiles: %s\n" % height
 
         with open(path, 'w', encoding='utf-8', newline='\n') as f:
             f.write(body)
@@ -263,6 +310,8 @@ def sync_monsters():
         if not os.path.exists(mp):
             with open(mp, 'w', encoding='utf-8', newline='\n') as f:
                 f.write(ASSET_META.format(guid=guid_for(rel)))
+        if len(r) > 15:
+            check_render_width(mid, height, num(r[15]))
         print('  %s 생성 (id %d, HP스탯 %s, 보정 %s%%)'
               % (spec['asset'], mid, int(num(r[1])), int(num(r[13], 100))))
         total += 1
