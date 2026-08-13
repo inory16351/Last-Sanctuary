@@ -276,6 +276,55 @@ namespace LastSanctuary.Combat
         static bool HasFrames(Sprite[] frames) => frames != null && frames.Length > 0;
 
         /// <summary>
+        /// <b>범위 연출 한 번</b> — 정해진 직사각형을 그림 한 장으로 덮어 그린다
+        /// (<see cref="BossSkillCaster"/> 의 보스 스킬 범위 표시).
+        ///
+        /// 여기에 둔 이유는 <b>풀·수명 관리가 이미 여기 있기 때문</b>이다. 스킬 쪽에서
+        /// <c>new GameObject</c> 를 하면 매 시전마다 오브젝트가 생겼다 사라지고, 사라지는
+        /// 시점을 또 관리해야 한다. 마법 착탄 연출이 쓰는 경로를 그대로 재사용한다.
+        ///
+        /// ⚠ <b>순수 연출이다</b> — 피해는 <see cref="BossSkillCaster"/> 가 이미 넣었다.
+        /// 이 클래스의 대원칙(맨 위 주석)과 같다: 여기서 피해를 다시 넣으면 이중 타격이다.
+        ///
+        /// <paramref name="sizeTiles"/> 는 <b>피해 범위 그대로</b>를 받는다 — 그래야
+        /// "보이는 범위 = 맞는 범위" 가 된다(61-5절의 마법 착탄과 같은 규칙).
+        ///
+        /// ⚠ <paramref name="sizeTiles"/> 는 <b>회전하기 전(그림 기준)</b> 크기다:
+        /// x = 조준 방향으로 뻗는 길이, y = 그와 직각인 두께. 유니티는 스케일을 먼저,
+        /// 회전을 나중에 적용하므로 세로로 쏠 때 x·y 를 바꿔 넣으면 안 된다
+        /// (<paramref name="angleDeg"/> 만 90 으로 주면 된다).
+        /// </summary>
+        public static void PlayArea(Sprite[] frames, Vector3 center, Vector2 sizeTiles,
+                                    float angleDeg, DamageableUnit anchor, float seconds)
+        {
+            if (_instance == null || !HasFrames(frames)) return;
+
+            Sprite first = frames[0];
+            if (first == null) return;
+
+            // 원화의 세계 크기(타일)로 나눠 목표 크기에 맞춘다. 범위 표시는 직사각형이라
+            // 가로·세로를 따로 늘려도 된다 — 유닛 그림과 달리 비율이 의미를 갖지 않는다.
+            Vector3 art = first.bounds.size;
+            var scale = new Vector2(
+                art.x > 0.0001f ? sizeTiles.x / art.x : 1f,
+                art.y > 0.0001f ? sizeTiles.y / art.y : 1f);
+
+            // ⚠ <b>피벗 보정</b> — 이 프로젝트의 원화는 전부 <b>발밑 피벗</b>(0.5, 0)이다.
+            // 그대로 놓으면 그림이 지정한 지점에서 <b>위로만</b> 뻗어 상자와 반 칸씩 어긋나고,
+            // 세로로 쏠 때는 피벗을 축으로 통째로 돌아 엉뚱한 데 그려진다.
+            // <c>Sprite.bounds.center</c> 가 "피벗에서 그림 중심까지"라 그만큼 되밀면
+            // <b>피벗이 어디든</b> 상자 한가운데에 놓인다.
+            var rotation = Quaternion.Euler(0f, 0f, angleDeg);
+            Vector3 pivotFix = rotation * new Vector3(first.bounds.center.x * scale.x,
+                                                      first.bounds.center.y * scale.y, 0f);
+            Vector3 at = center - pivotFix;
+
+            _instance.Spawn(at, at, Mathf.Max(0.05f, seconds), anchor, first, scale,
+                            frames: frames.Length > 1 ? frames : null,
+                            stationary: true, rotation: rotation);
+        }
+
+        /// <summary>
         /// 이 공격자가 쓸 탄환. <b>스킨이 먼저다</b> — 스킨에 탄환 프레임이 들어있으면
         /// 그대로 쓰고, 없는 유닛만 아래의 진영·종류 폴백으로 넘어간다.
         ///

@@ -33,3 +33,6 @@ MonoBehaviour:
   renderHeightTiles: 0
   colliderWidthTiles: 7.1
   colliderHeightTiles: 5
+  bossSkillIds:
+  - 130001
+  - 130002

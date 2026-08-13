@@ -188,6 +188,30 @@ namespace LastSanctuary.Combat
         }
 
         /// <summary>
+        /// 한 지점을 중심으로 한 <b>직사각형</b> 범위 안의 적을 모은다 (보스 스킬용).
+        ///
+        /// <see cref="CollectEnemiesInBox"/> 와 달리 가로·세로 반지름을 따로 받는다 —
+        /// 보스 스킬은 "5 x 3", "15 x 3" 처럼 한 방향으로 긴 범위라 정사각으로는 표현할 수 없다.
+        /// 상자 자체를 돌리지는 않는다: <see cref="BossSkillCaster"/> 가 조준 방향을 4방향으로
+        /// 잘라 가로·세로를 바꿔 넣기 때문에 축 정렬 검사만으로 충분하다(맵도 타일 격자다).
+        /// </summary>
+        public static void CollectEnemiesInRect(Vector3 center, Vector2 halfSizeTiles, Faction myFaction,
+                                                List<DamageableUnit> into)
+        {
+            into.Clear();
+            Faction enemy = myFaction.Opposite();
+
+            for (int i = 0; i < _units.Count; i++)
+            {
+                DamageableUnit u = _units[i];
+                if (u == null || !u.IsAlive || u.Faction != enemy) continue;
+
+                Vector3 d = u.transform.position - center;
+                if (Mathf.Abs(d.x) <= halfSizeTiles.x && Mathf.Abs(d.y) <= halfSizeTiles.y) into.Add(u);
+            }
+        }
+
+        /// <summary>
         /// 반경 안의 <b>같은 진영</b> 유닛 중 가장 가까운 하나 (정신 이상 "혼란" 의 아군 공격용).
         /// <see cref="FindTarget"/> 계열은 <see cref="FactionExtensions.Opposite"/> 로 적을 찾으므로
         /// 아군을 노리는 데는 쓸 수 없어 따로 둔다. <paramref name="exclude"/> 는 보통 자기 자신이다.

@@ -73,6 +73,65 @@ namespace LastSanctuary.Combat
         public Sprite[] healLeft;
 
         // ------------------------------------------------------------------
+        // 보스 스킬 모션 (2026-08-13)
+        //
+        // <b>왜 슬롯 번호인가</b> — 스킬 종류(enum)로 칸을 나누면 표에 스킬이 하나 늘 때마다
+        // 이 클래스에 필드를 두 개씩 더해야 한다. 몬스터 정의의 <c>bossSkillIds</c> 순서가
+        // 곧 슬롯이라, <b>표의 boss_skill_1 → 슬롯 0 · boss_skill_2 → 슬롯 1</b> 로 그대로 맞다.
+        // 단탈리온은 두 개뿐이므로 두 벌만 둔다(<see cref="SkillMotion"/> 가 범위 밖을 null 로 돌려준다).
+        //
+        // ⚠ 원화는 이미 임포트돼 있었다(<c>SpecialShockwave</c> · <c>SpecialBeam</c> · <c>Fx</c>,
+        //   59-3절). 스킬이 미구현이라 스킨에 배선만 안 돼 있던 것을 이제 연결한다.
+        // ------------------------------------------------------------------
+
+        [Header("보스 스킬 — 시전 모션 (슬롯 0 = 표의 boss_skill_1)")]
+        [Tooltip("슬롯 0 시전 동작. 단탈리온은 SpecialShockwave(타락한 무덤)")]
+        public Sprite[] skill1Right;
+        public Sprite[] skill1Left;
+
+        [Tooltip("슬롯 1 시전 동작. 단탈리온은 SpecialBeam(공허의 광선)")]
+        public Sprite[] skill2Right;
+        public Sprite[] skill2Left;
+
+        [Header("보스 스킬 — 지면 연출 (피해 범위 표시)")]
+        [Tooltip("슬롯 0 의 범위 연출. 범위(가로 x 세로 타일)에 맞춰 늘려 그린다 — " +
+                 "마법 착탄과 같은 원칙으로 <b>보이는 범위 = 맞는 범위</b> 가 된다")]
+        public Sprite[] skill1Fx;
+
+        [Tooltip("슬롯 1 의 범위 연출")]
+        public Sprite[] skill2Fx;
+
+        /// <summary>슬롯의 시전 모션. 없으면 null — 그러면 평타 모션으로 대체된다.</summary>
+        public Sprite[] SkillMotion(int slot, bool facingRight)
+        {
+            switch (slot)
+            {
+                case 0: return Pick(skill1Right, skill1Left, facingRight);
+                case 1: return Pick(skill2Right, skill2Left, facingRight);
+                default: return null;
+            }
+        }
+
+        /// <summary>슬롯의 지면 연출. 없으면 null — 그러면 범위 표시 없이 피해만 들어간다.</summary>
+        public Sprite[] SkillFx(int slot)
+        {
+            switch (slot)
+            {
+                case 0: return HasFrames(skill1Fx) ? skill1Fx : null;
+                case 1: return HasFrames(skill2Fx) ? skill2Fx : null;
+                default: return null;
+            }
+        }
+
+        /// <summary>시전 모션 한 바퀴에 걸리는 시간(초). 없으면 0.</summary>
+        public float SkillClipSeconds(int slot, bool facingRight)
+        {
+            Sprite[] frames = SkillMotion(slot, facingRight);
+            if (!HasFrames(frames) || attackFramesPerSecond <= 0f) return 0f;
+            return frames.Length / attackFramesPerSecond;
+        }
+
+        // ------------------------------------------------------------------
         // 투사체 — 객체(스킨)마다 따로 관리한다
         // ------------------------------------------------------------------
 

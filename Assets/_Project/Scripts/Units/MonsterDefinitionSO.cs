@@ -134,6 +134,33 @@ namespace LastSanctuary.Units
         /// <summary>콜라이더 상자를 쓸 수 있는지 (가로·세로 둘 다 적혀 있는지).</summary>
         public bool HasColliderBox => colliderWidthTiles > 0f && colliderHeightTiles > 0f;
 
+        // ------------------------------------------------------------------
+        // 보스 스킬 (2026-08-13)
+        //
+        // 표(`웨이브 몬스터 테이블.xlsx` / `wave_top_boss`)의 boss_skill_1~3 칸을 그대로 옮긴다.
+        // <b>id 만 들고 있는 이유</b> — ScriptableObject 끼리 참조를 걸면 파이프라인이 guid 를
+        // 알아야 하고, 스킬 에셋을 다시 만들 때마다 이 에셋도 같이 고쳐야 한다. 번호로 두면
+        // 표가 정본이고 `BossSkillCaster` 가 Resources 에서 찾아 붙인다(스킨·정신 이상과 같은 방식).
+        // ------------------------------------------------------------------
+
+        [Header("보스 스킬 — 표의 boss_skill_1~3")]
+        [Tooltip("이 몬스터가 쓰는 보스 스킬의 id. Resources/BossSkills 의 BossSkillSO 를 " +
+                 "이 번호로 찾는다. 순서가 곧 슬롯 번호이고, 스킨의 시전 모션 슬롯과 같다.\n" +
+                 "빈 칸(0)은 무시한다 — 표의 boss_skill_3 이 0 이다")]
+        public int[] bossSkillIds;
+
+        /// <summary>보스 스킬을 하나라도 가졌는지.</summary>
+        public bool HasBossSkills
+        {
+            get
+            {
+                if (bossSkillIds == null) return false;
+                for (int i = 0; i < bossSkillIds.Length; i++)
+                    if (bossSkillIds[i] > 0) return true;
+                return false;
+            }
+        }
+
         /// <summary>발판 가로(칸). 안 정했으면 <see cref="footprintTiles"/> 정사각.</summary>
         public int BodyWidth => bodyWidthTiles > 0 ? bodyWidthTiles : Mathf.Max(1, footprintTiles);
 

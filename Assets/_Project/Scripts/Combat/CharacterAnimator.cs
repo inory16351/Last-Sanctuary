@@ -65,6 +65,13 @@ namespace LastSanctuary.Combat
         Vector3 _lastPosition;
         float _attackUntil;
 
+        /// <summary>시전 중인 보스 스킬 슬롯. -1 이면 시전 중이 아니다.</summary>
+        int _skillSlot = -1;
+        float _skillUntil;
+
+        /// <summary>지금 보스 스킬 시전 모션을 재생 중인지.</summary>
+        bool InSkillMotion => _skillSlot >= 0 && Time.time < _skillUntil;
+
         /// <summary>지금 쓰고 있는 스킨. 없으면 null(스프라이트를 건드리지 않는다).</summary>
         public CharacterSkinSO Skin => _skin;
 
@@ -256,6 +263,19 @@ namespace LastSanctuary.Combat
         /// </summary>
         Sprite[] ResolveFrames(float moved, out float fps)
         {
+            // 보스 스킬 시전이 가장 앞이다 — 시전 중에 평타·걷기 모션이 섞이면
+            // "뭔가 큰 걸 쓰고 있다"는 신호가 사라진다.
+            if (InSkillMotion)
+            {
+                Sprite[] skill = _skin.SkillMotion(_skillSlot, _facingRight);
+                if (skill != null && skill.Length > 0)
+                {
+                    fps = _skin.attackFramesPerSecond;
+                    return skill;
+                }
+                _skillSlot = -1;   // 방향을 바꾸는 사이 프레임이 사라졌다 — 평타로 떨어진다
+            }
+
             if (Time.time < _attackUntil)
             {
                 fps = _skin.attackFramesPerSecond;
@@ -300,6 +320,10 @@ namespace LastSanctuary.Combat
         /// </summary>
         void UpdateFacing(Vector2 delta)
         {
+            // 시전 중에는 조준 방향을 고정한다 — 범위가 나가는 방향과 그림이 어긋나면
+            // "엉뚱한 데를 보고 쏘는" 것처럼 보인다.
+            if (InSkillMotion) return;
+
             float dx;
 
             DamageableUnit target = _combat != null ? _combat.Target : null;
@@ -317,6 +341,34 @@ namespace LastSanctuary.Combat
 
             if (Mathf.Abs(dx) < 0.001f) return;
             _facingRight = dx > 0f;
+        }
+
+        /// <summary>
+        /// 보스 스킬 시전 모션을 재생한다 (<see cref="BossSkillCaster"/> 가 부른다).
+        /// <paramref name="aimAt"/> 쪽을 바라보게 방향을 먼저 고정하고, 그 방향의
+        /// 시전 프레임을 <paramref name="seconds"/> (또는 클립 한 바퀴 중 긴 쪽) 동안 재생한다.
+        ///
+        /// <b>전용 모션이 없으면 평타 모션으로 대체한다</b> — 스킨에 시전 원화를 안 넣은
+        /// 보스(중간보스 2종은 전용 원화가 없다)도 "뭔가 했다"가 화면에 보여야 한다.
+        /// 스킨의 모션 폴백 규칙(회복 → 원거리 → 근접)과 같은 취지다.
+        /// </summary>
+        public void PlaySkillMotion(int slot, float seconds, Vector3 aimAt)
+        {
+            if (_skin == null) return;
+
+            float dx = aimAt.x - transform.position.x;
+            if (Mathf.Abs(dx) > 0.001f) _facingRight = dx > 0f;
+
+            Sprite[] frames = _skin.SkillMotion(slot, _facingRight);
+            if (frames != null && frames.Length > 0)
+            {
+                _skillSlot = slot;
+                _skillUntil = Time.time + Mathf.Max(seconds, _skin.SkillClipSeconds(slot, _facingRight));
+                _frameClock = 0f;
+                return;
+            }
+
+            _attackUntil = Time.time + Mathf.Max(minAttackHoldSeconds, seconds);
         }
 
         void HandleAttackPerformed()

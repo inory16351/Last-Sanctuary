@@ -49,12 +49,29 @@ MonoBehaviour:
   rangedLeft: []
   healRight: []
   healLeft: []
+  skill1Right:
+  - {fileID: 21300000, guid: e029335b49d0683c410b6416116d594e, type: 3}
+  - {fileID: 21300000, guid: 725d8635348ccdace8a72197357a157a, type: 3}
+  skill1Left:
+  - {fileID: 21300000, guid: f853ac7881e91667871c784002a34d73, type: 3}
+  - {fileID: 21300000, guid: 727acffec17e1b0bf07ae69a6fca2a77, type: 3}
+  skill2Right:
+  - {fileID: 21300000, guid: c7d7568291125fe5f706afc51c92cff2, type: 3}
+  - {fileID: 21300000, guid: 3eb46a965ebd5b4b269d42c711867ed9, type: 3}
+  skill2Left:
+  - {fileID: 21300000, guid: 341c994b627fb2da9188660d95cd3e84, type: 3}
+  - {fileID: 21300000, guid: e2d8d913b5ac7b29fec5cefe5f07d75c, type: 3}
   projectileFrames: []
   muzzleFlashFrames: []
   impactFrames:
   - {fileID: 21300000, guid: 70ecd1d7ded48ef2c5510bc59725728e, type: 3}
   - {fileID: 21300000, guid: 6f8c16d38f665eac0ce0e765548d6b8e, type: 3}
   - {fileID: 21300000, guid: 380e8b6a98a238ecdc73a0b5014cc12f, type: 3}
+  skill1Fx:
+  - {fileID: 21300000, guid: 6f8c16d38f665eac0ce0e765548d6b8e, type: 3}
+  - {fileID: 21300000, guid: 380e8b6a98a238ecdc73a0b5014cc12f, type: 3}
+  skill2Fx:
+  - {fileID: 21300000, guid: 70ecd1d7ded48ef2c5510bc59725728e, type: 3}
   projectileScale: 0.55
   impactScale: {x: 1, y: 0.75}
   contentSizeTiles: {x: 2.667, y: 1.867}

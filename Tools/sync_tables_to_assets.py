@@ -40,6 +40,20 @@ XLSX_BUILDING = os.path.join(VAULT, 'Last_Sanctuary_건물데이터시트_Ver05.
 
 SCRIPT_GUID_MONSTER = '5dbe527860d1cbe42a3efae9fd5cb4b2'   # MonsterDefinitionSO.cs
 
+
+def script_guid(rel_cs_path):
+    """`.cs.meta` 에서 스크립트 guid 를 읽는다.
+
+    ⚠ 위 `SCRIPT_GUID_MONSTER` 처럼 상수로 박아두면 스크립트를 옮기거나 다시 만들었을 때
+      조용히 어긋난다(에셋이 `Missing Script` 가 된다). 새로 쓰는 코드는 이 함수를 쓴다.
+    """
+    meta = os.path.join(ASSETS, 'Scripts', rel_cs_path) + '.meta'
+    with open(meta, encoding='utf-8') as f:
+        for line in f:
+            if line.startswith('guid:'):
+                return line.split(':', 1)[1].strip()
+    raise RuntimeError('guid 를 찾지 못했습니다: ' + meta)
+
 ASSET_META = """fileFormatVersion: 2
 guid: {guid}
 NativeFormatImporter:
@@ -324,6 +338,106 @@ def sync_monsters():
 
 
 # ---------------------------------------------------------------------------
+# 2-b) 보스 스킬 - Skill 시트 → BossSkillSO 에셋 + 보스 정의의 bossSkillIds (2026-08-13)
+#
+# 66-7절이 "표·문구·아트는 준비돼 있는데 발동시키는 코드가 없다"로 남겨둔 미결 111번을
+# 실제로 잇는 부분이다. **수치를 코드에 적지 않는다** - 표의 Skill 시트가 정본이다.
+#
+# ⚠ 스킬 에셋은 **전체를 다시 쓴다**(다른 에셋처럼 줄 치환이 아니라). 표에 줄이 늘면
+#   에셋 개수 자체가 늘어야 하고, 이 에셋에는 사람이 손으로 넣는 값이 하나도 없어서
+#   덮어써도 잃을 것이 없다. guid 는 경로에서 결정적으로 만들므로 다시 돌려도 그대로다.
+# ---------------------------------------------------------------------------
+def sync_boss_skills():
+    print('[보스 스킬]')
+    folder = os.path.join(ASSETS, 'Resources', 'BossSkills')
+    os.makedirs(folder, exist_ok=True)
+    guid = script_guid(os.path.join('Combat', 'BossSkillSO.cs'))
+
+    made = []
+    for row in read_sheet(XLSX_WAVE_MON, 'Skill'):
+        sid = int(num(row[0]))
+        name = 'BossSkill_%d' % sid
+        rel = 'Resources/BossSkills/%s.asset' % name
+
+        body = HEADER.format(script_guid=guid, name=name)
+        body += '  skillId: %d\n' % sid
+        body += '  nameKey: %s\n' % (row[1] or '')
+        body += "  displayName: ''\n"          # 문구는 스트링 테이블이 정본이다
+        body += '  skillType: %s\n' % (row[2] or '')
+        body += '  explainKey: %s\n' % (row[8] or '')
+        body += '  value01: %s\n' % num(row[3])
+        body += '  value02: %s\n' % num(row[4])
+        body += '  value03: %s\n' % num(row[5])
+        body += '  coolTime: %s\n' % num(row[6])
+
+        path = os.path.join(folder, name + '.asset')
+        with open(path, 'w', encoding='utf-8', newline='\n') as f:
+            f.write(body)
+        mp = path + '.meta'
+        if not os.path.exists(mp):
+            with open(mp, 'w', encoding='utf-8', newline='\n') as f:
+                f.write(ASSET_META.format(guid=guid_for(rel)))
+
+        made.append(sid)
+        print('  %s: %s · %s x %s 타일 · 공격력 %s%% · 쿨 %s초'
+              % (name, row[2], num(row[3]), num(row[4]), num(row[5]), num(row[6])))
+
+    # 최종보스 시트의 boss_skill_1~3 을 그 보스의 정의 에셋으로 옮긴다.
+    # 표에 없는 몬스터(잡몹·중간보스)는 스킬 칸 자체가 없으므로 건드리지 않는다.
+    for row in read_sheet(XLSX_WAVE_MON, 'wave_top_boss'):
+        mid = int(num(row[0]))
+        asset = MONSTER_ASSET_BY_ID.get(mid)
+        if asset is None:
+            print('  ! 최종보스 id %d 에 해당하는 에셋 이름을 모릅니다' % mid)
+            continue
+
+        ids = [int(num(row[c])) for c in (8, 9, 10) if len(row) > c and int(num(row[c])) > 0]
+        missing = [i for i in ids if i not in made]
+        if missing:
+            print('  ! %s 의 스킬 %s 가 Skill 시트에 없습니다' % (asset, missing))
+
+        write_int_list(os.path.join(ASSETS, 'Data', 'Units', asset + '.asset'),
+                       'bossSkillIds', ids, asset)
+    return len(made)
+
+
+def write_int_list(path, key, values, label):
+    """`key:` 아래의 정수 배열을 통째로 갈아끼운다. 필드가 없으면 파일 끝에 덧붙인다.
+
+    ⚠ .asset YAML 에 빈 줄을 넣으면 Unity 가 그 뒤 필드를 전부 무시한다(8절 3번) -
+      덧붙이기 전에 꼬리 빈 줄을 지운다.
+    """
+    if not os.path.exists(path):
+        print('  ! 없는 파일:', path)
+        return
+    with open(path, encoding='utf-8') as f:
+        lines = f.readlines()
+
+    block = ['  %s: []\n' % key] if not values else \
+            ['  %s:\n' % key] + ['  - %d\n' % v for v in values]
+
+    start = None
+    for i, line in enumerate(lines):
+        if re.match(r'\s*%s:' % re.escape(key), line):
+            start = i
+            break
+
+    if start is None:
+        while lines and lines[-1].strip() == '':
+            lines.pop()
+        lines.extend(block)
+    else:
+        end = start + 1
+        while end < len(lines) and re.match(r'\s*-\s', lines[end]):
+            end += 1
+        lines[start:end] = block
+
+    with open(path, 'w', encoding='utf-8', newline='\n') as f:
+        f.writelines(lines)
+    print('  %s: %s = %s' % (label, key, values or '없음'))
+
+
+# ---------------------------------------------------------------------------
 # 3) 건물 - 54-7절 (포탑 상향 · 중앙건물은 이미 게임 값과 같다)
 # ---------------------------------------------------------------------------
 def sync_buildings():
@@ -414,6 +528,7 @@ def sync_waves():
 if __name__ == '__main__':
     sync_mental_errors()
     sync_monsters()
+    sync_boss_skills()
     sync_buildings()
     sync_waves()
     print('\n완료 - Unity 에서 Assets/Refresh 를 실행할 것.')

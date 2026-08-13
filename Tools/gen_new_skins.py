@@ -16,7 +16,14 @@
 ⚠ .asset YAML 에 빈 줄을 넣으면 Unity 파서가 그 뒤 필드를 전부 무시한다(8절 3번).
 """
 import os
+import sys
 import hashlib
+
+# 콘솔이 cp949 라 한글·기호 출력에서 죽는다 — 출력만 UTF-8 로 바꾼다(파일 내용과 무관).
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
 
 PROJECT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ART = os.path.join(PROJECT, "Assets", "_Project", "Art", "Char_Asset")
@@ -83,8 +90,15 @@ def sprite_list(key, guids):
     return body
 
 
-def write_skin(char, name, display, fps, atk_fps, motions, extra=""):
-    rel = "Resources/Skins/%s.asset" % name
+def write_skin(char, name, display, fps, atk_fps, motions, extra="", folder="Skins"):
+    """
+    ⚠ <paramref name="folder"/> 는 <b>Resources 아래의 어느 폴더에 쓸지</b>다.
+      `CharacterAnimator` 는 폴더로 후보를 가른다 — 캐릭터는 `Skins`, 몬스터는 `MonsterSkins`.
+      **몬스터 스킨을 `Skins` 에 쓰면 캐릭터가 그 외형으로 뽑힌다**(무작위 추첨이다).
+      실제로 이 스크립트가 단탈리온을 `Skins` 에 쓰고 있었고, 누군가 손으로 옮겨서
+      드러나지 않고 있었다 — 다시 돌리면 그 자리에 유령 사본이 되살아난다(2026-08-13 수정).
+    """
+    rel = "Resources/%s/%s.asset" % (folder, name)
     body = HEADER.format(script_guid=SCRIPT_GUID_CHARACTER_SKIN, name=name)
     body += "  displayName: %s\n" % display
     body += "  framesPerSecond: %s\n" % fps
@@ -93,15 +107,21 @@ def write_skin(char, name, display, fps, atk_fps, motions, extra=""):
         body += sprite_list(key, frame_guids(char, motion, side))
     body += extra
 
-    path = os.path.join(RES, "Skins", name + ".asset")
+    out_dir = os.path.join(RES, *folder.split("/"))
+    os.makedirs(out_dir, exist_ok=True)
+    path = os.path.join(out_dir, name + ".asset")
     with open(path, "w", encoding="utf-8", newline="\n") as f:
         f.write(body)
-    with open(path + ".meta", "w", encoding="utf-8", newline="\n") as f:
-        f.write(ASSET_META.format(
-            guid=hashlib.md5(("LastSanctuary/" + rel).encode()).hexdigest()))
+
+    # .meta 는 **없을 때만** 만든다 — 이미 있는 에셋의 guid 를 갈아치우면 그걸 참조하던
+    # 곳이 전부 끊긴다(U-D2).
+    if not os.path.exists(path + ".meta"):
+        with open(path + ".meta", "w", encoding="utf-8", newline="\n") as f:
+            f.write(ASSET_META.format(
+                guid=hashlib.md5(("LastSanctuary/" + rel).encode()).hexdigest()))
 
     counts = {k: len(frame_guids(char, m, s)) for k, (m, s) in motions.items() if m}
-    print("  %s: 생성 %s" % (name, counts))
+    print("  %s (%s): 생성 %s" % (name, folder, counts))
 
 
 def write_piolo():
@@ -137,11 +157,22 @@ def write_dantalian():
     """
     최종보스 단탈리온 120001. 원화의 `Move` 는 `Walk` 로 들여왔다(이 프로젝트의 모션 이름).
 
-    ⚠ SpecialBeam/SpecialShockwave(보스 스킬 2종의 원화)는 <b>스킨에 배선하지 않는다</b> —
-      CharacterSkinSO 에 스킬 모션 칸이 없고 보스 스킬 자체가 미구현이다(미결 111번).
-      프레임은 Art 에 임포트만 해뒀으니 구현할 때 아트를 다시 찾을 필요는 없다.
-    ⚠ Fx 3프레임은 착탄 연출로 붙였다 — 근거리 보스라 탄환은 없지만 맞는 자리에
-      뭔가 보이는 편이 낫다.
+    ★ **보스 스킬 2종의 원화를 배선한다 (2026-08-13)** — 예전에는
+      "CharacterSkinSO 에 스킬 모션 칸이 없고 보스 스킬 자체가 미구현(미결 111번)"이라
+      임포트만 해두고 놀리고 있었다. 이제 칸이 생겼고(`skill1*`/`skill2*`) 발동시키는
+      코드(`BossSkillCaster`)도 있다.
+
+        슬롯 0 = 표의 boss_skill_1 = 130001 타락한 무덤 → SpecialShockwave + ShockwaveFx
+        슬롯 1 = 표의 boss_skill_2 = 130002 공허의 광선 → SpecialBeam       + BeamFx
+
+      ⚠ **슬롯 순서가 표의 순서와 같아야 한다** — `MonsterDefinitionSO.bossSkillIds` 의
+        인덱스가 곧 이 슬롯 번호다. 표에서 두 스킬의 순서를 바꾸면 여기도 같이 바꿔야
+        모션이 안 어긋난다.
+      ⚠ 지면 연출(`skill*Fx`)은 Fx 폴더에서 **파일 이름으로** 고른다 — `impactFrames` 가
+        폴더 전체를 쓰고 있어서 그대로 두면 빔과 충격파가 섞인다.
+
+    ⚠ Fx 3프레임은 착탄 연출로도 붙어 있다 — 근거리 보스라 탄환은 없지만 맞는 자리에
+      뭔가 보이는 편이 낫다(실제로는 근거리라 CombatProjectileFx 가 그리지 않는다).
     """
     write_skin(
         "Char_Asset_Dantalian", "Skin_Dantalian", "단탈리온", 8, 10,
@@ -156,15 +187,26 @@ def write_dantalian():
             "rangedLeft":  (None, None),
             "healRight":   (None, None),
             "healLeft":    (None, None),
+            "skill1Right": ("SpecialShockwave", "Right"),
+            "skill1Left":  ("SpecialShockwave", "Left"),
+            "skill2Right": ("SpecialBeam", "Right"),
+            "skill2Left":  ("SpecialBeam", "Left"),
             "projectileFrames": (None, None),
             "muzzleFlashFrames": (None, None),
             "impactFrames": ("Fx", ""),
         },
-        extra="  projectileScale: 0.55\n  impactScale: {x: 1, y: 0.75}\n")
+        extra=(sprite_list("skill1Fx", frame_guids("Char_Asset_Dantalian", "Fx", "ShockwaveFx")) +
+               sprite_list("skill2Fx", frame_guids("Char_Asset_Dantalian", "Fx", "BeamFx")) +
+               "  projectileScale: 0.55\n  impactScale: {x: 1, y: 0.75}\n"),
+        folder="MonsterSkins/Dantalian")
 
 
 if __name__ == "__main__":
     print("새 스킨 생성:")
     write_piolo()
     write_dantalian()
-    print("\n완료 — Unity 에서 Assets/Refresh 를 실행할 것.")
+    # ⚠ 이 스크립트는 스킨 에셋을 **통째로 다시 쓴다** — 실측 크기(contentSizeTiles 등)가
+    #   같이 날아간다. 반드시 이어서 measure 를 돌려야 유닛 크기가 정상으로 돌아온다
+    #   (64절에서 파이프라인이 크기 값을 날려 하드코딩으로 때웠던 바로 그 사고다).
+    print("\n완료 — 이어서 `python Tools/measure_skin_tiles.py` 를 돌리고, "
+          "Unity 에서 Assets/Refresh 를 실행할 것.")

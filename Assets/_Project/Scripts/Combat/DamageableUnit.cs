@@ -43,6 +43,7 @@ namespace LastSanctuary.Combat
             OnAnyDied = null;
             OnAnyMissed = null;
             OnAnyCritical = null;
+            OnAnyHit = null;
         }
 
         bool _wasInCombat;
@@ -250,7 +251,22 @@ namespace LastSanctuary.Combat
         /// 판정(11절)과 투사체 연출(25-5절)의 트리거라서, 빗나갔다고 발생시키지 않으면
         /// "쏘는데 아무 일도 안 일어나는" 상태가 된다.
         /// </summary>
-        public void TakeDamageFrom(DamageableUnit attacker)
+        public void TakeDamageFrom(DamageableUnit attacker) => TakeDamageFrom(attacker, 100);
+
+        /// <summary>
+        /// 공격력에 <paramref name="attackPercent"/> % 를 먹인 뒤 위 순서 그대로 처리한다 —
+        /// <b>보스 스킬</b>처럼 "근거리 공격력의 150%" 같은 배수를 가진 공격이 쓴다
+        /// (<see cref="BossSkillSO.value03"/>).
+        ///
+        /// <b>왜 오버로드인가</b> — 기존 <see cref="TakeDamageFrom(DamageableUnit)"/> 의
+        /// 시그니처를 건드리면 PROTO 가 쓰는 공개 API 가 바뀐다(준수사항 U-D4). 인자를
+        /// 추가하지 않고 오버로드로 얹으면 기존 호출부가 하나도 안 바뀐다.
+        ///
+        /// 보정은 <b>능력치 단계에서</b> 곱한다 — 최종 피해에 곱하면 방어력 감소를 두 번
+        /// 거친 것과 값이 달라진다. 이 프로젝트의 배율은 전부 "능력치에 먼저 곱하고 반올림"
+        /// 규칙이다(진행상황 4절).
+        /// </summary>
+        public void TakeDamageFrom(DamageableUnit attacker, int attackPercent)
         {
             if (!IsAlive || balance == null || attacker == null) return;
 
@@ -274,6 +290,8 @@ namespace LastSanctuary.Combat
             //    공격력 일회성 보정은 쓰는 즉시 비운다(다음 공격으로 새어나가지 않게).
             int attackStat = attacker.AttackStat + attacker.OneShotAttackBonus;
             attacker.OneShotAttackBonus = 0;
+            if (attackPercent != 100)
+                attackStat = BalanceConfigSO.ScaleByPercent(attackStat, attackPercent);
             int defenseStat = Mathf.Max(0, DefenseStat + DefenseModifier);
             int damage = balance.Damage(attackStat, defenseStat);
 
@@ -288,7 +306,18 @@ namespace LastSanctuary.Combat
 
             // ④ 적용
             ApplyDamage(damage);
+
+            // ⑤ "실제로 맞았다" 를 알린다 — <see cref="OnAnyAttack"/> 은 <b>명중 판정 전에</b>
+            //    발생하므로(빗나가도 발생한다, 위 주석 참조) 피격을 세는 데 쓸 수 없다.
+            //    보스에게 맞으면 침식이 오르는 규칙(<c>ErosionService</c>)이 이걸 구독한다.
+            OnAnyHit?.Invoke(attacker, this, damage);
         }
+
+        /// <summary>
+        /// 피해가 <b>실제로 적용됐다</b> (공격자, 대상, 피해량). <see cref="OnAnyAttack"/> 과 달리
+        /// 빗나간 공격에서는 발생하지 않는다 — "피격당했다"를 세야 하는 쪽이 쓴다.
+        /// </summary>
+        public static event System.Action<DamageableUnit, DamageableUnit, int> OnAnyHit;
 
         /// <summary>공격이 빗나갔다 (공격자, 대상). MISS 연출용 — 아직 구독자가 없다.</summary>
         public static event System.Action<DamageableUnit, DamageableUnit> OnAnyMissed;
