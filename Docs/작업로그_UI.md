@@ -1231,3 +1231,38 @@ UI-17 에서 파이프라인이 크기 값을 날려서 스크립트 안(`MID_BO
 ### 검증
 
 다른 시트 하이퍼링크 12칸 유지 · 재실행 후 5개 에셋 값 불변(멱등) · 경고 0 · 콘솔 에러 0.
+
+---
+
+## UI-19. 콜라이더 기준 크기 로직 재설계 (2026-08-13)
+
+> 상세는 `진행상황.md` **66절**.
+
+### 무엇을 했나
+
+65절의 "세로 하나 → 배율" 방식을 유저가 정정: **"표에 콜라이더 값 → 비율 안 깨지는 이미지
+크기 계산 → 이미지 삽입 → 그 이미지에 콜라이더 재설정"** 3단계 로직으로 바꿨다.
+
+- 이 프로젝트 유닛엔 `Collider2D`가 없다(U-D9) — "콜라이더"의 실체는
+  `UnitCombat.TargetRadius`가 읽는 `MonsterUnit.BodyRadiusTiles`.
+- `CharacterAnimator`에 `colliderWidthTiles/HeightTiles` + `SetColliderBoxTiles()` 신설.
+  상자 안에 들어가는 최대 배율(contain, 균등)을 계산 → `ColliderSizeTiles`(재설정된 콜라이더,
+  표 희망값이 아니라 실측 결과)를 공개.
+- `MonsterUnit.BodyRadiusTiles`가 이 재설정된 콜라이더를 읽도록 변경.
+- 표 컬럼 `render_*` → `collider_*` 개명, 값 소수점 한 자리로 정리(float 유지).
+- `sync_tables_to_assets.py`가 계산 결과를 콘솔에만 찍는다(에셋엔 저장 안 함 — 원화가
+  바뀌면 결과도 바뀌어야 하므로 런타임 계산이 정본).
+
+### 부수 조사 (유저 요청)
+
+캐릭터 패시브 12종 전부 코드 참조·씬 배선 확인(정상). 보스 스킬 2종은 여전히 미구현
+(코드에 흔적 없음, 미결 111번).
+
+### 소유권 (§2)
+
+**UI 소유** — `CharacterAnimator.cs`. **⚠ PROTO 소유** — `MonsterDefinitionSO.cs` ·
+`MonsterSpawner.cs` · `MonsterUnit.cs` · `Tools/sync_tables_to_assets.py`(UI-15·17·18과 동일 크로싱).
+
+### 검증
+
+recompile 에러 0·경고 0, 콘솔 에러 0, 재실행 멱등 확인.
