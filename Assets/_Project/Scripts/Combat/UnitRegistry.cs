@@ -130,10 +130,20 @@ namespace LastSanctuary.Combat
         /// 사거리 안에서 가장 많이 다친 아군을 찾는다 (치유 유형 캐릭터용).
         /// 체력 비율이 가장 낮은 대상을 고르고, 같으면 가까운 쪽을 고른다.
         /// <paramref name="exclude"/> 는 보통 자기 자신 — 자기만 계속 치유하는 걸 막는 데 쓴다.
+        ///
+        /// ⚠ <paramref name="exclude"/> 는 <paramref name="includeSelfIfWounded"/> 가 <b>false 일 때만</b>
+        ///   동작한다. 이 기본값(true) 때문에 <c>UnitCombat.AcquireHealTarget</c> 이 자기 자신을
+        ///   치유 타겟으로 잡고 제자리에 굳는 버그가 있었다(진행상황 73-1절) — 새로 부를 때 주의할 것.
         /// </summary>
+        /// <param name="kindFilter">
+        /// 이 종류만 후보로 본다. null 이면 종류를 가리지 않는다.
+        /// ★ 치유는 <b>자신을 제외한 다른 캐릭터에게만</b> 가능하다(유저 확정 2026-08-13) —
+        /// 넥서스·포탑은 대상이 아니므로 호출부가 <see cref="UnitKind.Character"/> 를 넘긴다.
+        /// </param>
         public static DamageableUnit FindWoundedAlly(Vector3 from, Faction faction, float maxRangeTiles,
                                                      DamageableUnit exclude = null,
-                                                     bool includeSelfIfWounded = true)
+                                                     bool includeSelfIfWounded = true,
+                                                     UnitKind? kindFilter = null)
         {
             float maxSqr = maxRangeTiles * maxRangeTiles;
 
@@ -146,6 +156,7 @@ namespace LastSanctuary.Combat
                 DamageableUnit u = _units[i];
                 if (u == null || !u.IsAlive) continue;
                 if (u.Faction != faction) continue;
+                if (kindFilter.HasValue && u.Kind != kindFilter.Value) continue;
                 if (!includeSelfIfWounded && ReferenceEquals(u, exclude)) continue;
 
                 // 치유를 거부하는 대상(정신 이상 "이기심")은 후보에서 뺀다 — 안 그러면 치유형

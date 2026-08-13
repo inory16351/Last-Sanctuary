@@ -10,9 +10,8 @@ namespace LastSanctuary.Units
     /// <see cref="CharacterBehavior"/> 와 같은 패턴(주기적으로 새 귀환 지점을 찍어준다)으로
     /// 그 역할을 대신한다.
     ///
-    /// 배회 범위는 "등장 가능 범위"와 같다 — 자기 종의 최소 등장 거리(<see cref="MinDistanceFromNexus"/>)
-    /// 부터, 한 단계 위 종이 등장하기 시작하는 거리까지의 고리(annulus) 구간이다
-    /// (유저 요청 예시: 역겨운 덩어리 1은 15~100 타일 구간에서 등장 가능 → 그 구간에서 배회).
+    /// 배회 범위는 "등장 가능 범위"와 <b>정확히 같다</b> — 표의 <c>spawn_range_min</c> ~
+    /// <c>spawn_range_max</c> 로 정해지는 <b>넥서스 중심의 360도 원형 고리</b>(유클리드 거리)다.
     /// <see cref="NeutralMonsterSpawner"/> 가 스폰 직후 <see cref="Init"/> 으로 그 구간을 넘겨준다.
     ///
     /// 선공(aggressive) 개체는 <see cref="UnitCombat"/> 이 이미 타겟을 쫓는 동안은 이 컴포넌트가
@@ -32,8 +31,11 @@ namespace LastSanctuary.Units
                  "Infinity×0=NaN 이 돼 유닛 좌표가 깨진다 — 반드시 유한한 값으로 바꿔줘야 한다")]
         [Min(1f)] [SerializeField] float unboundedWanderRange = 60f;
 
-        // 벽에 걸리면 몇 번까지 다시 굴려볼지.
-        const int Attempts = 8;
+        // 벽에 걸리거나 맵 밖이면 몇 번까지 다시 굴려볼지.
+        // ⚠ 고리가 맵 경계에 가까운 종은 각도 추첨이 자주 맵 밖으로 나가므로, 8번으로는
+        //   매번 실패해 <b>제자리에 굳는다</b>(실패하면 목적지를 안 바꾸고 시각만 미룬다).
+        //   스포너(96회)만큼은 아니어도 넉넉히 잡아둔다.
+        const int Attempts = 48;
 
         UnitCombat _combat;
         MapGenerator _map;
@@ -69,7 +71,7 @@ namespace LastSanctuary.Units
             _destination = transform.position;
         }
 
-        /// <summary>스포너가 스폰 직후 호출한다 — 이 개체가 등장할 수 있는 거리 구간(체비셰프)을 넘겨준다.</summary>
+        /// <summary>스포너가 스폰 직후 호출한다 — 이 개체가 등장할 수 있는 거리 구간(유클리드)을 넘겨준다.</summary>
         public void Init(float minRadius, float maxRadius)
         {
             EnsureReady();
@@ -103,14 +105,12 @@ namespace LastSanctuary.Units
         /// <summary>
         /// 다음 배회 지점을 고른다.
         ///
-        /// ★ <b>체비셰프 고리(사각 링) 위에서 뽑는다</b>(2026-08-13 개정) —
+        /// ★ <b>넥서스 중심의 원형 고리(360도) 위에서 뽑는다</b>(2026-08-13 개정) —
         /// <c>NeutralMonsterSpawner.SampleRingCell</c> 과 <b>완전히 같은 방식</b>이라
-        /// 배회 범위와 스폰 범위가 정확히 일치한다.
+        /// 배회 범위와 스폰 범위가 정확히 일치한다(유저 지시: "소환 가능한 범위 내에서만 배회").
         ///
-        /// 예전에는 <b>각도 + 유클리드 반지름</b>으로 뽑고 <b>체비셰프</b>로만 하한을 검사했다.
-        /// 두 거리는 대각선에서 √2 배 차이가 나므로 결과가 고리 <b>안쪽</b>으로 쏠렸고, 상한은
-        /// 아예 검사하지 않았다 — 유저가 말한 "계속 중앙으로 중립몹이 모인다" 가 이것이다.
-        /// 이제 상·하한을 <b>둘 다</b> 지킨다.
+        /// 반지름을 <c>√(lerp(min², max²))</c> 로 뽑는 이유도 스포너와 같다 — 그냥 <c>Lerp</c> 로
+        /// 뽑으면 넓이가 좁은 <b>안쪽에 몰린다</b>(71-3절의 "중앙으로 모인다" 와 같은 종류의 편향).
         /// </summary>
         void PickDestination()
         {
@@ -118,22 +118,17 @@ namespace LastSanctuary.Units
 
             for (int attempt = 0; attempt < Attempts; attempt++)
             {
-                float d = Mathf.Lerp(_minRadius, _maxRadius, (float)_rng.NextDouble());
-                float along = Mathf.Lerp(-d, d, (float)_rng.NextDouble());
+                float t = (float)_rng.NextDouble();
+                float r = Mathf.Sqrt(Mathf.Lerp(_minRadius * _minRadius, _maxRadius * _maxRadius, t));
+                float angle = (float)(_rng.NextDouble() * System.Math.PI * 2.0);
 
-                Vector3 offset = _rng.Next(4) switch
-                {
-                    0 => new Vector3(along, d, 0f),
-                    1 => new Vector3(along, -d, 0f),
-                    2 => new Vector3(d, along, 0f),
-                    _ => new Vector3(-d, along, 0f),
-                };
-
-                Vector3 candidate = nexus + offset;
+                Vector3 candidate = nexus + new Vector3(Mathf.Cos(angle) * r, Mathf.Sin(angle) * r, 0f);
                 if (!IsWalkable(candidate)) continue;
 
-                float cheb = ChebyshevDistance(candidate, nexus);
-                if (cheb < _minRadius || cheb > _maxRadius) continue;
+                // 벽을 피해 고르는 것이 아니라 "고른 자리가 벽인지"만 보므로, 거리 재검사는
+                // 사실 통과가 보장된다 — 그래도 남겨둔다(넥서스가 (0,0)이 아닌 경우 대비).
+                float d = Vector2.Distance(candidate, nexus);
+                if (d < _minRadius || d > _maxRadius) continue;
 
                 _destination = candidate;
                 break;
@@ -145,9 +140,6 @@ namespace LastSanctuary.Units
 
         bool IsWalkable(Vector3 worldPos) =>
             _map == null || _map.IsCellPlaceable(_map.WorldToCell(worldPos));
-
-        static float ChebyshevDistance(Vector3 a, Vector3 b) =>
-            Mathf.Max(Mathf.Abs(a.x - b.x), Mathf.Abs(a.y - b.y));
 
         Vector3 NexusPosition()
         {

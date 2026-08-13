@@ -31,9 +31,15 @@ namespace LastSanctuary.Units
     /// 보충한다. 한 번에 상한까지 다 채우면 리스폰이 몰려 티가 나므로 나눠서 채운다.
     /// 2026-08-05, 진행상황.md 22절 참조.
     ///
-    /// <b>등장 범위</b>: 넥서스(항상 셀 (0,0))로부터 <see cref="NeutralMonsterDefinitionSO.MinDistanceFromNexus"/>
-    /// (등장범위 n 의 절반, 체비셰프 거리 = n×n 정사각 구역의 경계) 이상 떨어진 칸에서만 스폰한다.
-    /// "부터 나타날 수 있다"는 하한 조건이라 상한은 없다 — 더 멀리서도 계속 나타난다.
+    /// <b>등장 범위</b> (유저 확정 2026-08-13): 표(`임시용 중립 몬스터.xlsx`)의
+    /// <c>spawn_range_min</c> / <c>spawn_range_max</c> 두 칸이 정본이고, 값은 <b>넥서스를 중심에 둔
+    /// 원의 지름(타일)</b>이다("지름 15의 원에서부터 99의 원까지"). 판정은 <b>360도 원형(유클리드)</b> —
+    /// 지름의 절반을 반지름으로 삼은 원형 고리 안에서만 나타난다
+    /// (변환은 <see cref="NeutralMonsterDefinitionSO.MinDistanceFromNexus"/> 한 곳에서만 한다).
+    ///
+    /// ⚠ 예전에는 <c>spawn_range</c> 한 칸(n)을 받아 <b>n/2 를 체비셰프(정사각) 거리</b>로 쓰고
+    ///   상한은 "한 단계 위 종의 하한"으로 <b>추론</b>했다. 이제 표에 상·하한이 명시돼 있으므로
+    ///   그 추론(<c>BuildMaxDistanceTable</c>)을 없앴고, 정사각 링도 원형 고리로 바꿨다.
     /// </summary>
     public class NeutralMonsterSpawner : MonoBehaviour
     {
@@ -69,10 +75,6 @@ namespace LastSanctuary.Units
         readonly Dictionary<NeutralMonsterDefinitionSO, List<NeutralMonsterUnit>> _alive =
             new Dictionary<NeutralMonsterDefinitionSO, List<NeutralMonsterUnit>>();
 
-        /// <summary>종별 등장 거리 상한(체비셰프) — 한 단계 위 종의 등장 거리 하한. 최상위 종은 무한대.</summary>
-        readonly Dictionary<NeutralMonsterDefinitionSO, float> _maxDistanceByDef =
-            new Dictionary<NeutralMonsterDefinitionSO, float>();
-
         void Start()
         {
             _rng = new System.Random(seed);
@@ -83,7 +85,7 @@ namespace LastSanctuary.Units
             foreach (NeutralSpawnEntry e in spawnTable)
                 if (e.definition != null) _alive[e.definition] = new List<NeutralMonsterUnit>();
 
-            BuildMaxDistanceTable();
+            WarnUnreachableRings();
 
             // 시작할 때는 상한까지 한 번에 채운다 — 리스폰이 아니라 최초 서식이므로 몰려도 티가 안 난다.
             RestockAll(fillToCapImmediately: true);
@@ -91,35 +93,30 @@ namespace LastSanctuary.Units
         }
 
         /// <summary>
-        /// 각 종이 등장 가능한 거리의 상한을 구한다 — "부터 나타날 수 있다"(하한)만 있던 것을,
-        /// 한 단계 위 종의 하한을 이 종의 상한으로 삼아 종마다 자기 구간(고리)을 갖게 한다
-        /// (유저 요청: "역겨운 덩어리 1은 15~100 타일 구간에서만 등장"). 최상위 종은 위가 없으니
-        /// 무한대로 둔다 — 예전처럼 "더 멀리서도 계속 나타난다".
+        /// 표에 적힌 고리가 <b>맵 안에 실제로 존재하는지</b> 한 번만 확인해 알려준다.
+        ///
+        /// 320×320 맵은 넥서스(중심)에서 축 방향으로 158타일, <b>모서리까지 약 223타일</b>이다.
+        /// 표의 값은 <b>지름</b>이므로 그 절반이 반지름인데, 그 반지름이 223 을 넘으면
+        /// 그 종은 <b>한 마리도 나오지 않는다</b> — 표만 보고는 알 수 없는 조건이라
+        /// 콘솔에 남긴다(유저가 표를 조정할 근거).
         /// </summary>
-        void BuildMaxDistanceTable()
+        void WarnUnreachableRings()
         {
-            _maxDistanceByDef.Clear();
-            if (spawnTable == null) return;
+            float reach = MapMaxRadius();
 
-            foreach (NeutralSpawnEntry mine in spawnTable)
+            foreach (NeutralSpawnEntry e in spawnTable)
             {
-                if (mine.definition == null) continue;
-                float min = mine.definition.MinDistanceFromNexus;
-                float upper = float.PositiveInfinity;
+                if (e.definition == null) continue;
+                float min = e.definition.MinDistanceFromNexus;
+                if (min < reach) continue;
 
-                foreach (NeutralSpawnEntry other in spawnTable)
-                {
-                    if (other.definition == null || other.definition == mine.definition) continue;
-                    float otherMin = other.definition.MinDistanceFromNexus;
-                    if (otherMin > min && otherMin < upper) upper = otherMin;
-                }
-
-                _maxDistanceByDef[mine.definition] = upper;
+                Debug.LogWarning(
+                    $"[NeutralMonsterSpawner] {e.definition.name} 의 등장 최소 지름 " +
+                    $"{e.definition.spawnRangeMinTiles:0}타일(= 반지름 {min:0})이 맵에서 닿을 수 있는 " +
+                    $"최대 거리({reach:0}타일)보다 멀어 한 마리도 나올 수 없습니다. " +
+                    "표(`임시용 중립 몬스터.xlsx` 의 spawn_range_min)를 낮춰주세요.", this);
             }
         }
-
-        float MaxDistanceFor(NeutralMonsterDefinitionSO def) =>
-            _maxDistanceByDef.TryGetValue(def, out float v) ? v : float.PositiveInfinity;
 
         /// <summary>종별 다음 보충 시각. 표의 <c>respawn_seconds</c> 를 종마다 따로 돌리기 위한 것.</summary>
         readonly Dictionary<NeutralMonsterDefinitionSO, float> _nextRestockTime =
@@ -205,7 +202,7 @@ namespace LastSanctuary.Units
             }
 
             float minDist = entry.definition.MinDistanceFromNexus;
-            float maxDist = MaxDistanceFor(entry.definition);
+            float maxDist = entry.definition.MaxDistanceFromNexus;
             if (!TryFindSpawnCell(entry.definition, minDist, maxDist, out Vector3Int cell)) return;
 
             Vector3 pos = mapGenerator != null
@@ -257,15 +254,20 @@ namespace LastSanctuary.Units
         }
 
         /// <summary>
-        /// 넥서스(셀 (0,0)) 기준 정의된 최소거리 이상, 그리고 <paramref name="maxDist"/> 이하(유한하면)인
-        /// 배치 가능한 칸을 무작위로 찾는다. 상한이 무한대(최상위 종)면 예전처럼
-        /// "더 멀리서도 계속 나타난다".
+        /// 넥서스(셀 (0,0)) 중심 <b>원형 고리</b>(min ~ max 타일, 유클리드) 안에서 배치 가능한 칸을
+        /// 무작위로 찾는다.
+        ///
+        /// ⚠ <b>고른 자리를 그대로 검사한다</b> — <see cref="MapGenerator.TryFindPlaceableNear"/> 가
+        ///   벽을 피해 옆 칸으로 옮겨줄 수 있으므로, 옮겨진 뒤의 거리를 다시 재서 고리를 벗어났으면
+        ///   버린다(옮기는 폭이 <see cref="placementFallbackRadius"/> 뿐이라 대부분 통과한다).
         /// </summary>
         bool TryFindSpawnCell(NeutralMonsterDefinitionSO def, float minDist, float maxDist, out Vector3Int result)
         {
             float outer = ResolveOuterRadius(minDist, maxDist);
 
-            const int Attempts = 32;
+            // 고리가 맵 모서리 쪽에만 걸치는 경우(하한이 맵 반지름보다 클 때) 각도 추첨이
+            // 자주 헛돌기 때문에 시도 횟수를 넉넉히 잡는다.
+            const int Attempts = 96;
             for (int i = 0; i < Attempts; i++)
             {
                 Vector3Int candidate = SampleRingCell(_rng, minDist, outer);
@@ -279,8 +281,8 @@ namespace LastSanctuary.Units
 
                 if (mapGenerator.TryFindPlaceableNear(candidate, placementFallbackRadius, null,
                                                        out Vector3Int placeable) &&
-                    ChebyshevDistance(placeable) >= minDist &&
-                    ChebyshevDistance(placeable) <= outer)
+                    RadiusFromNexus(placeable) >= minDist &&
+                    RadiusFromNexus(placeable) <= outer)
                 {
                     result = placeable;
                     return true;
@@ -291,59 +293,86 @@ namespace LastSanctuary.Units
             return false;
         }
 
-        /// <summary>이 종이 실제로 쓸 바깥 반지름(타일, 체비셰프). 무한대는 맵 크기로 자른다.</summary>
+        /// <summary>
+        /// 이 종이 실제로 쓸 바깥 반지름(타일, 유클리드). 표의 상한이 맵 밖이면 맵 크기로 자른다.
+        /// 상한이 무한대(표에 0)면 맵에서 닿을 수 있는 최대 거리까지 쓴다.
+        /// </summary>
         float ResolveOuterRadius(float minDist, float maxDist)
         {
-            int mapHalf = mapGenerator != null && mapGenerator.Config != null
-                ? Mathf.Max(mapGenerator.Config.MapSize.x, mapGenerator.Config.MapSize.y) / 2 - 2
-                : Mathf.CeilToInt(minDist) + placementSearchRadius;
-
-            float outer = float.IsPositiveInfinity(maxDist)
-                ? Mathf.Min(minDist + placementSearchRadius, mapHalf)
-                : Mathf.Min(maxDist, mapHalf);
-
+            float reach = MapMaxRadius();
+            float outer = float.IsPositiveInfinity(maxDist) ? reach : Mathf.Min(maxDist, reach);
             return Mathf.Max(minDist + 1f, outer);
         }
 
         /// <summary>
-        /// ★ <b>체비셰프 고리(사각 링) 안에서 균일하게 한 칸을 고른다</b> (2026-08-13 개정).
+        /// 넥서스(맵 중심)에서 맵 안의 한 점까지 나올 수 있는 <b>최대 유클리드 거리</b>(타일) —
+        /// 정사각 맵의 모서리까지, 즉 반쪽 크기 × √2. 320×320 이면 약 226타일이다.
+        /// 맵 참조가 없으면 최소거리 + 탐색 반경으로 폴백한다.
+        /// </summary>
+        float MapMaxRadius()
+        {
+            if (mapGenerator == null || mapGenerator.Config == null) return placementSearchRadius;
+
+            float halfX = mapGenerator.Config.MapSize.x * 0.5f - 2f;
+            float halfY = mapGenerator.Config.MapSize.y * 0.5f - 2f;
+            return Mathf.Sqrt(halfX * halfX + halfY * halfY);
+        }
+
+        /// <summary>
+        /// ★ <b>원형 고리(360도) 안에서 넓이 기준으로 균일하게 한 칸을 고른다</b>
+        /// (유저 확정 2026-08-13: "넥서스 기준 타일 범위로 360도 원형").
         ///
-        /// <b>왜 고쳤나</b> — 예전에는 <b>각도 + 유클리드 반지름</b>으로 뽑고 그 결과를
-        /// <b>체비셰프</b> 거리로 검사했다. 두 거리는 대각선에서 최대 √2 배 차이가 나므로,
-        /// 유클리드 반지름 <c>r</c> 로 뽑은 점의 체비셰프 거리는 평균적으로 <c>r</c> 보다
-        /// <b>작다</b>. 그 결과 개체가 고리 안쪽(=넥서스 쪽)으로 쏠렸고, 바깥 경계 근처는
-        /// 거의 비었다 — 유저가 말한 <b>"계속 중앙으로 중립몹이 모인다"</b> 의 실체다.
+        /// <b>왜 반지름을 √ 로 뽑는가</b> — 각도를 균일하게 뽑고 반지름을 그냥 <c>Lerp</c> 로
+        /// 뽑으면 <b>안쪽이 좁고 바깥이 넓은데 같은 수를 뿌리게</b> 되어 개체가 넥서스 쪽으로
+        /// 쏠린다(71-3절이 고쳤던 "중앙으로 모인다" 와 같은 종류의 편향이다).
+        /// <c>r = √(lerp(min², max²))</c> 로 뽑으면 고리 넓이에 비례해 균일하게 퍼진다.
         ///
-        /// 이제 <b>체비셰프 거리 자체를 균일하게</b> 뽑고, 그 거리의 정사각 테두리 위에서
-        /// 한 점을 고른다. 결과의 체비셰프 거리는 <b>정확히</b> 뽑은 값이라 고리를 벗어나지도,
-        /// 안쪽으로 쏠리지도 않는다.
+        /// ⚠ 예전 방식(체비셰프 정사각 링)에서 이걸로 바꾼 이유는 유저 지시 하나다 —
+        ///   등장 범위가 <b>정사각 구역이 아니라 원형</b>이어야 한다.
         /// </summary>
         static Vector3Int SampleRingCell(System.Random rng, float minDist, float maxDist)
         {
-            float d = Mathf.Lerp(minDist, maxDist, (float)rng.NextDouble());
-            int r = Mathf.Max(1, Mathf.RoundToInt(d));
-            int along = rng.Next(-r, r + 1);
+            float t = (float)rng.NextDouble();
+            float r = Mathf.Sqrt(Mathf.Lerp(minDist * minDist, maxDist * maxDist, t));
+            float angle = (float)(rng.NextDouble() * System.Math.PI * 2.0);
 
-            return rng.Next(4) switch
-            {
-                0 => new Vector3Int(along, r, 0),      // 위 변
-                1 => new Vector3Int(along, -r, 0),     // 아래 변
-                2 => new Vector3Int(r, along, 0),      // 오른 변
-                _ => new Vector3Int(-r, along, 0),     // 왼 변
-            };
+            return new Vector3Int(Mathf.RoundToInt(Mathf.Cos(angle) * r),
+                                  Mathf.RoundToInt(Mathf.Sin(angle) * r), 0);
         }
 
-        static float ChebyshevDistance(Vector3Int cell) => Mathf.Max(Mathf.Abs(cell.x), Mathf.Abs(cell.y));
+        /// <summary>넥서스(셀 (0,0))로부터의 유클리드 거리(타일).</summary>
+        static float RadiusFromNexus(Vector3Int cell) => Mathf.Sqrt(cell.x * cell.x + cell.y * cell.y);
 
         void OnDrawGizmosSelected()
         {
             if (spawnTable == null) return;
-            Gizmos.color = new Color(0.6f, 1f, 0.3f, 0.5f);
+
             foreach (NeutralSpawnEntry e in spawnTable)
             {
                 if (e.definition == null) continue;
-                float half = e.definition.MinDistanceFromNexus;
-                Gizmos.DrawWireCube(Vector3.zero, new Vector3(half * 2f, half * 2f, 0f));
+
+                // 원형 고리 — 안쪽 원과 바깥쪽 원을 색을 나눠 그린다.
+                Gizmos.color = new Color(0.6f, 1f, 0.3f, 0.6f);
+                DrawCircle(e.definition.MinDistanceFromNexus);
+
+                float max = e.definition.MaxDistanceFromNexus;
+                if (float.IsPositiveInfinity(max)) continue;
+
+                Gizmos.color = new Color(1f, 0.8f, 0.3f, 0.4f);
+                DrawCircle(max);
+            }
+        }
+
+        static void DrawCircle(float radius)
+        {
+            const int Segments = 64;
+            Vector3 prev = new Vector3(radius, 0f, 0f);
+            for (int i = 1; i <= Segments; i++)
+            {
+                float a = i * Mathf.PI * 2f / Segments;
+                Vector3 next = new Vector3(Mathf.Cos(a) * radius, Mathf.Sin(a) * radius, 0f);
+                Gizmos.DrawLine(prev, next);
+                prev = next;
             }
         }
     }

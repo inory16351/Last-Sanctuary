@@ -1122,10 +1122,26 @@ namespace LastSanctuary.Combat
         }
 
         /// <summary>
-        /// 치유 유형의 "타겟" — 사거리 안에서 가장 많이 다친 아군. 없으면 타겟 없음(귀환/순찰).
+        /// 치유 유형의 "타겟" — <b>내 주변에서 체력이 깎인 아군</b> 중 가장 많이 다친 하나.
+        /// 없으면 타겟 없음(이동은 <see cref="Units.CharacterBehavior"/> 에 맡긴다).
         /// 적 타겟과 같은 <see cref="_target"/> 슬롯을 쓰기 때문에, 이동·상태 판정
         /// (<see cref="DecideState"/>/<see cref="Act"/>)을 그대로 재사용할 수 있다 —
         /// 실제 "때리기"만 <see cref="TryAttack"/> 에서 회복으로 갈린다.
+        ///
+        /// <b>★ 대상은 "자신을 제외한 다른 캐릭터" 뿐이다</b> (유저 확정 2026-08-13:
+        /// "포탑이랑 넥서스는 회복 대상에서 빼 · 회복은 자신을 제외한 다른 캐릭터에게만 가능").
+        /// 그래서 <c>kindFilter: UnitKind.Character</c> 를 넘긴다 — 넥서스·포탑은 후보가 아니다.
+        /// ⚠ 예전에는 <c>FindWoundedAlly(..., exclude: _self)</c> 로 불렀지만 그 함수의
+        ///   <c>includeSelfIfWounded</c> 기본값이 <b>true</b> 라 <c>exclude</c> 가 아무 일도 안 했다.
+        ///   그래서 자기가 제일 많이 다쳤으면 <b>자기를 타겟으로 잡고</b>, 거리 0 이라 항상
+        ///   사거리 안 → 그 자리에서 자기 회복만 반복했다. 호출부(<c>CharacterBehavior</c>)는
+        ///   타겟이 있으면 목적지를 안 건드리므로 <b>영원히 제자리에 멈춰 회복 모션만</b> 나왔다 —
+        ///   유저가 리포트한 그 그림이다. 자기 체력은 재생(<c>TickRegen</c>)이 맡는다.
+        ///
+        /// <b>★ 목줄로 거르지 않는다</b> — 목줄의 기준점 <c>_homePosition</c> 은 지금 걸어가는
+        /// <b>탐험 목적지</b>(14~60타일 밖)라, 바로 옆의 다친 동료가 "목줄 밖"으로 걸러지는
+        /// 일이 생긴다(56-2절의 사냥이 겪은 것과 같은 함정). 후보는 이미
+        /// <see cref="EffectiveDetectRange"/> 로 <b>내 위치 기준</b> 잘려 있으므로 그것으로 충분하다.
         /// </summary>
         void AcquireHealTarget()
         {
@@ -1133,15 +1149,9 @@ namespace LastSanctuary.Combat
             if (!targetInvalid && Time.time < _nextRetargetTime) return;
             _nextRetargetTime = Time.time + RetargetInterval;
 
-            DamageableUnit found = UnitRegistry.FindWoundedAlly(
-                transform.position, _self.Faction, EffectiveDetectRange, _self);
-
-            // 아군이라도 목줄 밖까지 쫓아가면 대열이 흐트러진다 — 적 타겟과 같은 규칙을 적용한다.
-            if (found != null && !advanceToObjective && leashRange > 0f &&
-                Vector2.Distance(found.transform.position, _homePosition) > leashRange)
-                found = null;
-
-            _target = found;
+            _target = UnitRegistry.FindWoundedAlly(
+                transform.position, _self.Faction, EffectiveDetectRange, _self,
+                includeSelfIfWounded: false, kindFilter: UnitKind.Character);
         }
 
         void DecideState()

@@ -44,11 +44,16 @@ namespace LastSanctuary.Units
         [Min(1)] [SerializeField] int maxSearchRadius = 12;
 
         [Header("랜덤")]
-        [Tooltip("같은 시드 = 항상 같은 능력치. 버그 재현과 밸런싱 테스트에 필요")]
+        [Tooltip("<b>randomizeSeed 를 껐을 때만</b> 쓰는 고정 시드. 같은 시드 = 항상 같은 결과라 " +
+                 "버그 재현·밸런싱 테스트에 필요하다")]
         [SerializeField] int seed = 20260803;
 
-        [Tooltip("켜면 실행할 때마다 다른 능력치가 나온다")]
-        [SerializeField] bool randomizeSeed = false;
+        [Tooltip("★ 켜면 실행할 때마다 <b>등장 인물과 능력치가 다르게</b> 나온다 (기본 켜짐).\n\n" +
+                 "이 난수열은 능력치 추첨뿐 아니라 <b>캐릭터 테이블에서 누가 나올지</b>도 정한다" +
+                 "(CharacterDefinitionRegistry.Pick). 그래서 꺼두면 <b>매 판 같은 인물 조합</b>이 " +
+                 "나온다 — 유저 리포트 2026-08-13 \"게임 실행 때마다 프레이야 2 / 엘린 1로 고정\" 이 " +
+                 "그것이다(씬 값이 꺼져 있었다). 재현이 필요할 때만 끄고 시드를 적을 것.")]
+        [SerializeField] bool randomizeSeed = true;
 
         [Header("실행")]
         [SerializeField] bool spawnOnStart = true;

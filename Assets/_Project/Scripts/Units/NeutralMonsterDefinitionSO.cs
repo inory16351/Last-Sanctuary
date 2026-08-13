@@ -34,14 +34,33 @@ namespace LastSanctuary.Units
                  "MonsterDefinitionSO와 같은 패턴으로 스포너 쪽 스폰 테이블에도 별도로 연결한다")]
         public NeutralMonsterUnit template;
 
-        [Header("등장 범위 (테이블 spawn_range)")]
-        [Tooltip("넥서스 기준 이 값 × 이 값(n×n) 타일 구역부터 나타날 수 있다. " +
-                 "실제 판정은 절반(n/2 타일)을 넥서스로부터의 최소 체비셰프 거리로 사용한다. " +
-                 "\"부터\"이므로 상한은 없다 — 더 멀리 나가도 계속 나타난다")]
-        [Min(1)] public int spawnRangeTiles = 100;
+        [Header("등장 범위 (테이블 spawn_range_min / spawn_range_max) — ★ 지름 기준")]
+        [Tooltip("★ <b>넥서스를 중심에 둔 원의 지름(타일)</b> 하한이다 (유저 확정 2026-08-13:\n" +
+                 "\"넥서스를 중심에 두고 지름 15의 원에서부터 99의 원까지 — 반지름이 아니라 지름 기준\").\n\n" +
+                 "판정은 <b>360도 원형(유클리드 거리)</b>이다 — 실제 거리 검사에는 이 값의 " +
+                 "<b>절반</b>(반지름)을 쓴다. 예: 15 → 넥서스에서 7.5타일부터.")]
+        [Min(0f)] public float spawnRangeMinTiles = 15f;
 
-        /// <summary>넥서스 중심에서 이 거리(타일, 체비셰프) 이상 떨어져야 스폰 후보가 된다.</summary>
-        public float MinDistanceFromNexus => spawnRangeTiles * 0.5f;
+        [Tooltip("등장 원의 <b>지름</b>(타일) 상한. 이보다 멀리서는 나타나지도, 배회하지도 않는다.\n" +
+                 "0 이면 제한 없음(맵 끝까지)으로 친다.\n" +
+                 "⚠ 맵 밖까지 적으면 스포너가 맵 크기로 잘라 쓴다 — 320×320 맵이면 지름 320 " +
+                 "(= 반지름 160)이 축 방향으로 닿는 한계다")]
+        [Min(0f)] public float spawnRangeMaxTiles = 100f;
+
+        /// <summary>
+        /// 넥서스 중심에서 이 거리(타일, <b>유클리드 반지름</b>) 이상 떨어져야 스폰 후보가 된다.
+        /// 표의 값은 <b>지름</b>이므로 절반으로 나눈다(유저 확정 2026-08-13).
+        /// </summary>
+        public float MinDistanceFromNexus => Mathf.Max(0f, spawnRangeMinTiles) * 0.5f;
+
+        /// <summary>
+        /// 넥서스 중심에서 이 거리(타일, <b>유클리드 반지름</b>) 이하여야 스폰 후보가 된다.
+        /// 표의 값은 <b>지름</b>이므로 절반으로 나눈다. 0 이면 무한대.
+        /// </summary>
+        public float MaxDistanceFromNexus =>
+            spawnRangeMaxTiles > 0f
+                ? Mathf.Max(spawnRangeMaxTiles * 0.5f, MinDistanceFromNexus + 1f)
+                : float.PositiveInfinity;
 
         [Header("에너지 보상 (테이블 min/max_energy)")]
         [Tooltip("처치 시 획득하는 에너지의 최소값")]

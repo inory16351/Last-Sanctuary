@@ -576,8 +576,17 @@ def sync_neutral_monsters():
             print('  ! 중립 id %d 에 해당하는 에셋 이름을 모릅니다' % mid)
             continue
 
+        # ★ 등장 범위는 2026-08-13 부터 최소/최대 두 칸이다(유저 지시: "중립 몬스터 등장
+        #   범위 최대 최소 범위 ... 넥서스 기준 타일 범위로 360도 원형").
+        #   값은 <b>지름</b>이다(유저 확정: "넥서스를 중심에 두고 지름 15의 원에서부터 99의
+        #   원까지 - 반지름이 아니라 지름 기준"). 절반으로 나누는 것은 게임 쪽
+        #   (NeutralMonsterDefinitionSO.MinDistanceFromNexus)이 하므로 여기서는 표 값을
+        #   그대로 옮긴다 - 인스펙터에 표와 같은 숫자가 보여야 대조가 된다.
+        #   표에 옛 `spawn_range` 한 칸만 있는 경우를 대비해 폴백을 남긴다(뜻이 같다).
+        legacy = num(row.get('spawn_range'), 0)
         changes = {
-            'spawnRangeTiles': int(num(row.get('spawn_range'), 100)),
+            'spawnRangeMinTiles': num(row.get('spawn_range_min'), legacy),
+            'spawnRangeMaxTiles': num(row.get('spawn_range_max'), 0),
             'minEnergy': int(num(row.get('min_energy'))),
             'maxEnergy': int(num(row.get('max_energy'))),
             # ★ 선공/비선공은 이 한 칸이 전부다(유저 확정) - 게임 쪽에서도 스폰할 때
@@ -600,9 +609,12 @@ def sync_neutral_monsters():
             })
 
         total += patch_fields(os.path.join(folder, asset + '.asset'), changes, asset,
-                              add_missing=('maxAlive', 'respawnSeconds'))
-        print('    %s: 등장 %s타일부터 · 에너지 %s~%s · %s · 최대 %s마리 · 재생성 %s초'
-              % (asset, changes['spawnRangeTiles'], changes['minEnergy'], changes['maxEnergy'],
+                              add_missing=('maxAlive', 'respawnSeconds',
+                                           'spawnRangeMinTiles', 'spawnRangeMaxTiles'))
+        print('    %s: 등장 지름 %s~%s타일(원형, 반지름 %.1f~%.1f) · 에너지 %s~%s · %s · 최대 %s마리 · 재생성 %s초'
+              % (asset, changes['spawnRangeMinTiles'], changes['spawnRangeMaxTiles'],
+                 changes['spawnRangeMinTiles'] / 2.0, changes['spawnRangeMaxTiles'] / 2.0,
+                 changes['minEnergy'], changes['maxEnergy'],
                  '선공' if changes['aggressive'] else '비선공',
                  changes['maxAlive'], changes['respawnSeconds']))
     return total

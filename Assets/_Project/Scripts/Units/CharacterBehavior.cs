@@ -113,10 +113,27 @@ namespace LastSanctuary.Units
                  "맵 반대편까지 걸어가는 게 싫으면 여기에 거리를 넣으면 된다")]
         [Min(0f)] [SerializeField] float buildRange = 0f;
 
+        [Header("치유 유형 — 근처에서 싸우는 동료 지원")]
+        [Tooltip("공격 유형이 '치유'일 때, 이 거리 안에서 <b>다쳤거나 싸우고 있는 동료</b>를 찾아 " +
+                 "그 옆으로 붙는다(타일). 0 이면 지원하러 나서지 않고 평소처럼 순찰만 한다.\n" +
+                 "치유 유형은 적을 아예 노리지 않으므로(유저 확정 2026-08-13) 이 값이 사실상 " +
+                 "'무엇을 하러 움직이는가'를 정한다")]
+        [Min(0f)] [SerializeField] float healSupportRange = 16f;
+
+        [Tooltip("지원 자리를 다시 계산하는 주기(초). 동료가 움직이므로 순찰보다 자주 갱신한다")]
+        [Min(0.1f)] [SerializeField] float healSupportRepick = 0.5f;
+
         [Header("부대 — 협동 탐험 시 함께 이동")]
         [Tooltip("부대 기준원의 목적지에서 이만큼 떨어져 선다(타일). 0 이면 같은 지점으로 몰린다.\n" +
                  "캐릭터마다 고정된 방향으로 어긋나므로 대열이 흔들리지 않는다")]
         [Min(0f)] [SerializeField] float squadFollowSpacing = 2.5f;
+
+        [Tooltip("협동 탐험 중 기준원에게서 이만큼 멀어지면 <b>하던 사냥을 놓고 대열로 복귀</b>한다(타일). " +
+                 "0 이면 복귀 강제 없음(예전 동작).\n" +
+                 "유저 확정 2026-08-13: \"협동 탐험을 켜면 어떤 탐험 유형이든 건설 목표가 있지 않는 " +
+                 "이상 함께 탐험을 가야 한다\" — 세부 행동(중립을 때릴지)은 각자의 탐험 유형을 따르되, " +
+                 "이동만은 부대를 따른다")]
+        [Min(0f)] [SerializeField] float squadRegroupDistance = 12f;
 
         [Tooltip("부대를 따라가는 중 목적지를 다시 읽는 주기(초). 기준원이 새 목적지를 고른 것을 " +
                  "이만큼 뒤에 따라잡는다. 너무 짧으면 매 프레임 경로가 초기화된다")]
@@ -152,10 +169,6 @@ namespace LastSanctuary.Units
         [Min(0f)] [SerializeField] float midBehindGap = 1.5f;
 
         [Header("후퇴 (전술 지침의 '후퇴 판단 기준')")]
-        [Tooltip("후퇴 기준 + 이 여유(%)만큼 회복되면 다시 전투에 복귀한다. 여유가 0이면 " +
-                 "기준선 근처에서 후퇴/복귀를 무한히 반복하며 덜덜 떤다")]
-        [Range(0, 50)] [SerializeField] int retreatRecoverMargin = 15;
-
         [Tooltip("전방 아군이 후퇴 중인지 다시 확인하는 간격(초). 매 프레임 전체 유닛을 훑지 않기 위한 값")]
         [Min(0.05f)] [SerializeField] float frontRetreatCheckInterval = 0.25f;
 
@@ -206,8 +219,34 @@ namespace LastSanctuary.Units
         public CharacterDuty Duty => _duty;
         public Vector3 Destination => _destination;
 
-        /// <summary>지금 후퇴 중인지 (로스터 표시·디버그용 + 뒤에 선 아군의 동반 후퇴 판정).</summary>
+        /// <summary>지금 후퇴 중인지 (로스터 표시·디버그용).</summary>
         public bool IsRetreating => _retreating;
+
+        /// <summary>
+        /// ★ <b>자기 체력이 후퇴 기준 아래로 떨어져서</b> 물러나는 중인지 —
+        /// 남을 따라 물러나는 <b>동반 후퇴</b>와 구분한다.
+        ///
+        /// <b>왜 구분해야 하나 (2026-08-13 버그)</b> — 동반 후퇴 판정
+        /// (<see cref="FrontAllyIsRetreating"/>)이 <c>IsRetreating</c> 을 그대로 봤기 때문에
+        /// <b>따라 물러나는 사람도 "앞이 물러난다"의 근거가 됐다.</b> 그 결과 두 명이
+        /// <b>서로를 따라</b> 물러나는 고리가 생겼다:
+        /// <code>
+        ///   중위 M 이 체력 때문에 후퇴 → 넥서스 바로 옆(retreatRadius 3)까지 물러난다
+        ///   후방 B 가 M 을 따라 후퇴  → 동반 후퇴는 "적에게서 최대 사거리" 자리라
+        ///                              M 보다 <b>넥서스에서 더 먼 곳</b>에 선다
+        ///   M 의 체력이 회복됨        → 그런데 이제 B 가 "나보다 앞에서 후퇴 중인 아군"이라
+        ///                              M 은 후퇴를 못 끝낸다 → B 도 M 때문에 못 끝낸다
+        /// </code>
+        /// 서로가 서로의 이유가 되어 <b>체력이 다 차도 영원히 후퇴</b>한다 —
+        /// 유저 리포트("체력이 회복되어도 계속 후퇴")의 정체다.
+        ///
+        /// <b>고친 규칙</b>: 후퇴는 <b>체력이 떨어진 당사자에게서만 전파된다.</b>
+        /// 동반 후퇴자는 남을 끌고 가지 않으므로 고리가 만들어질 수 없다.
+        /// </summary>
+        public bool IsRetreatingBySelfHp => _retreating && _retreatBySelfHp;
+
+        /// <summary>이번 후퇴가 "내 체력 때문"인지. 동반 후퇴면 false. <see cref="IsRetreatingBySelfHp"/> 참조.</summary>
+        bool _retreatBySelfHp;
 
         /// <summary>탐험 유형 '탐색' 이 선공 몹을 피해 도망치는 중인지 (로스터 표시·부대 이동 제외 판정).</summary>
         public bool IsFleeing => _fleeing;
@@ -245,6 +284,7 @@ namespace LastSanctuary.Units
                 if (previous == MentalOverride.Flee)
                 {
                     _retreating = false;
+                    _retreatBySelfHp = false;
                     _combat.SetCombatSuppressed(false);
                     _combat.SetRetreatFiring(false);
                 }
@@ -257,6 +297,7 @@ namespace LastSanctuary.Units
             // ⚠️ `_retreating` 을 직접 끄므로 `SetRetreating` 을 안 거친다 —
             //    후퇴 사격도 여기서 같이 꺼야 한다. 안 그러면 정신 이상 중에 계속 쏜다.
             _retreating = false;
+            _retreatBySelfHp = false;
             _combat.SetRetreatFiring(false);
 
             if (mode == MentalOverride.Flee)
@@ -398,6 +439,15 @@ namespace LastSanctuary.Units
                 _waveReaction == TacticalWaveReaction.DefendNow)
                 _combat.ClearHuntTarget();
 
+            // ★ 협동 탐험 — <b>대열에서 너무 벌어지면 물고 있던 사냥감을 놓는다</b>
+            //   (유저 확정 2026-08-13: "협동 탐험을 켜면 ... 함께 탐험을 가야 한다").
+            //
+            //   왜 여기(교전 판정보다 앞)인가 — 사냥 중에는 아래의 "교전 중이면 목적지를
+            //   건드리지 않는다"에서 <b>매 프레임 되돌아간다.</b> 그 뒤에 두면 이 검사가
+            //   영영 실행되지 않아, 사냥 유형 부대원 혼자 24타일(<c>huntPursuitTiles</c>)까지
+            //   쫓아가며 부대가 갈라진 채로 각자 놀게 된다.
+            if (_combat.IsHunting && IsFarFromSquadLeader()) _combat.ClearHuntTarget();
+
             // 교전 중에는 이동을 UnitCombat 에 맡기고 목적지를 건드리지 않는다
             // (사냥 중인 중립 몬스터도 이 시점엔 이미 Target 으로 잡혀 있다).
             // 다만 <b>얼마나 떨어져 싸울지</b>는 전술 포지션이 정하므로 그것만 밀어 넣는다 —
@@ -437,6 +487,11 @@ namespace LastSanctuary.Units
             bool expeditionWork = CanDoExpeditionWork();
 
             if (expeditionWork && TryBuild()) return;
+
+            // ★ 치유 유형은 <b>적을 노리지 않는다</b> — 대신 근처에서 싸우고 있는 동료 옆에
+            //   붙어 지원한다(유저 확정 2026-08-13). 사냥·순찰보다 앞에 둔다: 이 유형에게
+            //   "할 일"은 사냥감이 아니라 동료다.
+            if (TryPickHealSupportSpot(duty, rallyCenter)) return;
 
             if (expeditionWork && TryFindHuntPrey(duty, rallyCenter, out DamageableUnit prey))
             {
@@ -637,6 +692,12 @@ namespace LastSanctuary.Units
         {
             float range = _combat.EffectiveAttackRange;
 
+            // ★ 치유 유형의 "타겟"은 적이 아니라 <b>다친 동료</b>다(유저 확정 2026-08-13) —
+            //   전열 규칙을 그대로 적용하면 후방일 때 <b>치유 사거리 끝</b>에 서게 되어,
+            //   동료가 한 걸음만 움직여도 사거리를 벗어나 치유가 끊긴다. 여유를 두고 붙는다.
+            if (_combat.AttackType == TacticalAttackType.Heal)
+                return _position == TacticalPosition.Front ? 0f : range * 0.6f;
+
             switch (_position)
             {
                 case TacticalPosition.Front:
@@ -719,9 +780,13 @@ namespace LastSanctuary.Units
         // ------------------------------------------------------------------
 
         /// <summary>
-        /// 체력이 기준 이하면 후퇴 상태로, 기준 + 여유 이상으로 회복되면 복귀로 전환한다.
-        /// 여유(<see cref="retreatRecoverMargin"/>)를 두는 이유는 기준선 바로 위아래에서
-        /// 후퇴/복귀가 매 프레임 뒤집히는 것을 막기 위함이다(히스테리시스).
+        /// 체력이 <b>기준 미만</b>이면 후퇴, <b>기준 이상</b>으로 회복되면 즉시 복귀한다
+        /// (유저 확정 2026-08-13: "해당 체력 이상으로 회복되면 바로 복귀").
+        ///
+        /// ⚠ 예전에는 복귀선에 <c>retreatRecoverMargin</c>(+15%)을 얹은 히스테리시스가 있었다.
+        ///   유저 지시로 없앴다 — 기준 하나만 쓴다. 들어가는 조건이 <b>미만</b>(&lt;),
+        ///   나오는 조건이 <b>이상</b>(&gt;=)이라 두 구간이 겹치지 않으므로, 여유가 없어도
+        ///   기준선에서 후퇴/복귀가 매 프레임 뒤집히지는 않는다.
         /// </summary>
         void UpdateRetreatState()
         {
@@ -732,15 +797,27 @@ namespace LastSanctuary.Units
 
             // 후퇴 기준이 0 이면 "후퇴하지 않음"이라는 명시적 지침이다 —
             // 전방이 물러나도 따라가지 않는다. 지침을 넘어서까지 대신 판단하지 않는다.
-            if (_retreatHpPercent <= 0) { SetRetreating(false); return; }
+            if (_retreatHpPercent <= 0) { SetRetreating(false, bySelfHp: false); return; }
 
             float percent = _self.HpRatio * 100f;
 
-            if (!_retreating && (percent <= _retreatHpPercent || frontFallingBack))
-                SetRetreating(true);
-            else if (_retreating && !frontFallingBack &&
-                     percent >= Mathf.Min(100, _retreatHpPercent + retreatRecoverMargin))
-                SetRetreating(false);
+            // 기준 하나로 갈린다 — 미만이면 후퇴, 이상이면 복귀(유저 확정 2026-08-13).
+            bool belowEnter = percent < _retreatHpPercent;
+            bool aboveExit = !belowEnter;
+
+            if (!_retreating)
+            {
+                if (belowEnter || frontFallingBack) SetRetreating(true, bySelfHp: belowEnter);
+                return;
+            }
+
+            // ★ 이미 후퇴 중일 때 — <b>사유가 바뀌면 그것도 반영한다.</b>
+            //   동반 후퇴로 들어온 뒤 체력까지 떨어지면 그때부터 '자기 체력 후퇴'로 승격하고,
+            //   기준 이상으로 회복되면 (앞사람을 따라 계속 물러나더라도) 동반 후퇴로 내려간다.
+            _retreatBySelfHp = belowEnter;
+
+            // 체력이 기준 이상으로 회복됐고 따라갈 앞사람도 없으면 후퇴를 끝낸다.
+            if (aboveExit && !frontFallingBack) SetRetreating(false, bySelfHp: false);
         }
 
         /// <summary>
@@ -777,7 +854,7 @@ namespace LastSanctuary.Units
             {
                 bool stillFollowing =
                     _followingRetreatOf._self != null && _followingRetreatOf._self.IsAlive &&
-                    _followingRetreatOf.IsRetreating &&
+                    _followingRetreatOf.IsRetreatingBySelfHp &&
                     ((Vector2)(_followingRetreatOf.transform.position - transform.position)).sqrMagnitude
                         <= limitSqr;
                 if (stillFollowing) { _frontRetreating = true; return true; }
@@ -799,8 +876,11 @@ namespace LastSanctuary.Units
                 // 넥서스에서 나보다 먼 쪽에 선 아군만 "전방"이다.
                 if (Vector2.Distance(u.transform.position, nexus) <= myDistToNexus) continue;
 
+                // ★ <b>체력 때문에 물러나는 사람만</b> 따라간다 — 동반 후퇴자를 근거로 삼으면
+                //   서로를 따라 물러나는 고리가 생겨 영원히 안 끝난다
+                //   (<see cref="IsRetreatingBySelfHp"/> 의 설명 참조).
                 var behavior = u.GetComponent<CharacterBehavior>();
-                if (behavior == null || !behavior.IsRetreating) continue;
+                if (behavior == null || !behavior.IsRetreatingBySelfHp) continue;
 
                 _followingRetreatOf = behavior;
                 _frontRetreating = true;
@@ -809,8 +889,9 @@ namespace LastSanctuary.Units
             return _frontRetreating;
         }
 
-        void SetRetreating(bool value)
+        void SetRetreating(bool value, bool bySelfHp)
         {
+            _retreatBySelfHp = value && bySelfHp;
             if (_retreating == value) return;
             _retreating = value;
 
@@ -1124,7 +1205,7 @@ namespace LastSanctuary.Units
             CharacterBehavior leader = squads.LeaderFor(this);
             if (leader == null) return false;
 
-            Vector3 target = leader.Destination;
+            Vector3 target = SquadAnchorOf(leader);
 
             if (squadFollowSpacing > 0f)
             {
@@ -1136,6 +1217,148 @@ namespace LastSanctuary.Units
             _destination = target;
             _repickTime = Time.time + squadFollowRepick;
             _combat.SetHome(_destination, leash + squadFollowSpacing);
+            return true;
+        }
+
+        /// <summary>
+        /// 부대원들이 모일 지점 — 기준원의 <b>목적지</b>가 원칙이지만, 기준원이 지금
+        /// <b>이동 중이 아니면 기준원의 현재 위치</b>를 쓴다.
+        ///
+        /// <b>왜 필요한가 (미결 79번 · 유저 리포트 "협동 탐험을 켜도 따로 논다")</b> —
+        /// 기준원이 교전·사냥에 붙잡히면 <see cref="Destination"/> 이 <b>마지막으로 고른
+        /// 탐험 목적지에 그대로 멈춘다.</b> 그 지점은 14~60타일 앞이므로, 부대원들은
+        /// 싸우는 기준원을 뒤에 두고 <b>혼자 저 앞으로 걸어가</b> 그 자리에 서 있게 된다 —
+        /// 화면에서는 정확히 "따로 논다"로 보인다.
+        /// 기준원이 멈춰 있을 때 위치를 기준으로 삼으면 부대가 그 주변으로 모인다.
+        /// </summary>
+        Vector3 SquadAnchorOf(CharacterBehavior leader)
+        {
+            bool leaderTravelling =
+                leader._duty == CharacterDuty.Expedition &&
+                (leader._combat == null || leader._combat.Target == null ||
+                 !leader._combat.Target.IsAlive);
+
+            return leaderTravelling ? leader.Destination : leader.transform.position;
+        }
+
+        /// <summary>
+        /// 협동 탐험 중인데 기준원에게서 <see cref="squadRegroupDistance"/> 넘게 벌어졌는지.
+        /// 협동 탐험이 꺼져 있거나 내가 기준원이면 언제나 false(<see cref="SquadService.LeaderFor"/>).
+        /// </summary>
+        bool IsFarFromSquadLeader()
+        {
+            if (squadRegroupDistance <= 0f) return false;
+
+            SquadService squads = SquadService.Instance;
+            CharacterBehavior leader = squads != null ? squads.LeaderFor(this) : null;
+            if (leader == null) return false;
+
+            return ((Vector2)(leader.transform.position - transform.position)).sqrMagnitude >
+                   squadRegroupDistance * squadRegroupDistance;
+        }
+
+        // ------------------------------------------------------------------
+        // 치유 유형 — 근처에서 싸우는 동료 옆으로 붙는다 (유저 확정 2026-08-13)
+        // ------------------------------------------------------------------
+
+        /// <summary>지금 지원하러 붙어 있는 동료. 같은 상대면 목적지를 다시 찍지 않는다.</summary>
+        DamageableUnit _healAnchor;
+
+        /// <summary>
+        /// ★ <b>치유 유형의 이동</b> — 적이 아니라 <b>동료</b>를 기준으로 움직인다
+        /// (유저 확정 2026-08-13: "회복 유형은 몬스터를 어차피 못 때리니 타겟 지정하지 말고
+        /// 근처에서 전투를 하는 동료를 지원하게").
+        ///
+        /// 우선순위는 <b>다친 동료 → 지금 싸우고 있는 동료</b> 순이고, 같은 순위면 가까운 쪽이다.
+        /// 자리는 그 동료의 <b>넥서스 쪽 뒤</b>로 치유 사거리의 60% 지점 — 앞에 서면 대신 맞는다.
+        ///
+        /// ⚠ <b>대상은 자신을 제외한 다른 캐릭터뿐이다</b>(유저 확정 2026-08-13:
+        ///   "포탑이랑 넥서스는 회복 대상에서 빼"). 실제 치유 타겟팅도
+        ///   같은 규칙이다(<c>UnitCombat.AcquireHealTarget</c>) — 예전에는 자기를 타겟으로 잡고
+        ///   그 자리에 굳어 회복 모션만 반복했다.
+        ///
+        /// ⚠ <b>매 프레임 목적지를 다시 찍지 않는다</b> — 같은 동료를 계속 지원하는 동안에는
+        ///   <see cref="healSupportRepick"/> 주기로만 갱신한다. 매 프레임 찍으면 경로가 계속
+        ///   초기화돼 제자리에서 흠칫거린다(27-5절 · TryBuild 주석과 같은 이유).
+        /// </summary>
+        bool TryPickHealSupportSpot(CharacterDuty duty, Vector3 rallyCenter)
+        {
+            if (_combat.AttackType != TacticalAttackType.Heal || healSupportRange <= 0f) return false;
+
+            // 구역 제한은 사냥과 같은 규칙이다 — 방어·집결 중에는 그 구역 안의 동료만 본다.
+            Vector3 zoneCenter;
+            float zoneHalfExtent;
+            switch (duty)
+            {
+                case CharacterDuty.Rally:
+                    zoneCenter = rallyCenter;
+                    zoneHalfExtent = RallyAreaSize() * 0.5f;
+                    break;
+                case CharacterDuty.Guard:
+                    zoneCenter = NexusPosition();
+                    zoneHalfExtent = guardRadius;
+                    break;
+                default:
+                    zoneCenter = transform.position;
+                    zoneHalfExtent = float.PositiveInfinity;
+                    break;
+            }
+
+            DamageableUnit best = null;
+            int bestRank = int.MaxValue;      // 0 = 다쳤다(더 급하다), 1 = 싸우는 중
+            float bestSqr = float.MaxValue;
+            float limitSqr = healSupportRange * healSupportRange;
+
+            var all = UnitRegistry.All;
+            for (int i = 0; i < all.Count; i++)
+            {
+                DamageableUnit u = all[i];
+                if (u == null || !u.IsAlive || ReferenceEquals(u, _self)) continue;
+                if (u.Faction != _self.Faction) continue;
+
+                // ★ 치유 대상은 <b>자신을 제외한 다른 캐릭터</b>뿐이다(유저 확정 2026-08-13) —
+                //   넥서스·포탑 옆에 가봐야 치유할 수 없으므로 지원 대상에서도 뺀다.
+                if (u.Kind != UnitKind.Character) continue;
+
+                int rank = u.HpRatio < 1f ? 0 : (u.IsInCombat ? 1 : int.MaxValue);
+                if (rank == int.MaxValue) continue;              // 멀쩡하고 싸우지도 않는다
+
+                float sqr = ((Vector2)(u.transform.position - transform.position)).sqrMagnitude;
+                if (sqr > limitSqr) continue;
+                if (!IsInsideZone(u.transform.position, zoneCenter, zoneHalfExtent)) continue;
+
+                if (best != null && (rank > bestRank || (rank == bestRank && sqr >= bestSqr))) continue;
+
+                best = u;
+                bestRank = rank;
+                bestSqr = sqr;
+            }
+
+            if (best == null) { _healAnchor = null; return false; }
+
+            _duty = duty;   // 표시는 원래 임무 그대로 — 지원은 별도 임무가 아니다
+
+            // 같은 동료를 계속 따라가는 중이면 주기가 될 때까지 목적지를 건드리지 않는다.
+            if (ReferenceEquals(best, _healAnchor) && Time.time < _repickTime) return true;
+            _healAnchor = best;
+
+            float stand = Mathf.Max(0.5f, _combat.EffectiveAttackRange * 0.6f);
+
+            Vector2 back = (Vector2)(NexusPosition() - best.transform.position);
+            if (back.sqrMagnitude < 0.01f) back = (Vector2)(transform.position - best.transform.position);
+            if (back.sqrMagnitude < 0.01f) back = Vector2.down;
+            back = back.normalized;
+
+            Vector3 spot = best.transform.position + (Vector3)(back * stand);
+            for (int step = 0; step < 4 && !IsWalkable(spot); step++)
+                spot = best.transform.position + (Vector3)(back * (stand * (1f - 0.25f * (step + 1))));
+            if (!IsWalkable(spot)) spot = best.transform.position;
+
+            _destination = spot;
+            _repickTime = Time.time + healSupportRepick;
+
+            // 목줄은 치유 사거리만큼 — 지원 대상 옆에 붙어 있기만 하면 된다.
+            _combat.SetHome(_destination, Mathf.Max(1f, _combat.EffectiveAttackRange));
             return true;
         }
 
@@ -1266,7 +1489,12 @@ namespace LastSanctuary.Units
             if (_expeditionType != TacticalExpeditionType.Hunt) return false;
 
             // 치유 유형은 애초에 적을 때리지 않는다 — 사냥감을 잡아봐야 쫓아가기만 한다.
+            // 이 유형의 이동은 TryPickHealSupportSpot 이 따로 맡는다(호출부에서 더 앞이다).
             if (_combat.AttackType == TacticalAttackType.Heal) return false;
+
+            // 협동 탐험 중 대열에서 벌어져 있으면 새 사냥감을 물지 않는다 — 먼저 합류한다
+            // (유저 확정 2026-08-13). 호출부는 이미 물고 있던 사냥감도 같이 놓는다.
+            if (IsFarFromSquadLeader()) return false;
 
             // 부대원과 함께 사냥한다 — 기준원이 이미 노리는 사냥감이 있으면 같은 놈을 문다.
             // 각자 가장 가까운 놈을 고르면 부대가 사방으로 흩어진다(유저 요청: "같은 부대는
