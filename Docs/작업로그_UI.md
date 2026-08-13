@@ -1266,3 +1266,78 @@ UI-17 에서 파이프라인이 크기 값을 날려서 스크립트 안(`MID_BO
 ### 검증
 
 recompile 에러 0·경고 0, 콘솔 에러 0, 재실행 멱등 확인.
+
+---
+
+## UI-20. 보스 스킬 2종 구현 · 보스 피격 침식 · 피올로 스킨/일러스트 · 미니맵 테두리 (2026-08-13)
+
+> 상세는 `진행상황.md` **67절**.
+
+### 무엇을 했나
+
+1. **보스 스킬 2종 (미결 111번 해소)** — 표(`Skill` 시트)의 130001 타락한 무덤 ·
+   130002 공허의 광선을 실제로 발동시킨다. 신규 `BossSkillType` · `BossSkillSO` ·
+   `BossSkillCaster`. 범위는 **보스 자기 칸에서 조준 방향으로 뻗는 직사각형**
+   (5x3 / 15x3 타일, 4방향 정렬), 피해는 `TakeDamageFrom(공격자, 퍼센트)` 새 오버로드.
+   조준은 타락한 무덤 = 가장 가까운 적, 공허의 광선 = 가장 먼 적(스트링 테이블 그대로).
+   `SpecialShockwave`/`SpecialBeam` 시전 원화와 `Fx` 지면 연출을 스킨에 배선했다 —
+   59-3절이 임포트만 해두고 놀리던 프레임이다.
+2. **보스에게 맞으면 침식 +10** (유저 확정) — `ErosionService` 인스펙터 3칸 신설
+   (`erosionPerBossHit` 10 · `midBossCountsAsBoss` ✔ · `bossHitErosionCooldown` 0).
+   **붙어 있는 오브젝트는 씬의 `GameSystems`** 다(29-2절과 같은 자리).
+   판정은 신규 `DamageableUnit.OnAnyHit` — `OnAnyAttack` 은 명중 판정 **전에** 나서
+   빗나간 공격까지 세므로 "피격"에 쓸 수 없다.
+3. **피올로 스킨 4배 재구성** — 혼자만 원화가 64x64(다른 캐릭터의 1/3 밀도)였다.
+   `Tools/piolo_skin_rebuild.py`(신규)가 볼트 원본을 읽어 66프레임을 256x256 으로
+   재구성하고 `.meta` PPU 를 21 → 84 로 같이 올린다 → **게임 안 크기 불변**.
+4. **피올로 일러스트 연동** — 볼트에 있던 `illust_Piolo.png` 가 임포트되지 않아
+   `Character_9004_Piolo.illustName` 이 빈 참조였다. `crop_illust_faces.py` 에 항목을
+   추가해 다른 3명과 같은 규칙(얼굴 확대 · 420x368 · 비율 1.1413)으로 잘랐다.
+   ⚠ 그 스크립트의 출력 경로가 옛 프로젝트 경로(`Last Sanctuary`)로 남아 있어
+   **돌려도 아무 데도 안 써지고 있었다** — 같이 고쳤다.
+5. **미니맵 테두리** — `HUD_Minimap/Border`(패널 외곽) · `ViewBorder`(지도 영역)에
+   2px 띠 4개씩, 전부 MCP 로 생성. 패널 배경 알파 0.82 → 0.94.
+
+### 겪은 함정
+
+- **`gen_new_skins.py` 가 `Skin_Dantalian` 을 `Resources/Skins/` 에 쓰고 있었다.**
+  그 폴더는 **캐릭터**가 무작위로 뽑는 후보 폴더라, 다시 돌리면 캐릭터가 최종보스
+  외형으로 튀어나온다. 누군가 손으로 `MonsterSkins/Dantalian/` 로 옮겨서 가려져
+  있던 것 — `folder` 인자를 만들어 고치고 유령 사본을 지웠다.
+  같은 스크립트가 `.meta` 를 매번 덮어써 guid 를 갈아치우던 것도 "없을 때만"으로 고쳤다.
+- `gen_new_skins.py` 는 스킨을 **통째로 다시 쓴다** → 실측 크기(`contentSizeTiles`)가
+  날아간다. 64절에서 하드코딩으로 때웠던 사고와 같은 것이라, 스크립트 끝에
+  "이어서 `measure_skin_tiles.py` 를 돌릴 것"을 출력하게 했다.
+- 업스케일(Lanczos)이 원화 **바깥**으로 알파 1~2/255 짜리 링잉을 흘려 몸집 실측값이
+  2.8% 커졌다. `ALPHA_CUT`(2/255)로 잘라 원본과 같은 크기로 맞췄다.
+- FX 원화 피벗이 전부 발밑(0.5, 0)이라 범위 연출을 그대로 놓으면 상자와 어긋나고
+  세로로 쏠 때 피벗을 축으로 돌아버린다 → `Sprite.bounds.center` 로 피벗 보정.
+
+### 소유권 (§2)
+
+**UI 소유** — `Scripts/Combat/BossSkillType.cs · BossSkillSO.cs · BossSkillCaster.cs`(신규) ·
+`DamageableUnit.cs · UnitRegistry.cs · ErosionService.cs · CharacterSkinSO.cs ·
+CharacterAnimator.cs · CombatProjectileFx.cs`, `Resources/BossSkills/**`(신규) ·
+`Resources/Skins/**` · `Resources/Illust/**`, `Assets/Scenes/Proto_01.unity`.
+
+**⚠ PROTO 소유 파일을 건드렸다** — `Scripts/Units/MonsterDefinitionSO.cs`(`bossSkillIds` **추가만**) ·
+`Data/Units/Monster_Dantalian.asset`(스킬 id 2줄) · `Resources/MonsterSkins/Dantalian/Skin_Dantalian.asset` ·
+`Art/Char_Asset/Char_Asset_Piolo/**`(재구성 66프레임) ·
+`Tools/sync_tables_to_assets.py · gen_new_skins.py · crop_illust_faces.py · piolo_skin_rebuild.py`(신규).
+**기존 필드·시그니처는 하나도 지우거나 바꾸지 않았다**(U-D3·U-D4 — `TakeDamageFrom` 은 오버로드로 얹었다).
+UI-15·17·18·19 와 같은 종류의 크로싱이고 PROTO 는 `7047af4` 이후 정지 상태다.
+
+### 씬 변경 여부 — **있음** (전부 MCP, 저장 1회)
+
+`HUD_Minimap` 하위 10개 신설(GameObject 347 → 357) · `Monster_Dantalian_Template` 에
+`BossSkillCaster` 추가 · `GameSystems/ErosionService` 새 필드 3개.
+
+### 검증
+
+`recompile_scripts` 에러 0·경고 0 · 콘솔 에러 0 · 파이프라인 재실행 멱등 ·
+`Skin_Dantalian` 은 +17줄(스킬 칸)만 늘고 실측값 유지 · 씬 GameObject 정확히 +10.
+**플레이 모드 검증은 안 했다**(§11-5) — 유저가 직접 볼 것.
+
+### 씬반영요청 목록
+
+없음.
