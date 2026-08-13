@@ -1669,3 +1669,140 @@ UI-15·17·18·19·20·21 과 같은 종류의 크로싱이다.
 ### 씬반영요청 목록
 
 없음.
+
+---
+
+## UI-23. 배속 버튼 · 중립 몬스터 표 확장 · 선공 판정 단일화 · HUD 창 배타 (2026-08-13)
+
+유저 지시 6건. 전제는 이번에도 **"모든 객체 생성 및 수정은 템플릿/슬롯 복제 제외하고 MCP 로 직접"**.
+상세는 `진행상황.md` **71절**에 있고, 여기에는 UI 브랜치가 알아야 할 것만 적는다.
+
+| # | 지시 | 결과 |
+|---:|---|---|
+| 1 | 칭호 텍스트 크기 키우기 | `BossHealthPanel.titleSizePercent` 72 → **92** (상한 150) |
+| 2 | 깃발 클릭 판정이 너무 작다 (2x1 타일) | 축별 최대값으로 **2 x 2 타일** |
+| 3 | 중립 몬스터 `first_Stat` · 배회 범위 · 개체량/주기 | 표 2곳 + 파이프라인 신설 |
+| 4 | 선공/비선공 체크가 여러 개 | 표 `atk_take` 한 칸으로 단일화 |
+| 5 | 웨이브 타이머 옆 배속 버튼 | `GameSpeedPanel` 신규 + 씬 `HUD_Speed` |
+| + | HUD 액션 버튼이 동시에 눌린다 | `HudExclusive` 신규 |
+| + | 표의 영어 이름 컬럼 제거 | 5칸 삭제 + 파이프라인 3개 수정 |
+
+### 1·2. 칭호 크기 · 깃발 클릭 판정
+
+깃발 원화는 `32x64px @ PPU 32` = **1 x 2 타일**이라 가로 한 칸짜리 막대였다. 유저가 준
+값(2 x 1)을 그대로 쓰면 세로가 오히려 줄어들어서, **축마다 큰 쪽**을 쓴다 → 실제 판정
+**2 x 2 타일**. "이미지보다 더 크게"와 "2x1"을 둘 다 만족한다.
+⚠ `BoxCollider2D.size` 는 로컬 단위라 `lossyScale` 로 나눈다(지금 스케일은 1이지만
+나중에 스케일을 주면 어긋난다).
+
+### 3. 중립 몬스터 — ⚠ 이 표는 게임에 반영되는 경로가 아예 없었다
+
+22절에서 값을 손으로 옮겨 적은 뒤로 파이프라인이 없었다. `sync_neutral_monsters()` 를
+신설해 다른 표와 같은 흐름으로 맞췄다.
+
+- `임시용 중립 몬스터.xlsx` 에 **`first_Stat` 시트 신설**(웨이브 몬스터와 같은 형식).
+- `neutrality_mon` 에 **`max_alive`·`respawn_seconds`** 컬럼 신설 → 개체수·주기가 표로.
+- 개체 분포를 **뒤집었다**: 가까운 종 15→**8**(45초) · 중간 8→**14**(22초) ·
+  먼 종 4→**18**(16초). 에너지 격차도 벌렸다(먼 종 30~50 → **55~90**).
+- ★ **"중앙으로 모인다"의 실체** — 스폰·배회가 *각도 + 유클리드 반지름*으로 점을 뽑고
+  등장 고리는 **체비셰프**로 검사했다. 두 거리가 대각선에서 √2 배 차이 나므로 결과가
+  안쪽으로 쏠렸고, 배회는 상한을 아예 안 봤다. **체비셰프 고리에서 직접 뽑도록** 고쳤다
+  (`SampleRingCell`). 스포너가 배회에 넘기던 상한도 무한대였던 것을 실제 스폰 상한과
+  같은 값으로 맞췄다 — **배회 범위 = 스폰 범위**.
+
+### 4. 선공/비선공 — 체크가 세 곳에 흩어져 있었다
+
+표의 `atk_take` · 정의의 `aggressive` · **템플릿의 `UnitCombat.canAcquireTargets`/
+`canRetaliate`**. 스포너가 `canAcquireTargets` 만 넣고 `canRetaliate` 는 템플릿 값을 그대로
+뒀기 때문에 셋이 어긋날 수 있었다.
+
+이제 스폰할 때 **둘 다 표 값으로 덮어쓴다**(`UnitCombat.SetCanRetaliate` 신설).
+비선공 = 맞기 전엔 공격 안 함(맞으면 반격) · 선공 = 보이면 감. 공격 방식은 **근거리 고정**.
+1001 에 공격력 2 를 넣었다(예전엔 0 이라 반격해도 무의미했다).
+
+### 5. 배속 버튼 (`GameSpeedPanel` 신규)
+
+`HUD_Wave` 오른쪽에 `HUD_Speed` 를 만들고 **x1 · x2 · x4 · x8**. (유저는 x2/x4/x8 을
+요청했는데 되돌아올 x1 이 없으면 배속을 끌 수 없어 하나 더 뒀다.)
+
+- `Time.timeScale` 한 줄이면 된다 — 게임 로직은 `Time.deltaTime`, HUD·카메라는 이미
+  `Time.unscaledTime` 이라 그대로 통한다(패배 화면이 `timeScale = 0` 으로 게임만 멈추는 구조).
+- **`Time.fixedDeltaTime` 도 같이 곱한다** — 안 그러면 8배속에서 FixedUpdate 가 8배 돈다.
+- ⚠ 패배·승리 화면이 `timeScale` 의 주인일 때(0)는 배속을 걸지 않는다.
+- ⚠ 에디터의 `timeScale` 은 플레이 모드를 나가도 유지된다 → `OnDisable` 에서 1 로 되돌린다.
+- 키보드 1~4 (Input System, U-D7).
+
+### + HUD 창 배타 — 창끼리 서로를 닫는 구조가 문제였다
+
+```
+TacticalOrderPanel.SetOpen(true)   → CharacterGrowthPanel.Close()    (부대 설정은 안 닫음)
+CharacterGrowthPanel.SetOpen(true) → TacticalOrderPanel.Close()      (부대 설정은 안 닫음)
+SquadPanel.SetOpen(true)           → 전술·성장 둘 다 Close()
+```
+
+조합 3개 중 2개가 빠져 있었다. 창이 하나 늘 때마다 N² 로 늘어나 반드시 빠뜨리는 구조라
+**`HudExclusive.OpenOnly(this)` 한 줄로 통일**했다(`IExclusiveHudPanel` 구현만 하면 된다).
+창이 열릴 때 **맵 클릭 모드(집결지 지정·건설 자리 지정)도 끊는다.**
+⚠ 비활성 창을 찾아야 하므로 `FindObjectsInactive.Include` 필수(59-6절 함정) — 한 번만 조회하고 캐시.
+⚠ 반대 방향(지정 모드가 창을 닫는다)은 일부러 안 넣었다 — `SquadPanel._pickingHandoff`
+흐름과 충돌해 방금 켠 지정 모드를 스스로 꺼버린다.
+
+### + 영어 이름 컬럼 제거
+
+`wave_nom` · `wave_mid_boss` · `wave_top_boss` · `Character` 의 `character_name_EG` 와
+`wave_top_boss.boss_title_EG` — 5칸. 스트링 키 테이블의 `en` 이 정본이 됐는데 원본 표에
+같은 값이 남아 있었다.
+
+⚠ **컬럼 삭제는 "맨 뒤에만 붙인다"(UI-18) 규약으로도 못 막는 사고다** — 뒤 컬럼이 밀려
+위치로 읽던 코드가 조용히 엉뚱한 값을 읽는다. 영향받는 세 곳을 **필드명 기반**으로 바꿨다
+(`read_rows()` 신설 · `char_cell()` · `gen_string_table` 규칙 삭제).
+`gen_character_assets.py` 는 에셋 파일 이름에 쓰던 영어 이름을 이제 **스트링 키 테이블의
+`en` 칸**에서 읽는다(비면 guid 가 바뀌어 참조가 끊기므로 비면 에러를 내고 멈춘다).
+
+### ⚠ 이번에 발견한 사고 — 폰트 굽기 메뉴가 씬 폰트를 통째로 갈아끼웠다
+
+`HUD_Speed` 라벨에 폰트를 붙이려고 `LastSanctuary/폰트/…` 메뉴를 눌렀더니 씬의 TMP 폰트
+참조 **234개**가 새 에셋으로 바뀌었다. `NeoDunggeunmoFontBaker.OutputFolder` 가
+`Assets/_Project/Art/Fonts` 였는데 그 자리에 에셋이 없어서(정본은 `Resources/Fonts`)
+**새로 굽고 씬 전체에 적용**해버린 것이다 — §10 H-4 정면 위반.
+
+경로 상수를 정본으로 고치고 중복 에셋을 지운 뒤 메뉴를 다시 실행해 되돌렸다.
+검증: 중복 참조 **0개** · 정본 참조 **165개**(기존 161 + 새 라벨 4).
+⚠ 부수 효과로 `m_sharedMaterial` 이 비어 있던 텍스트 92개에 폰트 기본 머티리얼이
+명시적으로 들어갔다 — 런타임에 쓰던 것과 같은 머티리얼이라 화면은 안 바뀐다.
+
+### 소유권 (§2)
+
+**UI 소유** — `Scripts/UI/**`(BossHealthPanel · RallyFlag · GameSpeedPanel(신규) ·
+HudExclusive(신규) · TacticalOrderPanel · SquadPanel · CharacterGrowthPanel) ·
+`Scripts/Combat/UnitCombat.cs` · `Scripts/Editor/NeoDunggeunmoFontBaker.cs` ·
+`Assets/Scenes/Proto_01.unity`.
+
+**⚠ PROTO 소유 파일을 건드렸다** — `Scripts/Units/NeutralMonsterDefinitionSO.cs ·
+NeutralMonsterSpawner.cs · NeutralMonsterWander.cs`, `Data/Units/NeutralMonster_*.asset`,
+`Tools/**`(sync_tables_to_assets · gen_string_table · gen_character_assets + 신규 1개).
+UI-15·17·18·19·20·21·22 와 같은 종류의 크로싱이다.
+
+### 씬 변경 여부 — **있음** (전부 MCP · 저장 1회 · GameObject 357 → 366)
+
+| 오브젝트 | 무엇 |
+|---|---|
+| **신설** `UI_Root/HUD_Speed` + 버튼 4개 + 라벨 4개 | 배속 패널 (+9 오브젝트) |
+| `UI_Root/HUD_Boss` | `titleSizePercent` 92 |
+| `RallyFlags/RallyFlagTemplate` | `minClickSizeTiles` (2, 1) |
+| `Neutral_Templates` 3개 | `canAcquireTargets`/`canRetaliate` 를 표에 맞춤 |
+
+⚠ MCP 함정 둘: **새 컴포넌트는 `recompile_scripts` 만으로는 안 붙는다** — `Assets/Refresh`
+로 임포트까지 돼야 `update_component` 가 타입을 찾는다. TMP 정렬은 `m_VerticalAlignment` 에
+숫자를 넣으면 범위 오류가 나고 프로퍼티 `alignment: "Center"` 로 넣어야 통한다.
+
+### 검증
+
+`recompile_scripts` 에러 0·경고 0 · 콘솔 에러 0 · 하이퍼링크 유지(웨이브 12 · 캐릭터 40 ·
+중립 3) · `StringTable.txt` 바이트 단위 불변 · 캐릭터 에셋 변화 0(멱등) ·
+씬 폰트 참조 정본 165 / 중복 0 · GameObject 357 → 366.
+**플레이 모드 검증은 안 했다** — 진행상황 71-11절의 8가지를 유저가 볼 것.
+
+### 씬반영요청 목록
+
+없음.
