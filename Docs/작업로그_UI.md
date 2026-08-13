@@ -1147,3 +1147,29 @@ TowerAnimator.cs · CombatProjectileFx.cs · UnitCombat.cs`, `Resources/**`(스�
 `Tools/measure_skin_tiles.py`(신규). **기존 필드는 하나도 지우거나 개명하지 않았다** —
 구식 배율(`spriteScale`/`projectileScale`/`impactScale`)은 폴백으로 그대로 남겼다(U-D3·U-D4).
 UI-12 와 같은 종류의 크로싱이고, PROTO 브랜치는 `7047af4` 이후 움직이지 않았다.
+
+---
+
+## UI-16. 중간보스 전용 템플릿 2개 생성 + 스포너 슬롯 배선 (2026-08-13)
+
+> 상세는 `진행상황.md` **63절**.
+
+### 무엇을 했나
+
+중간보스는 지금까지 **템플릿이 없어** `ResolveMidBossTemplate` 의 폴백(같은 공격 타입의 잡몹
+템플릿)으로 스폰되고 있었다(59-4절). 전용 템플릿을 만들어 `midBossSlots` 에 직접 연결했다.
+
+- `Monster_MidBoss_HellFang_Template`(혈인 110001) · `Monster_MidBoss_SoulArcher_Template`
+  (공허의 속삭임 110002) — 잡몹 템플릿을 **MCP `duplicate_gameobject`** 로 복제. 비활성(U-S5).
+- 스킨은 잡몹 것 그대로(전용 원화 없음). 크기는 정의 테이블이 정한다(세로 3타일, 61절).
+- `midBossSlots[].template` 배선은 **MCP 가 구조체 배열을 거부**해서(미결 116번) 씬 YAML 패치 →
+  `load_scene` → **Unity 가 스스로 저장한 뒤에도 값이 남아있는지**로 반영 확인.
+
+### 소유권 (§2)
+
+**UI 소유** — `Assets/Scenes/Proto_01.unity`. 씬 외 변경 없음.
+
+### 검증
+
+GameObject **347 → 349**(만든 2개뿐, 껍데기 증식 없음) · 새 이름 각 1개 · `m_IsActive: 0` ·
+슬롯 2개가 새 템플릿을 가리킴 · 콘솔 에러 0.
