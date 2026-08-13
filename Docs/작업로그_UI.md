@@ -1173,3 +1173,33 @@ UI-12 와 같은 종류의 크로싱이고, PROTO 브랜치는 `7047af4` 이후 
 
 GameObject **347 → 349**(만든 2개뿐, 껍데기 증식 없음) · 새 이름 각 1개 · `m_IsActive: 0` ·
 슬롯 2개가 새 템플릿을 가리킴 · 콘솔 에러 0.
+
+---
+
+## UI-17. 중간보스 영어 이름 (BloodMark · VoidWhisper) + 빈 Templates 루트 정리 (2026-08-13)
+
+> 상세는 `진행상황.md` **64절**.
+
+### 무엇을 했나
+
+1. **중간보스만 영어 이름이 없었다** — `wave_mid_boss` 시트에 `character_name_EG` 컬럼 자체가
+   없어서 에셋·템플릿이 물려받는 잡몹 이름(`Monster_MidBoss_HellFang`)을 쓰고 있었다.
+   표에 컬럼을 만들고 **BloodMark(혈인) · VoidWhisper(공허의 속삭임)** 를 넣었다.
+   ⚠ 표 편집은 **Excel COM** — openpyxl 저장은 이 파일의 하이퍼링크 12칸을 날린다(51-3절).
+2. `gen_string_table.py` 에 en 규칙 추가 → 스트링 키 테이블·`StringTable.txt` 재생성.
+3. 에셋 2개 개명(`.meta` 동반 → guid 유지) · 씬 템플릿 2개 개명(MCP).
+4. `sync_tables_to_assets.py` 가 중간보스 에셋을 **전체 재작성**하면서 61절의
+   `renderHeightTiles: 3` 을 날려서, 그 값을 **생성 코드에 넣었다**(`render_h=3`).
+5. **빈 `Templates` 루트 2개 삭제** — Transform 하나뿐·자식 0·참조 0 인 껍데기.
+   `main` 에는 1개뿐이었고 `86a45c0` 에서 3개가 됐다(8절 10번의 그 함정).
+
+### 소유권 (§2)
+
+**UI 소유** — `Assets/Scenes/Proto_01.unity`, `Resources/Data/StringTable.txt`.
+**⚠ PROTO 소유** — `Data/Units/**`(개명 2건) · `Tools/gen_string_table.py` ·
+`Tools/sync_tables_to_assets.py`. UI-15 와 같은 종류의 크로싱이고 PROTO 는 `7047af4` 이후 정지 상태.
+
+### 검증
+
+하이퍼링크 12칸 유지 · guid 커밋본과 동일 · 파이프라인 재실행 후 크기 값 유지 ·
+씬 새 이름 각 1개/옛 이름 0개 · `midBossSlots` 배선 유지 · GameObject **349 → 347** · 콘솔 에러 0.
