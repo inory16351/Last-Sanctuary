@@ -56,3 +56,8 @@ crashlytics-build.properties
 /[Aa]ssets/[Aa]ddressable[Aa]ssets[Dd]ata/*/*.bin*
 /[Aa]ssets/[Ss]treamingAssets/aa.meta
 /[Aa]ssets/[Ss]treamingAssets/aa/*
+
+# ---- Python (Tools/ 스크립트 실행 부산물 — 커밋 안 해도 되는 파일) ----
+__pycache__/
+*.pyc
+*.pyo
