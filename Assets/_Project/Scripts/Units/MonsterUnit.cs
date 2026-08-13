@@ -27,13 +27,33 @@ namespace LastSanctuary.Units
 
         /// <summary>
         /// 몸집 반경(타일) — <b>근거리 유닛이 어디까지 다가가야 때릴 수 있는지</b>.
-        /// 발판의 가로·세로 중 작은 쪽의 절반을 쓴다: 큰 쪽을 쓰면 몸 옆구리에서
+        /// 가로·세로 중 작은 쪽의 절반을 쓴다: 큰 쪽을 쓰면 몸 옆구리에서
         /// 사거리 안으로 판정돼 <b>공중에서 때리는</b> 것처럼 보인다.
-        /// 정의가 없으면 0 — <c>UnitCombat</c> 의 기존 기본값(0.4)이 그대로 쓰인다.
+        ///
+        /// <b>화면에 실제로 보이는 크기를 기준으로 한다</b>(유저 확정 2026-08-13) —
+        /// 발판 숫자를 따로 관리하면 그림이 커져도 근접 유닛이 몸 안으로 파고든다.
+        /// 스킨이 없어 보이는 크기를 알 수 없을 때만 정의의 발판 칸 수로 떨어진다.
+        /// 둘 다 없으면 0 — <c>UnitCombat</c> 의 기존 기본값(0.4)이 그대로 쓰인다.
         /// </summary>
-        public float BodyRadiusTiles =>
-            definition == null ? 0f
-                               : Mathf.Max(0f, Mathf.Min(definition.BodyWidth, definition.BodyHeight) * 0.5f);
+        public float BodyRadiusTiles
+        {
+            get
+            {
+                if (_animator == null) _animator = GetComponent<Combat.CharacterAnimator>();
+                if (_animator != null)
+                {
+                    Vector2 seen = _animator.RenderedSizeTiles;
+                    if (seen.x > 0.01f && seen.y > 0.01f)
+                        return Mathf.Min(seen.x, seen.y) * 0.5f;
+                }
+
+                return definition == null
+                    ? 0f
+                    : Mathf.Max(0f, Mathf.Min(definition.BodyWidth, definition.BodyHeight) * 0.5f);
+            }
+        }
+
+        Combat.CharacterAnimator _animator;
 
         public override int MaxHp =>
             Balance != null

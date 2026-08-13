@@ -95,8 +95,71 @@ namespace LastSanctuary.Combat
             _frames = null;
             _frameClock = 0f;
 
+            ApplyRenderSize();
+
             if (_skin != null && logSkinChoice)
                 Debug.Log($"[Anim] {name} 외형 → {(_skin.displayName != "" ? _skin.displayName : _skin.name)}", this);
+        }
+
+        // ------------------------------------------------------------------
+        // 크기 — <b>타일 기준</b> (유저 확정 2026-08-13)
+        //
+        // 예전에는 "원화를 몇 배로 그릴지"(배율)를 적었고, 그 배율은 원화의 픽셀 크기와 PPU 를
+        // 보고 손으로 고른 값이었다. 그래서 <b>원화만 바꿔도 게임 안 크기가 흔들렸고</b>
+        // (피올로는 PPU 를 60→21 로 고쳐야 했고, 보스는 0.75 배율 때문에 잡몹보다 작아졌다),
+        // "이 유닛이 몇 타일짜리인가"를 어디에서도 읽을 수 없었다.
+        //
+        // 이제는 <b>목표 크기를 타일로 적고</b> 배율은 코드가 계산한다:
+        //     배율 = 목표 세로(타일) ÷ 스킨 실측 세로(타일)
+        // 실측값(<see cref="CharacterSkinSO.contentSizeTiles"/>)은 원화의 알파 경계를 잰 것이라
+        // PPU·캔버스 여백과 무관하다. <b>비율은 균등 배율이라 절대 안 깨진다.</b>
+        // ------------------------------------------------------------------
+
+        [Header("크기 (타일 기준)")]
+        [Tooltip("화면에 보이는 <b>세로</b> 크기(타일). 가로는 원화 비율대로 따라온다.\n" +
+                 "0 이면 크기를 건드리지 않는다(원화 PPU 그대로).\n" +
+                 "몬스터는 스폰할 때 정의 테이블(MonsterDefinitionSO.renderHeightTiles)이 덮어쓴다")]
+        [Min(0f)] [SerializeField] float renderHeightTiles = 0f;
+
+        /// <summary>지금 목표로 삼은 세로 크기(타일). 0 이면 크기 보정을 하지 않는다.</summary>
+        public float RenderHeightTiles => renderHeightTiles;
+
+        /// <summary>
+        /// 화면에 실제로 보이는 크기(타일). 발판·근접 거리 판정이 이 값을 읽는다 —
+        /// 그래야 "보이는 몸집"과 "때릴 수 있는 거리"가 어긋나지 않는다.
+        /// 크기 보정을 안 하는 경우(0)에는 스킨 실측값을 그대로 돌려준다.
+        /// </summary>
+        public Vector2 RenderedSizeTiles =>
+            _skin == null ? Vector2.zero
+                          : renderHeightTiles > 0f ? _skin.RenderedSizeTiles(renderHeightTiles)
+                                                   : _skin.contentSizeTiles;
+
+        /// <summary>
+        /// 목표 세로 크기(타일)를 지정한다. 스포너가 정의 테이블 값을 넣는다 —
+        /// 같은 템플릿·같은 스킨을 쓰는 중간보스가 잡몹보다 크게 나오는 것도 이 한 줄로 된다.
+        /// </summary>
+        public void SetRenderHeightTiles(float tiles)
+        {
+            renderHeightTiles = Mathf.Max(0f, tiles);
+            ApplyRenderSize();
+        }
+
+        /// <summary>목표 타일 크기에 맞춰 <b>균등</b> 스케일을 건다.</summary>
+        void ApplyRenderSize()
+        {
+            if (_skin == null || renderHeightTiles <= 0f) return;
+
+            if (_skin.contentSizeTiles.y <= 0.0001f)
+            {
+                // 실측값이 없는 스킨 — 배율을 계산할 수 없으므로 크기를 건드리지 않는다.
+                // (스케일 0 이 되어 유닛이 사라지는 것보다 원래 크기로 두는 편이 안전하다)
+                Debug.LogWarning($"[Anim] {_skin.name} 에 실측 크기(contentSizeTiles)가 없습니다 — " +
+                                 "Tools/measure_skin_tiles.py 를 돌려주세요. 크기 보정을 건너뜁니다.", this);
+                return;
+            }
+
+            float s = _skin.ScaleForHeightTiles(renderHeightTiles);
+            transform.localScale = new Vector3(s, s, 1f);
         }
 
         void Update()

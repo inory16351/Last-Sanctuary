@@ -63,12 +63,56 @@ namespace LastSanctuary.Combat
                  "규칙은 CharacterSkinSO.impactFrames 와 같다")]
         public Sprite[] impactFrames;
 
-        [Tooltip("탄환 원화를 이 배율로 줄여 그린다. 포탑 레이저는 유닛 탄환보다 굵고 길어야 " +
-                 "'포대' 느낌이 난다")]
+        [Tooltip("⚠ 구식(픽셀 기준) — projectileWidthTiles 가 0 일 때만 폴백으로 쓰인다")]
         [Min(0.05f)] public float projectileScale = 0.85f;
 
-        [Tooltip("착탄 효과 배율. 3/4 탑뷰라 세로로 서 있는 폭발이면 y 를 줄여 바닥에 눕힌다")]
+        [Tooltip("⚠ 구식(픽셀 기준) — impactWidthTiles 가 0 일 때만 폴백으로 쓰인다")]
         public Vector2 impactScale = Vector2.one;
+
+        // 크기 기준은 타일이다 — 이유와 규칙은 <see cref="CharacterSkinSO"/> 의 같은 절 참조.
+        // 실측값은 Tools/measure_skin_tiles.py 가 원화의 알파 경계를 재서 채운다.
+
+        [Header("실측 크기 (타일) — Tools/measure_skin_tiles.py 가 채운다. 손으로 고치지 말 것")]
+        [Tooltip("스케일 1 일 때 대기(Idle) 원화가 실제로 차지하는 크기(타일)")]
+        public Vector2 contentSizeTiles;
+
+        [Tooltip("스케일 1 일 때 탄환 원화의 실제 크기(타일)")]
+        public Vector2 projectileSizeTiles;
+
+        [Tooltip("스케일 1 일 때 착탄 원화의 실제 크기(타일)")]
+        public Vector2 impactSizeTiles;
+
+        [Header("표시 크기 (타일 기준)")]
+        [Tooltip("탄환을 가로 몇 타일로 그릴지. 0 이면 구식 projectileScale 을 쓴다")]
+        [Min(0f)] public float projectileWidthTiles;
+
+        [Tooltip("착탄 연출을 가로 몇 타일로 그릴지. 0 이면 구식 impactScale 을 쓴다.\n" +
+                 "⚠ 범위 공격(Splash)이면 이 값 대신 실제 피해 범위를 그린다")]
+        [Min(0f)] public float impactWidthTiles;
+
+        [Tooltip("착탄 연출을 바닥에 눕히는 세로 비율(시점 보정이라 타일이 아닌 비율이다)")]
+        [Range(0.1f, 1f)] public float impactFlattenY = 1f;
+
+        /// <summary>이 외형을 <paramref name="heightTiles"/> 타일 높이로 그리기 위한 균등 배율.</summary>
+        public float ScaleForHeightTiles(float heightTiles) =>
+            heightTiles > 0f && contentSizeTiles.y > 0.0001f ? heightTiles / contentSizeTiles.y : 1f;
+
+        /// <summary>탄환에 곱할 배율. 타일 값이 있으면 그걸로, 없으면 구식 배율.</summary>
+        public float ProjectileScale =>
+            projectileWidthTiles > 0f && projectileSizeTiles.x > 0.0001f
+                ? projectileWidthTiles / projectileSizeTiles.x
+                : projectileScale;
+
+        /// <summary>착탄 연출 배율. <paramref name="areaTiles"/> 가 0 보다 크면 그 범위에 맞춘다.</summary>
+        public Vector2 ImpactScaleFor(float areaTiles)
+        {
+            float wanted = areaTiles > 0f ? areaTiles : impactWidthTiles;
+            if (wanted <= 0f || impactSizeTiles.x <= 0.0001f)
+                return impactScale == Vector2.zero ? Vector2.one : impactScale;
+
+            float s = wanted / impactSizeTiles.x;
+            return new Vector2(s, s * Mathf.Clamp(impactFlattenY, 0.1f, 1f));
+        }
 
         /// <summary>이 스킨이 자기 탄환을 들고 있는지.</summary>
         public bool HasProjectile => Has(projectileFrames);

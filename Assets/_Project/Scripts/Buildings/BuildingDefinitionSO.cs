@@ -96,6 +96,12 @@ namespace LastSanctuary.Buildings
                  "씬에 넣을 수 없어서(진행상황 8절 4번) 경로로 읽는다")]
         public string spriteResourcePath = "Buildings/Turret";
 
+        [Tooltip("화면에 보이는 <b>세로</b> 크기(타일). 가로는 원화 비율대로 따라온다.\n" +
+                 "0 이면 원화 크기 그대로 — 원화(PPU)가 바뀌면 게임 안 크기도 같이 바뀐다.\n" +
+                 "★ 크기 기준은 타일이다(유저 확정 2026-08-13). 발판(footprintTiles)은 " +
+                 "칸 점유용이고, 이 값은 보이는 크기다 — 첨탑처럼 위로 솟은 건물은 서로 다르다")]
+        [Min(0f)] public float renderHeightTiles;
+
         [Header("시야")]
         [Tooltip("이 건물이 밝히는 시야의 한 변(타일). 0 이면 시야를 주지 않는다")]
         [Min(0f)] public float visionTiles = 8f;

@@ -65,8 +65,21 @@ namespace LastSanctuary.Buildings
             SetupHealth(balance);
 
             ApplySprite();
+            ApplyRenderSize();
             ApplyCombat();
             ApplyVision();
+        }
+
+        /// <summary>
+        /// 보이는 크기를 <b>타일</b>로 맞춘다(유저 확정 2026-08-13). 원화 픽셀·PPU 가 아니라
+        /// 정의 테이블의 타일 값이 정본이라, 아트를 다시 임포트해도 게임 안 크기가 안 흔들린다.
+        /// </summary>
+        void ApplyRenderSize()
+        {
+            if (definition == null || definition.renderHeightTiles <= 0f) return;
+
+            var anim = GetComponent<Combat.TowerAnimator>();
+            if (anim != null) anim.SetRenderHeightTiles(definition.renderHeightTiles);
         }
 
         protected override void Start()

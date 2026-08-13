@@ -1101,3 +1101,49 @@ PROTO 소유 경로 무접촉.
 ### 씬반영요청 목록
 
 없음.
+
+---
+
+## UI-15. 크기·범위 기준을 전부 「타일」로 (보스가 잡몹보다 작던 문제) (2026-08-13)
+
+> 상세는 `진행상황.md` **61절**.
+
+### 무엇을 했나
+
+1. **원인** — 크기를 **배율**로 적고 있었다(`spriteScale` 0.75 · `projectileScale` 0.55 …).
+   그 숫자는 "원화가 몇 픽셀인지 · PPU 가 얼마인지"를 보고 손으로 고른 값이라 **원화가 바뀌면
+   게임 안 크기가 같이 흔들린다.** 실측 결과 단탈리온이 **2.00 x 1.40 타일** 로,
+   잡몹(2.62 x 1.92)보다도 작고 중간보스(5.24 x 3.84)의 1/3 이었다.
+2. **기준을 타일로 바꿨다.** 정의·스킨에는 "몇 타일로 보일지"만 적고, 배율은 코드가
+   `목표 세로(타일) ÷ 스킨 실측 세로(타일)` 로 계산한다. **균등 배율이라 비율이 안 깨진다.**
+3. **실측은 `Tools/measure_skin_tiles.py`(신규)가 알파 경계로 잰다.** 유니티의 `Sprite.bounds` 는
+   캔버스(여백 포함) 기준이라 못 쓴다 — 엘린은 캔버스 189px 에 그림 130px, 피올로는 64px 에 52px 다.
+4. **발판(근접 거리 판정)도 보이는 크기를 따라간다**(유저 확정) — `MonsterUnit.BodyRadiusTiles`.
+5. **착탄 연출은 마법의 실제 피해 범위(`UnitCombat.MagicAreaTiles`)로 그린다** — 보이는 범위와
+   맞는 범위가 같아진다.
+6. **넥서스 근접 반경이 `transform.localScale.x`(픽셀 배율)를 읽던 것을 `footprintTiles`(타일)로** 바꿨다.
+
+### 값 (유저 확정 2026-08-13)
+
+| 대상 | 렌더 세로(타일) | 결과 가로 |
+|---|---:|---:|
+| 단탈리온(최종보스) | **5** | 7.13 |
+| 중간보스 2종 | **3** | 4.09 / 4.32 |
+| 지옥 송곳니 | 1.9 | 2.59 |
+| 영혼 사수 | 1.7 | 2.45 |
+| 캐릭터 4명 | 2.15 (씬 템플릿) | 원화 비율 |
+| 포탑 | 4.6 | 2.15 |
+
+### 소유권 (§2)
+
+**UI 소유** — `Scripts/Combat/CharacterSkinSO.cs · TowerSkinSO.cs · CharacterAnimator.cs ·
+TowerAnimator.cs · CombatProjectileFx.cs · UnitCombat.cs`, `Resources/**`(스킨 에셋),
+`Assets/Scenes/Proto_01.unity`.
+
+**⚠️ PROTO 소유 파일을 건드렸다** — `Scripts/Units/MonsterDefinitionSO.cs`(필드 추가만) ·
+`MonsterSpawner.cs`(스케일 한 줄) · `MonsterUnit.cs`(몸집 반경) ·
+`Scripts/Buildings/BuildingDefinitionSO.cs · TowerUnit.cs`(필드 추가·호출 한 줄) ·
+`Data/Units/**`(`renderHeightTiles` 한 줄씩) · `Data/Buildings/Building_Turret.asset` ·
+`Tools/measure_skin_tiles.py`(신규). **기존 필드는 하나도 지우거나 개명하지 않았다** —
+구식 배율(`spriteScale`/`projectileScale`/`impactScale`)은 폴백으로 그대로 남겼다(U-D3·U-D4).
+UI-12 와 같은 종류의 크로싱이고, PROTO 브랜치는 `7047af4` 이후 움직이지 않았다.

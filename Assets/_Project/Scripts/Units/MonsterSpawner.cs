@@ -555,11 +555,22 @@ namespace LastSanctuary.Units
             StatBlock scaled = def.BuildStats(hpScale, atkScale, balance.statMax);
             unit.Initialize(def, scaled, balance);
 
-            // 크기 보정 — <b>균등 스케일만</b> 쓴다(비율 유지, 유저 확정 2026-08-12).
-            // 발판 크기(BodyWidth/BodyHeight)는 스케일과 분리돼 있다 — MonsterDefinitionSO 참조.
-            float scale = def.EffectiveSpriteScale;
-            if (!Mathf.Approximately(scale, 1f))
-                unit.transform.localScale = Vector3.one * scale;
+            // 크기 보정 — <b>기준은 타일</b>이다(유저 확정 2026-08-13).
+            // 정의 테이블에 "몇 타일로 보일지"만 적혀 있고, 배율은 애니메이터가 스킨 실측값으로
+            // 계산한다. 그래서 <b>같은 템플릿·같은 스킨을 쓰는 중간보스도 이 한 줄로 커진다</b>
+            // (중간보스는 잡몹 템플릿을 폴백으로 쓴다 — ResolveMidBossTemplate 참조).
+            var anim = unit.GetComponent<Combat.CharacterAnimator>();
+            if (def.RenderHeightTiles > 0f && anim != null)
+            {
+                anim.SetRenderHeightTiles(def.RenderHeightTiles);
+            }
+            else
+            {
+                // 폴백 — 스킨(애니메이터)이 없는 유닛은 예전처럼 배율로만 키운다.
+                float scale = def.EffectiveSpriteScale;
+                if (!Mathf.Approximately(scale, 1f))
+                    unit.transform.localScale = Vector3.one * scale;
+            }
 
             // 정의 테이블의 전투 파라미터를 AI 에 주입
             var ai = unit.GetComponent<UnitCombat>();

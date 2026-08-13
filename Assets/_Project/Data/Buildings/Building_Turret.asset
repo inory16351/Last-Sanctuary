@@ -32,3 +32,4 @@ MonoBehaviour:
   footprintTiles: 2
   spriteResourcePath: Buildings/Turret
   visionTiles: 8
+  renderHeightTiles: 4.6

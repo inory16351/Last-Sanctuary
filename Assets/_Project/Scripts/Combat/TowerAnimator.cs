@@ -84,11 +84,55 @@ namespace LastSanctuary.Combat
             if (_combat != null) _combat.OnAttackPerformed -= HandleAttackPerformed;
         }
 
+        // 크기 기준은 <b>타일</b>이다 — 이유는 <see cref="CharacterAnimator"/> 의 같은 절 참조.
+        // 건물은 스폰 때 정의 테이블이 크기를 덮어쓸 일이 없어서(한 종류에 한 외형) 이 값이 정본이다.
+
+        [Header("크기 (타일 기준)")]
+        [Tooltip("화면에 보이는 <b>세로</b> 크기(타일). 가로는 원화 비율대로 따라온다.\n" +
+                 "0 이면 크기를 건드리지 않는다(원화 PPU 그대로)")]
+        [Min(0f)] [SerializeField] float renderHeightTiles = 0f;
+
+        /// <summary>화면에 실제로 보이는 크기(타일). 0 이면 크기 보정을 안 한 상태다.</summary>
+        public Vector2 RenderedSizeTiles
+        {
+            get
+            {
+                if (_skin == null) return Vector2.zero;
+                float s = renderHeightTiles > 0f ? _skin.ScaleForHeightTiles(renderHeightTiles) : 1f;
+                return _skin.contentSizeTiles * s;
+            }
+        }
+
+        /// <summary>목표 세로 크기(타일)를 지정한다. 건설 서비스가 정의 값을 넣는다.</summary>
+        public void SetRenderHeightTiles(float tiles)
+        {
+            renderHeightTiles = Mathf.Max(0f, tiles);
+            ApplyRenderSize();
+        }
+
+        /// <summary>목표 타일 크기에 맞춰 <b>균등</b> 스케일을 건다.</summary>
+        void ApplyRenderSize()
+        {
+            if (_skin == null || renderHeightTiles <= 0f) return;
+
+            if (_skin.contentSizeTiles.y <= 0.0001f)
+            {
+                Debug.LogWarning($"[TowerAnim] {_skin.name} 에 실측 크기(contentSizeTiles)가 없습니다 — " +
+                                 "Tools/measure_skin_tiles.py 를 돌려주세요. 크기 보정을 건너뜁니다.", this);
+                return;
+            }
+
+            float s = _skin.ScaleForHeightTiles(renderHeightTiles);
+            transform.localScale = new Vector3(s, s, 1f);
+        }
+
         public void SetSkin(TowerSkinSO skin)
         {
             _skin = skin;
             _frames = null;
             _frameClock = 0f;
+
+            ApplyRenderSize();
 
             if (_skin != null && logSkinChoice)
                 Debug.Log($"[TowerAnim] {name} 외형 → " +

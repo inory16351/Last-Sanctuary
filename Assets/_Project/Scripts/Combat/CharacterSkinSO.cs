@@ -119,11 +119,83 @@ namespace LastSanctuary.Combat
                  "비워두면 착탄 연출이 없다")]
         public Sprite[] impactFrames;
 
-        [Tooltip("탄환 원화를 이 배율로 줄여 그린다. 원화가 큰 편이라 1 로 두면 화면을 덮는다")]
+        [Tooltip("⚠ 구식(픽셀 기준) — 원화 크기에 맞춰 손으로 고른 배율이다. " +
+                 "아래 projectileWidthTiles 가 0 일 때만 폴백으로 쓰인다")]
         [Min(0.05f)] public float projectileScale = 0.55f;
 
-        [Tooltip("착탄 효과 배율. 3/4 탑뷰라 원화가 세로로 서 있는 폭발이면 y 를 줄여 바닥에 눕힌다")]
+        [Tooltip("⚠ 구식(픽셀 기준) — impactWidthTiles 가 0 일 때만 폴백으로 쓰인다")]
         public Vector2 impactScale = Vector2.one;
+
+        // ------------------------------------------------------------------
+        // 크기 기준은 <b>타일</b>이다 (유저 확정 2026-08-13)
+        //
+        // 예전에는 크기를 <b>배율</b>(projectileScale 0.55 · 몬스터 spriteScale 0.75)로 적었다.
+        // 그 숫자는 "원화가 몇 픽셀인지 / PPU 가 얼마인지"를 보고 손으로 고른 값이라,
+        // <b>원화가 바뀌면 게임 안 크기가 같이 흔들린다.</b> 실제로 그래서 보스(단탈리온)가
+        // 잡몹보다 작아졌다 — 원화 가로가 넓어 0.75 를 곱했더니 세로가 1.4타일이 됐다.
+        //
+        // 그래서 <b>"몇 타일로 보이고 싶은지"만 적고</b>, 배율은 아래 실측값으로 코드가 계산한다.
+        // 실측값은 <c>Tools/measure_skin_tiles.py</c> 가 원화의 알파 경계를 재서 채운다 —
+        // 손으로 적지 말 것.
+        // ------------------------------------------------------------------
+
+        [Header("실측 크기 (타일) — Tools/measure_skin_tiles.py 가 채운다. 손으로 고치지 말 것")]
+        [Tooltip("스케일 1 일 때 대기(Idle) 원화가 실제로 차지하는 크기(타일). " +
+                 "캔버스가 아니라 <b>알파 경계</b> 기준이라 여백이 큰 원화도 정확하다")]
+        public Vector2 contentSizeTiles;
+
+        [Tooltip("스케일 1 일 때 탄환 원화의 실제 크기(타일)")]
+        public Vector2 projectileSizeTiles;
+
+        [Tooltip("스케일 1 일 때 착탄 원화의 실제 크기(타일)")]
+        public Vector2 impactSizeTiles;
+
+        [Header("표시 크기 (타일 기준)")]
+        [Tooltip("탄환을 가로 몇 타일로 그릴지. 0 이면 구식 projectileScale 을 쓴다")]
+        [Min(0f)] public float projectileWidthTiles;
+
+        [Tooltip("착탄 연출을 가로 몇 타일로 그릴지. 0 이면 구식 impactScale 을 쓴다.\n" +
+                 "⚠ <b>마법 공격은 이 값을 안 쓴다</b> — 실제 피해 범위(UnitCombat.MagicAreaTiles)를 " +
+                 "그대로 그려서 '보이는 범위 = 맞는 범위' 가 되게 한다")]
+        [Min(0f)] public float impactWidthTiles;
+
+        [Tooltip("착탄 연출을 바닥에 눕히는 세로 비율. 원화가 측면 시점(위로 솟는 폭발)이면 " +
+                 "1 보다 작게 준다. 크기가 아니라 <b>시점 보정</b>이라 타일이 아닌 비율이다")]
+        [Range(0.1f, 1f)] public float impactFlattenY = 1f;
+
+        /// <summary>
+        /// 이 외형을 <paramref name="heightTiles"/> 타일 높이로 그리기 위한 <b>균등</b> 배율.
+        /// 실측값이 없거나(0) 목표가 0 이면 1 — 크기를 건드리지 않는다.
+        /// </summary>
+        public float ScaleForHeightTiles(float heightTiles) =>
+            heightTiles > 0f && contentSizeTiles.y > 0.0001f ? heightTiles / contentSizeTiles.y : 1f;
+
+        /// <summary>그 배율로 그렸을 때 화면에 보이는 크기(타일). 발판·근접 거리 판정이 이걸 읽는다.</summary>
+        public Vector2 RenderedSizeTiles(float heightTiles)
+        {
+            float s = ScaleForHeightTiles(heightTiles);
+            return new Vector2(contentSizeTiles.x * s, contentSizeTiles.y * s);
+        }
+
+        /// <summary>탄환에 곱할 배율. 타일 값이 있으면 그걸로, 없으면 구식 배율.</summary>
+        public float ProjectileScale =>
+            projectileWidthTiles > 0f && projectileSizeTiles.x > 0.0001f
+                ? projectileWidthTiles / projectileSizeTiles.x
+                : projectileScale;
+
+        /// <summary>
+        /// 착탄 연출에 곱할 배율. <paramref name="areaTiles"/> 가 0 보다 크면
+        /// (마법의 실제 피해 범위) 그 크기에 맞추고, 아니면 스킨의 표시 크기를 쓴다.
+        /// </summary>
+        public Vector2 ImpactScaleFor(float areaTiles)
+        {
+            float wanted = areaTiles > 0f ? areaTiles : impactWidthTiles;
+            if (wanted <= 0f || impactSizeTiles.x <= 0.0001f)
+                return impactScale == Vector2.zero ? Vector2.one : impactScale;
+
+            float s = wanted / impactSizeTiles.x;
+            return new Vector2(s, s * Mathf.Clamp(impactFlattenY, 0.1f, 1f));
+        }
 
         /// <summary>이 스킨이 자기 탄환을 들고 있는지. 없으면 연출 쪽 기본 탄환을 쓴다.</summary>
         public bool HasProjectile => HasFrames(projectileFrames);

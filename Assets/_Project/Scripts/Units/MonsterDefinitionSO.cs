@@ -83,11 +83,31 @@ namespace LastSanctuary.Units
         [Tooltip("발판 세로 칸 수. 0 이면 footprintTiles 를 정사각으로 쓴다")]
         [Min(0)] public int bodyHeightTiles;
 
-        [Tooltip("스프라이트에 곱하는 <b>균등</b> 스케일. 0 이면 예전 동작" +
-                 "(footprintTiles 를 그대로 스케일로 쓴다).\n" +
-                 "★ 비율이 유지되도록 <b>한 값만</b> 쓴다 — 가로/세로를 따로 주면 원화가 찌그러진다.\n" +
-                 "단탈리온: 보이는 가로 2.67타일 → 발판 가로 2타일에 맞추려면 0.75")]
+        [Tooltip("⚠ <b>구식(픽셀 기준) — 쓰지 말 것.</b> 원화가 몇 픽셀인지 보고 손으로 고른 배율이라 " +
+                 "원화가 바뀌면 게임 안 크기가 흔들린다. 실제로 이 값(0.75) 때문에 보스가 " +
+                 "잡몹보다 작아졌다. 아래 renderHeightTiles 가 0 일 때만 폴백으로 쓰인다")]
         [Min(0f)] public float spriteScale;
+
+        // ------------------------------------------------------------------
+        // 크기 기준은 <b>타일</b>이다 (유저 확정 2026-08-13)
+        //
+        // "몇 배로 그릴지"가 아니라 <b>"몇 타일로 보일지"</b>만 적는다. 배율은
+        // <see cref="LastSanctuary.Combat.CharacterAnimator"/> 가
+        //     배율 = renderHeightTiles ÷ 스킨 실측 세로(타일)
+        // 로 계산한다. 실측값은 원화의 알파 경계를 잰 것이라 PPU·캔버스 여백과 무관하고,
+        // <b>균등 배율이라 원화 비율이 절대 안 깨진다.</b>
+        //
+        // 발판(근접 유닛이 어디서 때리는지)도 이 크기를 따라간다 — 유저 확정.
+        // 아래 bodyWidthTiles/bodyHeightTiles 는 <b>스킨이 없는 유닛의 폴백</b>으로만 남는다.
+        // ------------------------------------------------------------------
+
+        [Tooltip("화면에 보이는 <b>세로</b> 크기(타일). 가로는 원화 비율대로 따라온다.\n" +
+                 "0 이면 구식 spriteScale 을 쓴다.\n" +
+                 "단탈리온 5 (가로 7.1) · 중간보스 3 · 잡몹 1.7~1.9")]
+        [Min(0f)] public float renderHeightTiles;
+
+        /// <summary>목표 세로 크기(타일). 0 이면 구식 배율 경로로 떨어진다.</summary>
+        public float RenderHeightTiles => renderHeightTiles;
 
         /// <summary>발판 가로(칸). 안 정했으면 <see cref="footprintTiles"/> 정사각.</summary>
         public int BodyWidth => bodyWidthTiles > 0 ? bodyWidthTiles : Mathf.Max(1, footprintTiles);

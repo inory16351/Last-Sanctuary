@@ -57,3 +57,7 @@ MonoBehaviour:
   - {fileID: 21300000, guid: 380e8b6a98a238ecdc73a0b5014cc12f, type: 3}
   projectileScale: 0.55
   impactScale: {x: 1, y: 0.75}
+  contentSizeTiles: {x: 2.667, y: 1.867}
+  impactSizeTiles: {x: 11.933, y: 1.267}
+  impactWidthTiles: 11.933
+  impactFlattenY: 0.75

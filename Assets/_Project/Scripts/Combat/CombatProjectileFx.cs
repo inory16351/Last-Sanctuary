@@ -71,14 +71,32 @@ namespace LastSanctuary.Combat
         /// <summary>가장 오래 날아도 이 시간(초)이면 사라진다 — 목표가 죽어 사라져도 남지 않게.</summary>
         const float MaxLifetime = 0.6f;
 
-        /// <summary>원화가 큰 편이라(74px ≈ 1.5유닛) 줄여서 쓴다.</summary>
-        const float BoltScale = 0.55f;
+        // ------------------------------------------------------------------
+        // 폴백 탄환의 크기도 <b>타일 기준</b>이다 (유저 확정 2026-08-13).
+        // 예전에는 "원화가 74px 이니까 0.55 배" 처럼 <b>픽셀을 보고 고른 배율</b>이었다 —
+        // 원화를 바꾸면 화면 크기가 같이 흔들린다. 이제 <b>몇 타일로 그릴지</b>만 적고
+        // 배율은 <see cref="ScaleForWidthTiles"/> 가 그 스프라이트 실제 크기로 계산한다.
+        // ------------------------------------------------------------------
 
-        /// <summary>포탑 레이저는 유닛이 쏘는 탄환보다 굵고 길어야 "포대" 느낌이 난다.</summary>
-        const float TowerBoltScale = 0.85f;
+        /// <summary>기본 탄환 길이(타일). 한 타일이 채 안 되는 작은 화살.</summary>
+        const float BoltWidthTiles = 0.8f;
 
-        /// <summary>침 원화가 182px(≈3.6유닛)로 아주 길어서 줄인다 — 한 타일 조금 넘는 덩어리.</summary>
-        const float SpitBoltScale = 0.35f;
+        /// <summary>포탑 레이저는 유닛 탄환보다 굵고 길어야 "포대" 느낌이 난다.</summary>
+        const float TowerBoltWidthTiles = 1.3f;
+
+        /// <summary>분비형 암세포의 침 — 한 타일 조금 넘는 덩어리.</summary>
+        const float SpitBoltWidthTiles = 1.3f;
+
+        /// <summary>
+        /// 이 스프라이트를 가로 <paramref name="widthTiles"/> 타일로 그리기 위한 배율.
+        /// 맵 한 칸이 1 월드 유닛이므로 <c>bounds.size.x</c> 가 곧 "지금 몇 타일인지"다.
+        /// </summary>
+        static float ScaleForWidthTiles(Sprite sprite, float widthTiles)
+        {
+            if (sprite == null || widthTiles <= 0f) return 1f;
+            float now = sprite.bounds.size.x;
+            return now > 0.0001f ? widthTiles / now : 1f;
+        }
 
         /// <summary>
         /// 탄환이 <b>몸 중심이 아니라 앞쪽(입/총구)에서</b> 출발하도록 밀어내는 거리 —
@@ -220,7 +238,7 @@ namespace LastSanctuary.Combat
             if (combat.AttackType != TacticalAttackType.Ranged &&
                 combat.AttackType != TacticalAttackType.Magic) return;
 
-            ProjectileArt art = ArtFor(attacker);
+            ProjectileArt art = ArtFor(attacker, combat);
             if (!art.IsValid) return;
 
             Vector3 from = CenterOf(attacker);
@@ -260,9 +278,15 @@ namespace LastSanctuary.Combat
         /// <summary>
         /// 이 공격자가 쓸 탄환. <b>스킨이 먼저다</b> — 스킨에 탄환 프레임이 들어있으면
         /// 그대로 쓰고, 없는 유닛만 아래의 진영·종류 폴백으로 넘어간다.
+        ///
+        /// <paramref name="combat"/> 는 <b>마법의 실제 피해 범위</b>를 읽으려고 받는다 —
+        /// 착탄 연출이 곧 범위 표시이므로 "보이는 범위 = 맞는 범위" 여야 한다.
         /// </summary>
-        ProjectileArt ArtFor(DamageableUnit attacker)
+        ProjectileArt ArtFor(DamageableUnit attacker, UnitCombat combat)
         {
+            // 마법이면 실제 착탄 범위(타일)를, 아니면 0(스킨의 표시 크기를 쓰라는 뜻).
+            float areaTiles = combat != null ? combat.MagicAreaTiles : 0f;
+
             var charAnim = attacker.GetComponent<CharacterAnimator>();
             if (charAnim != null && charAnim.Skin != null && charAnim.Skin.HasProjectile)
                 return new ProjectileArt
@@ -270,8 +294,8 @@ namespace LastSanctuary.Combat
                     Frames = charAnim.Skin.projectileFrames,
                     Muzzle = charAnim.Skin.muzzleFlashFrames,
                     Impact = charAnim.Skin.impactFrames,
-                    Scale = charAnim.Skin.projectileScale,
-                    ImpactScale = charAnim.Skin.impactScale,
+                    Scale = charAnim.Skin.ProjectileScale,
+                    ImpactScale = charAnim.Skin.ImpactScaleFor(areaTiles),
                 };
 
             var towerAnim = attacker.GetComponent<TowerAnimator>();
@@ -281,8 +305,8 @@ namespace LastSanctuary.Combat
                     Frames = towerAnim.Skin.projectileFrames,
                     Muzzle = towerAnim.Skin.muzzleFlashFrames,
                     Impact = towerAnim.Skin.impactFrames,
-                    Scale = towerAnim.Skin.projectileScale,
-                    ImpactScale = towerAnim.Skin.impactScale,
+                    Scale = towerAnim.Skin.ProjectileScale,
+                    ImpactScale = towerAnim.Skin.ImpactScaleFor(areaTiles),
                 };
 
             return FallbackArt(attacker);
@@ -304,7 +328,7 @@ namespace LastSanctuary.Combat
                 {
                     Frames = _spitFrames,
                     Muzzle = _flashCancer != null ? new[] { _flashCancer } : null,
-                    Scale = SpitBoltScale,
+                    Scale = ScaleForWidthTiles(_spitFrames[0], SpitBoltWidthTiles),
                     ImpactScale = Vector2.one,
                 };
 
@@ -314,11 +338,12 @@ namespace LastSanctuary.Combat
                          : cancer && _flashCancer != null ? _flashCancer : _flash;
             if (bolt == null) return default;
 
+            float widthTiles = tower && _boltTower != null ? TowerBoltWidthTiles : BoltWidthTiles;
             return new ProjectileArt
             {
                 Frames = new[] { bolt },
                 Muzzle = flash != null ? new[] { flash } : null,
-                Scale = tower && _boltTower != null ? TowerBoltScale : BoltScale,
+                Scale = ScaleForWidthTiles(bolt, widthTiles),
                 ImpactScale = Vector2.one,
             };
         }

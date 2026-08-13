@@ -30,3 +30,4 @@ MonoBehaviour:
   bodyWidthTiles: 2
   bodyHeightTiles: 2
   spriteScale: 2
+  renderHeightTiles: 3

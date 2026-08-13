@@ -686,6 +686,16 @@ namespace LastSanctuary.Combat
             ? Mathf.Max(magicSafeRadiusTiles, magicMinRangeTiles)
             : 0f;
 
+        /// <summary>
+        /// 마법 착탄 범위의 한 변(타일). 마법 유형이 아니면 0.
+        ///
+        /// <b>왜 공개하나</b> — 착탄 연출(<see cref="CombatProjectileFx"/>)이 <b>실제 피해 범위와
+        /// 같은 크기</b>로 그려지게 하려고 열었다. 예전에는 연출 크기가 원화 픽셀에 맞춰 손으로
+        /// 고른 배율이라 "보이는 범위"와 "맞는 범위"가 서로 달랐다.
+        /// </summary>
+        public float MagicAreaTiles =>
+            attackType == TacticalAttackType.Magic ? magicAreaTiles : 0f;
+
         // ------------------------------------------------------------------
 
         void Update()
@@ -1593,8 +1603,13 @@ namespace LastSanctuary.Combat
         {
             if (target.Kind == UnitKind.Nexus)
             {
-                var nexusScale = target.transform.localScale.x;
-                return Mathf.Max(0.5f, nexusScale * 0.5f);
+                // ⚠ 예전에는 <c>transform.localScale.x</c> 를 읽었다 — 그건 <b>스프라이트를 몇 배로
+                //   그리는지</b>(픽셀 기준 배율)라서, 아트를 다시 임포트해 PPU 가 바뀌면 근접
+                //   유닛이 넥서스에 파고들거나 허공을 때리게 된다. 점유 칸 수(타일)가 정본이다.
+                if (target is Units.Nexus nexus && nexus.Definition != null)
+                    return Mathf.Max(0.5f, nexus.Definition.footprintTiles * 0.5f);
+
+                return Mathf.Max(0.5f, target.transform.localScale.x * 0.5f);
             }
 
             // 몸집이 큰 몬스터(보스·중간보스) — 발판 크기만큼 반경을 준다.
