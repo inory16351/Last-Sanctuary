@@ -31,7 +31,7 @@ namespace LastSanctuary.Combat
         int _appliedRampageAttack;    // 광란 — 공격력 고정 보정
         int _appliedRangeBonus;       // 타고난 섬세함 — 사거리 보너스
 
-        bool _visionZeroed;           // 타고난 섬세함 — 시야를 0 으로 만들었는지
+        bool _visionZeroed;           // 타고난 섬세함 — 시야를 최소치로 낮췄는지 (ApplyBlindVision)
         bool _rampageOn;
 
         // 희열 — 중첩 수와 만료 시각. 중첩마다 지속시간이 0 으로 초기화된다(정의문).
@@ -185,15 +185,47 @@ namespace LastSanctuary.Combat
                 _appliedRangeBonus = Mathf.RoundToInt(delicacy.value01);
                 _combat?.AddAttackRangeBonus(_appliedRangeBonus);
 
-                if (!_visionZeroed)
-                {
-                    _visionZeroed = true;
-                    var vision = GetComponent<Fog.VisionSource>();
-                    // ⚠️ 컴포넌트를 끄는 대신 시야를 0 으로 준다 — 끄면 FogOfWarService 가
-                    //    이 유닛을 목록에서 빼는데, 해제 경로가 없어 되살릴 수 없다.
-                    if (vision != null) vision.SetVision(0f);
-                }
+                if (!_visionZeroed) _visionZeroed = ApplyBlindVision();
             }
+        }
+
+        /// <summary>
+        /// ★ <b>「타고난 섬세함」의 시야 예외</b> (유저 지시 2026-08-13).
+        ///
+        /// 이 스킬의 정의문은 "시야 값이 0이 된다"지만, <b>0 을 그대로 넣으면 화면이 깨진다.</b>
+        /// <see cref="Fog.VisionSource.SetVision"/> 이 <c>Mathf.Max(1f, …)</c> 로 잘라 시야가
+        /// <b>1타일(반경 0.5)</b> 이 되고, <see cref="Fog.FogOfWarService.RevealCircle"/> 는
+        /// 반경 0.5 에서 <b>정확히 한 칸</b>만 밝힌다. 그런데 캐릭터 그림은 발밑을 기준으로
+        /// <b>2.6 x 2.15 타일</b>(엘린)이라 <b>몸의 대부분이 안개에 덮인다</b> —
+        /// 걸어다니면 밝은 칸이 바뀌면서 <b>캐릭터가 보였다 안 보였다</b> 한다(유저 리포트).
+        ///
+        /// 그래서 <b>"시야 0" 을 「자기 그림만 딱 덮는 최소 시야」로 해석</b>한다.
+        /// 반경은 발밑(피벗)에서 그림의 <b>위쪽 모서리</b>까지 —
+        /// <c>√((가로/2)² + 세로²)</c> 다(피벗이 발밑이라 그림이 위로만 솟는다).
+        /// 엘린 기준 반경 약 2.5타일 = <c>visionTiles</c> 약 5.0 이고,
+        /// 캐릭터 템플릿 기본값 7 보다 여전히 작다 — <b>정찰 능력은 그대로 없다.</b>
+        ///
+        /// <b>왜 여기(스킬)에서 처리하나</b> — 이건 이 스킬 하나의 예외이고,
+        /// <see cref="Fog.VisionSource"/> 의 최소값을 건드리면 다른 모든 유닛에 영향이 간다.
+        ///
+        /// <returns>실제로 적용했으면 true. 스킨이 아직 안 붙어 크기를 못 재면 false 를 돌려
+        /// <b>다음 <see cref="Refresh"/> 에 다시 시도</b>하게 한다 — 캐릭터는 프레임 중간에
+        /// 생성되므로 이 시점에 <see cref="CharacterAnimator"/> 가 준비 안 됐을 수 있다.</returns>
+        /// </summary>
+        bool ApplyBlindVision()
+        {
+            // ⚠️ 컴포넌트를 끄는 대신 시야를 줄인다 — 끄면 FogOfWarService 가 이 유닛을
+            //    목록에서 빼는데, 되살리는 경로가 없다.
+            var vision = GetComponent<Fog.VisionSource>();
+            if (vision == null) return true;   // 시야원이 없으면 더 할 일이 없다
+
+            var anim = GetComponent<CharacterAnimator>();
+            Vector2 size = anim != null ? anim.RenderedSizeTiles : Vector2.zero;
+            if (size.x <= 0.01f || size.y <= 0.01f) return false;   // 아직 스킨이 없다 — 다음 Refresh 에
+
+            float radius = Mathf.Sqrt(size.x * size.x * 0.25f + size.y * size.y);
+            vision.SetVision(radius * 2f);
+            return true;
         }
 
         // ------------------------------------------------------------------
@@ -205,6 +237,14 @@ namespace LastSanctuary.Combat
             if (_unit == null || !_unit.IsAlive) return;
             Refresh();
             if (_active.Count == 0) return;
+
+            // 「타고난 섬세함」의 시야 예외는 <b>스킨이 붙은 뒤에야</b> 그림 크기를 잴 수 있다.
+            // 캐릭터는 프레임 중간에 Instantiate 되므로 Refresh 시점에 CharacterAnimator 가
+            // 아직 준비 안 됐을 수 있고, Refresh 는 강화 횟수가 바뀔 때만 다시 도므로
+            // 그 안에서만 재시도하면 <b>영영 안 걸린다</b> — 걸릴 때까지 여기서 다시 시도한다
+            // (성공하면 _visionZeroed 가 켜져 다시는 들어오지 않는다).
+            if (!_visionZeroed && Has(PassiveSkillType.InnateDelicacy))
+                _visionZeroed = ApplyBlindVision();
 
             TickRampage();
             TickEcstasy();
