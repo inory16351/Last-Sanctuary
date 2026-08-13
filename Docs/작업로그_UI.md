@@ -1411,3 +1411,261 @@ UI-15·17·18·19·20 과 같은 종류의 크로싱.
 ### 씬반영요청 목록
 
 없음.
+
+---
+
+## UI-22. 미니맵 클릭 이동 · 보스 스킬 360도 조준 · 무리 소환 · 보스 칭호 외 11건 (2026-08-13)
+
+유저 지시 11건을 한 번에 처리했다. 전제는 이번에도 **"모든 객체 생성 및 수정은
+템플릿/슬롯 복제를 제외하고 MCP 로 직접"**.
+
+| # | 지시 | 결과 |
+|---:|---|---|
+| 1 | 미니맵 클릭 시 화면 전환 (롤 미니맵처럼) | `MinimapPanel` 이 클릭·드래그를 받아 카메라 이동 |
+| 2 | 보스 이동 속도 증가 (너무 느림) | 표 `movement_speed` 1 → 4 · 이동속도가 이제 표에서 온다 (1.4 → 2.389) |
+| 3 | 포탈에서 여러 마리 나오게 (각개 격파 방지) | 웨이브표에 `spawn_group_size` 신설 + 무리 단위 소환 |
+| 4 | 스킬 범위 360도 · 이미지에 맞춰 타격 범위 재조정 | 조준 4방향 → 자유각, 범위를 연출 원화 비율로 재계산 |
+| 5 | Cast Seconds 를 스킬마다 | 표 `cast_time` 신설 (타락한 무덤 1.2 · 공허의 광선 2.5) |
+| 6 | 긴 사거리 스킬은 항상 최대 사거리까지 | 조준은 방향만 정하고 길이는 언제나 표 값 (명시화) |
+| 7 | 보스 이동/대기 모션 겹침 | `moveMotionHoldSeconds` 유지 시간으로 떨림 제거 |
+| 8 | 프레이야 머리 위 검은 선 | 오른쪽 프레임 19장의 유령 띠 14개 제거 (빌드 스크립트에 내장) |
+| 9 | 로그에 누가·무슨 스킬 | `HudLog.SkillLine` 한 형식으로 보스·패시브 통일 |
+| 10 | 몬스터 로그 이름의 복제 번호 | `unit.name = DisplayName` · 로그는 `DisplayName` 을 읽는다 |
+| 11 | 보스 체력바에 칭호 | 표 `boss_title` → `titleKey` → 체력바 첫 줄 |
+
+### 1. 미니맵 클릭 이동 (롤 방식)
+
+`MinimapPanel` 이 `IPointerDownHandler`·`IDragHandler` 를 구현한다. 누르면 그 지점으로,
+누른 채 끌면 계속 따라간다(`CameraRigController.SnapTo`, 인스펙터의 `snapCamera` 를
+끄면 부드럽게 미끄러지는 `FocusOn`).
+
+- **자식 `View` 에 스크립트를 따로 붙이지 않았다** — 유니티 이벤트 시스템은 핸들러를
+  부모로 거슬러 올라가며 찾으므로(`ExecuteEvents.ExecuteHierarchy`) 패널에서 그대로
+  받는다. 씬에 오브젝트가 하나도 안 늘어난다.
+- 클릭을 받으려면 `View`(RawImage)의 `raycastTarget` 이 켜져야 한다 — **MCP 로 켰다**
+  (`false → true`). 코드에도 `Start()` 안전망을 뒀다(값 보정이라 §10 H-1 위반 아님).
+- **U-D8 충돌 없음** — `CameraRigController.ignoreDragOverUI` 와 `UnitSelector` 의
+  `IsPointerOverGameObject()` 가 UI 위 클릭을 이미 거른다. 미니맵은 UI 라 자동으로 비켜난다.
+
+### 2. 보스 이동 속도 — ⚠ 원인은 "표를 안 읽고 있었다"
+
+보스 에셋에 `moveSpeedTiles: 1.4` 가 **손으로 적혀** 있었다(잡몹 2.2 · 중간보스 2.25).
+`sync_tables_to_assets.py` 는 **중간보스에만** 이동속도를 옮기고 있었기 때문이다 —
+그래서 표를 아무리 고쳐도 잡몹·최종보스는 안 바뀌는 상태였다.
+
+`sync_monsters()` 의 `patch_fields` 에 `moveSpeedTiles` 를 추가하고(공식은 38-1절
+`mspd_from_stat` 하나뿐), 표의 `movement_speed` 를 **1 → 4** 로 올렸다.
+결과: 보스 **1.4 → 2.389**(1.7배), 잡몹 2.2 → 2.25(공식값으로 정렬, 체감 차이 없음).
+
+### 3. 무리 소환 — 웨이브표 `spawn_group_size` 신설
+
+예전에는 한 마리씩, 그것도 **포탈을 돌아가며**(`PortalAt(i)`) 내보냈다. 그래서 어느
+순간에도 화면에는 서로 다른 방향에서 온 한 마리씩만 있었다 — "각개 격파"의 실체가 이것이다.
+
+- 웨이브테이블.xlsx / Sheet2 **H열 `spawn_group_size`** 신설 (웨이브 1~20 에 2~7).
+- `WaveMonsterComposition.spawnGroupSize` 추가 · `MonsterSpawner.SpawnRoutine` 이
+  **무리 단위로** 같은 포탈에서 한꺼번에 내보낸다.
+- **소환 주기는 무리 개수로 역산**한다(`ResolveSpawnInterval(groupCount)`) — 마리 수로
+  계산하면 무리 하나당 한 번만 기다리므로 전체 소환이 `groupSize` 배 빨리 끝나버린다.
+- 무리가 커지면 흩어질 반경도 넓힌다(`GroupSpread` = `ceil(√개수)`) — 3x3 포탈 구역에
+  7마리를 넣으면 한 덩어리로 겹쳐 나온 뒤 밀어내기가 한꺼번에 걸려 사방으로 튄다.
+- **증원도 같은 문제였다** — `SpawnReinforcementBatch` 가 마리마다 포탈을 돌려서 증원
+  4마리가 네 방향에 한 마리씩 흩어졌다. 무리 하나 = 포탈 하나로 바꿨다.
+- 총 마리 수·능력치는 그대로다. 나오는 **방식**만 바뀐다. 값이 0·1 이면 예전 동작 그대로.
+
+### 4. ★ 스킬 범위 — 4방향 스냅 제거 + 원화 비율로 범위 재계산
+
+유저: *"단탈리온 스킬이 4방향에 적이 없으면 대각선 방향 적을 못 때리니까 의도랑 안 맞음"*
+· *"보스 스킬 이펙트랑 적용 범위도 기존 스킨 이미지 역계산 방식 이용해서 ... 이미지에
+맞춰서 타격 범위 재조정"*.
+
+**① 조준 자유각(360도)** — `UnitRegistry.CollectEnemiesInOrientedRect(중심, 반크기,
+방향, 진영, 목록)` 신설. 상자를 돌리는 대신 **대상을 스킬 좌표계로 옮겨** 내적 두 번으로
+검사한다(회전 행렬 불필요). `BossSkillCaster` 의 `AxisDirection`(4방향 스냅)을
+`AimDirection`(자르지 않음)으로 교체했고, **지면 연출도 같은 각도로** 돌린다 —
+그림만 축에 맞추면 연출과 판정이 최대 45도 어긋난다.
+
+**② 범위를 연출 원화에 맞춘다** (`BossSkillCaster.ResolveArea`) — 66절이 유닛 콜라이더에
+쓴 로직과 **같은 계산**이다:
+
+```
+배율 = min(표가로 / 원화가로, 표세로 / 원화세로)     ← contain
+실제 범위 = 원화크기 × 배율
+```
+
+| 스킬 | 표 | 원화 비율 | 실제 범위 |
+|---|---|---:|---|
+| 타락한 무덤 | 5 x 3 | ShockwaveFx 3.06:1 | 5.00 x 1.63 |
+| 공허의 광선 | 15 x 3 | BeamFx 9.42:1 | 15.00 x 1.59 |
+
+⚠ **두께가 표 값의 절반쯤으로 줄어든다** — 원화가 표보다 훨씬 납작해서다. 이것이
+유저가 요구한 "이미지에 맞춰서 재조정"의 결과다. 더 두껍게 하려면 **표의 세로를 키우는
+것으로는 안 되고**(비율이 상한이다) 가로(`value_01`)를 줄이거나 원화를 다시 그려야 한다.
+비율 보정 자체를 끄려면 `BossSkillCaster.fitAreaToSkillArt` 를 끈다.
+**계산 결과를 에셋에 안 적는다** — 원화가 바뀌면 결과도 같이 바뀌어야 하므로 런타임 계산이
+정본이다(66-2절과 같은 이유).
+
+**③ 원형 범위는 표에서 고른다** — `Skill` 시트 **L열 `range_type`** 신설
+(`Line` 기본 / `Circle`). 유저가 "원형으로" 라고 했지만 단탈리온 두 원화는 **가로로 긴
+파동·광선**이라 원형으로 만들면 그림과 판정이 어긋난다. 그래서 **모양을 표에서 고르게**
+하고 두 스킬은 `Line` 으로 뒀다 — 실제로 지적된 문제(대각선을 못 때린다)는 ①이 해소한다.
+진짜 원형이 필요해지면 표의 이 칸만 `Circle` 로 바꾸면 코드 수정 없이 돈다
+(`CollectEnemiesInRadius` 경로).
+
+### 5·6. 스킬별 시전 시간 · 최대 사거리 발사
+
+- `Skill` 시트 **K열 `cast_time`** 신설 → `BossSkillSO.castSeconds`.
+  0 이면 `BossSkillCaster.castSeconds`(전역 기본값 0.55)로 떨어진다.
+  값: **타락한 무덤 1.2 · 공허의 광선 2.5**(유저 지시 "가시성 증가").
+  ⚠ 피해는 시전과 **동시에** 들어간다 — 이 값은 연출 길이일 뿐 판정 시점이 아니다.
+- 최대 사거리 발사는 **이미 그렇게 동작하고 있었다**(상자 길이는 언제나 표 값이고 조준은
+  방향만 정한다). 리팩터링 중에 잃지 않도록 코드에 명시적으로 못 박아 주석으로 남겼다.
+  ⚠ 다만 `PickAim` 의 후보 수집을 **정사각 → 원형**으로 바꿨다 — 상자로 모으면 대각선이
+  √2배 멀리까지 후보로 잡혀 "조준은 됐는데 범위 밖" 인 헛시전이 생긴다.
+
+### 7. 이동/대기 모션 겹침 — 원인은 프레임 단위 판정
+
+`CharacterAnimator` 는 **한 프레임 이동량**(`moveThreshold` 0.004)으로 걷기/대기를 갈랐다.
+이동속도가 느린 유닛은 프레임당 이동량이 임계값 근처라 **프레임률이 조금만 흔들려도
+걷기↔대기가 매 프레임 번갈아** 나온다 — "두 모션이 겹쳐 보인다"의 실체가 이것이다.
+`moveMotionHoldSeconds`(기본 0.2초) 유지 시간을 두어 한 번 이동으로 판정되면 그동안은
+걷기를 유지한다. 판정 갱신은 **`ResolveFrames` 맨 앞**에서 한다 — 공격·시전 중에도 위치는
+바뀌므로, 거기서 안 재면 공격이 끝난 첫 프레임에 "공격 → 대기 → 걷기"로 한 번 튄다.
+
+### 8. 프레이야 머리 위 검은 선 — ⚠ 오른쪽 프레임 전부에 있었다
+
+이미지 분석 결과(연결 요소 분해): **Right 프레임 19장 전부**에 캐릭터 몸통과 **완전히
+떨어진** 가로 띠가 머리 위에 떠 있었다. Left 프레임에는 없다.
+
+```
+Idle_Right_00  y 24~26 (3줄) · x 48~170 (123px) · 310픽셀 · 밝기 37~42
+Melee_Right_02 y 12~17 (6줄) · x 42~184 (143px)
+```
+
+가로 100~165px · 세로 2~6줄 · 몸통 최상단보다 위 — 캐릭터 그림일 수 없는 모양이고,
+**원본 시트를 자를 때 위쪽 행의 밑동이 딸려 들어온 것**이다(40절이 고친 "한 컷에
+캐릭터가 1.5명" 과 같은 뿌리의 슬라이스 사고).
+
+**PNG 를 손으로 고치지 않고 `char_asset_preyja_build.py` 에 넣었다** — Assets 쪽 PNG 는
+이 스크립트가 매번 다시 쓰므로 손으로 지우면 다음 실행에 되살아난다(64-4절의 그 사고).
+`strip_detached_bars()` 는 **① 몸통과 떨어져 있고 ② 세로 8줄 이하로 납작하고 ③ 가로
+40px 이상·가로/세로 8배 이상이고 ④ 그림 위쪽 40% 안**인 덩어리만 지운다.
+실측 확인: 지워지는 것은 그 띠 14개(합성 Walk 는 정리된 Idle 에서 만들어지므로 자동)뿐이고,
+세로로 긴 창 자국(y0~146 x189~191)·발밑 조각(y126~146)은 조건 ②④에서 걸러진다.
+
+⚠ **부수 효과 — PPU 가 60 → 56 으로 바뀐다(정상).** 띠가 몸 높이에 섞여 들어가 있어서
+빌드 스크립트가 잘못된 높이(131px)로 PPU 를 잡고 있었다. 진짜 높이는 121px 이고 목표
+크기(2.18 유닛)를 맞추려면 PPU 56 이 맞다. `Skin_Preyja.contentSizeTiles` 도
+`2.05 x 2.167 → 2.089 x 2.179` 로 재측정했다(`measure_skin_tiles.py`).
+캐릭터는 씬 템플릿의 `renderHeightTiles 2.15` 로 최종 크기가 정해지므로 **화면 크기는
+안 바뀐다**. **파일 이름·guid 는 그대로다**(8절 1번 방식 — 스프라이트 참조 46개 무손상).
+
+### 9·10. 로그 — 형식 통일 + 복제 번호 제거
+
+- `HudLog.SkillLine(시전자, 스킬, 덧붙일말)` 신설. 그전에는 보스가
+  `"단탈리온 — 공허의 광선!"`, 캐릭터가 `"엘린의 희생 — …"` 으로 **호출부마다 형식이
+  달랐고 스킬 이름이 코드에 한글로 박혀** 있었다(표에서 이름을 바꿔도 로그는 안 바뀐다).
+  이제 셋 다 `"{시전자} · {스킬} — {덧붙일말}"` 이고 스킬 이름은 언제나 `DisplayName`(표)이다.
+- `MonsterSpawner` 가 붙이던 일련번호(`unit.name = "{이름}_{n}"`)를 제거해 캐릭터
+  (`CharacterUnit.ApplyDefinition`)와 같은 규칙으로 맞췄다. 추가로 `MonsterUnit.DisplayName`
+  을 신설하고 `BattleLogPanel`·`CharacterPassives` 가 그것을 읽게 해서 **하이라키 이름이
+  어떻든 로그가 흔들리지 않게** 이중으로 막았다.
+
+### 11. 보스 체력바 칭호
+
+- `wave_mid_boss` 시트에 **H열 `boss_title`** 신설(최종보스에만 있던 칸이다 — UI-17 의
+  영어 이름과 똑같은 상황). 값은 위임 범위로 정했다: 혈인 **"피에 새겨진 낙인"** ·
+  공허의 속삭임 **"허공을 삼킨 목소리"**. 표가 정본이니 마음에 안 들면 표만 고치면 된다.
+- `gen_string_table.py` 규칙에 한 줄 추가 → `boss_title_110001/110002` 키 생성.
+- `MonsterDefinitionSO.titleKey`/`Title` 신설. `sync_tables_to_assets.py` 가
+  **표에 칭호가 실제로 적힌 몬스터에만** `titleKey` 를 넣는다(없는 키를 넣어두면 조회가
+  매번 실패해 "칭호가 있는데 왜 안 뜨지"가 된다).
+- `BossHealthPanel` 이 이름 줄 앞에 **rich text 로** 붙인다
+  (`<size=72%><color=…>칭호</color></size>  이름`).
+  ⚠ **라벨을 새로 만들지 않았다** — 줄을 하나 더 만들면 `Name`·`HpBack`·`Body` 세
+  RectTransform 을 전부 다시 잡아야 하고, MCP 로 앵커 필드를 넣으면 조용히 무시되는
+  경우가 있다(§10). 38MB 씬의 레이아웃을 건드리지 않는 쪽을 골랐다.
+  **별도 줄로 원하면 말할 것** — 그때는 세 rect 를 MCP 로 다시 잡는다.
+
+### 표 변경 (전부 Excel COM — 하이퍼링크 보존)
+
+| 파일 / 시트 | 컬럼 | 값 |
+|---|---|---|
+| 웨이브 몬스터 테이블 / `Skill` | K `cast_time`(float) · L `range_type`(enum) | 1.2·2.5 / Line·Line |
+| 웨이브 몬스터 테이블 / `first_Stat` | (기존) `movement_speed` | 120001: 1 → **4** |
+| 웨이브 몬스터 테이블 / `wave_mid_boss` | H `boss_title`(string) | 칭호 2개 |
+| 웨이브테이블 / `Sheet2` | H `spawn_group_size`(int) | 웨이브별 2~7 |
+
+신규 스크립트 [Tools/table_update_20260813_boss_and_wave.py](../Tools/table_update_20260813_boss_and_wave.py)
+가 네 가지를 한 번에 처리한다(백업 후 진행 · 재실행 안전).
+**컬럼은 항상 맨 뒤에 붙인다** — 중간에 끼우면 위치로 읽는 기존 코드(`r[10]` = 방어력 등)가
+통째로 깨진다(65-2절의 규약).
+
+### 겪은 함정
+
+- `patch_fields` 는 **없는 키를 조용히 건너뛴다.** C# 에 필드를 새로 추가한 첫 실행에는
+  에셋 YAML 에 그 줄이 아예 없어서 `titleKey` 가 영원히 안 들어간다. `add_missing` 인자를
+  만들어 없으면 파일 끝에 새로 만들게 했다(⚠ 빈 줄 금지 규칙은 그대로 지킨다 — 8절 3번).
+- 하이퍼링크 검사에 `openpyxl` 의 `ws.hyperlinks` 를 쓰면 **원본에서도 0으로 나온다.**
+  xlsx 를 zip 으로 열어 `xl/worksheets/_rels` 와 시트 XML 의 `<hyperlink ` 를 직접 세야
+  한다 — 편집 전후 모두 **12개**로 확인했다.
+- 보스 스킬의 `_scratch` 는 정적 공용 버퍼다. `PickAim` 이 후보를 담고 그 뒤
+  `CollectEnemiesInOrientedRect` 가 덮어쓴다 — 조준 대상(`aim`)만 바깥에 들고 있으면
+  안전하지만, 원형 분기에서는 `NearestOf(_scratch)` 를 **피해 적용 전에** 불러야 한다.
+
+### 소유권 (§2)
+
+**UI 소유** — `Scripts/Combat/**`(BossSkillCaster·BossSkillSO·BossSkillType·
+CharacterAnimator·CharacterPassives·UnitRegistry) · `Scripts/UI/**`(MinimapPanel·
+BossHealthPanel·BattleLogPanel·HudLog) · `Resources/BossSkills/**` ·
+`Resources/Data/StringTable.txt` · `Assets/Scenes/Proto_01.unity`.
+
+**⚠ PROTO 소유 파일을 건드렸다** — `Scripts/Units/MonsterSpawner.cs · MonsterUnit.cs ·
+MonsterDefinitionSO.cs`, `Scripts/Wave/WaveDefinitionSO.cs`, `Data/Units/**`,
+`Data/Wave/WaveDefinitions.asset`, `Tools/**`(sync_tables_to_assets · gen_string_table ·
+char_asset_preyja_build + 신규 1개), `Art/Char_Asset/Char_Asset_Preyja/**`.
+UI-15·17·18·19·20·21 과 같은 종류의 크로싱이다.
+
+### 씬 변경 여부 — **있음** (전부 MCP · 저장 1회)
+
+| 오브젝트 | 무엇 |
+|---|---|
+| `UI_Root/HUD_Minimap/View` | `RawImage.raycastTarget` **false → true** |
+| `UI_Root/HUD_Minimap` | `MinimapPanel.clickToMoveCamera`/`snapCamera` = true |
+| `UI_Root/HUD_Boss` | `BossHealthPanel.showTitle` = true · `titleSizePercent` = 72 |
+| `Templates/.../Monster_Dantalian_Template` | `BossSkillCaster.fitAreaToSkillArt` = true |
+| 템플릿 6개(캐릭터 + 몬스터 5) | `CharacterAnimator.moveMotionHoldSeconds` = 0.2 |
+
+비활성 템플릿은 경로 조회가 안 되므로 `get_scenes_hierarchy` 의 `instanceId` 를 **같은 턴에**
+썼다(12절의 그 함정). **GameObject 357 → 357**(증가 0).
+
+### 검증
+
+- `recompile_scripts` **에러 0 · 경고 0**, `Assets/Refresh` 후 콘솔 **에러 0**.
+- 표 편집 후 하이퍼링크 **12개 전부 유지**(zip 직접 검사).
+- `sync_tables_to_assets.py` 반영 확인 — 보스 `moveSpeedTiles: 2.389` ·
+  `titleKey: boss_title_120001` · `BossSkill_130002` 의 `castSeconds: 2.5` ·
+  `rangeType: Line` · 웨이브 20행 전부 `spawnGroupSize`.
+- `StringTable.txt` diff **2줄만 추가**(나머지 82개 키 불변).
+- 프레이야 프레임 재검사 — 머리 위 가로 띠 **19장 전부 0개**, 발밑·창 조각은 그대로 보존.
+  스프라이트 **guid 변경 0건**.
+- 씬 저장 1회 · `GameObject:` 블록 357 → 357.
+
+### 아직 확인 못 한 것 (유저가 볼 것)
+
+1. 미니맵을 눌러 화면이 그 지점으로 가는지 · 끌었을 때 따라오는지
+2. 보스가 눈에 띄게 빨라졌는지 (1.4 → 2.39, 잡몹 2.25 와 비슷한 속도)
+3. 무리 소환이 "디펜스 느낌"을 주는지 — 무리가 너무 크거나 작으면 **웨이브테이블의
+   `spawn_group_size` 만** 고치면 된다
+4. 보스 스킬이 **대각선 적에게도** 나가는지 · 연출과 맞는 범위가 일치하는지
+5. 공허의 광선 2.5초가 충분히 보이는지 (짧으면 표의 `cast_time` 만 키운다)
+6. **범위 두께가 절반으로 준 것**(5x1.63 · 15x1.59)이 받아들일 만한지 — 아니면
+   `fitAreaToSkillArt` 를 끄거나 원화를 다시 그려야 한다
+7. 보스 이동/대기 모션이 더 이상 섞이지 않는지
+8. 프레이야 머리 위 선이 사라졌는지 · 크기가 예전과 같은지
+9. 로그가 "엘린 · 희생 — 비기오르 회복" 형식으로 · 몬스터 이름에 번호가 없는지
+10. 보스 체력바에 칭호가 뜨는지(단탈리온 "끝없는 형상의 군주" / 중간보스 2종)
+
+### 씬반영요청 목록
+
+없음.
