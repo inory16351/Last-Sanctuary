@@ -71,6 +71,37 @@ namespace LastSanctuary.Units
         [Tooltip("미탐사 지점을 찾을 최대 거리(타일)")]
         [Min(4f)] [SerializeField] float scoutSearchRadius = 60f;
 
+        [Header("탐험 배회 범위 (넥서스 중심 원의 지름, 타일)")]
+        [Tooltip("전술 지침 '근방' 을 골랐을 때의 배회 가능 구간 — 넥서스 중심 원의 <b>지름</b>이다.\n" +
+                 "★ 반지름이 아니다(유저 확정 2026-08-14). 중립 몬스터 등장 범위(73-5절)와 같은 규칙이라 " +
+                 "코드가 절반으로 나눠 쓴다.\n" +
+                 "이 값은 화면에 절대 노출하지 않는다 — UI 는 '근방/외곽/전역' 이름만 보여준다")]
+        [Min(2f)] [SerializeField] float roamDiameterNear = 99f;
+
+        [Tooltip("전술 지침 '외곽' 을 골랐을 때의 배회 가능 구간 지름(타일). '전역' 은 제한 없음이라 값이 없다")]
+        [Min(2f)] [SerializeField] float roamDiameterMid = 199f;
+
+        [Tooltip("배회 범위 안이 전부 밝혀졌을 때, 배회 목표를 <b>지금 자리에서 한 걸음</b> 떨어진 " +
+                 "곳으로 고른다 — 그 걸음 폭(타일).\n" +
+                 "★ 왜 '원 안의 아무 점'이 아닌가 — 73-11절이 중립 몬스터에서 겪은 함정이다. " +
+                 "이동 속도보다 재추첨이 빠르면 목표에 닿기 전에 새 목표가 뽑혀 " +
+                 "<b>원의 무게중심(=넥서스)으로 가는 랜덤워크</b>가 된다. " +
+                 "한 걸음씩 옮기고 그 걸음을 원 안으로 접으면 위치 자체가 원에 갇힌다")]
+        [Min(2f)] [SerializeField] float roamWanderStepTiles = 16f;
+
+        [Tooltip("탐험 유형이 '사냥' 이고 배회 범위 안이 전부 밝혀졌을 때, 목표를 배회 범위의 " +
+                 "바깥 몇 %(0~1) 지점에서 고를지. 1 에 가까울수록 경계선에 딱 붙는다 — " +
+                 "몬스터는 대개 바깥쪽에 있으므로 외곽을 훑는 것이 사냥에 유리하다(유저 지시 2026-08-14)")]
+        [Range(0.3f, 1f)] [SerializeField] float roamHuntOuterBand = 0.85f;
+
+        [Tooltip("사냥감을 쫓을 때 배회 범위 <b>밖으로</b> 나갈 수 있는 여유(타일). " +
+                 "경계에서 사냥감을 문 캐릭터가 한 발짝도 못 나가면 사냥이 성립하지 않으므로 " +
+                 "이만큼은 따라 나간다. 넘으면 사냥을 포기하고 배회 범위로 돌아온다 — " +
+                 "부대(협동 탐험)가 있으면 그 대열로 합류하고, 없으면 복귀만 한다 " +
+                 "(유저 지시 2026-08-14, 중립 몬스터의 고리 복귀 73-12절과 같은 규칙).\n" +
+                 "0 이면 경계 밖으로 한 발짝도 안 나간다. '전역'에는 경계가 없어 적용되지 않는다")]
+        [Min(0f)] [SerializeField] float roamHuntOvershootTiles = 12f;
+
         [Header("시야 밖 피격 확인 (전방 캐릭터가 확인하러 간다)")]
         [Tooltip("켜면, 시야 밖의 적에게 맞았을 때 그 자리를 경보로 남기고 " +
                  "전방 포지션 캐릭터 중 가장 가까운 한 명이 확인하러 간다. " +
@@ -217,6 +248,12 @@ namespace LastSanctuary.Units
         MapGenerator _map;
         DamageableUnit _nexus;
 
+        /// <summary>넥서스에서 만든 거리장. 탐험 목표가 <b>실제로 걸어갈 수 있는 곳인지</b> 거르는 데만 쓴다.</summary>
+        FlowFieldService _flow;
+
+        /// <summary>도달 가능 판정을 매번 새 델리게이트로 만들지 않도록 캐시한다(GC 압박 방지).</summary>
+        System.Func<Vector3Int, bool> _reachableTest;
+
         // 순찰 지점을 뽑을 때 벽에 걸리면 몇 번까지 다시 굴려볼지.
         const int GuardSpotAttempts = 8;
 
@@ -238,6 +275,7 @@ namespace LastSanctuary.Units
         TacticalPosition _position = TacticalPosition.Mid;
         TacticalRetreatAction _retreatAction = TacticalRetreatAction.KeepFighting;
         TacticalExpeditionType _expeditionType = TacticalExpeditionType.Hunt;
+        TacticalRoamRange _roamRange = TacticalRoamRange.Near;
         TacticalWaveReaction _waveReaction = TacticalWaveReaction.DefendNow;
         int _retreatHpPercent;
         bool _retreating;
@@ -354,17 +392,19 @@ namespace LastSanctuary.Units
         /// 지침의 정본은 그쪽이고 여기는 사본이다.
         /// </summary>
         public void ApplyTactics(TacticalPosition position, TacticalExpeditionType scoutMode,
-                                 TacticalWaveReaction waveReaction, int retreatHpPercent,
-                                 TacticalRetreatAction retreatAction)
+                                 TacticalRoamRange roamRange, TacticalWaveReaction waveReaction,
+                                 int retreatHpPercent, TacticalRetreatAction retreatAction)
         {
             // 지침은 Awake·Start 순서와 무관하게 들어올 수 있다 — 아래에서 _combat 을 쓰므로
             // 쓰기 직전에 준비를 확인한다(EnsureReady 주석의 그 패턴).
             EnsureReady();
 
             bool positionChanged = _position != position;
+            bool roamChanged = _roamRange != roamRange;
 
             _position = position;
             _expeditionType = scoutMode;
+            _roamRange = roamRange;
             _waveReaction = waveReaction;
             _retreatHpPercent = Mathf.Clamp(retreatHpPercent, 0, 100);
             _retreatAction = retreatAction;
@@ -387,9 +427,10 @@ namespace LastSanctuary.Units
                 _nextFrontRetreatCheck = 0f;
             }
 
-            // 포지션이 바뀌면 지금 서 있는 자리가 더 이상 맞지 않으므로 즉시 다시 고른다.
-            // (다음 재추첨까지 최대 6초를 기다리면 UI 를 눌러도 아무 반응이 없어 보인다)
-            if (positionChanged) _repickTime = 0f;
+            // 포지션·배회 범위가 바뀌면 지금 서 있는 자리(또는 향하던 목적지)가 더 이상 맞지
+            // 않으므로 즉시 다시 고른다. (다음 재추첨까지 최대 6초를 기다리면 UI 를 눌러도
+            // 아무 반응이 없어 보인다 — 배회 범위를 좁혔는데 한참 더 걸어 나가면 특히 그렇다)
+            if (positionChanged || roamChanged) _repickTime = 0f;
         }
 
         /// <summary>
@@ -424,6 +465,8 @@ namespace LastSanctuary.Units
             _fog = FindAnyObjectByType<FogOfWarService>();
             _waveManager = FindAnyObjectByType<WaveManager>();
             _map = FindAnyObjectByType<MapGenerator>();
+            _flow = FindAnyObjectByType<FlowFieldService>();
+            _reachableTest = cell => _flow.IsCellReachable(cell);
 
             // 캐릭터마다 다른 난수열을 써야 정찰 목표가 겹치지 않는다.
             _rng = new System.Random(GetInstanceID());
@@ -479,6 +522,20 @@ namespace LastSanctuary.Units
             //   영영 실행되지 않아, 사냥 유형 부대원 혼자 24타일(<c>huntPursuitTiles</c>)까지
             //   쫓아가며 부대가 갈라진 채로 각자 놀게 된다.
             if (_combat.IsHunting && IsFarFromSquadLeader()) _combat.ClearHuntTarget();
+
+            // ★ 사냥 추격이 <b>배회 범위에서 너무 멀어지면</b> 물고 있던 사냥감을 놓고 돌아온다
+            //   (유저 지시 2026-08-14). 여기 두는 이유는 바로 위 협동 탐험 검사와 같다 —
+            //   아래 "교전 중이면 목적지를 안 건드린다" 보다 앞이어야 매 프레임 실행된다.
+            //
+            //   놓고 나면 <b>따로 복귀 코드가 필요 없다</b>: ClearHuntTarget 이 타겟까지 비우므로
+            //   이 프레임이 그대로 PickExpeditionSpot 까지 내려가고, 거기 맨 앞의 TryFollowSquad 가
+            //   부대 대열로 데려간다(협동 탐험이 켜져 있을 때). 부대가 없으면 그 아래의
+            //   안개 탐색·자유 배회가 배회 범위 <b>안</b>의 지점만 고르므로 자연히 복귀한다.
+            if (_combat.IsHunting && IsBeyondRoamLimit())
+            {
+                _combat.ClearHuntTarget();
+                _repickTime = 0f;   // 다음 재추첨(최대 6초)을 기다리지 않고 그 자리에서 복귀 목적지를 고른다
+            }
 
             // ★ 시야 밖에서 맞았으면 그 자리를 경보로 남긴다 (유저 지시 2026-08-13).
             //   <b>교전 판정보다 앞에 둔다</b> — 다른 적과 싸우는 중에 저격당하는 경우가
@@ -1374,7 +1431,12 @@ namespace LastSanctuary.Units
         {
             bool picked = _duty == CharacterDuty.Expedition ? PickExpeditionSpot() : PickGuardSpot();
 
-            // 정찰할 곳이 없으면(맵을 다 밝혔거나 안개가 꺼져 있으면) 방어로 넘어간다.
+            // 탐험할 곳이 아예 없으면(안개 서비스가 없거나 맵 자체가 준비 전이면) 방어로 넘어간다.
+            //
+            // ⚠ 예전에는 <b>맵을 다 밝히기만 해도</b> 여기로 떨어졌다 — 유저 리포트
+            //   "맵이 다 밝혀지면 캐릭터가 아무 행동도 안 한다"의 정체다. 이제
+            //   <see cref="PickExpeditionSpot"/> 이 밝힐 곳이 없어도 배회 범위 안에서
+            //   자유 배회 지점을 돌려주므로 이 폴백은 진짜 예외 상황에만 걸린다.
             if (!picked && _duty == CharacterDuty.Expedition)
             {
                 _duty = CharacterDuty.Guard;
@@ -1382,9 +1444,57 @@ namespace LastSanctuary.Units
             }
         }
 
+        /// <summary>
+        /// 지금 지침의 <b>탐험 배회 반지름</b>(타일). 전술 지침은 <b>지름</b>으로 정의돼 있으므로
+        /// (유저 확정 2026-08-14 — 중립 몬스터 등장 범위 73-5절과 같은 규칙) 여기서 절반으로 나눈다.
+        /// '전역'은 제한 없음이라 무한대다.
+        /// </summary>
+        float RoamRadiusTiles => _roamRange switch
+        {
+            TacticalRoamRange.Near => roamDiameterNear * 0.5f,
+            TacticalRoamRange.Mid  => roamDiameterMid * 0.5f,
+            _                      => float.PositiveInfinity,
+        };
+
+        /// <summary>
+        /// 사냥감을 쫓다 <b>배회 범위 밖으로 너무 나갔는지</b> — 넘으면 사냥을 포기하고 돌아온다
+        /// (유저 지시 2026-08-14: "일정 타일 범위 내에서는 범위를 벗어나서 추적하지만 일정 거리
+        /// 이상 배회 가능 거리에서 멀어지면 다시 배회 가능 거리로 돌아가 동료와 합류").
+        ///
+        /// ★ <b>기준점이 넥서스라서 래칫이 아니다</b> — 77-2절이 기록한 함정("자기 위치가
+        /// 기준이면 걸어갈수록 판정 범위도 같이 따라와 얼마든지 끌려간다")을 여기서 다시 밟지
+        /// 않으려면 기준점이 <b>움직이지 않아야</b> 한다. 재는 것은 "내가 넥서스에서 얼마나
+        /// 떨어졌나" 하나이고, 그 한계선은 배회 범위 + 여유로 고정돼 있다.
+        /// 73-12절이 중립 몬스터에게 적용한 "고리 기준 추격 한계"와 같은 규칙이다.
+        ///
+        /// 사냥 자체의 추격 한계(<c>UnitCombat.huntPursuitTiles</c> 24타일 · 사냥 시작점 기준)는
+        /// 그대로 살아 있다 — 이건 <b>그 위에 얹는 배회 범위 쪽 한계</b>다. 둘 중 먼저 걸리는 쪽이 이긴다.
+        /// </summary>
+        bool IsBeyondRoamLimit()
+        {
+            float roam = RoamRadiusTiles;
+            if (float.IsPositiveInfinity(roam)) return false;   // '전역' 은 경계 자체가 없다
+
+            float limit = roam + roamHuntOvershootTiles;
+            return ((Vector2)(transform.position - NexusPosition())).sqrMagnitude > limit * limit;
+        }
+
+        /// <summary>
+        /// 탐험 목적지를 고른다. <b>우선순위는 유저가 확정했다</b>(2026-08-14):
+        /// <code>
+        ///   ① 부대 협동 탐험 — 기준원이 있으면 그를 따라간다 (유형과 무관)
+        ///   ② 배회 범위 안에 아직 안 밝혀진 곳이 있으면 → 전장의 안개 밝히기부터
+        ///      (물리적으로 갈 수 없는 곳은 후보에서 뺀다)
+        ///   ③ 다 밝혀졌고 탐험 유형이 '사냥' 이면 → 배회 범위의 <b>외곽</b>을 훑는다
+        ///   ④ 그 외 → 배회 범위 안 자유 배회
+        /// </code>
+        /// ②~④ 는 전부 <b>넥서스 중심 원</b>(<see cref="RoamRadiusTiles"/>) 안으로 묶인다 —
+        /// 이 제한이 없던 예전에는 캐릭터가 초반부터 맵 끝까지 걸어 나가 강한 중립 몬스터와
+        /// 마주쳤다(유저 리포트).
+        /// </summary>
         bool PickExpeditionSpot()
         {
-            // 같은 부대원과 함께 움직인다 — 기준원이 있으면 그가 정한 목적지를 따라간다.
+            // ① 같은 부대원과 함께 움직인다 — 기준원이 있으면 그가 정한 목적지를 따라간다.
             //
             // ★ <b>이 지점이 탐험 유형과 무관하다는 점이 중요하다</b>(유저 확정 2026-08-12):
             //   여기까지 오는 조건은 "지금 임무가 탐험"뿐이고 사냥/정찰/탐색을 구분하지 않는다.
@@ -1392,15 +1502,108 @@ namespace LastSanctuary.Units
             //
             // 건설하러 간 부대원은 여기 오지 않으므로(Update 의 TryBuild 에서 먼저 빠진다)
             // 자연히 제외되고, 건설이 끝나면 다시 이 경로를 타며 합류한다.
+            //
+            // ⚠ 배회 범위를 여기에는 걸지 않는다 — 협동 탐험은 부대가 <b>같이 움직인다</b>가
+            //   목적이고, 기준원의 목적지는 이미 기준원 자신의 배회 범위로 묶여 있다.
+            //   여기서 또 자르면 부대원만 뒤처져 "따로 논다"가 된다(73-4절의 그 문제).
             if (TryFollowSquad(scoutLeash)) return true;
 
-            if (_fog == null || !_fog.IsReady) return false;
-            if (!_fog.TryFindUnexploredTarget(transform.position, scoutMinDistance,
-                                              scoutSearchRadius, _rng, out Vector3 target))
-                return false;
+            Vector3 nexus = NexusPosition();
+            float roam = RoamRadiusTiles;
 
-            _destination = target;
-            _repickTime = Time.time + scoutTimeout;
+            // ② 배회 범위 안의 안개부터 밝힌다.
+            //    도달 가능 판정은 거리장이 준비됐을 때만 건다 — 준비 전에 걸면 후보가 전부
+            //    사라진다(FlowFieldService.IsCellReachable 주석 참조).
+            if (_fog != null && _fog.IsReady &&
+                _fog.TryFindUnexploredTarget(transform.position, scoutMinDistance,
+                                             scoutSearchRadius, _rng, out Vector3 target,
+                                             nexus, roam,
+                                             _flow != null && _flow.IsReady ? _reachableTest : null))
+            {
+                _destination = target;
+                _repickTime = Time.time + scoutTimeout;
+                _combat.SetHome(_destination, scoutLeash);
+                return true;
+            }
+
+            // ③·④ 밝힐 곳이 없다 — 배회 범위 안에서 계속 돌아다닌다.
+            return PickRoamSpot(nexus, roam);
+        }
+
+        /// <summary>
+        /// 배회 범위 안이 전부 밝혀졌을 때의 목적지. <b>사냥 유형이면 바깥쪽 띠에서</b>,
+        /// 그 외에는 범위 전체에서 고른다(유저 확정 2026-08-14: "모두 밝혀져 있고 우선 행동이
+        /// 사냥이라면 최대한 외곽 범위에서 몬스터를 탐색하는 것을 우선적으로. 사냥이 아니라면
+        /// 그냥 자유 배회").
+        ///
+        /// <b>왜 외곽인가</b> — 중립 몬스터는 넥서스에서 떨어진 고리에 서식하므로(73-5·73-11절)
+        /// 안쪽을 아무리 돌아도 사냥감이 없다. 배회 범위의 바깥 띠를 훑는 것이 곧
+        /// "이 범위 안에서 만날 수 있는 가장 많은 몬스터"를 보는 길이다.
+        /// (치유 유형은 애초에 사냥을 안 하므로 — <c>TryFindHuntPrey</c> 가 먼저 막는다 —
+        ///  탐험 유형이 '사냥'이어도 외곽으로 내보내지 않는다.)
+        ///
+        /// ★ <b>목표는 "원 안의 아무 점"이 아니라 "지금 자리에서 한 걸음"이다</b> —
+        /// 73-11절이 중립 몬스터에서 밟은 함정을 그대로 피한 것이다. 이동 속도(2~3타일/초)보다
+        /// 재추첨(2.5~6초)이 빠르면 <b>목표에 닿기 전에 늘 새 목표가 뽑히므로</b>, 원 안에서
+        /// 균등하게 뽑은 목표들의 평균 = 원의 무게중심(넥서스)으로 흘러가는 랜덤워크가 된다.
+        /// 한 걸음씩 옮기고 그 걸음을 허용 반지름 구간으로 <b>접으면</b>(clamp) 위치 자체가
+        /// 구간에 갇히고, 밖으로 끌려나가도 스스로 돌아온다.
+        ///
+        /// <b>'전역'(무한대) 처리</b> — 접을 원이 없으므로 걸음만 밟는다. "제한이 없다"는 뜻이지
+        /// "매번 맵 반대편으로 간다"는 뜻이 아니다.
+        /// </summary>
+        bool PickRoamSpot(Vector3 nexus, float roamRadius)
+        {
+            bool unlimited = float.IsPositiveInfinity(roamRadius);
+
+            bool hunting = _expeditionType == TacticalExpeditionType.Hunt &&
+                           _combat.AttackType != TacticalAttackType.Heal;
+
+            // 허용 반지름 구간 — 사냥이면 바깥 띠만, 아니면 원 전체.
+            float minRadius = hunting && !unlimited ? roamRadius * roamHuntOuterBand : 0f;
+
+            bool picked = false;
+            for (int attempt = 0; attempt < GuardSpotAttempts; attempt++)
+            {
+                double angle = _rng.NextDouble() * System.Math.PI * 2.0;
+                Vector3 candidate = transform.position + new Vector3(
+                    Mathf.Cos((float)angle) * roamWanderStepTiles,
+                    Mathf.Sin((float)angle) * roamWanderStepTiles,
+                    0f);
+
+                // 그 한 걸음을 허용 구간으로 접는다(ClampToRing — 73-11절과 같은 방식).
+                if (!unlimited)
+                {
+                    Vector2 offset = candidate - nexus;
+                    float d = offset.magnitude;
+                    float clamped = Mathf.Clamp(d, minRadius, roamRadius);
+                    if (!Mathf.Approximately(d, clamped))
+                    {
+                        // 넥서스 위에 정확히 겹쳐 있으면 방향이 없다 — 방금 뽑은 각도를 쓴다.
+                        Vector2 dir = d > 0.01f
+                            ? offset / d
+                            : new Vector2(Mathf.Cos((float)angle), Mathf.Sin((float)angle));
+                        candidate = nexus + (Vector3)(dir * clamped);
+                    }
+                }
+
+                if (!IsWalkable(candidate)) continue;
+
+                // 벽으로 둘러싸인 주머니는 걸어서 못 간다 — 안개 탐색과 같은 기준으로 거른다.
+                if (_flow != null && _flow.IsReady && _map != null &&
+                    !_flow.IsCellReachable(_map.WorldToCell(candidate))) continue;
+
+                _destination = candidate;
+                picked = true;
+                break;
+            }
+
+            // 다 실패했으면(좁은 맵·벽 밀집) 지금 자리를 유지한다 — 방어로 떨어뜨리지 않는다.
+            // 그러면 다음 재추첨에서 다시 시도하므로 "아무것도 안 하는" 상태로 굳지 않는다.
+            if (!picked) _destination = transform.position;
+
+            _repickTime = Time.time + Mathf.Lerp(guardRepositionDelay.x, guardRepositionDelay.y,
+                                                 (float)_rng.NextDouble());
             _combat.SetHome(_destination, scoutLeash);
             return true;
         }
@@ -1713,6 +1916,12 @@ namespace LastSanctuary.Units
             // (유저 확정 2026-08-13). 호출부는 이미 물고 있던 사냥감도 같이 놓는다.
             if (IsFarFromSquadLeader()) return false;
 
+            // 배회 범위 밖으로 너무 나가 있으면 새 사냥감도 물지 않는다 — 먼저 돌아온다
+            // (유저 지시 2026-08-14). 이게 없으면 경계에서 <b>놓자마자 다시 무는</b> 왕복이 생긴다:
+            // 호출부가 한계를 넘은 사냥감을 놓아도, 바로 아래 후보 탐색이 경계 안쪽의 다른
+            // 사냥감을 물어 그쪽으로 다시 끌려 나가기 때문이다. 위 협동 탐험 검사와 같은 형태.
+            if (IsBeyondRoamLimit()) return false;
+
             // 부대원과 함께 사냥한다 — 기준원이 이미 노리는 사냥감이 있으면 같은 놈을 문다.
             // 각자 가장 가까운 놈을 고르면 부대가 사방으로 흩어진다(유저 요청: "같은 부대는
             // 함께 이동"). 사거리 제한은 두지 않는다 — 기준원을 따라가는 중이라 어차피 곧 붙는다.
@@ -1747,9 +1956,14 @@ namespace LastSanctuary.Units
                     zoneCenter = NexusPosition();
                     zoneHalfExtent = guardRadius;
                     break;
-                default:   // 탐험 — 구역 제한 없음
-                    zoneCenter = transform.position;
-                    zoneHalfExtent = float.PositiveInfinity;
+                default:
+                    // 탐험 — 구역은 <b>탐험 배회 범위</b>다(유저 지시 2026-08-14).
+                    // 예전엔 제한이 없어서, 배회 범위를 좁혀놔도 그 경계 바로 밖의 사냥감을
+                    // 물고 나가버렸다 — 목적지만 묶고 사냥감을 안 묶으면 제한이 새어나간다
+                    // (73-11절이 중립 몬스터에서 겪은 "제약이 목표에만 걸려 있었다"와 같은 함정).
+                    // '전역'이면 반지름이 무한대라 IsInsideZone 이 전부 통과시킨다 = 예전 동작.
+                    zoneCenter = NexusPosition();
+                    zoneHalfExtent = RoamRadiusTiles;
                     break;
             }
 

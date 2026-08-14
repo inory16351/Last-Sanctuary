@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bacf4f16746e56b4da254173d578cf4e, type: 3}
+  m_Name: Character_9005_Histon
+  m_EditorClassIdentifier:
+  characterId: 9005
+  nameKey: 'character_name_9005'
+  characterName: '히스톤'
+  characterNameEn: 'Histon'
+  illustName: 'illust_Histon'
+  skinAssetName: 'Skin_Histon'
+  stats:
+    hp: 8
+    attack: 9
+    defense: 5
+    regen: 3
+    rangedAttack: 5
+    magic: 1
+    cure: 1
+    accuracy: 4
+    critical: 5
+    attackSpeed: 7
+    moveSpeed: 6
+    resistance: 82
+  attackPreset: 1
+  positionPreset: 1
+  passives:
+  - {fileID: 11400000, guid: fb59951f38bae1d66394b88729b2d86d, type: 2}
+  - {fileID: 11400000, guid: 61bbd307fdc0cb6c365101677e21a352, type: 2}
+  - {fileID: 11400000, guid: d7d2f0443adf672df65dcc9c905983b9, type: 2}
+  narrative: ''

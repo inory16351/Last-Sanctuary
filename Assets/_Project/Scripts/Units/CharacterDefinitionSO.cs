@@ -66,6 +66,16 @@ namespace LastSanctuary.Units
             resistance = 50,
         };
 
+        [Header("역할 (생성 시 전술 지침 기본값)")]
+        [Tooltip("이 인물이 태어날 때 갖는 공격 유형. Auto 면 능력치에서 역산한다 " +
+                 "(네 공격 계열 중 가장 높은 것 — CharacterRole 참조).\n" +
+                 "역산 결과가 마음에 안 드는 인물만 여기서 못 박으면 된다")]
+        public RoleAttackPreset attackPreset = RoleAttackPreset.Auto;
+
+        [Tooltip("이 인물이 태어날 때 갖는 전열 위치. Auto 면 공격 유형과 맷집(체력+방어력)에서 " +
+                 "역산한다 — 근거리이고 튼튼하면 전방, 무르면 중위, 원거리·마법은 후방, 치유는 중위")]
+        public RolePositionPreset positionPreset = RolePositionPreset.Auto;
+
         [Header("패시브 스킬 3종 — Character 시트의 skill_01~03")]
         [Tooltip("순서가 곧 해금 순서다. 0번은 생성 시 즉시 해금, " +
                  "1·2번은 강화 횟수가 조건에 도달하면 해금된다 (캐릭터 가이드 p6).\n" +

@@ -45,9 +45,20 @@ namespace LastSanctuary.UI
         [SerializeField] string enhanceFormat = "강화하기 ({0})";
         [SerializeField] string enhanceNoSelection = "강화하기";
         [SerializeField] string enhanceMaxed = "능력치 상한";
-        [SerializeField] string noteAffordable = "능력치에 무작위 성장치를 더합니다 (저항력 제외).";
+        // ⚠ noteAffordable("능력치에 무작위 성장치를 더합니다") 는 없앴다 — 유형을 고른 뒤에는
+        //   그 자리에 <b>어떤 유형인지</b>를 보여주는 것이 더 쓸모 있다(아래 noteFocusFormat).
         [SerializeField] string noteUnaffordable = "에너지가 부족합니다.";
         [SerializeField] string noteNoSelection = "-";
+
+        [Header("문구 — 성장 유형 (토글 1단계)")]
+        [Tooltip("성장 유형을 아직 안 고른 상태의 버튼 문구. 누르면 유형 버튼들이 나타난다")]
+        [SerializeField] string enhancePickType = "성장 유형 결정";
+
+        [Tooltip("유형을 고르라고 안내하는 문구. {0} = 강화 비용")]
+        [SerializeField] string notePickType = "성장 유형을 고르면 그 계열 능력치가 더 잘 오릅니다.";
+
+        [Tooltip("{0} = 고른 성장 유형 이름")]
+        [SerializeField] string noteFocusFormat = "성장 유형 : {0} — 강조된 능력치가 더 잘 오릅니다.";
 
         [Header("문구 — 패시브 스킬")]
         [Tooltip("미해금 스킬의 이름 자리. 내용을 감춘다")]
@@ -65,9 +76,49 @@ namespace LastSanctuary.UI
         [SerializeField] Color rowDisabled = new Color(0.09f, 0.10f, 0.12f, 0.75f);
         [SerializeField] Color labelActive = new Color(0.88f, 0.92f, 0.94f, 1f);
         [SerializeField] Color labelDisabled = new Color(0.42f, 0.45f, 0.48f, 1f);
-        [SerializeField] Color deltaColor = new Color(0.45f, 0.95f, 0.6f, 1f);
+        // ⚠ deltaColor(단색 초록) 는 없앴다 — 유저 지시 2026-08-14 로 <b>오른 폭에 따라 색이
+        //   달라진다</b>(아래 deltaTier*). 참고로 예전 값은 어디에서도 실제로 쓰이지 않았다:
+        //   증가치 텍스트의 색을 아무도 안 넣고 있어서 프리팹 색 그대로 나왔다.
         [SerializeField] Color costColor = new Color(0.98f, 0.85f, 0.45f, 1f);
         [SerializeField] Color costUnaffordableColor = new Color(0.96f, 0.42f, 0.42f, 1f);
+
+        [Header("색 — 강화 증가치(+N) 구간별 (유저 확정 2026-08-14)")]
+        // 0 은 아예 표기하지 않는다. 그 위로는 구간마다 색이 달라져 "이번 강화가 잘 나왔는지"가
+        // 숫자를 읽기 전에 색으로 먼저 보인다.
+        //
+        //   1~2 회색 · 3~4 초록 · 5~6 노랑 · 7 이상 빨강
+        //
+        // 지금 상승폭 상한은 6 이지만(일반 0~5 · 묶인 그룹 1~6, 82-6절), 상한은 인스펙터
+        // (CharacterUpgradeService)에서 얼마든지 올릴 수 있으므로 마지막 구간은 "그 위 전부"로 뒀다.
+        [Tooltip("1 ~ deltaGrayMax — 낮게 나온 구간")]
+        [SerializeField] Color deltaTierLow = new Color(0.62f, 0.66f, 0.70f, 1f);
+
+        [Tooltip("deltaGrayMax+1 ~ deltaGreenMax — 무난한 구간")]
+        [SerializeField] Color deltaTierMid = new Color(0.45f, 0.95f, 0.60f, 1f);
+
+        [Tooltip("deltaGreenMax+1 ~ deltaYellowMax — 잘 나온 구간")]
+        [SerializeField] Color deltaTierHigh = new Color(0.98f, 0.85f, 0.35f, 1f);
+
+        [Tooltip("deltaYellowMax 초과 — 최상 구간")]
+        [SerializeField] Color deltaTierBest = new Color(0.96f, 0.38f, 0.36f, 1f);
+
+        [Tooltip("여기까지가 회색")] [Min(0)] [SerializeField] int deltaGrayMax = 2;
+        [Tooltip("여기까지가 초록")] [Min(0)] [SerializeField] int deltaGreenMax = 4;
+        [Tooltip("여기까지가 노랑. 이 값을 넘으면 빨강")] [Min(0)] [SerializeField] int deltaYellowMax = 6;
+
+        [Header("색 — 성장 유형 강조")]
+        [Tooltip("고른 성장 유형에 묶여 더 잘 오르는 능력치 칸의 배경색 " +
+                 "(유저 지시 2026-08-14: \"확률이 높은 스탯은 다른 색으로 표시\")")]
+        [SerializeField] Color rowFocused = new Color(0.16f, 0.34f, 0.30f, 0.98f);
+
+        [Tooltip("그 칸의 라벨·값 글자색")]
+        [SerializeField] Color labelFocused = new Color(0.62f, 1f, 0.82f, 1f);
+
+        [Tooltip("성장 유형 버튼 — 고른 것")]
+        [SerializeField] Color focusButtonOn = new Color(0.16f, 0.42f, 0.38f, 0.98f);
+
+        [Tooltip("성장 유형 버튼 — 안 고른 것")]
+        [SerializeField] Color focusButtonOff = new Color(0.13f, 0.17f, 0.22f, 0.95f);
 
         [Header("색 — 패시브 스킬")]
         [SerializeField] Color passiveUnlockedColor = new Color(0.13f, 0.15f, 0.20f, 0.95f);
@@ -170,6 +221,37 @@ namespace LastSanctuary.UI
         CharacterUpgradeService _upgrades;
         CharacterUnit _unit;
         float _nextRefresh;
+
+        // ── 성장 유형 (토글) ───────────────────────────────────────────────
+        //
+        // 유저 지시 2026-08-14: "강화하기 버튼을 토글 식으로 만들어서 처음엔 성장 유형 결정 의
+        // 의미를 가지는 텍스트로 버튼 텍스트 표기하고 그거 눌러서 강화 유형 결정".
+        //
+        //   유형 미선택 → 버튼 "성장 유형 결정" → 누르면 유형 버튼 5개가 나타난다
+        //   유형 선택됨 → 버튼 "강화하기 (비용)" → 누르면 실제로 강화한다
+        //
+        // 유형은 <b>캐릭터가 들고 있다</b>(CharacterUnit.GrowthFocus) — 다른 캐릭터를 봤다가
+        // 돌아와도 그대로다. 이 창이 들고 있는 것은 "유형 칸을 펼쳐뒀는지"뿐이다.
+
+        /// <summary>유형 버튼 칸을 펼쳐 뒀는지. 유형이 이미 정해져 있으면 항상 펼쳐진다.</summary>
+        bool _typePickerOpen;
+
+        /// <summary>성장 유형 버튼 한 칸.</summary>
+        class FocusButton
+        {
+            public StatGrowthFocus Focus;
+            public Button Button;
+            public Image Background;
+        }
+
+        readonly List<FocusButton> _focusButtons = new List<FocusButton>();
+
+        /// <summary>유형 버튼들을 담은 칸. 통째로 켜고 끈다.</summary>
+        GameObject _focusGroup;
+
+        /// <summary>지금 화면에 유형 버튼을 보여줄지 — 펼쳤거나, 이미 유형이 정해져 있으면.</summary>
+        bool ShowFocusPicker =>
+            _typePickerOpen || (_unit != null && _unit.GrowthFocus != StatGrowthFocus.None);
 
         void Awake()
         {
@@ -278,12 +360,51 @@ namespace LastSanctuary.UI
             if (_hpGhost != null) _hpGhost.fillAmount = _ghost.Value;
             _delta.Clear();
 
+            // 유형 칸을 펼쳐뒀던 상태는 캐릭터를 바꾸면 접는다 — 유형 자체는 캐릭터가 들고
+            // 있으므로(GrowthFocus), 이미 정해진 캐릭터면 ShowFocusPicker 가 다시 펼친다.
+            _typePickerOpen = false;
+
             RefreshAll();
         }
 
         // ------------------------------------------------------------------
         // 강화
         // ------------------------------------------------------------------
+
+        /// <summary>
+        /// 강화 버튼 — <b>토글</b>이다(유저 확정 2026-08-14).
+        /// 성장 유형이 아직 없으면 유형 칸을 펼치기만 하고, 유형이 정해져 있으면 실제로 강화한다.
+        /// </summary>
+        void HandleEnhanceButton()
+        {
+            if (_unit == null) return;
+
+            if (_unit.GrowthFocus == StatGrowthFocus.None)
+            {
+                _typePickerOpen = true;   // 1단계 — 유형을 고르라고 칸을 펼친다
+                RefreshAll();
+                return;
+            }
+
+            HandleEnhance();              // 2단계 — 유형이 정해졌으니 강화한다
+        }
+
+        /// <summary>
+        /// 성장 유형 버튼. <b>같은 유형을 다시 누르면 해제</b>되어 버튼이 "성장 유형 결정"으로
+        /// 돌아간다 — 토글이 한 방향으로만 가면 실수로 고른 유형을 되돌릴 방법이 없다.
+        /// </summary>
+        void HandleFocusPicked(StatGrowthFocus focus)
+        {
+            if (_unit == null) return;
+
+            bool same = _unit.GrowthFocus == focus;
+            _unit.SetGrowthFocus(same ? StatGrowthFocus.None : focus);
+
+            // 해제했으면 칸은 펼친 채로 둔다 — 다시 고르려고 누른 것일 테니 접으면 번거롭다.
+            _typePickerOpen = true;
+
+            RefreshAll();
+        }
 
         void HandleEnhance()
         {
@@ -330,9 +451,27 @@ namespace LastSanctuary.UI
             _erosion.Refresh(has ? _unit : null);
 
             RefreshPortrait(has);
+            RefreshFocusButtons(has);
             RefreshRows(has);
             RefreshPassives(has);
             RefreshFooter(has);
+        }
+
+        /// <summary>성장 유형 버튼 5개 — 펼침 여부와 선택 표시.</summary>
+        void RefreshFocusButtons(bool has)
+        {
+            bool show = has && ShowFocusPicker;
+            if (_focusGroup != null && _focusGroup.activeSelf != show) _focusGroup.SetActive(show);
+
+            StatGrowthFocus current = has ? _unit.GrowthFocus : StatGrowthFocus.None;
+
+            for (int i = 0; i < _focusButtons.Count; i++)
+            {
+                FocusButton fb = _focusButtons[i];
+                if (fb.Button != null) fb.Button.interactable = has;
+                if (fb.Background != null)
+                    fb.Background.color = has && fb.Focus == current ? focusButtonOn : focusButtonOff;
+            }
         }
 
         /// <summary>
@@ -451,6 +590,7 @@ namespace LastSanctuary.UI
         void RefreshRows(bool has)
         {
             StatBlock stats = has ? _unit.Stats : default;
+            StatGrowthFocus focus = has ? _unit.GrowthFocus : StatGrowthFocus.None;
 
             for (int i = 0; i < Slots.Length; i++)
             {
@@ -461,10 +601,21 @@ namespace LastSanctuary.UI
                 bool implemented = slot.Type.HasValue;
                 bool active = implemented && has;
 
+                // ★ 고른 성장 유형에서 <b>더 잘 오르는</b> 능력치는 색을 달리해 눈에 띄게 한다
+                //   (유저 지시 2026-08-14). 저항력은 애초에 강화로 안 오르므로
+                //   (StatBlock.IsGrowable) 어떤 유형에도 묶이지 않는다 — 표가 그렇게 짜여 있다.
+                bool favored = active &&
+                               StatGrowthFocusTable.IsFavored(focus, slot.Type.Value);
+
                 if (row.Label != null)
-                    row.Label.color = implemented ? labelActive : labelDisabled;
+                    row.Label.color = !implemented ? labelDisabled
+                                    : favored ? labelFocused : labelActive;
+                if (row.Value != null)
+                    row.Value.color = !implemented ? labelDisabled
+                                    : favored ? labelFocused : labelActive;
                 if (row.Background != null)
-                    row.Background.color = active ? rowActive : rowDisabled;
+                    row.Background.color = !active ? rowDisabled
+                                         : favored ? rowFocused : rowActive;
 
                 if (row.Value != null)
                     row.Value.text = active ? stats[slot.Type.Value].ToString() : "-";
@@ -472,9 +623,29 @@ namespace LastSanctuary.UI
                 if (row.Delta != null)
                 {
                     int d = active && _delta.TryGetValue(slot.Type.Value, out int found) ? found : 0;
+
+                    // 0 은 표기하지 않는다(유저 확정) — 안 오른 능력치까지 "+0" 이 붙으면
+                    // 이번 강화에서 실제로 오른 것이 어디인지 한눈에 안 보인다.
                     row.Delta.text = d > 0 ? $"+{d}" : "";
+                    if (d > 0) row.Delta.color = DeltaColor(d);
                 }
             }
+        }
+
+        /// <summary>
+        /// 이번 강화에서 오른 폭 <paramref name="delta"/> 에 맞는 증가치 글자색
+        /// (유저 확정 2026-08-14: 0 미표기 · 1~2 회색 · 3~4 초록 · 5~6 노랑 · 7↑ 빨강).
+        ///
+        /// 경계값은 인스펙터에서 옮길 수 있다 — 상승폭 자체가
+        /// <c>CharacterUpgradeService.growthWeights</c> 로 조절되는 값이라, 그쪽을 넓히면
+        /// 여기 구간도 같이 넓혀야 색이 의미를 유지한다.
+        /// </summary>
+        Color DeltaColor(int delta)
+        {
+            if (delta <= deltaGrayMax) return deltaTierLow;
+            if (delta <= deltaGreenMax) return deltaTierMid;
+            if (delta <= deltaYellowMax) return deltaTierHigh;
+            return deltaTierBest;
         }
 
         void RefreshFooter(bool has)
@@ -486,7 +657,12 @@ namespace LastSanctuary.UI
             bool canUpgrade = has && _upgrades != null && _upgrades.CanUpgrade(_unit) && !statCapped;
             int cost = has && _upgrades != null ? _upgrades.CostFor(_unit) : 0;
 
-            if (_enhanceButton != null) _enhanceButton.interactable = canUpgrade;
+            // 토글 1단계("성장 유형 결정")에서는 <b>에너지가 없어도 눌려야 한다</b> —
+            // 그 클릭은 강화가 아니라 유형 칸을 펼치는 조작이기 때문이다. 여기서 canUpgrade 로
+            // 잠가버리면 돈이 없을 때 유형을 미리 정해둘 수조차 없다.
+            bool pickingStage = has && _unit.GrowthFocus == StatGrowthFocus.None && !statCapped;
+
+            if (_enhanceButton != null) _enhanceButton.interactable = pickingStage || canUpgrade;
 
             // 소모 자원은 버튼 라벨과 별도로 한 줄 명시한다(유저 확정) — 에너지가 부족하면
             // 붉게 표시해 "왜 버튼이 안 눌리는지"가 바로 보이게 한다.
@@ -500,15 +676,18 @@ namespace LastSanctuary.UI
             {
                 if (!has) _enhanceLabel.text = enhanceNoSelection;
                 else if (statCapped) _enhanceLabel.text = enhanceMaxed;
-                else _enhanceLabel.text = string.Format(enhanceFormat,
-                                                         _upgrades != null ? _upgrades.CostFor(_unit) : 0);
+                else if (pickingStage) _enhanceLabel.text = enhancePickType;
+                else _enhanceLabel.text = string.Format(enhanceFormat, cost);
             }
 
             if (_noteText != null)
             {
                 if (!has) _noteText.text = noteNoSelection;
                 else if (statCapped) _noteText.text = enhanceMaxed;
-                else _noteText.text = canUpgrade ? noteAffordable : noteUnaffordable;
+                else if (pickingStage) _noteText.text = notePickType;
+                else if (!canUpgrade) _noteText.text = noteUnaffordable;
+                else _noteText.text = string.Format(noteFocusFormat,
+                                                    StatGrowthFocusTable.Label(_unit.GrowthFocus));
             }
         }
 
@@ -621,7 +800,45 @@ namespace LastSanctuary.UI
             _enhanceLabel = FindText("Info/EnhanceButton/Label");
             _noteText = FindText("Info/Note");
 
-            if (_enhanceButton != null) _enhanceButton.onClick.AddListener(HandleEnhance);
+            if (_enhanceButton != null) _enhanceButton.onClick.AddListener(HandleEnhanceButton);
+
+            // 성장 유형 버튼 5개. 하이라키 이름은 enum 이름을 그대로 쓴다 —
+            // 표(StatGrowthFocusTable.Selectable)와 순서·개수가 항상 같아야 하므로 목록에서 만든다.
+            _focusGroup = transform.Find("Stats/GrowthTypes")?.gameObject;
+            if (_focusGroup == null)
+                Debug.LogWarning("[Growth] 하이라키에서 'Stats/GrowthTypes' 를 찾지 못했습니다.", this);
+
+            for (int i = 0; i < StatGrowthFocusTable.Selectable.Length; i++)
+            {
+                StatGrowthFocus focus = StatGrowthFocusTable.Selectable[i];
+                string path = $"Stats/GrowthTypes/{focus}";
+                Transform node = transform.Find(path);
+                if (node == null)
+                {
+                    Debug.LogWarning($"[Growth] 하이라키에서 '{path}' 를 찾지 못했습니다.", this);
+                    continue;
+                }
+
+                var entry = new FocusButton
+                {
+                    Focus = focus,
+                    Button = node.GetComponent<Button>(),
+                    Background = node.GetComponent<Image>(),
+                };
+                _focusButtons.Add(entry);
+
+                // 반복 변수를 그대로 캡처하면 다섯 버튼이 전부 마지막 값을 쓴다(고전적 실수) —
+                // 패시브 카드 배선과 같은 이유로 지역 변수에 복사해서 넘긴다.
+                if (entry.Button != null)
+                {
+                    StatGrowthFocus captured = focus;
+                    entry.Button.onClick.RemoveAllListeners();
+                    entry.Button.onClick.AddListener(() => HandleFocusPicked(captured));
+                }
+
+                TMP_Text label = FindText($"{path}/Label");
+                if (label != null) label.text = StatGrowthFocusTable.Label(focus);
+            }
 
             HookClose("Header/CloseButton");
             HookClose("Footer/CloseButton");

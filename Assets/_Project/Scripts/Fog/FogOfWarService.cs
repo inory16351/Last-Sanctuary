@@ -273,10 +273,26 @@ namespace LastSanctuary.Fog
         /// minRadiusTiles 를 두는 이유: 바로 옆 칸부터 찾으면 정찰병이 시야 경계를
         /// 한 칸씩 갉아먹으며 제자리에서 맴돈다. 최소 거리를 줘야 한 방향으로
         /// 쭉 나갔다 오는 정찰다운 움직임이 된다.
+        ///
+        /// <b>배회 범위 제한 (유저 지시 2026-08-14)</b> — <paramref name="boundCenter"/> ·
+        /// <paramref name="boundRadiusTiles"/> 를 주면 그 원 <b>안의</b> 칸만 후보가 된다.
+        /// 전술 지침의 '탐험 배회 범위'(<c>TacticalRoamRange</c>)가 이 두 값을 넘긴다 —
+        /// 이걸 안 걸면 캐릭터가 게임 초반부터 맵 끝까지 걸어 나간다.
+        /// <paramref name="boundRadiusTiles"/> 가 무한대(또는 0 이하)면 예전처럼 제한이 없다.
+        ///
+        /// <b>물리적으로 갈 수 없는 곳 제외 (유저 지시 2026-08-14)</b> —
+        /// <paramref name="isReachable"/> 을 주면 그 판정을 통과한 칸만 후보가 된다.
+        /// 벽으로 완전히 둘러싸인 주머니는 <see cref="Map.MapGenerator.IsCellBlocked"/> 만으로는
+        /// 걸러지지 않는다(그 칸 자체는 안 막혀 있다) — 그런 칸을 목표로 잡으면 캐릭터가
+        /// 벽에 붙어 <c>scoutTimeout</c>(15초)이 지날 때까지 멈춰 선다. 호출부는 넥서스에서
+        /// 만든 플로우 필드(<c>Map.FlowFieldService.IsCellReachable</c>)를 넘긴다.
         /// </summary>
         public bool TryFindUnexploredTarget(Vector3 fromWorld, float minRadiusTiles,
                                             float maxRadiusTiles, System.Random rng,
-                                            out Vector3 worldTarget)
+                                            out Vector3 worldTarget,
+                                            Vector3 boundCenter = default,
+                                            float boundRadiusTiles = float.PositiveInfinity,
+                                            System.Func<Vector3Int, bool> isReachable = null)
         {
             worldTarget = default;
             if (_state == null) return false;
@@ -286,11 +302,16 @@ namespace LastSanctuary.Fog
             int maxR = Mathf.CeilToInt(maxRadiusTiles);
             var ring = new List<Vector3Int>(64);
 
+            // 배회 범위는 셀 단위 거리로 비교한다 — 링 수집이 셀 좌표로 돌기 때문이다.
+            bool bounded = boundRadiusTiles > 0f && !float.IsPositiveInfinity(boundRadiusTiles);
+            Vector3Int boundCell = bounded ? WorldToCell(boundCenter) : default;
+            float boundSqr = bounded ? boundRadiusTiles * boundRadiusTiles : 0f;
+
             // 먼저 최소 거리 바깥을 훑고, 거기서 못 찾으면 가까운 쪽으로 되돌아온다.
             for (int r = minR; r <= maxR; r++)
             {
                 ring.Clear();
-                CollectRing(from, r, ring);
+                CollectRing(from, r, ring, bounded, boundCell, boundSqr, isReachable);
                 if (ring.Count == 0) continue;
 
                 worldTarget = mapGenerator.CellCenterWorld(ring[NextIndex(rng, ring.Count)]);
@@ -300,7 +321,7 @@ namespace LastSanctuary.Fog
             for (int r = 2; r < minR; r++)
             {
                 ring.Clear();
-                CollectRing(from, r, ring);
+                CollectRing(from, r, ring, bounded, boundCell, boundSqr, isReachable);
                 if (ring.Count == 0) continue;
 
                 worldTarget = mapGenerator.CellCenterWorld(ring[NextIndex(rng, ring.Count)]);
@@ -312,7 +333,9 @@ namespace LastSanctuary.Fog
         static int NextIndex(System.Random rng, int count) =>
             rng != null ? rng.Next(count) : Random.Range(0, count);
 
-        void CollectRing(Vector3Int center, int r, List<Vector3Int> into)
+        void CollectRing(Vector3Int center, int r, List<Vector3Int> into,
+                         bool bounded, Vector3Int boundCell, float boundSqr,
+                         System.Func<Vector3Int, bool> isReachable)
         {
             for (int dy = -r; dy <= r; dy++)
             {
@@ -325,6 +348,15 @@ namespace LastSanctuary.Fog
                     if (!TryIndex(cell.x, cell.y, out int idx)) continue;
                     if (_state[idx] != Unexplored) continue;
                     if (mapGenerator.IsCellBlocked(cell)) continue;
+
+                    if (bounded)
+                    {
+                        float bx = cell.x - boundCell.x;
+                        float by = cell.y - boundCell.y;
+                        if (bx * bx + by * by > boundSqr) continue;
+                    }
+
+                    if (isReachable != null && !isReachable(cell)) continue;
 
                     into.Add(cell);
                 }

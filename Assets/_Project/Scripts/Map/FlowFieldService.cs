@@ -162,10 +162,25 @@ namespace LastSanctuary.Map
         }
 
         /// <summary>해당 위치가 목표까지 도달 가능한지.</summary>
-        public bool IsReachable(Vector3 worldPos)
+        public bool IsReachable(Vector3 worldPos) => IsCellReachable(WorldToCell(worldPos));
+
+        /// <summary>
+        /// 해당 <b>셀</b>이 목표(넥서스)까지 도달 가능한지.
+        ///
+        /// 탐험 목표를 고를 때 쓴다(유저 지시 2026-08-14: "물리적으로 갈 수 없는 곳 제외") —
+        /// <see cref="MapGenerator.IsCellBlocked"/> 는 "그 칸이 벽인가"만 보므로 <b>벽으로 완전히
+        /// 둘러싸인 빈 주머니</b>를 못 걸러낸다. 그런 칸을 정찰 목표로 잡으면 캐릭터가 벽에 붙어
+        /// 재추첨 시간까지 멈춰 선다. 이 거리장은 넥서스에서 실제로 걸어서 퍼져 나간 결과라
+        /// 그 판정이 공짜로 나온다.
+        ///
+        /// ⚠ 거리장이 아직 안 만들어졌으면 <b>전부 false</b> 다(<see cref="IsReady"/> 와 같은 규칙).
+        /// 그래서 <b>호출부는 <see cref="IsReady"/> 일 때만 이 판정을 걸어야 한다</b> —
+        /// 준비 전에 걸면 탐험 후보가 전부 사라져 캐릭터가 아무 데도 못 간다.
+        /// </summary>
+        public bool IsCellReachable(Vector3Int cell)
         {
             if (!_ready) return false;
-            if (!TryToLocal(WorldToCell(worldPos), out Vector2Int local)) return false;
+            if (!TryToLocal(cell, out Vector2Int local)) return false;
             return _dist[local.x + local.y * _size.x] != Unreachable;
         }
 

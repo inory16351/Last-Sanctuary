@@ -31,6 +31,8 @@ MonoBehaviour:
     attackSpeed: 7
     moveSpeed: 5
     resistance: 73
+  attackPreset: 0
+  positionPreset: 0
   passives:
   - {fileID: 11400000, guid: abb0692ee90cf8d27055c0a2c549ec69, type: 2}
   - {fileID: 11400000, guid: 3689b0101fbe972c132a0fbe771c5729, type: 2}

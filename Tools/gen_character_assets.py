@@ -35,6 +35,19 @@ SKIN_OVERRIDE = {
     9002: 'Skin_Bigior',           # 비기오르 — 중장갑 탱커
     9003: 'Skin_Preyja',           # 프레이야 — 근접/원거리 창
     9004: 'Skin_Piolo',            # 피올로 — 지원/치유 (표의 ingame_asset = Char_Asset_Piolo)
+    9005: 'Skin_Histon',           # 히스톤 — 근접 전용(Vanguard 로 전방·근거리 고정). 2026-08-14 신규
+}
+
+# 역할 고정 — 능력치 역산(CharacterRole)을 덮어쓸 인물만 적는다. 값은 RoleAttackPreset /
+# RolePositionPreset enum 의 정수다 (0=Auto · 공격 1=Melee 2=Ranged 3=Magic 4=Heal ·
+# 위치 1=Front 2=Mid 3=Back).
+#
+# ★ 히스톤 — 표의 패시브 <b>선봉장(Vanguard)</b> 이 "포지션은 전방 / 공격 유형은 근거리로
+#   고정된다" 고 못박고 있다. 능력치 역산은 근거리까지는 맞히지만(근접 9 가 최고),
+#   맷집이 체력 8 + 방어 5 = 13 으로 기준(15)에 못 미쳐 <b>중위</b>가 나온다 —
+#   스킬이 규정한 값과 어긋나므로 여기서 고정한다.
+ROLE_OVERRIDE = {
+    9005: (1, 1),   # (attackPreset=Melee, positionPreset=Front)
 }
 
 NARRATIVE = {
@@ -308,6 +321,11 @@ for r in range(4, wc.max_row + 1):
     body += "    attackSpeed: %d\n" % st.get('atk_speed', 5)
     body += "    moveSpeed: %d\n" % st.get('movement_speed', 5)
     body += "    resistance: %d\n" % st.get('resistance', 50)
+    # 역할 — 기본은 Auto(0) 라 CharacterRole 이 능력치에서 역산한다(82-8절).
+    # 표에 없는 개념이라, 인물별 고정이 필요한 경우만 ROLE_OVERRIDE 로 덮는다.
+    ap, pp = ROLE_OVERRIDE.get(cid, (0, 0))
+    body += "  attackPreset: %d\n" % ap
+    body += "  positionPreset: %d\n" % pp
     body += "  passives:\n"
     for s in sk:
         if s and int(s) in skill_guid_by_id:

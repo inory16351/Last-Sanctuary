@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21498a0a43b4e824ea7e6db210ef2e29, type: 3}
+  m_Name: Skill_80015_Reaver
+  m_EditorClassIdentifier:
+  skillId: 80015
+  nameKey: 'skill_name_80015'
+  flavorKey: 'skill_explain_80015'
+  effectKey: 'skill_type_desc_Reaver'
+  skillName: '복수자'
+  skillType: 'Reaver'
+  value01: 3
+  value02: 100
+  value03: 20
+  coolTime: 0
+  iconName: 'icon_whirlwind'
+  flavorText: '그의 부활은 적들에겐 공포이지만 아군에겐 기적과도 같습니다.'
+  effectTemplate: '히스톤이 부활 할때마다 반경 {value_01} 타일 범위의 원형 공간의 적들에게 공격력의 {value_02}% 만큼의 피해를 주고, 반경 {value_01} 타일 범위의 원형 공간의 아군 캐릭터들에게 최대체력의 {value_03}% 만큼의 회복을 준다.'

@@ -19,6 +19,11 @@ namespace LastSanctuary.Units
         [Tooltip("업그레이드 횟수. 새 캐릭터 생성 시 이 범위를 참조한다(기획서 p9)")]
         [SerializeField] int upgradeCount;
 
+        [Tooltip("성장 유형 — 강화 시 어느 능력치 묶음이 더 잘 오를지. " +
+                 "캐릭터 성장 창의 성장 유형 버튼이 정한다(유저 확정 2026-08-14).\n" +
+                 "캐릭터마다 따로 기억되므로 다른 캐릭터를 봤다가 돌아와도 유지된다")]
+        [SerializeField] StatGrowthFocus growthFocus = StatGrowthFocus.None;
+
         [Header("정체 (캐릭터 테이블)")]
         [Tooltip("이 캐릭터가 누구인지. 이름 · 일러스트 · 패시브 3종이 여기서 온다. " +
                  "비어 있으면 이름 없는 무작위 능력치 캐릭터로 취급한다(확장 전 동작)")]
@@ -36,6 +41,15 @@ namespace LastSanctuary.Units
 
         public StatBlock Stats => stats;
         public int UpgradeCount => upgradeCount;
+
+        /// <summary>
+        /// 지금 정해진 성장 유형. <see cref="CharacterUpgradeService"/> 가 강화할 때 읽는다.
+        /// 미선택(<see cref="StatGrowthFocus.None"/>)이면 모든 능력치가 같은 확률로 오른다.
+        /// </summary>
+        public StatGrowthFocus GrowthFocus => growthFocus;
+
+        /// <summary>성장 유형을 정한다. 캐릭터 성장 창의 유형 버튼이 부르는 유일한 경로다.</summary>
+        public void SetGrowthFocus(StatGrowthFocus focus) => growthFocus = focus;
 
         /// <summary>이 캐릭터가 누구인지. 정의 없이 생성된 캐릭터는 null.</summary>
         public CharacterDefinitionSO Definition => definition;
@@ -207,12 +221,22 @@ namespace LastSanctuary.Units
         /// <summary>외부 치유 차단을 켜고 끈다 (정신 이상 "이기심").</summary>
         public void SetExternalHealBlocked(bool value) => _externalHealBlocked = value;
 
-        /// <summary>스포너가 복제 직후 호출해 능력치를 주입한다.</summary>
+        /// <summary>
+        /// 스포너가 복제 직후 호출해 능력치를 주입한다.
+        ///
+        /// <b>여기서 역할(공격 유형 · 전열 위치 · 성장 유형)까지 정한다</b>(유저 지시 2026-08-14) —
+        /// 예전에는 템플릿(<c>Character_Template</c>)의 지침을 그대로 물려받아 <b>누구든 근거리 ·
+        /// 중위</b>로 태어났다. 능력치 기반 판단이므로 정의가 없는 무작위 캐릭터
+        /// (<see cref="StatBlock.Roll"/> 폴백)도 자기 능력치에 맞는 역할을 받는다 —
+        /// 그래서 <see cref="InitializeFrom"/> 이 아니라 <b>두 경로가 공유하는 이 메서드</b>에 뒀다.
+        /// </summary>
         public void Initialize(StatBlock rolled, BalanceConfigSO balance, int upgrades = 0)
         {
             stats = rolled;
             upgradeCount = upgrades;
             SetupHealth(balance);   // 최대 체력이 stats 에 의존하므로 stats 대입 후에 호출
+
+            CharacterRole.Apply(this, definition);
         }
 
         /// <summary>

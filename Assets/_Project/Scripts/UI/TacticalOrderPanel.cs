@@ -70,6 +70,9 @@ namespace LastSanctuary.UI
 
         // 값이 계속 바뀌는 표시들
         TMP_Text _nameText, _levelText, _hpPercentText, _hintText, _summaryText, _retreatValueText;
+
+        /// <summary>탐험 배회 범위 버튼 아래 한 줄 설명. 버튼을 누를 때마다 그 범위의 설명으로 바뀐다.</summary>
+        TMP_Text _roamHintText;
         Image _hpFill, _retreatBarFill, _hpGhost;
 
         // 초상화 — 캐릭터 성장 창(CharacterGrowthPanel)과 완전히 같은 구조·같은 규칙이다.
@@ -240,6 +243,11 @@ namespace LastSanctuary.UI
             if (_summaryText != null)
                 _summaryText.text = has ? TacticalOrder.Description(_tactics.Order.expeditionType) : "-";
 
+            // 탐험 배회 범위 — 버튼 라벨은 "근방/외곽/전역" 두 글자뿐이라 뜻이 안 보인다.
+            // 타일 값을 노출하지 말라는 지시(2026-08-14)가 있으므로 숫자 대신 이 한 줄로 설명한다.
+            if (_roamHintText != null)
+                _roamHintText.text = has ? TacticalOrder.Description(_tactics.Order.roamRange) : "-";
+
             RefreshRetreat();
             RefreshLiveValues();
         }
@@ -339,6 +347,7 @@ namespace LastSanctuary.UI
             _portraitHint = transform.Find("Info/Portrait/Hint")?.gameObject;
 
             _summaryText = FindText("Col3/Summary/Text");
+            _roamHintText = FindText("Col3/RoamHint");
             _retreatValueText = FindText("Col2/RetreatValue");
             _retreatBarFill = FindImage("Col2/RetreatBar/Fill");
             _hpGhost = FindImage("Info/HpBack/HpGhost");
@@ -414,6 +423,16 @@ namespace LastSanctuary.UI
                       () => _tactics.Order.expeditionType == TacticalExpeditionType.Patrol);
             AddOption("Col3/Non/Explore", () => Set(t => t.SetExpeditionType(TacticalExpeditionType.Explore)),
                       () => _tactics.Order.expeditionType == TacticalExpeditionType.Explore);
+
+            // 탐험 배회 범위 — 넥서스 중심 원 안에서만 돌아다니게 하는 지침(유저 지시 2026-08-14).
+            // ★ 협동 탐험이 켜진 부대면 <b>부대원 전원이 같이 바뀐다</b> — 그 전파는
+            //   CharacterTactics.SetRoamRange 안에 있다(UI 는 아무것도 모른다).
+            AddOption("Col3/Roam/Near", () => Set(t => t.SetRoamRange(TacticalRoamRange.Near)),
+                      () => _tactics.Order.roamRange == TacticalRoamRange.Near);
+            AddOption("Col3/Roam/Mid",  () => Set(t => t.SetRoamRange(TacticalRoamRange.Mid)),
+                      () => _tactics.Order.roamRange == TacticalRoamRange.Mid);
+            AddOption("Col3/Roam/Far",  () => Set(t => t.SetRoamRange(TacticalRoamRange.Far)),
+                      () => _tactics.Order.roamRange == TacticalRoamRange.Far);
 
             // 웨이브 반응
             AddOption("Col3/Wave/Priority", () => Set(t => t.SetWaveReaction(TacticalWaveReaction.KeepExploring)),

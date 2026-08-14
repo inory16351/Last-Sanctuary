@@ -54,8 +54,8 @@ namespace LastSanctuary.Combat
             order.Normalize();
 
             _combat?.ApplyTactics(order.attackType, order.targetPriority, order.attackReaction);
-            _behavior?.ApplyTactics(order.position, order.expeditionType, order.waveReaction,
-                                    order.retreatHpPercent, order.retreatAction);
+            _behavior?.ApplyTactics(order.position, order.expeditionType, order.roamRange,
+                                    order.waveReaction, order.retreatHpPercent, order.retreatAction);
 
             OnAnyOrderChanged?.Invoke(this);
         }
@@ -107,6 +107,51 @@ namespace LastSanctuary.Combat
         {
             if (order.waveReaction == v) return;
             order.waveReaction = v; Apply();
+        }
+
+        /// <summary>
+        /// 탐험 배회 범위. <b>협동 탐험이 켜진 부대에 속해 있으면 부대원 전원에게 같이 적용된다</b>
+        /// (유저 확정 2026-08-14: "같은 부대에 설정되어 협동 탐험이 켜진 상태라면 한 명만 눌러도
+        /// 같은 부대 소속 캐릭터의 설정이 동시에 변경").
+        ///
+        /// <b>왜 UI 가 아니라 여기서 전파하나</b> — 이 프로젝트는 지침을 바꾸는 경로가 여럿이다
+        /// (전술 창 · <see cref="SetOrder"/> · 인스펙터 직접 수정). UI 에 두면
+        /// "창으로는 같이 바뀌는데 다른 경로로는 혼자 바뀌는" 구멍이 생긴다 —
+        /// <see cref="TacticalOrder.Normalize"/> 를 한 곳에 모아둔 것과 같은 이유다.
+        ///
+        /// ⚠ <b>전파는 한 단계뿐이다</b> — 부대원에게는 <see cref="ApplyRoamRangeLocal"/>(전파 없는
+        /// 버전)를 부른다. 서로가 서로에게 전파하면 무한 재귀가 된다.
+        ///
+        /// ★ 협동 탐험이 <b>꺼져</b> 있으면 예전처럼 누른 캐릭터만 바뀐다 —
+        /// 판정은 <see cref="SquadService.Squad.CoopExpedition"/> 한 곳이다
+        /// (49-5절이 "스위치는 LeaderFor 한 곳"이라고 적어둔 것과 같은 원칙).
+        /// </summary>
+        public void SetRoamRange(TacticalRoamRange v)
+        {
+            ApplyRoamRangeLocal(v);
+
+            SquadService squads = SquadService.Instance;
+            if (squads == null) return;
+
+            var unit = GetComponent<CharacterUnit>();
+            SquadService.Squad squad = unit != null ? squads.SquadOf(unit) : null;
+            if (squad == null || !squad.CoopExpedition) return;
+
+            for (int i = 0; i < squad.Members.Count; i++)
+            {
+                CharacterUnit member = squad.Members[i];
+                if (member == null || !member.IsAlive || member == unit) continue;
+
+                var tactics = member.GetComponent<CharacterTactics>();
+                if (tactics != null) tactics.ApplyRoamRangeLocal(v);
+            }
+        }
+
+        /// <summary>배회 범위를 <b>이 캐릭터에게만</b> 적용한다 (부대 전파 없음).</summary>
+        void ApplyRoamRangeLocal(TacticalRoamRange v)
+        {
+            if (order.roamRange == v) return;
+            order.roamRange = v; Apply();
         }
 
         /// <summary>

@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21498a0a43b4e824ea7e6db210ef2e29, type: 3}
+  m_Name: Skill_80013_Vanguard
+  m_EditorClassIdentifier:
+  skillId: 80013
+  nameKey: 'skill_name_80013'
+  flavorKey: 'skill_explain_80013'
+  effectKey: 'skill_type_desc_Vanguard'
+  skillName: '선봉장'
+  skillType: 'Vanguard'
+  value01: 0
+  value02: 0
+  value03: 0
+  coolTime: 0
+  iconName: 'icon_charge_rush'
+  flavorText: '전장의 앞을 지키는 것은 히스톤에게 쥐어진 운명입니다.'
+  effectTemplate: '히스톤의 포지션은 전방 / 공격 유형은 근거리로 고정된다. 히스톤의 근거리 공격은 예외적으로 크리티컬 공격이 가능하다.'

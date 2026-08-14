@@ -105,6 +105,40 @@ namespace LastSanctuary.Combat
         Explore,
     }
 
+    /// <summary>
+    /// <b>탐험 배회 범위</b> — 탐험(<see cref="TacticalExpeditionType"/> 세 유형 전부)을 할 때
+    /// <b>넥서스를 중심으로 얼마나 멀리까지 나갈 수 있는지</b> (유저 지시 2026-08-14).
+    ///
+    /// <b>왜 필요했나</b> — 탐험 AI 는 "아직 안 밝혀진 칸"을 최우선으로 고르는데, 그 후보를
+    /// 캐릭터 위치 기준 최대 <c>scoutSearchRadius</c>(60타일)까지 훑는다. 그래서
+    /// <b>게임 초반부터 맵 저 끝까지 걸어 나가</b> 강한 중립 몬스터와 마주치는 일이 잦았고,
+    /// 반대로 <b>맵을 다 밝히고 나면</b> 고를 후보가 없어 방어로 떨어져 아무것도 안 했다.
+    /// 이 지침은 그 두 문제를 같은 값 하나로 잡는다 — 범위 안이면 안개를 밝히고,
+    /// 다 밝혔으면 그 범위 안에서 계속 돌아다닌다(<c>CharacterBehavior.PickExpeditionSpot</c>).
+    ///
+    /// ★ <b>값은 지름이다</b>(유저 확정 2026-08-14) — 중립 몬스터 등장 범위(73-5절)와 같은
+    /// 규칙이다. 실제 판정에 쓰는 반지름은 코드가 절반으로 나눠 쓴다.
+    /// 지름 자체는 <c>CharacterBehavior</c> 인스펙터
+    /// (<c>roamDiameterNear</c> · <c>roamDiameterMid</c>)에 있다 —
+    /// <b>화면에는 타일 값을 노출하지 않는다</b>(유저 지시: "명확한 타일 값을 유저에게
+    /// 전달하지 말고"). UI 는 <see cref="TacticalOrder.Label(TacticalRoamRange)"/> 의
+    /// 분위기 있는 이름만 보여준다.
+    ///
+    /// ⚠ <b>협동 탐험이 켜진 부대에서는 한 명만 눌러도 부대원 전원이 같이 바뀐다</b>
+    /// (유저 확정) — 전파는 <c>CharacterTactics.SetRoamRange</c> 한 곳에서만 한다.
+    /// </summary>
+    public enum TacticalRoamRange
+    {
+        /// <summary>근방 — 넥서스 바로 주변만 돈다. 초반 안전 운용. <b>기본값</b>.</summary>
+        Near,
+
+        /// <summary>외곽 — 성역 바깥 지대까지 나간다.</summary>
+        Mid,
+
+        /// <summary>전역 — 제한 없이 맵 끝까지 나간다(이 지침이 생기기 전의 동작).</summary>
+        Far,
+    }
+
     /// <summary>웨이브가 시작될 때의 반응.</summary>
     public enum TacticalWaveReaction
     {
@@ -149,6 +183,10 @@ namespace LastSanctuary.Combat
         [Tooltip("탐험 유형 — 돌아다니며 중립 몬스터를 어떻게 대할지 (사냥 / 정찰 / 탐색)")]
         public TacticalExpeditionType expeditionType = TacticalExpeditionType.Hunt;
 
+        [Tooltip("탐험 배회 범위 — 넥서스 중심으로 얼마나 멀리까지 나갈지 (근방 / 외곽 / 전역).\n" +
+                 "실제 지름(타일)은 CharacterBehavior 인스펙터의 roamDiameterNear/Mid 에 있다")]
+        public TacticalRoamRange roamRange = TacticalRoamRange.Near;
+
         [Tooltip("웨이브가 시작될 때의 반응")]
         public TacticalWaveReaction waveReaction = TacticalWaveReaction.DefendNow;
 
@@ -168,6 +206,7 @@ namespace LastSanctuary.Combat
             targetPriority = other.targetPriority;
             attackReaction = other.attackReaction;
             expeditionType = other.expeditionType;
+            roamRange = other.roamRange;
             waveReaction = other.waveReaction;
             retreatHpPercent = other.retreatHpPercent;
             retreatAction = other.retreatAction;
@@ -199,8 +238,8 @@ namespace LastSanctuary.Combat
         {
             string retreat = retreatHpPercent > 0 ? $"체력 {retreatHpPercent}% 이하에서 후퇴" : "후퇴하지 않음";
             return $"{Label(position)} 에서 {Label(attackType)} 공격으로 {Label(targetPriority)}을(를) 노리고, " +
-                   $"{Label(attackReaction)}. 탐험 유형은 {Label(expeditionType)}, 웨이브에는 {Label(waveReaction)}. " +
-                   $"{retreat}, 앞이 빠지면 {Label(retreatAction)}.";
+                   $"{Label(attackReaction)}. 탐험 유형은 {Label(expeditionType)}({Label(roamRange)}), " +
+                   $"웨이브에는 {Label(waveReaction)}. {retreat}, 앞이 빠지면 {Label(retreatAction)}.";
         }
 
         // ── 표시용 라벨 (UI 와 요약문이 같은 문구를 쓰도록 여기 한 곳에 모아둔다) ──────
@@ -268,6 +307,35 @@ namespace LastSanctuary.Combat
                 "사냥 — 탐험 중 중립 몬스터를 발견하면 먼저 다가가 공격해 사냥합니다. 처치하면 " +
                 "에너지를 얻지만, 사냥에 나서는 동안 부대에서 떨어지거나 강한 개체와 마주쳐 " +
                 "위험해질 수 있습니다.",
+        };
+
+        /// <summary>
+        /// 탐험 배회 범위의 짧은 이름. <b>타일 수치를 절대 넣지 않는다</b>(유저 지시
+        /// 2026-08-14: "명확한 타일 값을 유저에게 전달하지 말고") — 분위기로만 거리를 전한다.
+        /// 버튼 라벨 칸이 71px(폰트 16 = 두 글자)이라 두 글자로 맞췄고, 자세한 뜻은
+        /// 버튼 아래 힌트칸(<c>Col3/RoamHint</c>)이 <see cref="Description"/> 로 보여준다.
+        /// </summary>
+        public static string Label(TacticalRoamRange v) => v switch
+        {
+            TacticalRoamRange.Mid => "외곽",
+            TacticalRoamRange.Far => "전역",
+            _                     => "근방",
+        };
+
+        /// <summary>
+        /// 탐험 배회 범위를 고르면 무슨 일이 벌어지는지 한두 줄로 설명하는 문구.
+        /// 전술 지침 창의 <c>Col3/RoamHint</c> 가 버튼을 누를 때마다 이 문구로 갈아 끼운다.
+        /// </summary>
+        public static string Description(TacticalRoamRange v) => v switch
+        {
+            TacticalRoamRange.Mid =>
+                "성역 바깥 지대까지 나가 탐험합니다. 밝힐 곳이 더 많지만 그만큼 위험합니다.",
+
+            TacticalRoamRange.Far =>
+                "제한 없이 맵 끝까지 나갑니다. 미지의 존재와 마주칠 각오가 필요합니다.",
+
+            _ =>
+                "성역 가까운 곳만 돕니다. 위험은 적지만 넓은 지역을 밝히지 못합니다.",
         };
 
         public static string Label(TacticalWaveReaction v) =>
