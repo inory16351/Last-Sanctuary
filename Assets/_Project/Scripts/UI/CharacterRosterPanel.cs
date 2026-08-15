@@ -133,6 +133,9 @@ namespace LastSanctuary.UI
             public System.Action<int, int> HpHandler;
             public System.Action<DamageableUnit> DiedHandler;
 
+            /// <summary>부활 콜백(<see cref="DamageableUnit.OnRevived"/>) — 「분노」(히스톤)가 쓴다.</summary>
+            public System.Action<DamageableUnit> RevivedHandler;
+
             /// <summary>사망 확정 여부. true 가 되면 폴링 갱신(RefreshValues)에서 건드리지 않는다.</summary>
             public bool IsDead;
 
@@ -238,6 +241,7 @@ namespace LastSanctuary.UI
                 if (row.SubscribedUnit == null) continue;
                 row.SubscribedUnit.OnHpChanged -= row.HpHandler;
                 row.SubscribedUnit.OnDied -= row.DiedHandler;
+                row.SubscribedUnit.OnRevived -= row.RevivedHandler;
             }
         }
 
@@ -327,6 +331,7 @@ namespace LastSanctuary.UI
                     {
                         row.SubscribedUnit.OnHpChanged -= row.HpHandler;
                         row.SubscribedUnit.OnDied -= row.DiedHandler;
+                        row.SubscribedUnit.OnRevived -= row.RevivedHandler;
                         row.SubscribedUnit = null;
                     }
                     row.Unit = null;
@@ -344,6 +349,7 @@ namespace LastSanctuary.UI
                 {
                     row.SubscribedUnit.OnHpChanged -= row.HpHandler;
                     row.SubscribedUnit.OnDied -= row.DiedHandler;
+                    row.SubscribedUnit.OnRevived -= row.RevivedHandler;
                 }
                 BindRowToUnit(row, newUnit);
             }
@@ -358,6 +364,7 @@ namespace LastSanctuary.UI
 
             unit.OnHpChanged += row.HpHandler;
             unit.OnDied += row.DiedHandler;
+            unit.OnRevived += row.RevivedHandler;
 
             // 재구성/재활용 직후엔 잔상도 애니메이션 없이 바로 스냅한다 — 안 그러면 새로 물린
             // 캐릭터의 잔상이 이전 캐릭터 값에서부터 줄어드는 것처럼 보인다.
@@ -421,6 +428,7 @@ namespace LastSanctuary.UI
             // (C# 이벤트는 참조가 같아야 -= 가 먹는다).
             row.HpHandler = (current, max) => ApplyHp(row, current, max);
             row.DiedHandler = unit => HandleUnitDied(row, unit);
+            row.RevivedHandler = unit => HandleUnitRevived(row, unit);
 
             return row;
         }
@@ -521,6 +529,40 @@ namespace LastSanctuary.UI
 
             // 사망은 맨 아래로 내려가야 하는 순서 변경이라, 다음 폴링(최대 refreshInterval)
             // 까지 기다리지 않고 그 자리에서 바로 다시 정렬한다.
+            ReorderRows();
+        }
+
+        /// <summary>
+        /// ★ <b>부활</b> (<see cref="DamageableUnit.OnRevived"/> 구독 콜백) —
+        /// 「분노」(히스톤 80014)가 쓰러진 캐릭터를 되살렸다.
+        ///
+        /// <see cref="HandleUnitDied"/> 를 <b>정확히 되감는다</b>: 회색 표시를 지우고,
+        /// 웨이브 종료 시 지울 목록(<see cref="_dead"/>)에서 빼고, 행을 다시 누를 수 있게 한다.
+        /// 이 되감기가 없으면 <b>멀쩡히 살아 움직이는 캐릭터가 로스터에서는 '사망'으로 남고</b>
+        /// 웨이브가 끝날 때 목록에서 사라진다.
+        ///
+        /// 이 캐릭터는 파괴되지 않았으므로 <see cref="_characters"/> 에 그대로 들어 있다 —
+        /// 목록을 다시 만들 필요가 없고, 행도 그대로 쓴다.
+        /// </summary>
+        void HandleUnitRevived(Row row, DamageableUnit unit)
+        {
+            if (!row.IsDead) return;
+            row.IsDead = false;
+
+            if (row.Unit != null) _dead.Remove(row.Unit);
+
+            ApplyAliveAppearance(row);
+            if (row.SelectButton != null) row.SelectButton.interactable = true;
+
+            // 사망 표시가 막대를 1(꽉 참)로 못박아 두었으므로 실제 체력으로 되돌린다.
+            // 잔상도 같이 스냅한다 — 안 그러면 회색 막대가 서서히 줄어드는 것처럼 보인다.
+            if (unit != null)
+            {
+                row.HpRatioTarget = unit.MaxHp > 0 ? (float)unit.CurrentHp / unit.MaxHp : 0f;
+                row.Ghost.Snap(row.HpRatioTarget);
+                ApplyDisplayedHp(row);
+            }
+
             ReorderRows();
         }
 

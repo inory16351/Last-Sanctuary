@@ -339,6 +339,82 @@ namespace LastSanctuary.Combat
             RaiseHpChanged();
         }
 
+        /// <summary>
+        /// <b>죽은 유닛을 되살린다</b> — 체력을 <paramref name="hp"/> 로 되돌린다.
+        ///
+        /// <see cref="Heal"/> 로는 할 수 없다: 그쪽은 <c>IsAlive</c> 가드가 있어서
+        /// 체력 0 인 유닛에 아무 일도 하지 않는다(회복이 시체를 일으키면 안 되므로 옳은 가드다).
+        /// 부활은 <b>그 가드를 의도적으로 넘는 유일한 경로</b>라 따로 뚫어 둔다.
+        ///
+        /// ⚠ 되살릴 수 있는 것은 <b>아직 파괴되지 않은 유닛</b>뿐이다.
+        /// <see cref="OnDeath"/> 가 <c>Destroy</c> 를 건너뛴 경우에만 성립한다 —
+        /// 지금은 「분노」(히스톤 80014) 하나가 그렇게 한다.
+        ///
+        /// 전투 상태를 다시 찍어(<see cref="MarkCombatAction"/>) 일어나자마자 체력이
+        /// 재생되지 않게 한다 — 방금 전투 한복판에서 쓰러진 것이므로.
+        /// </summary>
+        public void ReviveWithHp(int hp)
+        {
+            if (IsAlive) return;                 // 살아있으면 부활이 아니다
+            if (MaxHp <= 0) return;
+
+            currentHp = Mathf.Clamp(hp, 1, MaxHp);
+            MarkCombatAction();
+            RaiseHpChanged();
+            OnRevived?.Invoke(this);
+        }
+
+        /// <summary>되살아난 직후 발생. 로스터가 '사망' 표시를 거두는 데 쓴다.</summary>
+        public event System.Action<DamageableUnit> OnRevived;
+
+        // ==================================================================
+        // 공격 유형 — 세 유닛(캐릭터·몬스터·중립)이 <b>같은 규칙</b>을 쓰게 여기 모았다
+        // (2026-08-15)
+        //
+        // <b>왜 베이스로 내렸나</b> — 같은 판정을 세 클래스에 복붙하면 반드시 갈라진다.
+        // 실제로 갈라져 있었다: 캐릭터만 공격 유형별로 공격력을 골랐고
+        // (<c>CharacterUnit.AttackStatType</c>), 몬스터·중립은 <b>유형과 무관하게 근거리
+        // 공격력 한 칸</b>만 읽고 있었다 — 표에 <c>ranged_atk</c> 칸이 따로 있는데도
+        // 파싱이 그 값을 근거리 칸에 접어 넣어 겨우 맞춰 두는 상태였다.
+        //
+        // ★ <b>명중률·크리티컬은 원거리 공격 유형에만 적용된다</b>(유저 확정 2026-08-15).
+        //   근거리·마법·회복은 항상 명중하고 치명타가 나지 않는다. 이 규칙도 캐릭터에만
+        //   있던 것을 여기로 올려 <b>몬스터·중립에도 똑같이</b> 걸리게 한 것이다.
+        // ==================================================================
+
+        UnitCombat _attackTypeSource;
+        bool _attackTypeSearched;
+
+        /// <summary>
+        /// 지금 이 유닛의 공격 유형. <see cref="UnitCombat"/> 이 같은 오브젝트에 있으면 그 값이고,
+        /// 없으면(넥서스 등) 근거리로 본다. <b>한 번만 찾아 캐시</b>한다 — 피해 계산 경로에서
+        /// 불리므로 매번 <c>GetComponent</c> 를 돌면 낭비다.
+        /// </summary>
+        protected TacticalAttackType AttackTypeOf()
+        {
+            if (!_attackTypeSearched)
+            {
+                _attackTypeSource = GetComponent<UnitCombat>();
+                _attackTypeSearched = true;
+            }
+            return _attackTypeSource != null ? _attackTypeSource.AttackType : TacticalAttackType.Melee;
+        }
+
+        /// <summary>공격 유형에 맞는 <b>공격력 능력치 종류</b>. 표의 네 공격 계열과 1:1 이다.</summary>
+        protected static StatType AttackStatTypeOf(TacticalAttackType type) => type switch
+        {
+            TacticalAttackType.Ranged => StatType.RangedAttack,
+            TacticalAttackType.Magic  => StatType.Magic,
+            TacticalAttackType.Heal   => StatType.Cure,
+            _                         => StatType.Attack,
+        };
+
+        /// <summary>
+        /// 지금 공격에 <b>명중률·크리티컬 능력치가 적용되는가</b> — 원거리일 때만 true.
+        /// false 면 파생 클래스가 적중 100% / 치명 0% 를 돌려주어 판정이 통째로 생략된다.
+        /// </summary>
+        protected bool RangedStatsApplyNow => AttackTypeOf() == TacticalAttackType.Ranged;
+
         protected virtual void OnDeath() { }
 
         void RaiseHpChanged() => OnHpChanged?.Invoke(Mathf.Max(0, currentHp), MaxHp);

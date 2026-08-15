@@ -21,6 +21,12 @@ MonoBehaviour:
   attackStat: 7
   defenseStat: 12
   regenStat: 2
+  rangedAttackStat: 0
+  magicStat: 0
+  cureStat: 0
+  accuracyStat: 50
+  criticalStat: 5
+  resistanceStat: 50
   hpPercent: 600
   attackType: 0
   detectRange: 7

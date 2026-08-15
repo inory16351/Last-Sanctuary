@@ -80,18 +80,45 @@ namespace LastSanctuary.Combat
         //   Rage_on(80014) — 분노 100 에서 죽으면 경직 뒤 <b>부활</b>한다  → reviveRight/Left
         //   Reaver (80015) — 부활할 때 반경 범위에 피해 + 아군 회복        → reviveFx
         //
-        // ⚠ <b>아직 이 프레임을 재생하는 코드는 없다.</b> 부활 자체가 미구현이기 때문이다
-        //   (지금 규칙은 33-6절 — 캐릭터는 죽으면 다시 등장하지 않는다). 원화가 유실되지 않게
-        //   스킨에 담아만 두는 것이고, 스킬을 구현할 때 여기서 꺼내 쓰면 된다.
-        //   히스톤 외의 스킨은 이 칸이 비어 있다.
+        // ★ <b>이제 실제로 재생된다</b> (2026-08-15, 미결 177·178번 해소):
+        //   <see cref="CharacterAnimator.PlayReviveMotion"/> 이 경직 구간에 reviveRight/Left 를 돌리고,
+        //   <see cref="CharacterPassives"/> 의 「복수자」가 되살아나는 순간 reviveFx 를 범위 크기로 깐다.
+        //
+        // ⚠ 33-6절("캐릭터는 죽으면 다시 등장하지 않는다")과 <b>충돌하지 않는다</b> — 그 규칙은
+        //   <b>새로 생성될 때 그 id 를 다시 뽑지 않는다</b>는 뜻이고, 여기 부활은 죽은 자리에서
+        //   같은 개체가 일어나는 것이다. 히스톤은 파괴되지 않으므로 등장 장부에 손대지 않는다.
+        //   히스톤 외의 스킨은 이 칸이 비어 있고, 비어 있으면 부활 연출은 통째로 생략된다.
         // ------------------------------------------------------------------
 
-        [Header("부활 (Revive — 지금은 재생하는 코드가 없다. 위 주석 참조)")]
+        [Header("부활 (Revive — 「분노」 80014 의 경직 구간에 재생된다)")]
         public Sprite[] reviveRight;
         public Sprite[] reviveLeft;
 
         [Tooltip("부활할 때 발밑에 퍼지는 범위 연출. 방향이 없어 한 벌만 둔다")]
         public Sprite[] reviveFx;
+
+        /// <summary>
+        /// 부활 모션. <b>없으면 null</b> — 평타로 대체하지 않는다
+        /// (<see cref="CharacterAnimator.PlayReviveMotion"/> 주석 참조).
+        /// 히스톤 외의 스킨은 이 칸이 비어 있다.
+        /// </summary>
+        public Sprite[] Revive(bool facingRight)
+        {
+            Sprite[] frames = Pick(reviveRight, reviveLeft, facingRight);
+            return HasFrames(frames) ? frames : null;
+        }
+
+        /// <summary>부활 모션 한 바퀴에 걸리는 시간(초). 없으면 0.</summary>
+        public float ReviveClipSeconds(bool facingRight)
+        {
+            Sprite[] frames = Revive(facingRight);
+            return frames == null || attackFramesPerSecond <= 0f
+                ? 0f
+                : frames.Length / attackFramesPerSecond;
+        }
+
+        /// <summary>부활 지면 연출. 없으면 null.</summary>
+        public Sprite[] ReviveFx() => HasFrames(reviveFx) ? reviveFx : null;
 
         // ------------------------------------------------------------------
         // 보스 스킬 모션 (2026-08-13)

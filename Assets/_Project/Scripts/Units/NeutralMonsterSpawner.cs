@@ -81,6 +81,8 @@ namespace LastSanctuary.Units
             _root = new GameObject("NeutralMonsters").transform;
             _root.SetParent(transform, false);
 
+            AppendExtraDefinitions();
+
             if (spawnTable == null) return;
             foreach (NeutralSpawnEntry e in spawnTable)
                 if (e.definition != null) _alive[e.definition] = new List<NeutralMonsterUnit>();
@@ -116,6 +118,140 @@ namespace LastSanctuary.Units
                     $"최대 거리({reach:0}타일)보다 멀어 한 마리도 나올 수 없습니다. " +
                     "표(`임시용 중립 몬스터.xlsx` 의 spawn_range_min)를 낮춰주세요.", this);
             }
+        }
+
+        // ==================================================================
+        // ★ 표에 새로 생긴 종을 <b>씬 배선 없이</b> 등록한다 (2026-08-15)
+        //
+        // <b>무엇이 문제였나</b> — <c>spawnTable</c> 은 <b>씬 오브젝트 참조</b>(template)를 가진
+        // 구조체 배열이라 <b>MCP 로 채울 수 없다</b>(진행상황 8절 4번). 실제로 두 가지를
+        // 시도해 둘 다 거절당했다:
+        //     spawnTable      → "Expected object value for 'spawnTable'"
+        //     에셋 참조 배열   → 같은 오류 (배열 자체가 안 된다)
+        // 그래서 표에 종을 하나 추가할 때마다 유저가 인스펙터에서 손으로 슬롯을 만들어야 했다.
+        //
+        // <b>해법 — 캐릭터가 이미 쓰던 방식을 그대로 가져왔다.</b>
+        // 캐릭터는 <c>Resources/Characters/</c> 를 통째로 읽어서 <b>씬 배선이 아예 필요 없다</b>
+        // (84-6절: *"캐릭터는 Resources/Characters/ 를 자동으로 읽는 구조라 씬 배선이 필요 없다"*).
+        // 중립 정의도 <c>Resources/NeutralMonsters/</c> 로 옮기고 같은 구조로 만들었다.
+        //   · 정의 에셋 → <c>Resources.LoadAll</c> 로 전부 읽는다
+        //   · 템플릿    → 정의 에셋 이름 + <c>_Template</c> 로 씬에서 찾는다
+        //                 (<c>NeutralMonster_4</c> → <c>NeutralMonster_4_Template</c>)
+        //
+        // 결과: **표에 종을 추가하고 파싱만 돌리면 게임에 나온다.** 씬을 열 필요가 없다.
+        //
+        // ⚠ 템플릿은 <b>비활성</b>이라 <c>GameObject.Find</c> 로는 못 찾는다(UI-1절 함정 4).
+        //   씬 루트를 직접 훑어 <c>Transform.Find</c> 로 내려간다.
+        //
+        // ⚠ 에셋을 옮길 때 <b>.meta 를 같이 옮겼다</b> — guid 가 유지되므로 씬의 기존
+        //   <c>spawnTable</c> 슬롯 3개가 그대로 살아 있다(84절 폰트 이동과 같은 이유).
+        // ==================================================================
+
+        /// <summary>
+        /// 중립 정의 에셋이 사는 Resources 하위 폴더.
+        /// <c>CharacterDefinitionRegistry</c> 가 <c>Resources/Characters</c> 를 읽는 것과 같은 자리.
+        /// </summary>
+        public const string DefinitionResourceFolder = "NeutralMonsters";
+
+        [Header("자동 등록")]
+        [Tooltip("켜면 Resources/NeutralMonsters 의 정의를 전부 읽어, 위 spawnTable 에 없는 종을 " +
+                 "<b>자동으로</b> 추가한다. 템플릿은 이름으로 찾는다.\n" +
+                 "끄면 예전처럼 spawnTable 슬롯에 있는 종만 나온다")]
+        [SerializeField] bool autoRegisterFromResources = true;
+
+        [Tooltip("템플릿을 찾을 부모. 비워두면 씬에서 'Neutral_Templates' 를 이름으로 찾는다")]
+        [SerializeField] Transform templateRoot;
+
+        void AppendExtraDefinitions()
+        {
+            if (!autoRegisterFromResources) return;
+
+            var loaded = Resources.LoadAll<NeutralMonsterDefinitionSO>(DefinitionResourceFolder);
+            if (loaded == null || loaded.Length == 0)
+            {
+                Debug.LogWarning(
+                    $"[NeutralMonsterSpawner] Resources/{DefinitionResourceFolder} 에 중립 정의가 " +
+                    "하나도 없습니다. 에셋이 그 폴더에 있는지 확인해주세요.", this);
+                return;
+            }
+
+            // ⚠ 등장 순서를 고정한다 — Resources.LoadAll 의 순서는 보장되지 않는다.
+            //   난수 시드가 같아도 스폰 결과가 실행마다 달라지면 재현이 안 된다.
+            System.Array.Sort(loaded, (a, b) => a.monId.CompareTo(b.monId));
+
+            var list = new List<NeutralSpawnEntry>(spawnTable ?? new NeutralSpawnEntry[0]);
+
+            foreach (NeutralMonsterDefinitionSO def in loaded)
+            {
+                if (def == null) continue;
+
+                bool already = false;
+                for (int i = 0; i < list.Count; i++)
+                    if (list[i].definition == def) { already = true; break; }
+                if (already) continue;
+
+                NeutralMonsterUnit template = FindTemplateFor(def);
+                if (template == null)
+                {
+                    Debug.LogWarning(
+                        $"[NeutralMonsterSpawner] {def.name} 의 템플릿 '{def.name}_Template' 을 " +
+                        "씬에서 찾지 못했습니다. Templates/Neutral_Templates 아래에 그 이름으로 " +
+                        "만들어 주세요(다른 종 템플릿을 복제하면 됩니다).", this);
+                    continue;
+                }
+
+                list.Add(new NeutralSpawnEntry
+                {
+                    definition = def,
+                    template = template,
+                    maxAlive = 0,          // 0 = 표(정의)의 maxAlive 를 쓴다 — CapFor 참조
+                });
+                Debug.Log($"[NeutralMonsterSpawner] {def.name} 자동 등록 (템플릿 {template.name})", this);
+            }
+
+            spawnTable = list.ToArray();
+        }
+
+        /// <summary>정의 에셋 이름 + <c>_Template</c> 로 씬에서 템플릿을 찾는다. 없으면 null.</summary>
+        NeutralMonsterUnit FindTemplateFor(NeutralMonsterDefinitionSO def)
+        {
+            string wanted = def.name + "_Template";
+
+            Transform root = templateRoot != null ? templateRoot : FindTemplateRoot();
+            if (root != null)
+            {
+                Transform t = root.Find(wanted);          // ⚠ 비활성도 찾는다(GameObject.Find 와 다름)
+                if (t != null) return t.GetComponent<NeutralMonsterUnit>();
+            }
+
+            // 부모를 못 찾았을 때의 마지막 수단 — 씬 전체에서 이름으로 훑는다.
+            foreach (GameObject go in gameObject.scene.GetRootGameObjects())
+            {
+                Transform found = FindDeep(go.transform, wanted);
+                if (found != null) return found.GetComponent<NeutralMonsterUnit>();
+            }
+            return null;
+        }
+
+        Transform FindTemplateRoot()
+        {
+            foreach (GameObject go in gameObject.scene.GetRootGameObjects())
+            {
+                Transform found = FindDeep(go.transform, "Neutral_Templates");
+                if (found != null) return found;
+            }
+            return null;
+        }
+
+        static Transform FindDeep(Transform parent, string name)
+        {
+            if (parent.name == name) return parent;
+            for (int i = 0; i < parent.childCount; i++)
+            {
+                Transform found = FindDeep(parent.GetChild(i), name);
+                if (found != null) return found;
+            }
+            return null;
         }
 
         /// <summary>종별 다음 보충 시각. 표의 <c>respawn_seconds</c> 를 종마다 따로 돌리기 위한 것.</summary>
@@ -217,29 +353,37 @@ namespace LastSanctuary.Units
             var ai = unit.GetComponent<UnitCombat>();
             if (ai != null)
             {
-                // ★ <b>적대 판정은 표의 atk_take(=aggressive) 한 칸이 전부다</b> (유저 확정 2026-08-13).
-                //   선공   → 적이 보이면 먼저 다가가 때린다        (canAcquireTargets = true)
-                //   비선공 → 맞기 전까지 공격하지 않고, 맞으면 반격 (canAcquireTargets = false · canRetaliate = true)
+                // ★ <b>중립 몬스터는 예외 없이 전부 비선공이다</b> (유저 확정 2026-08-15).
+                //   맞기 전까지 공격하지 않고, 맞으면 반격한다
+                //   (canAcquireTargets = false · canRetaliate = true).
                 //
-                // ⚠ <b>두 값을 여기서 반드시 덮어쓴다.</b> 예전에는 canAcquireTargets 만 넣고
-                //   canRetaliate 는 템플릿 인스펙터 값을 그대로 뒀다. 그래서 표는 비선공인데
-                //   템플릿이 선공으로 켜져 있으면 서로 어긋났고, 인스펙터에 '선공 체크'가
-                //   여러 개로 보였다(유저 리포트). 이제 <b>표가 언제나 이긴다</b>.
+                // ⚠ 표의 <c>atk_take</c> 를 여기 쓰지 않는다 — 그 칸은 <b>선공 여부가 아니라
+                //   무리 반격 여부</b>다(표의 한글 헤더가 처음부터 "동료 협공 여부"였다).
+                //   71절이 이 칸을 선공으로 읽어 <c>aggressive</c> 에 넣고 있었고,
+                //   그래서 1002·1003 이 선공으로 돌아다녔다. 아래 무리 배정이 정본이다.
+                //
+                // ⚠ <b>두 값을 여기서 반드시 덮어쓴다.</b> 템플릿 인스펙터에 뭐가 켜져 있든
+                //   (실제로 _2_·_3_ 템플릿은 canAcquireTargets 가 1 이다) 코드가 이긴다.
                 //
                 // 타겟 우선순위도 항상 캐릭터로 준다 — 비선공이라도 <b>맞으면</b> 반격해야 하고,
                 // 그때 우선순위가 비어 있으면 때린 상대를 못 고른다.
                 //
-                // 공격 방식은 <b>근거리 고정</b>이다(유저 지시: "일단 중립몹들 공격 방식은 근거리로").
+                // ★ 공격 방식은 이제 <b>표의 atk_type</b> 을 따른다(유저 지시 2026-08-15).
+                //   예전에는 근거리로 못박혀 있어서, 표에 <c>ranged</c> 라고 적힌 1002 도
+                //   근거리로 붙어 싸웠다.
                 ai.Configure(entry.definition.detectRange, entry.definition.attackRange,
                              entry.definition.moveSpeedTiles, entry.definition.attacksPerSecond,
                              advance: false,
                              priority: new[] { UnitKind.Character },
                              leash: entry.definition.leashRangeTiles,
-                             type: TacticalAttackType.Melee);
-                ai.SetCanAcquireTargets(entry.definition.aggressive);
+                             type: entry.definition.attackType);
+                ai.SetCanAcquireTargets(false);
                 ai.SetCanRetaliate(true);
                 ai.SetHome(unit.transform.position);
             }
+
+            ApplyLook(unit, entry.definition);
+            AssignPack(unit, entry.definition, pos);
 
             // 배회 — <b>자기가 소환될 수 있는 구간과 정확히 같은 고리</b> 안에서만 돌아다닌다
             // (유저 지시 2026-08-13: "중립 몬스터가 소환 가능한 범위 내에서만 배회하게 해줘").
@@ -253,9 +397,96 @@ namespace LastSanctuary.Units
             //   원래 "이 반경 밖의 적은 쫓지 않고 돌아온다" 라서 값이 두 개로 갈리지 않는다.
             var wander = unit.gameObject.GetComponent<NeutralMonsterWander>();
             if (wander == null) wander = unit.gameObject.AddComponent<NeutralMonsterWander>();
-            wander.Init(minDist, ResolveOuterRadius(minDist, maxDist), entry.definition.leashRangeTiles);
+
+            // ★ 에픽은 <b>넥서스 고리가 아니라 자기 스폰 지점</b>이 기준이다 (유저 지시 2026-08-15).
+            //   롤 정글 캠프처럼 자기 서식지 한가운데서 기다리다가, 맞으면 서식지 밖
+            //   일정 거리까지만 쫓고 돌아온다.
+            if (entry.definition.epic)
+                wander.InitHabitat(pos,
+                                   entry.definition.habitatRadiusTiles,
+                                   entry.definition.habitatChaseTiles,
+                                   entry.definition.habitatIdleSlackTiles);
+            else
+                wander.Init(minDist, ResolveOuterRadius(minDist, maxDist),
+                            entry.definition.leashRangeTiles);
 
             PruneAndGet(entry.definition).Add(unit);
+        }
+
+        // ------------------------------------------------------------------
+        // 외형 — 표의 mon_skin · collider_*_tiles (2026-08-15)
+        //
+        // 웨이브 스포너(<see cref="MonsterSpawner"/>)가 하는 것과 <b>같은 일, 같은 순서</b>다:
+        //   ① 스킨을 붙이고 ② 콜라이더 상자를 넘겨 그림 크기를 맞춘다.
+        //
+        // ⚠ 순서가 중요하다 — 스킨이 없으면 <see cref="CharacterAnimator.SetColliderBoxTiles"/>
+        //   가 잴 그림이 없다.
+        //
+        // 스킨을 안 적는 종(1001~1003)은 <see cref="CharacterAnimator"/> 자체가 템플릿에
+        // 없으므로 이 함수가 조용히 아무것도 하지 않는다 — 예전 그대로 정적 스프라이트다.
+        // ------------------------------------------------------------------
+
+        void ApplyLook(NeutralMonsterUnit unit, NeutralMonsterDefinitionSO def)
+        {
+            if (def == null) return;
+
+            var anim = unit.GetComponent<Combat.CharacterAnimator>();
+            if (anim == null) return;
+
+            // ① 스킨 — 표의 mon_skin 이 정본이다.
+            //    ⚠ 템플릿의 skinResourceFolder 로도 같은 스킨이 잡히지만, 표에 적힌 쪽이 이긴다.
+            //      두 곳이 어긋나면 "표를 고쳤는데 외형이 안 바뀐다" 가 된다.
+            string path = def.SkinResourcePath;
+            if (path.Length > 0)
+            {
+                var skin = Resources.Load<Combat.CharacterSkinSO>(path);
+                if (skin != null) anim.SetSkin(skin);
+                else
+                    Debug.LogWarning(
+                        $"[NeutralMonsterSpawner] {def.name} 의 스킨 'Resources/{path}' 을 " +
+                        "찾지 못했습니다. 표의 mon_skin 값과 실제 폴더 이름을 확인해주세요.", unit);
+            }
+
+            // ② 크기 — 표의 콜라이더 상자(타일).
+            if (def.HasColliderBox)
+                anim.SetColliderBoxTiles(def.colliderWidthTiles, def.colliderHeightTiles);
+        }
+
+        // ------------------------------------------------------------------
+        // 무리 (유저 지시 2026-08-15)
+        //
+        // *"일정 타일 범위 내에서 생성된 같은 개체의 몬스터는 동료로 인식하여 같은 부대로 묶인다"*
+        //
+        // 묶는 일을 <b>스폰 시점</b>에 하는 이유: 배회로 흩어진 뒤에 거리로 다시 묶으면
+        // 무리가 프레임마다 바뀐다("지금 옆에 있으니 동료" → 걸어가면 남남). 태어난 자리로
+        // 한 번 정하면 죽을 때까지 같은 무리다 — <b>정글 캠프</b>의 성질과도 맞는다.
+        // ------------------------------------------------------------------
+
+        [Header("무리")]
+        [Tooltip("스폰 지점이 이 거리 안이고 <b>같은 종</b>이면 한 무리로 묶는다(타일).\n" +
+                 "표에는 없는 값이다 — 손맛에 해당해 여기서 조정한다")]
+        [Min(0f)] [SerializeField] float packMergeRadiusTiles = 10f;
+
+        /// <summary>
+        /// 갓 배치한 개체를 근처의 같은 종 무리에 넣거나, 없으면 새 무리를 연다.
+        /// <c>group_making</c> 이 꺼져 있거나 <c>group_member</c> 가 0 이면 무리를 만들지 않는다
+        /// (혼자 다니는 종 — 표의 1003·1004 가 그렇다).
+        /// </summary>
+        void AssignPack(NeutralMonsterUnit unit, NeutralMonsterDefinitionSO def, Vector3 pos)
+        {
+            var pack = unit.GetComponent<NeutralPack>();
+            if (pack == null) pack = unit.gameObject.AddComponent<NeutralPack>();
+
+            if (def == null || !def.groupMaking || def.groupMember <= 0)
+            {
+                pack.Assign(0, false);       // 무리 없음 — 맞으면 혼자 반격한다
+                return;
+            }
+
+            int id = NeutralPack.FindNearbyPack(def, pos, packMergeRadiusTiles, def.groupMember);
+            if (id == 0) id = NeutralPack.NewPackId();
+
+            pack.Assign(id, def.packRetaliate);
         }
 
         /// <summary>

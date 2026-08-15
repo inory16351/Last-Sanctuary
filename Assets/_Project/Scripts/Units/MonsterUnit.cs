@@ -106,8 +106,36 @@ namespace LastSanctuary.Units
                 : 0;
 
         public override int DefenseStat => stats.defense;
-        public override int AttackStat => BalanceConfigSO.ScaleByPercent(stats.attack, enragePercent);
         protected override int RegenStat => stats.regen;
+
+        /// <summary>
+        /// 지금 쓰는 공격 능력치 종류. <b>공격 유형에 따라 달라진다</b> —
+        /// 캐릭터(<see cref="CharacterUnit.AttackStatType"/>)와 <b>같은 규칙</b>이다.
+        ///
+        /// ⚠ 예전에는 유형과 무관하게 <c>stats.attack</c>(근거리) 한 칸만 읽었고,
+        /// 파싱 스크립트가 <c>max(melee_atk, ranged_atk)</c> 로 <b>표의 두 칸을 하나로 접어</b>
+        /// 겨우 맞춰 두고 있었다. 이제 표의 네 공격 계열이 그대로 의미를 갖는다.
+        /// </summary>
+        public StatType AttackStatType => AttackStatTypeOf(AttackTypeOf());
+
+        public override int AttackStat =>
+            BalanceConfigSO.ScaleByPercent(stats[AttackStatType], enragePercent);
+
+        /// <summary>
+        /// 명중률 능력치 → 적중 확률(%). <b>원거리일 때만</b> 능력치를 본다
+        /// (유저 확정 2026-08-15 — 캐릭터와 같은 규칙).
+        /// 근거리·마법은 100% 라 명중 판정이 통째로 생략된다.
+        /// </summary>
+        public override float HitChancePercent =>
+            Balance != null && RangedStatsApplyNow
+                ? Balance.HitChancePercent(stats.accuracy)
+                : 100f;
+
+        /// <summary>크리티컬 확률 능력치 → 치명타 확률(%). <b>원거리일 때만.</b></summary>
+        public override float CriticalChancePercent =>
+            Balance != null && RangedStatsApplyNow
+                ? Balance.CriticalChancePercent(stats.critical)
+                : 0f;
 
         public override Faction Faction => Faction.Cancer;
         public override UnitKind Kind => UnitKind.Monster;

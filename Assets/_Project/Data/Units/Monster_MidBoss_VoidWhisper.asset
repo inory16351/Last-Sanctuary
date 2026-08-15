@@ -18,9 +18,15 @@ MonoBehaviour:
   tier: 1
   template: {fileID: 0}
   hpStat: 9
-  attackStat: 6
+  attackStat: 0
   defenseStat: 6
   regenStat: 1
+  rangedAttackStat: 6
+  magicStat: 0
+  cureStat: 0
+  accuracyStat: 50
+  criticalStat: 5
+  resistanceStat: 50
   hpPercent: 600
   attackType: 1
   detectRange: 8

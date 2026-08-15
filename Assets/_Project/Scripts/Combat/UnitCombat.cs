@@ -896,8 +896,32 @@ namespace LastSanctuary.Combat
         {
             if (_combatSuppressed) { _target = null; return; }
 
-            // 비선공 유닛 — 스스로 적을 찾지는 않지만, 맞았으면 때린 상대에게 반격한다.
-            if (!canAcquireTargets) { _target = FindRetaliationTarget(); return; }
+            // ── 비선공 유닛 ──────────────────────────────────────────────────
+            // 스스로 적을 찾지는 않는다. 다만 두 가지에는 반응한다:
+            //   ① 자기가 맞았으면 때린 상대에게 반격한다.
+            //   ② <b>같은 무리의 동료</b>가 맞았으면 그 공격자에게 덤빈다 —
+            //      표의 <c>atk_take</c>(무리 반격 여부)가 켜진 경우만.
+            //
+            // ★ ②가 이번에 새로 뚫린 길이다 (유저 지시 2026-08-15).
+            //   예전에는 여기서 반격 대상만 잡고 <b>즉시 return</b> 했기 때문에, 아래 971행의
+            //   동료 구원(ally call) 경로를 통째로 건너뛰었다. 그 상태에서 "모든 중립은
+            //   비선공" 으로 바꾸면 <b>무리 반격이 영원히 발동하지 않는다</b> — 무리를 만들어도
+            //   서로를 도우러 갈 코드 경로가 없어진다.
+            //
+            //   그래서 조기 return 을 유지하되(비선공은 진영 기준 탐색을 하면 안 된다),
+            //   <b>무리 호출만</b> 그 안에서 따로 확인한다. 판정 범위는 선공 유닛의 동료 구원과
+            //   같은 <c>allyCallRange</c> 를 쓴다 — 두 벌로 갈리면 "무리는 12타일인데 구원은
+            //   8타일" 같은 어긋남이 생긴다.
+            if (!canAcquireTargets)
+            {
+                DamageableUnit hit = FindRetaliationTarget();
+
+                if (hit == null && answerAllyCalls && !_retreatFiring)
+                    hit = FindPackCallAttacker();
+
+                _target = hit;
+                return;
+            }
 
             // 치유 유형은 적을 아예 노리지 않는다 — "공격 대신 회복"이 이 유형의 정의다.
             if (attackType == TacticalAttackType.Heal) { AcquireHealTarget(); return; }
@@ -1063,6 +1087,53 @@ namespace LastSanctuary.Combat
                 float sqr = ((Vector2)(attacker.transform.position - myPos)).sqrMagnitude;
                 // 인식 범위 밖까지 달려가지는 않는다 — 목줄과 같은 취지의 안전장치.
                 if (sqr > EffectiveDetectRange * EffectiveDetectRange) continue;
+                if (sqr >= bestSqr) continue;
+
+                best = attacker;
+                bestSqr = sqr;
+            }
+            return best;
+        }
+
+        /// <summary>
+        /// ★ <b>무리 반격</b> — 같은 무리의 동료를 때리고 있는 적 중 가장 가까운 하나.
+        /// (유저 지시 2026-08-15: *"같은 부대의 동료 몬스터가 공격 당할 시 반격"*)
+        ///
+        /// <see cref="FindAllyAttacker"/> 와 <b>거의 같지만 두 가지가 다르다</b>:
+        ///   ① 동료의 조건이 "같은 진영" 이 아니라 <b>"같은 무리"</b>다
+        ///      (<see cref="Units.NeutralPack.SamePack"/>). 진영만 보면 <b>맵 반대편의
+        ///      남남인 중립까지</b> 서로를 동료로 여긴다 — 모든 중립이 같은
+        ///      <c>Faction.Neutral</c> 이기 때문이다. 실제로 그렇게 동작하고 있었다.
+        ///   ② <b>인식 범위(detectRange) 제한을 걸지 않는다.</b> 무리는 "봤다" 가 아니라
+        ///      "같은 편이 비명을 질렀다" 로 움직이는 것이라, 무리 반경 안이면 달려간다.
+        ///
+        /// 무리에 속하지 않았거나 무리 반격이 꺼져 있으면 아무것도 하지 않는다.
+        /// </summary>
+        DamageableUnit FindPackCallAttacker()
+        {
+            if (_self == null || allyCallRange <= 0f) return null;
+
+            var myPack = Units.NeutralPack.Of(_self);
+            if (myPack == null || !myPack.AnswersPackCalls) return null;
+
+            Vector3 myPos = transform.position;
+            float limitSqr = allyCallRange * allyCallRange;
+            DamageableUnit best = null;
+            float bestSqr = float.MaxValue;
+
+            var all = UnitRegistry.All;
+            for (int i = 0; i < all.Count; i++)
+            {
+                DamageableUnit ally = all[i];
+                if (ally == null || !ally.IsAlive || ReferenceEquals(ally, _self)) continue;
+                if (!Units.NeutralPack.SamePack(_self, ally)) continue;
+                if (((Vector2)(ally.transform.position - myPos)).sqrMagnitude > limitSqr) continue;
+
+                DamageableUnit attacker = AttackerOf(ally);
+                if (attacker == null) continue;
+                if (!IsFogVisible(attacker.transform.position)) continue;
+
+                float sqr = ((Vector2)(attacker.transform.position - myPos)).sqrMagnitude;
                 if (sqr >= bestSqr) continue;
 
                 best = attacker;
@@ -1715,6 +1786,16 @@ namespace LastSanctuary.Combat
             if (target is Units.MonsterUnit monster)
             {
                 float body = monster.BodyRadiusTiles;
+                if (body > 0.4f) return body;
+            }
+
+            // ★ 중립 몬스터도 같은 처리를 받는다 (2026-08-15).
+            //   예전에는 중립이 전부 <b>작은 정적 스프라이트</b>라 기본값 0.4 로 충분했는데,
+            //   에픽(카르시노스 1004)이 4.4 x 5.1 타일짜리 몸집으로 들어오면서
+            //   위 주석이 경고한 그대로 <b>근접 캐릭터가 몸 한가운데까지 파고들려</b> 했다.
+            if (target is Units.NeutralMonsterUnit neutral)
+            {
+                float body = neutral.BodyRadiusTiles;
                 if (body > 0.4f) return body;
             }
 

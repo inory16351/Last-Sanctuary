@@ -8,6 +8,7 @@ boss_title_120001	끝없는 형상의 군주	The Lord Of Endless Forms
 character_name_9001	엘린	Elin
 character_name_9002	비기오르	Bigior
 character_name_9003	프레이야	Preyja
+character_name_9005	히스톤	Histon
 const_name_10001	중앙건물	
 const_name_10002	포탑	
 mental_error_name_40001	혼란	
@@ -35,6 +36,8 @@ mental_error_type_desc_Upsurge	해당 캐릭터가 {value_01} 만큼 강화됨(�
 mon_name_1001	역겨운 덩어리 1	
 mon_name_1002	역겨운 덩어리 2	
 mon_name_1003	역겨운 덩어리 3	
+skill_name_2001	할퀴기	
+skill_name_2002	죽음의 포효	
 monster_name_100001	지옥 송곳니	HellFang
 monster_name_100002	영혼 사수	SoulArcher
 monster_name_110001	혈인	BloodMark
@@ -65,10 +68,12 @@ skill_name_80009	광란
 skill_type_desc_Blazing_wings	비기오르의 반경 {value_01} 내에 있는 적들은 초당 비기오르의 현재체력{value_02}% 만큼 데미지를 받는다. 데미지 계산 공식 적용	
 skill_type_desc_Blood_attack	엘린은 공격을 할때마다 현제 체력의 {value_01}% 만큼 체력이 감소하고 해당 값만큼 데미지 공식의 공격력 부분에 더해서 계산한다.	
 skill_type_desc_Ecstasy	프레이야의 2초내에 직접 공격한 적이 사망할때 마다 프레이야의 공격속도와 이동속도가 {value_02}초 동안 {value_03}만큼 증가한다. 중첩가능하며 중첩될 때마다 지속시간이 0초로 초기화 된다. 이 값으로 상승한 공격속도 및 이동속도는 최대값을 초과할 수 있다.	
+skill_type_desc_Scratch	가장 가까운 적을 향해 카르시노스의 전방 {value_01}(가로) x {value_02}(세로) 범위의 적을 카르시노스의 근거리 공격력{value_03}%로 공격한다. 맞은 적은 방어력이{value_04}% 만큼 감소하며 지속시간은 {value_05}초 만큼 지속된다.	
+skill_type_desc_Roar_death	카르시노스를 중심으로 카르시노스 + {value_01} 반지름 타일 범위에 원형 피해를 준다. 피격 당한 적은 뒤로 [value_02} 타일 만큼 밀려나며 카르시노스의 근거리 공격력{value_03}% 만큼 피해를 입는다	
 skill_type_desc_Fallen_tomb	가장 가까운 적을 향해 단탈리온이 존재하는 칸을 포함하여 {value_01}(가로) x {value_02}(세로) 범위의 적을 단탈리온의 근거리 공격력{value_03}%로 공격한다. 맞은 적은 침식이 {value_04} 만큼 오른다.	
 skill_type_desc_Gluttony	프레이야가 2초내에 직접 공격한 적이 사망할 때마다 프레이야의 현재 체력이 최대체력의 {value_01}% 만큼 회복된다.	
 skill_type_desc_Innate_delicacy	엘린의 시야가 자기 몸을 겨우 덮는 정도로 줄어들지만, 공유된 시야의 적을 공격할 때 사거리가 {value_01}만큼 늘어난다.	
-skill_type_desc_Rampage	프레이야의 현재체력이 최대체력의 50% 보다 낮아지면 활성화. 다시 프레이야의 현재 체력이 최대체력의 50%가 되면 비 활성화. 프레이야의 공격력이 {value_01} 만큼 증가한다.  이 수치는 최대 능력치 표기 값을 초월할 수 있다. 공격 시 프레이야의 현제체력이 {value_02}% 만큼 감소한다. 추가로 프레이야가 받을 수 있는 정신 이상은 이기심과 광분으로 고정된다. (각 50% 확률)	
+skill_type_desc_Rampage	프레이야의 현재체력이 최대체력의 50% 보다 낮아지면 활성화. 다시 프레이야의 현재 체력이 최대체력의 50%가 되면 비 활성화. 프레이야의 공격력이 {value_01} 만큼 증가한다.  이 수치는 최대 능력치 표기 값을 초월할 수 있다. 공격 시 프레이야의 현제체력이 {value_02}% 만큼 감소한다. 추가로 프레이야가 받을 수 있는 정신 이상은 이기심과 광분으로 고정된다. (각 50% 확률) 프레이야의 현재 체력이 최대체력의 100%가 되면 즉시 이기심 상태가 된다. 해당 효과는 이기심 효과가 끝날 때까진 다시 발동 하지 않는다.	
 skill_type_desc_Rho_aias	비기오르의 반경 {value_01} 내에 있는 동료들은 방어력 능력치 값에 {value_02} 만큼 보너스를 받는다. 이 수치는 최대 능력치 표기 값을 초월할 수 있다.	
 skill_type_desc_Sacrifice	엘린의 주변에 현재체력이 최대체력의{value_01}%만큼 감소한 상태의 동료가 존재한다면 즉시 엘린의 현재 체력이 {value_02}% 만큼 감소하고 대상의 체력을 최대체력의{value_02}%만큼 회복한다.	
 skill_type_desc_Void_laser	가장 먼 적을 향해 단탈리온이 존재하는 칸을 포함하여 {value_01}(가로) x {value_02}(세로) 범위의 적을 단탈리온의 근거리 공격력{value_03}%로 공격한다. 맞은 적은 침식이 {value_04} 만큼 오른다.	
@@ -85,3 +90,13 @@ skill_type_desc_Corrosion	피올로에게 공격을 당한 적의 방어력이 {
 skill_type_desc_Purifying_touch	정화의 손길이 활성화 된 동안 피올로가 공격한 적에게 '정화'를 한 개 부여한다. '정화'가 부여된 적을 공격할 시 공격한 캐릭터의  현재 체력이 최대 체력의 {value_01}% 만큼 회복되고, '정화'가 즉시 해제된다. '정화' 는 중첩 부여될 수 없다. 정화의 손길은 {value_02}초 동안 지속된다. 피올로의 현재 체력이 최대체력의 {value_03}% 가 되면 발동	
 boss_title_110001	피에 새겨진 낙인	
 boss_title_110002	허공을 삼킨 목소리	
+skill_name_80013	선봉장	
+skill_name_80014	분노	
+skill_name_80015	복수자	
+skill_explain_80013	전장의 앞을 지키는 것은 히스톤에게 쥐어진 운명입니다.	
+skill_explain_80014	죽음조차 히스톤의 복수를 막을 수는 없습니다.	
+skill_explain_80015	그의 부활은 적들에겐 공포이지만 아군에겐 기적과도 같습니다.	
+skill_type_desc_Vanguard	히스톤의 포지션은 전방 / 공격 유형은 근거리로 고정된다. 히스톤의 근거리 공격은 예외적으로 크리티컬 공격이 가능하다.	
+skill_type_desc_Rage_on	히스톤에게 별개의 '분노' 수치 획득이 가능해진다.(0~100) 히스톤이 공격 할때 마다 {value_01} 만큼의 분노를 획득한다. 분노는 체력 재생 가능 상태 일때 초당 {value_02} 만큼 하락한다.(진군 중일때 제외) 분노가 100일 때 히스톤이 죽음에 이를 시 {value_03}초 만큼의 경직 시간 이후 부활한다.	
+skill_type_desc_Reaver	히스톤이 부활 할때마다 반경 {value_01} 타일 범위의 원형 공간의 적들에게 공격력의 {value_02}% 만큼의 피해를 주고, 반경 {value_01} 타일 범위의 원형 공간의 아군 캐릭터들에게 최대체력의 {value_03}% 만큼의 회복을 준다.	
+mon_name_1004	카르시노스	Carcinos

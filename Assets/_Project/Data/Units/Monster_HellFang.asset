@@ -33,3 +33,9 @@ MonoBehaviour:
   renderHeightTiles: 0
   colliderWidthTiles: 2.6
   colliderHeightTiles: 1.9
+  rangedAttackStat: 0
+  accuracyStat: 50
+  criticalStat: 0
+  magicStat: 0
+  cureStat: 0
+  resistanceStat: 50

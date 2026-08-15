@@ -225,9 +225,14 @@ namespace LastSanctuary.UI
                 if (option.Button != null) option.Button.interactable = available;
                 if (option.Background == null) continue;
 
-                option.Background.color = !available
-                    ? optionDisabled
-                    : (option.IsOn() ? optionSelected : optionNormal);
+                // ★ <b>선택 표시가 잠금보다 우선</b>이다 — 「선봉장」처럼 <b>줄 전체가 잠기는</b>
+                //   경우, 잠김색을 먼저 칠하면 7칸이 똑같이 회색이 되어 <b>무엇으로 고정됐는지</b>
+                //   화면에서 알 수 없다. 지금 값은 언제나 강조하고, 나머지만 잠김색으로 눌러
+                //   "고를 수는 없지만 이걸로 정해져 있다"가 한눈에 보이게 한다.
+                bool on = has && option.IsOn();
+                option.Background.color = on
+                    ? optionSelected
+                    : (available ? optionNormal : optionDisabled);
             }
 
             if (_hintText != null) _hintText.text = has ? selectionHint : noSelectionHint;
@@ -364,23 +369,31 @@ namespace LastSanctuary.UI
                 dragBar.OnValueChanged += ratio =>
                     Set(t => t.SetRetreatHpPercent(Mathf.RoundToInt(ratio * 100f)));
 
-            // 공격 유형
-            AddOption("Col1/Type/Melee",  () => Set(t => t.SetAttackType(TacticalAttackType.Melee)),
-                      () => _tactics.Order.attackType == TacticalAttackType.Melee);
-            AddOption("Col1/Type/Ranged", () => Set(t => t.SetAttackType(TacticalAttackType.Ranged)),
-                      () => _tactics.Order.attackType == TacticalAttackType.Ranged);
-            AddOption("Col1/Type/Magic",  () => Set(t => t.SetAttackType(TacticalAttackType.Magic)),
-                      () => _tactics.Order.attackType == TacticalAttackType.Magic);
-            AddOption("Col1/Type/Heal",   () => Set(t => t.SetAttackType(TacticalAttackType.Heal)),
-                      () => _tactics.Order.attackType == TacticalAttackType.Heal);
+            // 공격 유형 / 포지션
+            //
+            // ★ <b>「선봉장」(히스톤 80013)이 걸린 캐릭터는 이 두 줄이 통째로 잠긴다</b> —
+            //   정의문이 "포지션은 전방 / 공격 유형은 근거리로 <u>고정</u>된다" 이기 때문이다.
+            //   잠금은 두 겹이다: 여기서 버튼을 끄고, <see cref="CharacterTactics.SetAttackType"/>
+            //   쪽에서도 값을 거부한다('전방 + 동료와 함께 후퇴' 와 같은 방식).
+            //   ⚠ 잠긴 항목도 <b>지금 선택된 값은 그대로 강조</b>된다 — 색 계산이 IsOn 을
+            //     따로 보기 때문이라 "무엇으로 고정됐는지"가 화면에 남는다.
+            System.Func<bool> roleFree = () => !_tactics.RoleLocked;
 
-            // 포지션
+            AddOption("Col1/Type/Melee",  () => Set(t => t.SetAttackType(TacticalAttackType.Melee)),
+                      () => _tactics.Order.attackType == TacticalAttackType.Melee, roleFree);
+            AddOption("Col1/Type/Ranged", () => Set(t => t.SetAttackType(TacticalAttackType.Ranged)),
+                      () => _tactics.Order.attackType == TacticalAttackType.Ranged, roleFree);
+            AddOption("Col1/Type/Magic",  () => Set(t => t.SetAttackType(TacticalAttackType.Magic)),
+                      () => _tactics.Order.attackType == TacticalAttackType.Magic, roleFree);
+            AddOption("Col1/Type/Heal",   () => Set(t => t.SetAttackType(TacticalAttackType.Heal)),
+                      () => _tactics.Order.attackType == TacticalAttackType.Heal, roleFree);
+
             AddOption("Col1/Pos/Front", () => Set(t => t.SetPosition(TacticalPosition.Front)),
-                      () => _tactics.Order.position == TacticalPosition.Front);
+                      () => _tactics.Order.position == TacticalPosition.Front, roleFree);
             AddOption("Col1/Pos/Mid",   () => Set(t => t.SetPosition(TacticalPosition.Mid)),
-                      () => _tactics.Order.position == TacticalPosition.Mid);
+                      () => _tactics.Order.position == TacticalPosition.Mid, roleFree);
             AddOption("Col1/Pos/Back",  () => Set(t => t.SetPosition(TacticalPosition.Back)),
-                      () => _tactics.Order.position == TacticalPosition.Back);
+                      () => _tactics.Order.position == TacticalPosition.Back, roleFree);
 
             // 공격 반응
             AddOption("Col1/React/Chase", () => Set(t => t.SetAttackReaction(TacticalAttackReaction.Chase)),

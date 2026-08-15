@@ -52,9 +52,45 @@ namespace LastSanctuary.Units
 
         [Header("능력치 (1 ~ 100)")]
         [Range(1, 100)] public int hpStat = 7;
-        [Range(1, 100)] public int attackStat = 5;
+
+        [Tooltip("근거리 공격력 (melee_atk). attackType 이 Melee 일 때 쓰인다")]
+        [Range(0, 100)] public int attackStat = 5;
+
         [Range(1, 100)] public int defenseStat = 2;
         [Range(0, 100)] public int regenStat = 0;
+
+        // ------------------------------------------------------------------
+        // 나머지 공격 계열 + 명중·치명 (2026-08-15 신설)
+        //
+        // <b>왜 이제야 생겼나</b> — 표(<c>웨이브 몬스터 테이블.xlsx</c> · <c>first_Stat</c>)에는
+        // 처음부터 <c>ranged_atk</c> · <c>accuracy</c> · <c>critical</c> 칸이 있었는데
+        // 담을 곳이 없어 파싱이 <c>max(melee, ranged)</c> 로 <b>두 칸을 하나로 접고</b>
+        // 명중·치명은 <b>통째로 버리고</b> 있었다. 그래서 표에 <c>critical: 8</c> 이라고
+        // 적힌 최종보스가 실제로는 치명타를 한 번도 내지 않았다.
+        //
+        // ★ 명중·치명은 <b>원거리 공격 유형에만</b> 적용된다(유저 확정 2026-08-15) —
+        //   판정은 <see cref="MonsterUnit.HitChancePercent"/> 쪽에 있다.
+        // ------------------------------------------------------------------
+
+        [Tooltip("원거리 공격력 (ranged_atk). attackType 이 Ranged 일 때 쓰인다")]
+        [Range(0, 100)] public int rangedAttackStat = 0;
+
+        [Tooltip("마법 공격력 (magic). attackType 이 Magic 일 때 쓰인다")]
+        [Range(0, 100)] public int magicStat = 0;
+
+        [Tooltip("회복력 (cure). attackType 이 Heal 일 때 쓰인다 — 지금 몬스터에는 회복형이 없다")]
+        [Range(0, 100)] public int cureStat = 0;
+
+        [Tooltip("명중률 (accuracy). ⚠ <b>원거리 공격 유형에만</b> 적용된다.\n" +
+                 "적중% = 80 + 명중률 (상한 100) 이므로 20 이상이면 사실상 항상 명중")]
+        [Range(0, 100)] public int accuracyStat = 50;
+
+        [Tooltip("크리티컬 확률 (critical). ⚠ <b>원거리 공격 유형에만</b> 적용된다.\n" +
+                 "치명% = 크리티컬 × 1")]
+        [Range(0, 100)] public int criticalStat = 0;
+
+        [Tooltip("저항력 (resistance). 침식 배율에 쓰인다 — 몬스터는 침식을 받지 않아 지금은 표시용")]
+        [Range(0, 100)] public int resistanceStat = 50;
 
         [Header("체력 보정")]
         [Tooltip("보스처럼 체력 규모를 따로 키울 때 사용. 퍼센트(정수) — 100 이면 보정 없음")]
@@ -201,14 +237,26 @@ namespace LastSanctuary.Units
         public StatBlock BuildStats(int hpPercentScale = 100, int attackPercentScale = 100,
                                     int statMax = 100)
         {
+            // ★ 웨이브 배율은 <b>지금 쓰는 공격 계열에만</b> 걸어도 되지만, 어느 칸을 쓸지는
+            //   런타임의 <c>UnitCombat.AttackType</c> 이 정하므로 여기서는 알 수 없다 —
+            //   <b>네 칸 모두에 같은 배율</b>을 건다. 쓰지 않는 칸은 0 이라 아무 영향이 없고,
+            //   나중에 유형을 바꿔도 배율이 빠지지 않는다.
+            int Scaled(int raw, int lowClamp) =>
+                Mathf.Clamp(BalanceConfigSO.ScaleByPercent(raw, attackPercentScale), lowClamp, statMax);
+
             return new StatBlock
             {
-                hp      = Mathf.Clamp(BalanceConfigSO.ScaleByPercent(hpStat, hpPercentScale),
-                                      1, statMax),
-                attack  = Mathf.Clamp(BalanceConfigSO.ScaleByPercent(attackStat, attackPercentScale),
-                                      1, statMax),
-                defense = Mathf.Clamp(defenseStat, 1, statMax),
-                regen   = Mathf.Clamp(regenStat, 0, statMax),
+                hp           = Mathf.Clamp(BalanceConfigSO.ScaleByPercent(hpStat, hpPercentScale),
+                                           1, statMax),
+                attack       = Scaled(attackStat, 1),
+                rangedAttack = Scaled(rangedAttackStat, 0),
+                magic        = Scaled(magicStat, 0),
+                cure         = Scaled(cureStat, 0),
+                defense      = Mathf.Clamp(defenseStat, 1, statMax),
+                regen        = Mathf.Clamp(regenStat, 0, statMax),
+                accuracy     = Mathf.Clamp(accuracyStat, 0, statMax),
+                critical     = Mathf.Clamp(criticalStat, 0, statMax),
+                resistance   = Mathf.Clamp(resistanceStat, 0, statMax),
             };
         }
     }

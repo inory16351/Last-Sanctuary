@@ -29,7 +29,7 @@ except Exception:
 import hashlib
 import openpyxl
 
-VAULT = r'C:\Project\Last-Sanctuary-Vault\데이터 테이블'
+from vault_path import TABLE_DIR as VAULT   # ★ PC 마다 다른 볼트 위치를 찾아준다(2026-08-15)
 _PROJECT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ASSETS = os.path.join(_PROJECT, 'Assets', '_Project')
 
@@ -260,6 +260,21 @@ def skin_content_tiles(skin_rel_path):
     return (float(m.group(1)), float(m.group(2))) if m else None
 
 
+def report_collider_fit_skin(name, skin_rel, box_w, box_h):
+    """
+    <see cref="report_collider_fit"/> 와 같은 계산인데, 스킨 경로를 <b>직접</b> 받는다.
+
+    중립 몬스터는 표의 `mon_skin` 이 스킨을 정하므로 `SKIN_FOR_MONSTER` 같은 코드 상수가
+    필요 없다 — 표가 정본이라는 이 파일의 원칙에 오히려 더 맞는다.
+    """
+    art = skin_content_tiles(skin_rel)
+    if art is None or art[0] <= 0 or art[1] <= 0 or box_w <= 0 or box_h <= 0:
+        return
+    s = min(box_w / art[0], box_h / art[1])
+    print('    %s 콜라이더 표 %.1f x %.1f -> 실제 %.2f x %.2f (원화 %.2f x %.2f 타일)'
+          % (name, box_w, box_h, art[0] * s, art[1] * s, art[0], art[1]))
+
+
 def report_collider_fit(mid, name, box_w, box_h):
     """
     표의 콜라이더 상자에 그림을 맞추면 실제로 어떤 크기가 나오는지 보여준다(계산만, 기록 안 함).
@@ -309,6 +324,41 @@ def boss_title_ids():
     return ids
 
 
+# ── 공격 계열 + 명중·치명 (2026-08-15 신설) ─────────────────────────────
+#
+# ★ 예전에는 `attackStat` 한 칸에 `max(melee_atk, ranged_atk)` 를 넣어
+#   <b>표의 두 칸을 하나로 접고</b>, `accuracy`·`critical` 은 <b>통째로 버렸다</b>
+#   (담을 필드가 C# 쪽에 없었다). 그래서 표에 `critical: 8` 이라고 적힌 최종보스가
+#   실제로는 치명타를 한 번도 내지 않았다.
+#
+#   이제 `MonsterDefinitionSO` 에 칸이 생겼으므로 표의 값을 <b>그대로</b> 옮긴다.
+#   어느 칸을 쓸지는 런타임의 `UnitCombat.AttackType` 이 고른다
+#   (`MonsterUnit.AttackStatType` — 캐릭터와 같은 규칙).
+#
+# ⚠ 명중·치명은 <b>원거리 공격 유형에만</b> 적용된다(유저 확정 2026-08-15).
+#   근거리·마법 몬스터에 값이 들어가 있어도 판정에 쓰이지 않는다 — 표를 그대로
+#   옮기되, 그 사실을 알고 볼 것.
+NEW_STAT_FIELDS = ('rangedAttackStat', 'magicStat', 'cureStat',
+                   'accuracyStat', 'criticalStat', 'resistanceStat')
+
+
+def attack_stat_fields(r):
+    """웨이브 `first_Stat` 한 줄 → 공격 계열·명중·치명·저항 필드 묶음.
+
+    컬럼 위치(0부터): 2 melee_atk · 3 ranged_atk · 4 accuracy · 5 critical
+                      6 magic · 7 cure · 12 resistance
+    """
+    return {
+        'attackStat': int(num(r[2])),
+        'rangedAttackStat': int(num(r[3])),
+        'accuracyStat': int(num(r[4])),
+        'criticalStat': int(num(r[5])),
+        'magicStat': int(num(r[6])) if len(r) > 6 else 0,
+        'cureStat': int(num(r[7])) if len(r) > 7 else 0,
+        'resistanceStat': int(num(r[12], 50)) if len(r) > 12 else 50,
+    }
+
+
 def sync_monsters():
     print('[웨이브 몬스터]')
     stats = {int(r[0]): r for r in read_sheet(XLSX_WAVE_MON, 'first_Stat')}
@@ -322,12 +372,10 @@ def sync_monsters():
         if r is None:
             print('  ! 표에 id %d 가 없습니다' % mid)
             continue
-        melee, ranged = int(num(r[2])), int(num(r[3]))
         box_h = num(r[14]) if len(r) > 14 else 0     # collider_height_tiles
         box_w = num(r[15]) if len(r) > 15 else 0     # collider_width_tiles
         changes = {
             'hpStat': int(num(r[1])),
-            'attackStat': max(melee, ranged),      # atk_type 에 해당하는 칸만 채워져 있다
             'defenseStat': int(num(r[10])),
             'regenStat': int(num(r[11])),
             'hpPercent': int(num(r[13], 100)),
@@ -347,12 +395,13 @@ def sync_monsters():
             # 인스펙터에서 어느 쪽이 적용되는지 헷갈린다. 필드 자체는 지우지 않는다(U-D3).
             'renderHeightTiles': 0,
         }
+        changes.update(attack_stat_fields(r))
         # 칭호 - 표에 칭호가 적힌 몬스터에만 키를 넣는다(위 boss_title_ids 주석).
         if mid in titled:
             changes['titleKey'] = 'boss_title_%d' % mid
 
         total += patch_fields(os.path.join(folder, asset + '.asset'), changes, asset,
-                              add_missing=('titleKey',))
+                              add_missing=('titleKey',) + NEW_STAT_FIELDS)
         report_collider_fit(mid, asset, box_w, box_h)
 
     # --- 중간보스 2종 신규 ---
@@ -361,7 +410,6 @@ def sync_monsters():
         if r is None:
             print('  ! 표에 중간보스 id %d 가 없습니다' % mid)
             continue
-        melee, ranged = int(num(r[2])), int(num(r[3]))
         rel = 'Data/Units/%s.asset' % spec['asset']
         path = os.path.join(folder, spec['asset'] + '.asset')
 
@@ -383,9 +431,14 @@ def sync_monsters():
         body += "  tier: 1\n"                       # MonsterTier.MidBoss
         body += "  template: {fileID: 0}\n"         # 스포너 슬롯이 지정한다 (위 ⚠ 참조)
         body += "  hpStat: %d\n" % int(num(r[1]))
-        body += "  attackStat: %d\n" % max(melee, ranged)
+        # 공격 계열 4칸 + 명중·치명·저항 (2026-08-15) — 잡몹과 <b>같은 헬퍼</b>를 쓴다.
+        # 여기만 따로 적으면 표에 컬럼이 늘 때 한쪽만 반영되어 갈라진다.
+        atk = attack_stat_fields(r)
+        body += "  attackStat: %d\n" % atk['attackStat']
         body += "  defenseStat: %d\n" % int(num(r[10]))
         body += "  regenStat: %d\n" % int(num(r[11]))
+        for _f in NEW_STAT_FIELDS:
+            body += "  %s: %d\n" % (_f, atk[_f])
         body += "  hpPercent: %d\n" % int(num(r[13], 100))
         body += "  attackType: %s\n" % inherited('attackType', '0')
         body += "  detectRange: %s\n" % inherited('detectRange', '7')
@@ -552,6 +605,60 @@ NEUTRAL_ASSET_BY_ID = {
     1001: 'NeutralMonster_1',
     1002: 'NeutralMonster_2',
     1003: 'NeutralMonster_3',
+    1004: 'NeutralMonster_4',      # ★ 에픽 보스 (2026-08-15 신설)
+}
+
+# 표의 atk_type 문자열 → TacticalAttackType 의 <b>정수값</b>(YAML 은 enum 을 정수로 쓴다).
+ATTACK_TYPE_VALUE = {'melee': 0, 'ranged': 1, 'magic': 2, 'heal': 3}
+
+
+def attack_type_value(raw):
+    """표의 `atk_type` 칸 → enum 정수. 못 알아보면 근거리(0). 대소문자·공백에 관대하다."""
+    if raw is None:
+        return 0
+    return ATTACK_TYPE_VALUE.get(str(raw).strip().lower(), 0)
+
+
+# 중립 정의에 2026-08-15 로 새로 생긴 필드들 — 기존 에셋 YAML 에는 줄이 없으므로
+# `add_missing` 으로 넘겨야 첫 실행에 실제로 기록된다(patch_fields 주석 참조).
+NEUTRAL_NEW_FIELDS = (
+    'rangedAttackStat', 'magicStat', 'cureStat',
+    'accuracyStat', 'criticalStat', 'resistanceStat',
+    'attackType', 'groupMaking', 'groupMember', 'packRetaliate',
+    'epic', 'habitatRadiusTiles', 'habitatChaseTiles', 'habitatIdleSlackTiles',
+    'titleKey', 'colliderWidthTiles', 'colliderHeightTiles',
+    'illustName', 'skinAssetName',
+)
+
+
+def skin_species(raw):
+    """
+    표의 `mon_skin` → <b>종 이름</b>.
+
+    표에는 웨이브의 `ingame_asset`(``Char_Asset_HellFang``)과 같은 감각으로
+    ``Carcinos_asset`` 처럼 적힌다. 게임이 쓰는 것은 종 이름뿐이고, 경로 규약
+    (``MonsterSkins/<종>/Skin_<종>``)은 코드가 안다 —
+    <see cref="NeutralMonsterDefinitionSO.SkinResourcePath"/>.
+
+    꼬리표(`_asset`)와 머리표(`Char_Asset_`) 둘 다 떼어 준다. 사람이 손으로 적는 칸이라
+    두 형식 중 무엇이 와도 통하게 한다.
+    """
+    s = str(raw or '').strip()
+    if not s:
+        return ''
+    if s.startswith('Char_Asset_'):
+        s = s[len('Char_Asset_'):]
+    if s.endswith('_asset'):
+        s = s[:-len('_asset')]
+    return s
+
+# 에픽(1004)의 서식지 값 — ⚠ <b>표에 없는 값이다.</b> 유저 지시가 "타일 계산 값들은
+# 에딧에서 수정할 수 있도록" 이라 인스펙터에서 조정하는 값이고, 여기서는 <b>처음 한 번</b>
+# 씨앗값만 넣는다. 이미 값이 들어 있는 에셋은 덮어쓰지 않는다(아래 seed_only 참조).
+EPIC_HABITAT_SEED = {
+    'habitatRadiusTiles': 14,
+    'habitatChaseTiles': 8,
+    'habitatIdleSlackTiles': 1,
 }
 
 
@@ -566,7 +673,11 @@ def sync_neutral_monsters():
     if not stats:
         print('  ! first_Stat 시트가 없습니다 - 능력치는 기존 값을 유지합니다')
 
-    folder = os.path.join(ASSETS, 'Data', 'Units')
+    # ★ 2026-08-15 부터 중립 정의는 <b>Resources</b> 에 산다 — 스포너가 폴더를 통째로 읽어
+    #   자동 등록하기 때문이다(씬 슬롯을 손으로 만들 필요가 없어졌다).
+    #   캐릭터가 Resources/Characters 를 쓰는 것과 같은 구조다.
+    folder = os.path.join(ASSETS, 'Resources', 'NeutralMonsters')
+    os.makedirs(folder, exist_ok=True)
     total = 0
 
     for row in read_rows(XLSX_NEUTRAL, 'neutrality_mon'):
@@ -584,17 +695,49 @@ def sync_neutral_monsters():
         #   그대로 옮긴다 - 인스펙터에 표와 같은 숫자가 보여야 대조가 된다.
         #   표에 옛 `spawn_range` 한 칸만 있는 경우를 대비해 폴백을 남긴다(뜻이 같다).
         legacy = num(row.get('spawn_range'), 0)
+        is_epic = str(row.get('mon_type') or '').strip().lower() == 'epic'
+
         changes = {
             'spawnRangeMinTiles': num(row.get('spawn_range_min'), legacy),
             'spawnRangeMaxTiles': num(row.get('spawn_range_max'), 0),
             'minEnergy': int(num(row.get('min_energy'))),
             'maxEnergy': int(num(row.get('max_energy'))),
-            # ★ 선공/비선공은 이 한 칸이 전부다(유저 확정) - 게임 쪽에서도 스폰할 때
-            #   UnitCombat 의 canAcquireTargets·canRetaliate 를 이 값으로 덮어쓴다.
-            'aggressive': 1 if int(num(row.get('atk_take'))) else 0,
             'maxAlive': int(num(row.get('max_alive'))),
             'respawnSeconds': num(row.get('respawn_seconds')),
+
+            # ★ 공격 유형이 표에서 온다(2026-08-15). 예전에는 스포너가 근거리로 못박아
+            #   `atk_type: ranged` 인 1002 도 붙어서 싸웠다.
+            'attackType': attack_type_value(row.get('atk_type')),
+
+            # ★ 무리 3칸 (2026-08-15 재정의)
+            #
+            # ⚠ `atk_take` 는 <b>선공 여부가 아니다.</b> 표의 한글 헤더가 처음부터
+            #   "동료 협공 여부" 였는데 71절이 선공으로 읽어 `aggressive` 에 넣고 있었다.
+            #   유저 확정(2026-08-15): <b>중립은 전부 비선공</b>, 웨이브는 전부 선공 —
+            #   선공 여부는 표에 없고 종류가 정한다. 그래서 `aggressive` 필드는 없어졌고
+            #   이 칸은 원래 뜻대로 <b>무리 반격 여부</b>로 쓴다.
+            'groupMaking': 1 if int(num(row.get('group_making'))) else 0,
+            'groupMember': int(num(row.get('group_member'))),
+            'packRetaliate': 1 if int(num(row.get('atk_take'))) else 0,
+
+            # ★ 에픽 = 서식지를 갖는 보스형 (표 mon_type)
+            'epic': 1 if is_epic else 0,
+
+            # ★ 외형 4칸 (2026-08-15 유저가 표에 신설) — 웨이브 몬스터와 같은 이름·같은 뜻
+            #   콜라이더는 그림을 그 상자 안에 맞추는 데 쓰인다(61·66절).
+            'colliderHeightTiles': num(row.get('collider_height_tiles'), 0),
+            'colliderWidthTiles': num(row.get('collider_width_tiles'), 0),
+            'illustName': str(row.get('mon_illust') or '').strip(),
+
+            # mon_skin 은 표에 `Carcinos_asset` 처럼 적힌다(웨이브의 `ingame_asset` 과 같은 형식).
+            # 게임은 <b>종 이름</b>만 필요하므로 꼬리표를 뗀다 →
+            #   Carcinos_asset → Carcinos → Resources/MonsterSkins/Carcinos/Skin_Carcinos
+            'skinAssetName': skin_species(row.get('mon_skin')),
         }
+
+        # 칭호 — 표에 적힌 종만 키를 넣는다(웨이브 보스의 titleKey 와 같은 규칙).
+        if str(row.get('mon_title') or '').strip():
+            changes['titleKey'] = 'mon_title_%d' % mid
 
         st = stats.get(mid)
         if st is not None:
@@ -606,18 +749,90 @@ def sync_neutral_monsters():
                 # 공속·이속은 웨이브 몬스터와 같은 38-1절 공식으로 미리 풀어서 넣는다.
                 'attacksPerSecond': aspd_from_stat(num(st.get('atk_speed'))),
                 'moveSpeedTiles': mspd_from_stat(num(st.get('movement_speed'))),
+
+                # ★ 나머지 공격 계열 + 명중·치명·저항 (2026-08-15 신설)
+                #   ⚠ 명중·치명은 <b>원거리 유형에만</b> 적용된다 — 근거리 종에 값이
+                #     들어 있어도 판정에 쓰이지 않는다.
+                'rangedAttackStat': int(num(st.get('ranged_atk'))),
+                'magicStat': int(num(st.get('magic'))),
+                'cureStat': int(num(st.get('cure'))),
+                'accuracyStat': int(num(st.get('accuracy'), 50)),
+                'criticalStat': int(num(st.get('critical'))),
+                'resistanceStat': int(num(st.get('resistance'), 50)),
             })
 
-        total += patch_fields(os.path.join(folder, asset + '.asset'), changes, asset,
+        path = os.path.join(folder, asset + '.asset')
+
+        # 표에 새로 생긴 종은 에셋 파일 자체가 없다 — 뼈대를 먼저 만든다(1004 가 그렇다).
+        if not os.path.exists(path):
+            create_neutral_asset(path, asset, mid, row)
+
+        # 서식지 값은 <b>에디터에서 조정</b>하는 값이라 매번 덮어쓰지 않는다.
+        # 아직 줄이 없을 때(= 처음 만들어질 때)만 씨앗값을 심는다.
+        if is_epic:
+            with open(path, encoding='utf-8') as f:
+                cur = f.read()
+            for k, v in EPIC_HABITAT_SEED.items():
+                if not re.search(r'^\s*%s:' % re.escape(k), cur, re.M):
+                    changes[k] = v
+
+        total += patch_fields(path, changes, asset,
                               add_missing=('maxAlive', 'respawnSeconds',
-                                           'spawnRangeMinTiles', 'spawnRangeMaxTiles'))
-        print('    %s: 등장 지름 %s~%s타일(원형, 반지름 %.1f~%.1f) · 에너지 %s~%s · %s · 최대 %s마리 · 재생성 %s초'
-              % (asset, changes['spawnRangeMinTiles'], changes['spawnRangeMaxTiles'],
+                                           'spawnRangeMinTiles', 'spawnRangeMaxTiles')
+                                          + NEUTRAL_NEW_FIELDS)
+        print('    %s: %s · 등장 지름 %s~%s타일(반지름 %.1f~%.1f) · 에너지 %s~%s · '
+              '비선공%s · 최대 %s마리 · 재생성 %s초'
+              % (asset,
+                 '에픽(서식지)' if is_epic else '일반',
+                 changes['spawnRangeMinTiles'], changes['spawnRangeMaxTiles'],
                  changes['spawnRangeMinTiles'] / 2.0, changes['spawnRangeMaxTiles'] / 2.0,
                  changes['minEnergy'], changes['maxEnergy'],
-                 '선공' if changes['aggressive'] else '비선공',
+                 (' · 무리 %d마리%s' % (changes['groupMember'],
+                                       '·무리반격' if changes['packRetaliate'] else ''))
+                 if changes['groupMaking'] else '',
                  changes['maxAlive'], changes['respawnSeconds']))
+
+        # 스킨이 지정된 종만 — 표의 상자에 원화를 맞추면 실제로 몇 타일이 되는지 보여준다.
+        species = changes['skinAssetName']
+        if species:
+            report_collider_fit_skin(asset, 'MonsterSkins/%s/Skin_%s' % (species, species),
+                                     changes['colliderWidthTiles'],
+                                     changes['colliderHeightTiles'])
     return total
+
+
+def create_neutral_asset(path, asset, mid, row):
+    """
+    표에 새로 생긴 중립 종의 에셋 <b>뼈대</b>를 만든다. 값 채우기는 곧바로 이어지는
+    `patch_fields` 가 하므로, 여기서는 <b>모든 필드가 한 줄씩 존재</b>하게만 해준다.
+
+    ⚠ `.asset` YAML 에 <b>빈 줄을 넣으면 안 된다</b> — Unity 파서가 그 뒤 필드를 전부
+      무시한다(진행상황 8절 3번). 이 파일 맨 위 원칙과 같다.
+
+    ⚠ `template` 은 `{fileID: 0}` 으로 둔다 — ScriptableObject 는 <b>씬 오브젝트를
+      참조할 수 없다</b>(5절). 스포너의 `spawnTable` 슬롯에서 씬 쪽으로 연결한다.
+    """
+    guid = script_guid('Units/NeutralMonsterDefinitionSO.cs')
+    body = HEADER.format(script_guid=guid, name=asset)
+    body += "  monId: %d\n" % mid
+    body += "  nameKey: %s\n" % (str(row.get('mon_name') or 'mon_name_%d' % mid).strip())
+    body += "  displayName: %s\n" % asset          # 스트링 테이블이 정본이라 폴백용일 뿐이다
+    body += "  template: {fileID: 0}\n"
+    # 나머지 값은 patch_fields 가 채운다 — 여기서는 줄만 만들어 둔다.
+    for line in ('minEnergy: 0', 'maxEnergy: 0', 'attackStat: 0', 'hpStat: 1',
+                 'defenseStat: 0', 'regenStat: 0', 'detectRange: 6', 'attackRange: 1.2',
+                 'attacksPerSecond: 0.7', 'moveSpeedTiles: 1.8', 'leashRangeTiles: 6'):
+        body += "  %s\n" % line
+
+    with open(path, 'w', encoding='utf-8', newline='\n') as f:
+        f.write(body)
+
+    mp = path + '.meta'
+    if not os.path.exists(mp):
+        with open(mp, 'w', encoding='utf-8', newline='\n') as f:
+            f.write(ASSET_META.format(
+                guid=guid_for('Resources/NeutralMonsters/%s.asset' % asset)))
+    print('    + %s 신규 생성' % asset)
 
 
 # ---------------------------------------------------------------------------

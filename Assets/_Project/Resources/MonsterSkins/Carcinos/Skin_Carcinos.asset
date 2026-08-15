@@ -1,0 +1,83 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a517e511b352f46488ffa35edf32295d, type: 3}
+  m_Name: Skin_Carcinos
+  m_EditorClassIdentifier:
+  displayName: 카르시노스
+  framesPerSecond: 10
+  attackFramesPerSecond: 14
+  idleRight:
+  - {fileID: 21300000, guid: 93ca9edcd2b5e065bab5754a068b7115, type: 3}
+  - {fileID: 21300000, guid: 5a0256546056f4a42e17250fbea8c771, type: 3}
+  - {fileID: 21300000, guid: edba2b3d2b54d2be44e5565d8edf5cb9, type: 3}
+  - {fileID: 21300000, guid: 97e8fc1f7300f83b74b8d1393d0cfe9b, type: 3}
+  - {fileID: 21300000, guid: 7830b9067801ff230f4397518c0ead8e, type: 3}
+  - {fileID: 21300000, guid: d17aac26a2eaaae1d61cb4767170bbd3, type: 3}
+  idleLeft:
+  - {fileID: 21300000, guid: 753124284da1ecafd1eab96e7a032467, type: 3}
+  - {fileID: 21300000, guid: 98280c6500d72b37cdac82aad3206ac3, type: 3}
+  - {fileID: 21300000, guid: 0549a132203f84ca6269b662e2cab510, type: 3}
+  - {fileID: 21300000, guid: 5d4881497dc355dff9275e9af0e44548, type: 3}
+  - {fileID: 21300000, guid: 89ead095a0ebf66dff6bbb8fcff3e032, type: 3}
+  - {fileID: 21300000, guid: ba60b01cf8566a69e3a0721d9a60433d, type: 3}
+  walkRight:
+  - {fileID: 21300000, guid: 92ca82846b950745dd8c6169a3759c4c, type: 3}
+  - {fileID: 21300000, guid: 5b225e769fbef43d34d856ac5fd753d3, type: 3}
+  - {fileID: 21300000, guid: 152e02f069bd11c72692042911dc68b6, type: 3}
+  - {fileID: 21300000, guid: ab47a714b4aac28b5d9944b15f0f69d7, type: 3}
+  - {fileID: 21300000, guid: b21aabc91a58227f674b3f4a03cf69b7, type: 3}
+  - {fileID: 21300000, guid: 1eafb9275902db2f22ce1324520ec4df, type: 3}
+  walkLeft:
+  - {fileID: 21300000, guid: f58683f8e6288245e88284be7766e86b, type: 3}
+  - {fileID: 21300000, guid: 0c4895363ecc06831addf73a4827ff37, type: 3}
+  - {fileID: 21300000, guid: 1e1774c52a0a6b71e5cf66d59f1176cb, type: 3}
+  - {fileID: 21300000, guid: ffe908dc5d6942d0950d92d61f60d1cb, type: 3}
+  - {fileID: 21300000, guid: faf5fe6cf134cd0e73f891757e120cf1, type: 3}
+  - {fileID: 21300000, guid: 6ad9e728410d98ed2715630f9007fedd, type: 3}
+  attackRight:
+  - {fileID: 21300000, guid: dfab9534604655e1d855761ab696b0d7, type: 3}
+  - {fileID: 21300000, guid: 5c424f626872ac7a951f5889874047d6, type: 3}
+  - {fileID: 21300000, guid: 6b84529f6674f2c258b81d4d6ef74895, type: 3}
+  - {fileID: 21300000, guid: e6396e945bcd0ae4ef554108ebf56859, type: 3}
+  - {fileID: 21300000, guid: 062ff861ac6e7df2216319100ccbb2d5, type: 3}
+  - {fileID: 21300000, guid: 67f6f4df35fbcce9b653e03f2f63d36e, type: 3}
+  attackLeft:
+  - {fileID: 21300000, guid: 45c6622dad04d0d23c92a4e57cd02192, type: 3}
+  - {fileID: 21300000, guid: db6da848129bd216efdb1955b5e0b760, type: 3}
+  - {fileID: 21300000, guid: 0fe9af245b87387d55f25eafcaa0db67, type: 3}
+  - {fileID: 21300000, guid: 42bca0be7714fb1e5e095e65b6e5a97b, type: 3}
+  - {fileID: 21300000, guid: 9a44735d167f4967de8892e442e05252, type: 3}
+  - {fileID: 21300000, guid: 80a7d680e44cd2121bd278239fd68225, type: 3}
+  rangedRight: []
+  rangedLeft: []
+  healRight: []
+  healLeft: []
+  reviveRight: []
+  reviveLeft: []
+  reviveFx: []
+  skill1Right: []
+  skill1Left: []
+  skill2Right: []
+  skill2Left: []
+  skill1Fx: []
+  skill2Fx: []
+  projectileFrames: []
+  muzzleFlashFrames: []
+  impactFrames: []
+  projectileScale: 0.55
+  impactScale: {x: 1, y: 1}
+  contentSizeTiles: {x: 2.312, y: 2.703}
+  projectileSizeTiles: {x: 0, y: 0}
+  impactSizeTiles: {x: 0, y: 0}
+  projectileWidthTiles: 0
+  impactWidthTiles: 0
+  impactFlattenY: 1

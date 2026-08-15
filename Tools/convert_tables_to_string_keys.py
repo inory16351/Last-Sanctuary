@@ -33,7 +33,7 @@ import sys
 import datetime
 import openpyxl
 
-TABLE_DIR = r'C:\Project\Last-Sanctuary-Vault\데이터 테이블'
+from vault_path import TABLE_DIR   # ★ PC 마다 다른 볼트 위치를 찾아준다(2026-08-15)
 STRING_XLSX = os.path.join(TABLE_DIR, '스트링 키 테이블.xlsx')
 BACKUP_ROOT = os.path.join(TABLE_DIR, '_백업')
 
@@ -55,7 +55,8 @@ TARGETS = [
         ('skill_name', 'skill_name'), ('skill_explain', 'skill_explain')]),
     ('캐릭터 테이블.xlsx', 'Skill_Type', 'skill_type', [('desc', 'skill_type_desc')]),
 
-    ('임시용 중립 몬스터.xlsx', 'neutrality_mon', 'mon_id', [('mon_name', 'mon_name')]),
+    ('임시용 중립 몬스터.xlsx', 'neutrality_mon', 'mon_id', [
+        ('mon_name', 'mon_name'), ('mon_title', 'mon_title')]),
 
     ('정신 이상 테이블.xlsx', 'mental_error', 'mental_error_id', [
         ('Korean_explain', 'mental_error_name')]),

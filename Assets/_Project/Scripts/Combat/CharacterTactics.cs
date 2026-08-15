@@ -64,7 +64,56 @@ namespace LastSanctuary.Combat
         public void SetOrder(TacticalOrder newOrder)
         {
             order.CopyFrom(newOrder);
+            if (RoleLocked) ForceLockedRole();
             Apply();
+        }
+
+        // ------------------------------------------------------------------
+        // 역할 잠금 — 「선봉장」(히스톤 80013) (2026-08-15)
+        //
+        // 정의문이 <b>"포지션은 전방 / 공격 유형은 근거리로 <u>고정</u>된다"</b> 이므로,
+        // 에셋의 <c>attackPreset·positionPreset</c> 으로 <b>시작값</b>만 맞추는 것으로는 부족하다
+        // (그건 태어날 때 한 번 정해줄 뿐, 유저가 전술 창에서 바로 바꿀 수 있다).
+        //
+        // 잠금은 <b>두 겹</b>이다 — UI 가 버튼을 잠그고, 여기서도 값을 거부한다.
+        // <see cref="SetRetreatAction"/> 이 '전방 + 동료와 함께 후퇴'를 막는 것과 같은 이유이자
+        // 같은 모양이다: "UI 가 버튼을 잠그지만, 여기서도 막아 다른 경로로 새어 들어오지 않게 한다".
+        //
+        // ⚠ 잠금은 <b>공격 유형·포지션 두 칸에만</b> 걸린다. 나머지 지침(교전 대상·탐험 유형·
+        //   웨이브 반응·후퇴 기준)은 정의문이 언급하지 않으므로 그대로 유저가 고른다.
+        // ------------------------------------------------------------------
+
+        /// <summary>공격 유형·포지션이 패시브로 잠겨 있는가. <see cref="CharacterPassives"/> 가 켠다.</summary>
+        public bool RoleLocked { get; private set; }
+
+        /// <summary>
+        /// 역할 잠금을 걸거나 푼다. 거는 순간 <b>잠긴 값으로 즉시 스냅</b>한다 —
+        /// 스킬이 늦게 해금돼도(강화로 슬롯이 열리는 경우) 그 시점부터 정의문대로 맞춰진다.
+        /// </summary>
+        public void SetRoleLock(bool locked)
+        {
+            if (RoleLocked == locked) return;
+            RoleLocked = locked;
+            if (!locked) return;
+
+            if (ForceLockedRole()) Apply();
+        }
+
+        /// <summary>잠긴 값(전방·근거리)으로 맞춘다. 실제로 바뀐 게 있으면 true.</summary>
+        bool ForceLockedRole()
+        {
+            bool changed = false;
+            if (order.attackType != TacticalAttackType.Melee)
+            {
+                order.attackType = TacticalAttackType.Melee;
+                changed = true;
+            }
+            if (order.position != TacticalPosition.Front)
+            {
+                order.position = TacticalPosition.Front;
+                changed = true;
+            }
+            return changed;
         }
 
         // ── UI 가 항목 하나씩 바꿀 때 쓰는 편의 메서드 ────────────────────────
@@ -73,12 +122,14 @@ namespace LastSanctuary.Combat
 
         public void SetAttackType(TacticalAttackType v)
         {
+            if (RoleLocked) return;               // 「선봉장」 — 근거리 고정
             if (order.attackType == v) return;
             order.attackType = v; Apply();
         }
 
         public void SetPosition(TacticalPosition v)
         {
+            if (RoleLocked) return;               // 「선봉장」 — 전방 고정
             if (order.position == v) return;
             order.position = v;
             // 전방으로 바꾸면 '동료와 함께 후퇴'가 자동으로 '공격 유지'로 돌아간다(Normalize).

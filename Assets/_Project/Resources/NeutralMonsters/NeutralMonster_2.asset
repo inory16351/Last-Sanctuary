@@ -18,7 +18,7 @@ MonoBehaviour:
   template: {fileID: 0}
   minEnergy: 26
   maxEnergy: 44
-  attackStat: 6
+  attackStat: 0
   hpStat: 8
   defenseStat: 2
   regenStat: 1
@@ -32,3 +32,18 @@ MonoBehaviour:
   respawnSeconds: 13
   spawnRangeMinTiles: 100
   spawnRangeMaxTiles: 199
+  attackType: 1
+  groupMaking: 1
+  groupMember: 3
+  packRetaliate: 1
+  epic: 0
+  rangedAttackStat: 6
+  magicStat: 0
+  cureStat: 0
+  accuracyStat: 50
+  criticalStat: 3
+  resistanceStat: 50
+  colliderHeightTiles: 1.9
+  colliderWidthTiles: 2.6
+  illustName: 
+  skinAssetName: 

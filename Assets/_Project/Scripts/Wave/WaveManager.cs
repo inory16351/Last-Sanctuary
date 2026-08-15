@@ -466,12 +466,23 @@ namespace LastSanctuary.Wave
             return !CanStillCreateCharacter() && !HasLivingTower();
         }
 
+        /// <summary>
+        /// 아직 남아 있는 캐릭터 수 — 패배 판정용이다.
+        ///
+        /// ★ <b>부활 대기 중인 캐릭터를 살아있는 것으로 센다</b>
+        /// (<see cref="CharacterUnit.IsRevivePending"/>). 여기가 묻는 것은
+        /// "지금 싸울 수 있나"가 아니라 <b>"부대가 전멸했나"</b>이고, 3초 뒤 반드시
+        /// 일어나는 캐릭터는 전멸이 아니다.
+        ///
+        /// 이 한 줄이 없으면 <b>마지막 생존자가 히스톤일 때 부활을 못 기다리고 진다</b> —
+        /// <see cref="BeginDefeat"/> 는 <c>IsFinished</c> 로 잠기므로 부활해도 되돌아오지 않는다.
+        /// </summary>
         static int CountAliveCharacters()
         {
             var all = UnitRegistry.All;
             int n = 0;
             for (int i = 0; i < all.Count; i++)
-                if (all[i] is CharacterUnit c && c.IsAlive) n++;
+                if (all[i] is CharacterUnit c && (c.IsAlive || c.IsRevivePending)) n++;
             return n;
         }
 

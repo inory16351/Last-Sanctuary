@@ -87,16 +87,55 @@ namespace LastSanctuary.Units
         [Range(0, 100)] public int defenseStat = 0;
         [Range(0, 100)] public int regenStat = 0;
 
-        [Header("★ 선공 여부 (테이블 atk_take) — 이 한 칸이 전부다")]
-        [Tooltip("★ <b>중립 몬스터의 적대 판정은 이 값 하나로 정해진다</b> (유저 확정 2026-08-13).\n\n" +
-                 "  <b>켜짐(선공)</b>   — 적이 보이면 먼저 다가가서 때린다.\n" +
-                 "  <b>꺼짐(비선공)</b> — <b>맞기 전까지는</b> 공격하지 않는다. 맞으면 반격한다.\n\n" +
-                 "⚠ 예전에는 이 값 말고도 템플릿의 <c>UnitCombat.canAcquireTargets</c>·" +
-                 "<c>canRetaliate</c> 가 인스펙터에 따로 노출돼 있어서 '선공 체크가 여러 개' 로 " +
-                 "보였고, 세 값이 어긋나면 표와 다르게 동작했다(유저 리포트). 이제 스포너가 " +
-                 "스폰할 때마다 이 값 하나로 <b>둘 다 덮어쓴다</b> — 템플릿에 뭐가 켜져 있든 " +
-                 "표가 이긴다(NeutralMonsterSpawner.SpawnOne).")]
-        public bool aggressive = false;
+        [Tooltip("원거리 공격력 (ranged_atk). attackType 이 Ranged 일 때 쓰인다")]
+        [Range(0, 100)] public int rangedAttackStat = 0;
+
+        [Tooltip("마법 공격력 (magic). attackType 이 Magic 일 때 쓰인다")]
+        [Range(0, 100)] public int magicStat = 0;
+
+        [Tooltip("회복력 (cure). attackType 이 Heal 일 때 쓰인다")]
+        [Range(0, 100)] public int cureStat = 0;
+
+        [Tooltip("명중률 (accuracy). ⚠ <b>원거리 공격 유형에만</b> 적용된다 (유저 확정 2026-08-15).\n" +
+                 "적중% = 80 + 명중률 (상한 100)")]
+        [Range(0, 100)] public int accuracyStat = 50;
+
+        [Tooltip("크리티컬 확률 (critical). ⚠ <b>원거리 공격 유형에만</b> 적용된다")]
+        [Range(0, 100)] public int criticalStat = 0;
+
+        [Tooltip("저항력 (resistance). 표시용 — 중립은 침식을 받지 않는다")]
+        [Range(0, 100)] public int resistanceStat = 50;
+
+        // ==================================================================
+        // ★ 무리 (테이블 group_making / group_member / atk_take) — 2026-08-15 재정의
+        //
+        // ⚠ <b>`atk_take` 의 의미를 바로잡았다.</b> 71절이 이 칸을 "선공 여부" 로 읽어
+        // <c>aggressive</c> 에 넣고 있었는데, 표의 한글 헤더는 처음부터
+        // <b>"동료 협공 여부"</b> 였다. 유저 확정(2026-08-15)으로 정리하면:
+        //
+        //   · <b>선공 여부는 표에 없다</b> — 종류로 정해진다.
+        //     <b>중립 몬스터는 전부 비선공</b>, 웨이브 몬스터는 전부 선공.
+        //   · <c>atk_take</c> = <b>무리 반격 여부</b> — 같은 무리의 동료가 맞으면 같이 덤빈다.
+        //
+        // 그래서 <c>aggressive</c> 필드를 없앴다. 남겨두면 "선공 체크가 여러 개" 문제가
+        // 그대로 돌아온다(위 88~98행이 지적하던 바로 그 문제다).
+        // ==================================================================
+
+        [Header("★ 무리 (테이블 group_making · group_member · atk_take)")]
+        [Tooltip("무리를 짓는가 (group_making).\n" +
+                 "켜져 있으면 스폰될 때 <b>가까이 있는 같은 종</b>과 한 무리로 묶인다.\n" +
+                 "묶는 거리와 최대 마리 수는 아래 group_member 와 스포너의 무리 반경이 정한다")]
+        public bool groupMaking = false;
+
+        [Tooltip("한 무리의 최대 마리 수 (group_member). 0 이면 무리를 만들지 않는다")]
+        [Min(0)] public int groupMember = 0;
+
+        [Tooltip("★ <b>무리 반격 여부</b> (atk_take — 표 한글 헤더 \"동료 협공 여부\").\n\n" +
+                 "  <b>켜짐</b> — 같은 무리의 동료가 공격받으면 <b>무리 전체가</b> 그 공격자에게 덤빈다.\n" +
+                 "  <b>꺼짐</b> — 맞은 개체만 혼자 반격한다.\n\n" +
+                 "⚠ 이 값은 <b>선공 여부가 아니다</b>. 중립 몬스터는 예외 없이 전부 비선공이다 " +
+                 "(유저 확정 2026-08-15) — 먼저 맞기 전에는 절대 공격하지 않는다.")]
+        public bool packRetaliate = false;
 
         [Header("전투 파라미터 (타일)")]
         [Tooltip("이 거리 안의 적을 인식한다. <b>선공일 때만</b> 스스로 찾아간다 — " +
@@ -112,13 +151,118 @@ namespace LastSanctuary.Units
         [Tooltip("스폰 지점 기준 이 반경 밖의 적은 쫓지 않고 돌아온다(타일). 서식지에 묶어둔다")]
         [Min(1f)] public float leashRangeTiles = 6f;
 
-        /// <summary>웨이브 배율 없이 그대로 쓰는 능력치 묶음.</summary>
+        [Tooltip("공격 방식 (표 atk_type). ⚠ <b>명중률·크리티컬은 Ranged 일 때만</b> 적용된다.\n" +
+                 "스폰할 때 스포너가 UnitCombat 에 넣어준다 — 템플릿을 손대지 않아도 반영된다")]
+        public TacticalAttackType attackType = TacticalAttackType.Melee;
+
+        // ==================================================================
+        // 외형 — 표의 mon_title · collider_*_tiles · mon_illust · mon_skin (2026-08-15)
+        //
+        // 웨이브 몬스터(<see cref="MonsterDefinitionSO"/>)가 이미 갖고 있던 칸들을
+        // <b>같은 이름·같은 뜻</b>으로 중립에도 들여왔다. 표 형식이 두 벌로 갈리면
+        // 파싱도 두 벌이 된다.
+        // ==================================================================
+
+        [Header("외형")]
+        [Tooltip("칭호의 스트링 키 (표 mon_title). 예: mon_title_1004.\n" +
+                 "비어 있으면 칭호가 없다 — 보스 체력바가 이름만 띄운다")]
+        public string titleKey = "";
+
+        /// <summary>칭호. 없으면 빈 문자열 — <see cref="MonsterDefinitionSO.Title"/> 과 같은 규칙.</summary>
+        public string Title =>
+            string.IsNullOrWhiteSpace(titleKey)
+                ? string.Empty
+                : Data.StringTable.Get(titleKey, string.Empty);
+
+        [Tooltip("콜라이더 가로(타일). 세로와 함께 0 보다 커야 이 경로가 쓰인다.\n" +
+                 "그림을 이 상자 안에 비율 유지로 맞추고, 콜라이더를 다시 그 그림 크기로 맞춘다(61·66절)")]
+        [Min(0f)] public float colliderWidthTiles;
+
+        [Tooltip("콜라이더 세로(타일)")]
+        [Min(0f)] public float colliderHeightTiles;
+
+        /// <summary>표의 콜라이더 상자가 실제로 채워져 있는지.</summary>
+        public bool HasColliderBox => colliderWidthTiles > 0f && colliderHeightTiles > 0f;
+
+        [Tooltip("일러스트 이름 (표 mon_illust). Resources/Illust 아래를 찾는다.\n" +
+                 "⚠ 중립 몬스터의 일러스트를 띄우는 UI 는 <b>아직 없다</b> — 원화를 잃지 않게 담아만 둔다")]
+        public string illustName = "";
+
+        [Tooltip("스킨 <b>종 이름</b> (표 mon_skin 에서 '_asset' 을 뗀 것).\n" +
+                 "Resources/MonsterSkins/<종>/Skin_<종> 을 찾는다 — 예: Carcinos → " +
+                 "Resources/MonsterSkins/Carcinos/Skin_Carcinos.\n" +
+                 "비어 있으면 스킨을 붙이지 않는다(1001~1003 처럼 정적 스프라이트로 남는다)")]
+        public string skinAssetName = "";
+
+        /// <summary>
+        /// 스킨 에셋의 Resources 경로. 없으면 빈 문자열.
+        ///
+        /// <b>왜 종 이름 하나로 경로를 만드나</b> — 몬스터 스킨은 종마다 폴더 하나라는
+        /// 규약이 이미 있다(<c>MonsterSkins/HellFang</c> 등). 그 규약을 코드가 알고 있으면
+        /// 표에는 종 이름만 적으면 된다.
+        /// </summary>
+        public string SkinResourcePath
+        {
+            get
+            {
+                string s = skinAssetName != null ? skinAssetName.Trim() : "";
+                return s.Length == 0 ? "" : $"MonsterSkins/{s}/Skin_{s}";
+            }
+        }
+
+        // ==================================================================
+        // ★ 서식지 (mon_type == Epic) — 롤 정글 캠프 방식 (유저 지시 2026-08-15)
+        //
+        // <b>일반(Normal)과 무엇이 다른가</b>
+        //   · 일반 — <b>넥서스 중심</b>의 고리(spawn_range_min~max) 안을 계속 배회한다.
+        //   · 에픽 — <b>자기가 태어난 자리</b>를 중심으로 한 원이 서식지다. 그 중앙에서
+        //     <b>가만히 기다리다가</b>, 맞으면 서식지 밖 일정 거리까지만 쫓고 돌아온다.
+        //
+        // 기준점이 넥서스에서 <b>자기 스폰 지점</b>으로 바뀌는 것이 핵심이다. 넥서스 기준으로
+        // 두면 맵 반대편의 에픽이 서로 같은 고리를 공유해 "자기 자리" 라는 개념이 생기지 않는다.
+        //
+        // ⚠ 값은 <b>에디터에서 조정한다</b>(유저 지시: "타일 계산 값들은 에딧에서 수정할 수
+        //   있도록"). 표에는 넣지 않았다 — 연출·손맛에 해당하는 값이라 밸런싱 중 자주 바뀐다.
+        // ==================================================================
+
+        [Header("★ 서식지 (에픽 전용)")]
+        [Tooltip("에픽 중립 몬스터인가 (표 mon_type == epic).\n" +
+                 "켜지면 넥서스 고리 배회 대신 <b>자기 스폰 지점 중심의 서식지</b>를 쓴다")]
+        public bool epic = false;
+
+        [Tooltip("서식지 반지름(타일). 이 원의 <b>중앙에서 대기</b>한다.\n" +
+                 "에픽이 아니면 쓰이지 않는다")]
+        [Min(1f)] public float habitatRadiusTiles = 12f;
+
+        [Tooltip("서식지 <b>경계에서</b> 이만큼 더 나갈 때까지만 쫓는다(타일).\n" +
+                 "이 선을 넘으면 추격을 포기하고 서식지 중앙으로 돌아간다 — 롤 정글 캠프와 같다")]
+        [Min(0f)] public float habitatChaseTiles = 6f;
+
+        /// <summary>
+        /// 서식지 중앙에서 이 거리 안이면 "제자리" 로 본다(타일).
+        /// 0 이면 정확히 중앙에 붙어 서므로 살짝 여유를 준다.
+        /// </summary>
+        [Min(0f)] public float habitatIdleSlackTiles = 1f;
+
+        /// <summary>
+        /// 웨이브 배율 없이 그대로 쓰는 능력치 묶음.
+        ///
+        /// ★ 2026-08-15 부터 <b>12칸을 전부</b> 채운다 — 예전에는 hp/attack/defense/regen
+        /// 네 칸만 채워서, 표에 <c>accuracy</c>·<c>critical</c> 이 적혀 있어도 게임에
+        /// 반영되지 않았고 원거리 종(1002)은 <c>ranged_atk</c> 칸이 아예 없었다.
+        /// </summary>
         public StatBlock BuildStats() => new StatBlock
         {
-            hp = Mathf.Max(1, hpStat),
-            attack = Mathf.Max(0, attackStat),
-            defense = Mathf.Max(0, defenseStat),
-            regen = Mathf.Max(0, regenStat),
+            hp           = Mathf.Max(1, hpStat),
+            attack       = Mathf.Max(0, attackStat),
+            rangedAttack = Mathf.Max(0, rangedAttackStat),
+            magic        = Mathf.Max(0, magicStat),
+            cure         = Mathf.Max(0, cureStat),
+            defense      = Mathf.Max(0, defenseStat),
+            regen        = Mathf.Max(0, regenStat),
+            accuracy     = Mathf.Max(0, accuracyStat),
+            critical     = Mathf.Max(0, criticalStat),
+            resistance   = Mathf.Max(0, resistanceStat),
         };
     }
 }

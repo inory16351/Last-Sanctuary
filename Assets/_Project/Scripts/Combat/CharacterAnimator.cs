@@ -85,6 +85,12 @@ namespace LastSanctuary.Combat
         /// <summary>지금 보스 스킬 시전 모션을 재생 중인지.</summary>
         bool InSkillMotion => _skillSlot >= 0 && Time.time < _skillUntil;
 
+        /// <summary>부활 모션이 끝나는 시각. 「분노」(히스톤 80014)의 경직 구간이다.</summary>
+        float _reviveUntil;
+
+        /// <summary>지금 부활 모션을 재생 중인지.</summary>
+        bool InReviveMotion => Time.time < _reviveUntil;
+
         /// <summary>지금 쓰고 있는 스킨. 없으면 null(스프라이트를 건드리지 않는다).</summary>
         public CharacterSkinSO Skin => _skin;
 
@@ -286,6 +292,20 @@ namespace LastSanctuary.Combat
             //   "공격 → 대기 → 걷기" 로 한 프레임 튄다.
             if (moved > moveThreshold) _walkUntil = Time.time + moveMotionHoldSeconds;
 
+            // ★ 부활이 <b>가장 앞</b>이다 — 이 구간에서 캐릭터는 체력 0(사망 상태)이라
+            //   AI 가 멈춰 있고, 그대로 두면 대기 모션으로 <b>멀쩡히 서 있는 시체</b>가 된다.
+            //   전용 원화가 없는 캐릭터는 폴백 없이 그냥 건너뛴다(부활은 히스톤 전용이다).
+            if (InReviveMotion)
+            {
+                Sprite[] revive = _skin.Revive(_facingRight);
+                if (revive != null && revive.Length > 0)
+                {
+                    fps = _skin.attackFramesPerSecond;
+                    return revive;
+                }
+                _reviveUntil = 0f;
+            }
+
             // 보스 스킬 시전이 가장 앞이다 — 시전 중에 평타·걷기 모션이 섞이면
             // "뭔가 큰 걸 쓰고 있다"는 신호가 사라진다.
             if (InSkillMotion)
@@ -350,6 +370,9 @@ namespace LastSanctuary.Combat
             // "엉뚱한 데를 보고 쏘는" 것처럼 보인다.
             if (InSkillMotion) return;
 
+            // 쓰러진 동안에도 방향을 고정한다 — 죽은 캐릭터가 적을 따라 홱홱 도는 건 이상하다.
+            if (InReviveMotion) return;
+
             float dx;
 
             DamageableUnit target = _combat != null ? _combat.Target : null;
@@ -395,6 +418,39 @@ namespace LastSanctuary.Combat
             }
 
             _attackUntil = Time.time + Mathf.Max(minAttackHoldSeconds, seconds);
+        }
+
+        /// <summary>
+        /// 부활 모션을 <paramref name="seconds"/> 동안 재생한다 (「분노」의 경직 구간).
+        /// <see cref="CharacterPassives"/> 가 사망 순간에 부른다.
+        ///
+        /// <b>전용 원화가 없으면 아무 일도 하지 않는다</b> — 보스 스킬(<see cref="PlaySkillMotion"/>)과
+        /// 달리 평타로 대체하지 않는다. 부활은 지금 히스톤만 갖는 효과이고, 대체 모션으로
+        /// 때리는 시늉을 하면 "죽었는데 공격한다" 로 보여 오히려 더 이상하다.
+        /// </summary>
+        public void PlayReviveMotion(float seconds)
+        {
+            if (_skin == null || seconds <= 0f) return;
+            if (!HasReviveFrames) return;
+
+            _reviveUntil = Time.time + seconds;
+            _frameClock = 0f;
+
+            // 남아 있던 다른 모션을 끊는다 — 죽는 순간의 공격 모션이 겹쳐 보이면 안 된다.
+            _skillSlot = -1;
+            _attackUntil = 0f;
+            _walkUntil = 0f;
+        }
+
+        /// <summary>이 스킨에 부활 원화가 실제로 들어 있는지 (히스톤 외에는 비어 있다).</summary>
+        public bool HasReviveFrames
+        {
+            get
+            {
+                if (_skin == null) return false;
+                Sprite[] f = _skin.Revive(_facingRight);
+                return f != null && f.Length > 0;
+            }
         }
 
         void HandleAttackPerformed()

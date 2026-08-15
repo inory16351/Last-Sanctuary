@@ -329,6 +329,17 @@ namespace LastSanctuary.Units
         {
             if (dead is not CharacterUnit character) return;
 
+            // ★ <b>부활할 캐릭터는 제명하지 않는다</b> — 「분노」(히스톤 80014).
+            //   이 이벤트는 <see cref="CharacterUnit.OnDeath"/> 가 파괴를 건너뛰어도
+            //   그대로 발생한다(<see cref="DamageableUnit.ApplyDamage"/>). 그대로 지우면
+            //   <b>부활한 뒤 무소속이 되어</b> 협동 탐험·부대 집결에서 영영 빠지고,
+            //   유저가 손으로 다시 배정해야 한다 — 다시 넣어주는 코드가 없기 때문이다.
+            //
+            //   3초 동안 편성에 남아 있어도 문제가 없다: <see cref="Squad.AliveCount"/> ·
+            //   <c>LeaderFor</c> · <c>IsMovementEligible</c> 이 전부 <c>IsAlive</c> 를 보므로
+            //   쓰러져 있는 동안은 자연스럽게 제외된다.
+            if (character.IsRevivePending) return;
+
             bool removed = false;
             for (int i = 0; i < _squads.Count; i++)
                 if (_squads[i].Members.Remove(character)) removed = true;

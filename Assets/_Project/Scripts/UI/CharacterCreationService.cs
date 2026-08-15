@@ -63,7 +63,13 @@ namespace LastSanctuary.UI
 
         // ------------------------------------------------------------------
 
-        /// <summary>지금 살아있는 캐릭터 수. 죽으면 오브젝트가 파괴되므로 레지스트리를 세는 게 정확하다.</summary>
+        /// <summary>
+        /// 지금 자리를 차지하고 있는 캐릭터 수. 죽으면 오브젝트가 파괴되므로 레지스트리를 세는 게 정확하다.
+        ///
+        /// ★ <b>부활 대기 중인 캐릭터도 센다</b>(<see cref="CharacterUnit.IsRevivePending"/>) —
+        /// 이 값은 <b>인원 상한</b>(<c>AtLimit</c>) 판정에 쓰이는데, 3초 동안 한 칸이 비는 것으로
+        /// 보이면 <b>그 틈에 상한을 넘겨 생성</b>할 수 있고 부활한 뒤 정원이 초과된다.
+        /// </summary>
         public int AliveCount
         {
             get
@@ -71,7 +77,7 @@ namespace LastSanctuary.UI
                 var all = LastSanctuary.Combat.UnitRegistry.All;
                 int n = 0;
                 for (int i = 0; i < all.Count; i++)
-                    if (all[i] is CharacterUnit c && c.IsAlive) n++;
+                    if (all[i] is CharacterUnit c && (c.IsAlive || c.IsRevivePending)) n++;
                 return n;
             }
         }

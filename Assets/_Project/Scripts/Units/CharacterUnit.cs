@@ -164,13 +164,70 @@ namespace LastSanctuary.Units
         public override float StatMoveSpeedTiles =>
             Balance != null ? Balance.MoveSpeedTilesOf(EffectiveStat(StatType.MoveSpeed)) : 0f;
 
-        /// <summary>명중률 능력치 → 적중 확률(%). 실수 — 0.5% 단위 조정이 가능하다.</summary>
-        public override float HitChancePercent =>
-            Balance != null ? Balance.HitChancePercent(EffectiveStat(StatType.Accuracy)) : 100f;
+        // ------------------------------------------------------------------
+        // ★ 명중률·크리티컬은 <b>원거리 공격 유형에만</b> 적용된다 (유저 확정 2026-08-15)
+        //
+        // 회복·근거리·마법으로 싸우는 캐릭터는 <b>항상 명중</b>하고 <b>치명타가 나지 않는다</b>.
+        // 회복은 <see cref="UnitCombat"/> 의 <c>PerformHeal</c> 이 <c>TakeDamageFrom</c> 을
+        // 아예 안 타므로 원래부터 제외였고, 이번에 근거리·마법이 같은 규칙으로 합류한 것이다.
+        //
+        // 근거 — 성장 유형 표(82-5절)가 명중률·크리티컬을 <b>원거리 딜러</b> 묶음에만 넣어 두었다.
+        // 두 능력치가 모든 유형에 걸리면 그 묶음이 의미를 잃는다(공격력 계열이 유형별로 갈리는
+        // <see cref="AttackStatType"/> 과 같은 취지다).
+        //
+        // ⚠ 판정 자체는 <see cref="DamageableUnit.TakeDamageFrom"/> 한 곳에 있고 그쪽은
+        // 공격 유형을 모른다 — <b>확률을 0/100 으로 돌려주는 것</b>으로 유형을 반영한다.
+        // 파이프라인을 건드리지 않으므로 몬스터·포탑·보스의 동작은 한 줄도 안 바뀐다.
+        // ------------------------------------------------------------------
 
-        /// <summary>크리티컬 확률 능력치 → 치명타 확률(%). 실수.</summary>
+        /// <summary>
+        /// 명중률 능력치 → 적중 확률(%). <b>원거리일 때만</b> 능력치를 본다.
+        /// 그 외 유형은 100%(= 절대 안 빗나감)이라 <c>TakeDamageFrom</c> 의 명중 판정이 통째로 생략된다.
+        /// </summary>
+        public override float HitChancePercent =>
+            Balance != null && AttackTypeOf() == TacticalAttackType.Ranged
+                ? Balance.HitChancePercent(EffectiveStat(StatType.Accuracy))
+                : 100f;
+
+        /// <summary>
+        /// 크리티컬 확률 능력치 → 치명타 확률(%). <b>원거리일 때만</b>, 그리고
+        /// <see cref="MeleeCriticalAllowed"/> 가 열린 근거리일 때만 능력치를 본다.
+        /// </summary>
         public override float CriticalChancePercent =>
-            Balance != null ? Balance.CriticalChancePercent(EffectiveStat(StatType.Critical)) : 0f;
+            Balance != null && CriticalAppliesToCurrentAttack()
+                ? Balance.CriticalChancePercent(EffectiveStat(StatType.Critical))
+                : 0f;
+
+        /// <summary>지금 공격 유형이 치명타를 낼 수 있는가.</summary>
+        bool CriticalAppliesToCurrentAttack()
+        {
+            TacticalAttackType type = AttackTypeOf();
+            if (type == TacticalAttackType.Ranged) return true;
+
+            // 예외 — 「선봉장」(히스톤 80013)이 근거리 크리티컬을 열어준다.
+            return type == TacticalAttackType.Melee && MeleeCriticalAllowed;
+        }
+
+        /// <summary>
+        /// 근거리 크리티컬 예외가 지금 걸려 있는가 — 「선봉장」 같은 패시브가 연다.
+        /// </summary>
+        public bool MeleeCriticalAllowed => _meleeCriticalGrants > 0;
+
+        /// <summary>
+        /// 근거리 크리티컬 예외를 건 패시브 수. <b>bool 이 아니라 개수</b>인 이유는
+        /// <see cref="AddFlatStatBonus"/> 와 같다 — 두 패시브가 같은 예외를 걸었을 때
+        /// 한쪽이 풀리면서 다른 쪽 것까지 지우면 안 된다.
+        /// </summary>
+        int _meleeCriticalGrants;
+
+        /// <summary>
+        /// 근거리 크리티컬 예외를 걸거나(+1) 푼다(−1). 해제할 때 <b>건 값을 음수로</b> 넣는다.
+        /// </summary>
+        public void AddMeleeCriticalGrant(int delta)
+        {
+            if (delta == 0) return;
+            _meleeCriticalGrants = Mathf.Max(0, _meleeCriticalGrants + delta);
+        }
 
         /// <summary>저항력 → 침식 상승 배율. 기준점(50)에서 1.0.</summary>
         public float ErosionGainMultiplier =>
@@ -180,17 +237,9 @@ namespace LastSanctuary.Units
         public float ErosionRecoverMultiplier =>
             Balance != null ? Balance.ErosionRecoverMultiplier(stats.resistance) : 1f;
 
-        UnitCombat _combat;
-
-        /// <summary>
-        /// 지금 공격 유형. <see cref="UnitCombat"/> 이 같은 오브젝트에 있으므로 캐시해서 읽는다.
-        /// 아직 붙기 전(생성 직후 한 프레임)이면 근거리로 본다.
-        /// </summary>
-        TacticalAttackType AttackTypeOf()
-        {
-            if (_combat == null) _combat = GetComponent<UnitCombat>();
-            return _combat != null ? _combat.AttackType : TacticalAttackType.Melee;
-        }
+        // ⚠ 공격 유형 조회(<c>AttackTypeOf</c>)는 <see cref="DamageableUnit"/> 로 옮겼다
+        //   (2026-08-15) — 몬스터·중립도 같은 규칙을 쓰게 되면서, 세 클래스에 같은 코드가
+        //   세 벌 있을 이유가 없어졌다. 여기 있던 사본은 베이스 것을 가려(CS0108) 지웠다.
 
         /// <summary>이기심 상태에서는 외부 치유를 거부한다 — 자기 체력 재생은 이 경로를 거치지 않는다.</summary>
         public override bool AcceptsExternalHeal => !_externalHealBlocked;
@@ -308,11 +357,69 @@ namespace LastSanctuary.Units
 
         protected override void OnDeath()
         {
+            // ★ 「분노」(히스톤 80014) — 분노가 가득 차 있으면 <b>파괴하지 않는다</b>.
+            //   경직 동안 체력 0 인 채로 누워 있다가 <see cref="Combat.CharacterPassives"/> 가
+            //   되살린다. 이 갈림길이 없으면 아래 Destroy 가 먼저 돌아 부활할 몸이 사라진다.
+            //
+            //   ⚠ 파괴를 건너뛰므로 <b>이 캐릭터는 UnitRegistry 에 계속 남는다</b>. 체력이 0 이라
+            //   <b>"지금 싸울 수 있나"를 묻는 곳</b>(타겟 탐색·아우라·회복 대상·UnitCombat/
+            //   CharacterBehavior 의 Update 가드)은 전부 IsAlive 로 알아서 걸러진다.
+            //
+            //   ⚠⚠ 반대로 <b>"이 캐릭터가 없어졌나"를 묻는 곳은 IsAlive 만 보면 틀린다</b> —
+            //   그쪽은 <see cref="IsRevivePending"/> 을 같이 봐야 한다. 지금 그렇게 고친 곳:
+            //     · <c>WaveManager.CountAliveCharacters</c>   — 안 고치면 마지막 생존자가
+            //       쓰러진 프레임에 <b>패배가 확정되어 부활이 오기 전에 게임이 끝난다</b>
+            //     · <c>SquadService.HandleAnyDied</c>          — 안 고치면 부대에서 영구 제명된다
+            //     · <c>CharacterCreationService.AliveCount</c> — 안 고치면 인원 상한을 넘겨 생성된다
+            //   ★ <b>죽음을 세는 코드를 새로 만들 때 이 목록에 넣을지 반드시 판단할 것.</b>
+            //
+            //   ⚠ 이 갈림길을 지나도 <c>OnDied</c>/<c>OnAnyDied</c> 는 <b>그대로 발생한다</b>
+            //   (<see cref="DamageableUnit.ApplyDamage"/>) — 쓰러진 것 자체는 사실이기 때문이다.
+            //   되돌릴 것이 있는 구독자는 <see cref="DamageableUnit.OnRevived"/> 로 되감는다
+            //   (<c>CharacterRosterPanel</c> 의 사망 표시가 그 예다).
+            Combat.CharacterPassives passives = Passives;
+            if (passives != null && passives.TryBeginRevive())
+            {
+                Debug.Log($"[Character] {name} 쓰러짐 — 부활 대기", this);
+                return;
+            }
+
             Debug.Log($"[Character] {name} 사망", this);
 
             // 남겨두면 시체가 넥서스 주변에 쌓여 "전투가 멈춘 것처럼" 보인다.
             // 사망 연출이 필요해지면 여기서 애니메이션 후 파괴로 바꾼다.
             Destroy(gameObject);
+        }
+
+        /// <summary>
+        /// ★ <b>쓰러졌지만 곧 되살아난다</b> — 「분노」(히스톤 80014)의 경직 구간.
+        /// 체력은 0(<c>IsAlive == false</c>)이지만 <b>파괴되지 않았고 반드시 돌아온다.</b>
+        ///
+        /// <b>왜 공개하나</b> — 죽음을 세는 코드가 두 종류인데 성격이 다르기 때문이다:
+        ///   ① <b>"지금 싸울 수 있나"</b>를 묻는 곳(타겟 탐색·아우라·회복 대상)은
+        ///      <c>IsAlive</c> 만 보면 맞다 — 3초 동안은 정말로 못 싸운다.
+        ///   ② <b>"이 캐릭터가 없어졌나"</b>를 묻는 곳(패배 판정·부대 편성·인원 상한)은
+        ///      <c>IsAlive</c> 만 보면 <b>틀린다</b> — 없어진 게 아니라 잠깐 누워 있는 것이다.
+        ///      이런 곳이 이 값을 같이 봐야 한다.
+        ///
+        /// ②를 놓치면 실제로 사고가 난다: 마지막 생존자가 부활 대기에 들어간 순간
+        /// 패배가 확정되어 <b>3초 뒤 부활이 오기 전에 게임이 끝난다.</b>
+        /// </summary>
+        public bool IsRevivePending => Passives != null && Passives.IsReviving;
+
+        Combat.CharacterPassives _passives;
+
+        /// <summary>
+        /// 이 캐릭터의 패시브 컴포넌트. 사망 경로에서 부르므로 <b>캐시</b>한다 —
+        /// 죽는 순간에 <c>GetComponent</c> 를 도는 건 낭비이고, 이 값은 생애 동안 안 바뀐다.
+        /// </summary>
+        Combat.CharacterPassives Passives
+        {
+            get
+            {
+                if (_passives == null) _passives = GetComponent<Combat.CharacterPassives>();
+                return _passives;
+            }
         }
 
         /// <summary>디버깅용 요약.</summary>

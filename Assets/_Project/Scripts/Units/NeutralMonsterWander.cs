@@ -106,9 +106,65 @@ namespace LastSanctuary.Units
                 : maxRadius;
             _maxRadius = Mathf.Max(_minRadius + 1f, boundedMax);
 
+            _habitatMode = false;
             _initialized = true;
             PickDestination();
         }
+
+        // ==================================================================
+        // ★ 서식지 모드 (에픽 중립 몬스터) — 롤 정글 캠프 (유저 지시 2026-08-15)
+        //
+        // *"에픽 타입 중립 몬스터는 일정 타일 원형 범위의 서식지를 가지고 해당 서식지의
+        //   중앙에서 대기 하다가 공격 받으면 서식지 범위 내 일정 타일 범위 밖까지 캐릭터들 추격"*
+        //
+        // <b>일반 모드와 무엇이 다른가 — 딱 두 가지다.</b>
+        //   ① 기준 중심이 <b>넥서스 → 자기 스폰 지점</b>으로 바뀐다.
+        //   ② 배회하지 않고 <b>중앙에서 대기</b>한다.
+        // 나머지(고리 밖 판정 · 복귀 · 후퇴 사격)는 <b>완전히 같은 코드</b>를 쓴다 —
+        // 서식지도 결국 "중심 + 반지름" 이라 고리(min=0, max=반지름)로 표현되기 때문이다.
+        // 추격 한계도 같은 <see cref="pursuitTiles"/> 이고, 값만 표가 아니라 정의 SO 에서 온다.
+        //
+        // ⚠ 중심을 <b>스폰 지점으로 고정</b>하는 것이 핵심이다. 넥서스 기준으로 두면 맵
+        //   반대편의 에픽 둘이 같은 고리를 공유해 "자기 자리" 라는 개념이 생기지 않는다.
+        // ==================================================================
+
+        /// <summary>서식지 모드인가. 켜지면 중심이 넥서스가 아니라 <see cref="_habitatCenter"/> 다.</summary>
+        bool _habitatMode;
+        Vector3 _habitatCenter;
+
+        /// <summary>서식지 중앙에서 이 거리 안이면 "제자리" 로 보고 더 움직이지 않는다.</summary>
+        float _habitatIdleSlack = 1f;
+
+        /// <summary>
+        /// 에픽 개체를 <b>자기 서식지</b>에 묶는다. 스포너가 스폰 직후 호출한다.
+        /// </summary>
+        /// <param name="center">서식지 중심 — 이 개체가 태어난 자리.</param>
+        /// <param name="radiusTiles">서식지 반지름(타일).</param>
+        /// <param name="chaseTiles">서식지 <b>경계에서</b> 이만큼 더 나갈 때까지만 쫓는다.</param>
+        /// <param name="idleSlackTiles">중앙에서 이 거리 안이면 제자리로 본다.</param>
+        public void InitHabitat(Vector3 center, float radiusTiles, float chaseTiles,
+                                float idleSlackTiles)
+        {
+            EnsureReady();
+
+            _habitatMode = true;
+            _habitatCenter = center;
+            _habitatIdleSlack = Mathf.Max(0f, idleSlackTiles);
+
+            pursuitTiles = Mathf.Max(0f, chaseTiles);
+            _minRadius = 0f;
+            _maxRadius = Mathf.Max(1f, radiusTiles);
+
+            _initialized = true;
+            _destination = center;
+            _combat.SetHome(center);
+        }
+
+        /// <summary>
+        /// 고리·복귀 판정의 <b>중심</b>. 서식지 모드면 스폰 지점, 아니면 넥서스.
+        /// 두 모드가 같은 판정 코드를 공유할 수 있게 하는 한 지점이다.
+        /// </summary>
+        Vector3 RingCenter() => _habitatMode ? _habitatCenter : NexusPosition();
 
         void Update()
         {
@@ -175,16 +231,30 @@ namespace LastSanctuary.Units
         /// <summary>지금 위치가 고리(<see cref="_minRadius"/>~<see cref="_maxRadius"/>) 밖으로 얼마나 벗어났는지(타일). 안이면 0.</summary>
         float DistanceOutsideRing()
         {
-            float d = Vector2.Distance(transform.position, NexusPosition());
+            float d = Vector2.Distance(transform.position, RingCenter());
             if (d < _minRadius) return _minRadius - d;
             if (d > _maxRadius) return d - _maxRadius;
             return 0f;
         }
 
-        /// <summary>복귀 목적지 — 지금 각도 그대로 <b>가장 가까운 고리 경계</b>.</summary>
+        /// <summary>
+        /// 복귀 목적지 — 지금 각도 그대로 <b>가장 가까운 고리 경계</b>.
+        ///
+        /// ★ 서식지 모드는 경계가 아니라 <b>중앙</b>으로 돌아간다 — 정의문이 "서식지의
+        /// 중앙에서 대기" 이므로, 경계에 멈춰 서면 다음에 또 그 자리에서 시작하게 된다.
+        /// </summary>
         void PickReturnDestination()
         {
-            Vector3 nexus = NexusPosition();
+            if (_habitatMode)
+            {
+                _destination = _habitatCenter;
+                _repickTime = Time.time +
+                              Mathf.Lerp(repositionDelay.x, repositionDelay.y, (float)_rng.NextDouble());
+                _combat.SetHome(_destination);
+                return;
+            }
+
+            Vector3 nexus = RingCenter();
             _destination = ClampToRing(transform.position, nexus);
             _repickTime = Time.time + Mathf.Lerp(repositionDelay.x, repositionDelay.y, (float)_rng.NextDouble());
             _combat.SetHome(_destination);
@@ -216,7 +286,22 @@ namespace LastSanctuary.Units
         /// </summary>
         void PickDestination()
         {
-            Vector3 nexus = NexusPosition();
+            Vector3 nexus = RingCenter();
+
+            // ★ 서식지 모드는 <b>배회하지 않는다</b> — "서식지의 중앙에서 대기" 가 정의문이다.
+            //   이미 중앙 근처면 목적지를 그대로 두어 제자리에 서 있게 하고, 밀려났으면
+            //   중앙으로 돌아간다. (여유를 두는 이유: 정확히 한 점을 목적지로 주면
+            //   도착 판정이 걸리지 않아 미세하게 계속 꼼지락거린다)
+            if (_habitatMode)
+            {
+                bool atCenter = Vector2.Distance(transform.position, _habitatCenter) <= _habitatIdleSlack;
+                _destination = atCenter ? transform.position : _habitatCenter;
+
+                _repickTime = Time.time +
+                              Mathf.Lerp(repositionDelay.x, repositionDelay.y, (float)_rng.NextDouble());
+                _combat.SetHome(_habitatCenter);
+                return;
+            }
 
             for (int attempt = 0; attempt < Attempts; attempt++)
             {

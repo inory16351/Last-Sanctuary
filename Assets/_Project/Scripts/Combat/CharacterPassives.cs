@@ -65,8 +65,23 @@ namespace LastSanctuary.Combat
         // 타오르는 날개 — 초당 피해를 프레임 단위로 쪼갠 누적분
         float _blazeCarry;
 
+        // ── 히스톤 9005 ────────────────────────────────────────────────────
+        // 선봉장 — 근거리 크리티컬 예외를 지금 걸어두었는지(0/1). 되돌릴 때 정확히 같은 값을 뺀다.
+        int _appliedMeleeCritGrant;
+
+        // 분노 — 0~100. <b>실수로 들고 있는다</b>: 초당 하락값이 0.5 라 정수로 깎으면
+        // 매 프레임 0 이 되어 영영 안 줄어든다(미결 182번이 지적한 그 소수값이다).
+        float _rage;
+
+        // 분노 — 부활 쿨타임이 끝나는 시각 / 경직이 끝나 되살아나는 시각
+        float _reviveReadyAt;
+        float _reviveAt;
+        bool _reviving;
+
         CharacterUnit _unit;
         UnitCombat _combat;
+        CharacterTactics _tactics;
+        CharacterAnimator _animator;
 
         // 해금된 스킬만 담는다. Refresh 가 다시 만든다.
         readonly List<(PassiveSkillType type, PassiveSkillSO so)> _active =
@@ -93,6 +108,8 @@ namespace LastSanctuary.Combat
         {
             _unit = GetComponent<CharacterUnit>();
             _combat = GetComponent<UnitCombat>();
+            _tactics = GetComponent<CharacterTactics>();
+            _animator = GetComponent<CharacterAnimator>();
         }
 
         void OnDisable()
@@ -187,6 +204,22 @@ namespace LastSanctuary.Combat
 
                 if (!_visionZeroed) _visionZeroed = ApplyBlindVision();
             }
+
+            // ── 선봉장: 포지션 전방 · 공격 유형 근거리로 고정 + 근거리 크리티컬 예외 ──
+            //
+            // 두 효과 모두 <b>상시</b>다. 크리티컬 예외는 이 캐릭터에 "근거리도 치명타를
+            // 낼 수 있다" 는 표를 하나 세워두는 것이고, 실제 판정은
+            // <see cref="CharacterUnit.CriticalChancePercent"/> 가 한다 —
+            // 명중률·크리티컬이 원래 <b>원거리 전용</b>이라(유저 확정 2026-08-15)
+            // 이 예외가 없으면 히스톤은 영원히 치명타가 안 난다. 정의문이
+            // <b>"예외적으로"</b> 라고 적은 것이 바로 그 규칙을 전제한 문장이다.
+            int wantCritGrant = Find(PassiveSkillType.Vanguard) != null ? 1 : 0;
+            if (wantCritGrant != _appliedMeleeCritGrant)
+            {
+                _unit.AddMeleeCriticalGrant(wantCritGrant - _appliedMeleeCritGrant);
+                _appliedMeleeCritGrant = wantCritGrant;
+            }
+            _tactics?.SetRoleLock(wantCritGrant != 0);
         }
 
         /// <summary>
@@ -243,7 +276,17 @@ namespace LastSanctuary.Combat
 
         public void Tick(float dt)
         {
-            if (_unit == null || !_unit.IsAlive) return;
+            if (_unit == null) return;
+
+            // ★ 쓰러져 부활을 기다리는 동안에도 <b>이 한 갈래만</b> 돈다 —
+            //   경직 시간을 세는 주체가 여기이기 때문이다. 나머지 효과는 죽은 채로
+            //   돌면 안 되므로(아우라·자해·쿨타임) 여기서 끊는다.
+            if (!_unit.IsAlive)
+            {
+                if (_reviving) TickRevive();
+                return;
+            }
+
             Refresh();
             if (_active.Count == 0) return;
 
@@ -259,6 +302,7 @@ namespace LastSanctuary.Combat
             TickEcstasy();
             TickDefenseAura();
             TickBlazingWings(dt);
+            TickRageDecay(dt);
             TickCooldownSkills();
         }
 
@@ -438,6 +482,178 @@ namespace LastSanctuary.Combat
                 _unit.MarkCombatAction();
             }
         }
+
+        // ==================================================================
+        // 히스톤 9005 — 분노(80014) · 복수자(80015)
+        //
+        // <b>왜 '분노'가 여기 있나</b> — 캐릭터 한 명에게만 붙는 별개 자원이라
+        // <see cref="CharacterUnit"/> 의 능력치 칸에 넣을 수 없다(다른 넷에게는 의미가 없다).
+        // 「희열」의 중첩 수·「정화의 손길」의 발동 시각과 같은 자리, 같은 취급이다.
+        //
+        // <b>부활은 33-6절과 충돌하지 않는다</b>: 그 규칙("죽으면 재등장할 수 없다")은
+        // <b>새 캐릭터를 뽑을 때 그 id 를 다시 안 쓴다</b>는 등장 규칙이고, 여기 부활은
+        // 죽은 자리에서 <b>같은 개체</b>가 일어나는 것이다. 히스톤은 파괴되지 않으므로
+        // <c>CharacterDefinitionRegistry</c> 의 등장 장부에 아무 영향이 없다.
+        // ==================================================================
+
+        /// <summary>지금 분노 수치(0~100). 성장 창·로스터가 표시에 쓸 수 있다.</summary>
+        public float Rage => _rage;
+
+        /// <summary>이 캐릭터가 '분노'를 쌓는가 (= 「분노」 패시브가 해금돼 있는가).</summary>
+        public bool HasRage => Has(PassiveSkillType.RageOn);
+
+        /// <summary>지금 쓰러져 부활을 기다리는 중인가. 죽었지만 파괴되지 않은 상태다.</summary>
+        public bool IsReviving => _reviving;
+
+        /// <summary>부활이 <b>지금</b> 가능한가 — 분노가 가득하고 쿨타임도 끝났는가.</summary>
+        public bool ReviveReady =>
+            HasRage && _rage >= RageMax && Time.time >= _reviveReadyAt;
+
+        /// <summary>분노 상한. 정의문이 "(0~100)" 이라고 못박은 값이라 표에 칸이 없다.</summary>
+        public const float RageMax = 100f;
+
+        /// <summary>
+        /// 분노 하락 — <b>체력 재생이 도는 상태</b>에서 초당 value02 만큼 떨어진다.
+        /// 진군 중에는 예외로 떨어지지 않는다(정의문).
+        ///
+        /// ⚠ "체력 재생 가능 상태" 를 <see cref="DamageableUnit.IsInCombat"/> 가 꺼진 것으로
+        /// 읽었다. <see cref="DamageableUnit"/> 의 재생 관문은 <c>IsInCombat || 만피</c> 인데,
+        /// <b>만피 조건까지 그대로 옮기면 체력이 꽉 찬 히스톤의 분노가 영원히 안 줄어든다</b> —
+        /// 정의문의 의도(전투를 쉬면 분노가 식는다)와 반대가 된다. 전투 여부만 본다.
+        /// </summary>
+        void TickRageDecay(float dt)
+        {
+            PassiveSkillSO so = Find(PassiveSkillType.RageOn);
+            if (so == null) { _rage = 0f; return; }
+            if (_rage <= 0f) return;
+
+            if (_unit.IsInCombat) return;                 // 재생이 안 도는 상태
+            if (PassiveSkillService.WaveIsMarching) return;  // 진군 중 예외 (정의문)
+
+            _rage = Mathf.Max(0f, _rage - Mathf.Max(0f, so.value02) * dt);
+        }
+
+        /// <summary>
+        /// 사망 순간에 <see cref="CharacterUnit.OnDeath"/> 가 묻는다 —
+        /// <b>true 를 돌려주면 그쪽이 <c>Destroy</c> 를 건너뛴다.</b>
+        ///
+        /// 여기서 쿨타임을 <b>미리</b> 걸고 분노를 <b>미리</b> 비우는 이유: 경직 중에 또 죽거나
+        /// (이미 체력 0 이라 실제로는 안 일어나지만) 이 함수가 두 번 불려도 부활이 두 번
+        /// 예약되지 않게 하려는 것이다. 조건 검사와 상태 변경 사이에 틈을 두지 않는다.
+        /// </summary>
+        public bool TryBeginRevive()
+        {
+            if (_reviving) return true;          // 이미 예약돼 있다 — 파괴만 막으면 된다
+
+            PassiveSkillSO so = Find(PassiveSkillType.RageOn);
+            if (so == null) return false;
+            if (_rage < RageMax) return false;
+            if (Time.time < _reviveReadyAt) return false;
+
+            float stun = Mathf.Max(0f, so.value03);
+
+            _reviving = true;
+            _reviveAt = Time.time + stun;
+            _reviveReadyAt = Time.time + Mathf.Max(0f, so.coolTime);
+            _rage = 0f;                          // 부활에 쓰고 비운다
+
+            // 경직 내내 쓰러진 모션을 돌린다 — 원화가 없으면 조용히 생략된다.
+            _animator?.PlayReviveMotion(stun);
+
+            UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName,
+                                              $"{stun:0.#}초 뒤 부활"), UI.HudLogKind.Good);
+            return true;
+        }
+
+        /// <summary>경직이 끝났는지 보고, 끝났으면 실제로 되살린다. 죽어 있는 동안만 돈다.</summary>
+        void TickRevive()
+        {
+            if (Time.time < _reviveAt) return;
+            _reviving = false;
+
+            // ★ 체력을 되돌리는 것이 곧 부활이다 — <see cref="DamageableUnit.Heal"/> 은
+            //   살아있는 유닛만 회복시키므로(IsAlive 가드) 쓸 수 없다. 전용 통로를 쓴다.
+            _unit.ReviveWithHp(_unit.MaxHp);
+
+            UI.HudLog.Add($"{_unit.DisplayName} 부활", UI.HudLogKind.Good);
+
+            PerformReaverBurst();
+        }
+
+        /// <summary>
+        /// 복수자 — 부활하는 순간 반경 value01 타일 <b>원형</b> 안에서
+        /// 적에게 공격력의 value02% 피해, <b>아군 캐릭터</b>에게 최대체력의 value03% 회복.
+        ///
+        /// 적 피해는 <see cref="DamageableUnit.TakeDamageFrom"/> 로 넣는다 — 정의문이
+        /// "공격력의 %" 라고 공격력을 기준으로 삼았으므로 방어력·치명타를 포함한
+        /// 정상 데미지 파이프라인을 타는 게 맞다(보스 스킬이 쓰는 경로와 같다).
+        /// 「타오르는 날개」가 <c>ApplyDamage</c> 를 쓰는 것과 갈리는 지점인데, 그쪽은
+        /// 기준이 "자기 <b>체력</b>의 %" 라 공격력 자리에 넣을 값이 따로 있었다.
+        ///
+        /// 회복 대상은 <b>캐릭터만</b>이다(정의문 "아군 캐릭터들") — 넥서스·포탑은 제외한다.
+        /// 73-13절이 치유 유형에 대해 확정한 규칙과 같다. 자기 자신은 이미 만피로
+        /// 일어났으므로 넣어도 아무 일이 없지만, 정의문이 "아군"이라 했으니 제외하지 않는다.
+        /// </summary>
+        void PerformReaverBurst()
+        {
+            PassiveSkillSO so = Find(PassiveSkillType.Reaver);
+            if (so == null) return;
+
+            float radius = Mathf.Max(0f, so.value01);
+            if (radius <= 0f) return;
+
+            int damagePercent = Mathf.RoundToInt(so.value02);
+            float healRatio = so.value03 * 0.01f;
+            float sqr = radius * radius;
+            Vector3 myPos = transform.position;
+
+            // 원화 연출을 <b>피해 범위 그대로</b> 깐다 — 반경이므로 한 변은 지름(2r)이다.
+            // "보이는 범위 = 맞는 범위" 규칙(61-5절).
+            Sprite[] fx = _animator != null && _animator.Skin != null ? _animator.Skin.ReviveFx() : null;
+            if (fx != null)
+                CombatProjectileFx.PlayArea(fx, myPos, new Vector2(radius * 2f, radius * 2f),
+                                            0f, null, ReaverFxSeconds);
+
+            // 목록을 먼저 복사한다 — 피해로 유닛이 죽으면 UnitRegistry.All 이 그 자리에서
+            // 바뀔 수 있다(OnDied → 파괴 → Unregister). 역순 순회만으로는 부족하다.
+            _reaverScratch.Clear();
+            var all = UnitRegistry.All;
+            for (int i = 0; i < all.Count; i++)
+            {
+                DamageableUnit u = all[i];
+                if (u == null || !u.IsAlive) continue;
+                if (((Vector2)(u.transform.position - myPos)).sqrMagnitude > sqr) continue;
+                _reaverScratch.Add(u);
+            }
+
+            for (int i = 0; i < _reaverScratch.Count; i++)
+            {
+                DamageableUnit u = _reaverScratch[i];
+                if (u == null || !u.IsAlive) continue;
+
+                if (u.Faction == _unit.Faction)
+                {
+                    if (u.Kind != UnitKind.Character) continue;      // 넥서스·포탑 제외
+                    if (!u.AcceptsExternalHeal) continue;            // 이기심
+                    int heal = Mathf.RoundToInt(u.MaxHp * healRatio);
+                    if (heal > 0) u.Heal(heal);
+                }
+                else if (damagePercent > 0)
+                {
+                    u.TakeDamageFrom(_unit, damagePercent);
+                }
+            }
+            _reaverScratch.Clear();
+
+            UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName,
+                                              $"반경 {radius:0.#}타일"), UI.HudLogKind.Good);
+        }
+
+        /// <summary>복수자 범위 연출이 화면에 남는 시간(초). 순수 연출값이라 표에 칸이 없다.</summary>
+        const float ReaverFxSeconds = 0.6f;
+
+        /// <summary>복수자 범위 판정용 임시 목록. 유닛마다 갖지 않도록 정적으로 공유한다.</summary>
+        static readonly List<DamageableUnit> _reaverScratch = new List<DamageableUnit>();
 
         /// <summary>
         /// 희생 — 주변에 최대 체력의 value01% 이상 잃은 동료가 있으면, 자기 체력을 value02%
@@ -621,6 +837,14 @@ namespace LastSanctuary.Combat
             // ── 정화의 손길: 발동 중이면 때린 적에게 표식을 남긴다 ──
             if (PurifyActive && target != null && target.Faction != _unit.Faction)
                 PassiveSkillService.MarkPurified(target);
+
+            // ── 분노: 공격할 때마다 value01 만큼 쌓인다 (상한 100) ──
+            //    정의문이 "공격 할때 마다" 라 <b>맞았는지는 보지 않는다</b> — 이 이벤트는
+            //    명중 판정 <b>전에</b> 발생하므로(33-3절) 빗나간 공격도 분노를 준다.
+            //    히스톤은 근거리라 어차피 항상 명중하지만, 규칙을 명시해 둔다.
+            PassiveSkillSO rage = Find(PassiveSkillType.RageOn);
+            if (rage != null)
+                _rage = Mathf.Min(RageMax, _rage + Mathf.Max(0f, rage.value01));
         }
 
         /// <summary>이 캐릭터가 최근에 때린 적이 죽었다 (포식 · 희열).</summary>

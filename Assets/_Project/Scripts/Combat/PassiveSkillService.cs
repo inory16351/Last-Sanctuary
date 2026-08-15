@@ -91,13 +91,48 @@ namespace LastSanctuary.Combat
             _scratch.Clear();
             for (int i = 0; i < all.Count; i++)
             {
-                if (!(all[i] is CharacterUnit c) || !c.IsAlive) continue;
+                if (!(all[i] is CharacterUnit c)) continue;
+
                 CharacterPassives p = CharacterPassives.EnsureOn(c);
-                if (p != null) _scratch.Add(p);
+                if (p == null) continue;
+
+                // ★ 죽은 캐릭터도 <b>부활을 기다리는 중이면</b> 진행시킨다 —
+                //   경직 시간을 세는 주체가 CharacterPassives 이기 때문이다(「분노」 80014).
+                //   그 외의 죽은 캐릭터는 예전처럼 건너뛴다.
+                if (!c.IsAlive && !p.IsReviving) continue;
+
+                _scratch.Add(p);
             }
             for (int i = 0; i < _scratch.Count; i++) _scratch[i].Tick(dt);
 
             ExpireCorrosion();
+        }
+
+        // ------------------------------------------------------------------
+        // 웨이브 단계 조회 — 「분노」가 "진군 중일 때 제외" 를 판정하는 데 쓴다
+        //
+        // <b>왜 서비스가 들고 있나</b> — 캐릭터마다 <c>FindAnyObjectByType</c> 를 돌리면
+        // 인원수만큼 탐색이 생긴다. 이 서비스는 씬에 하나뿐이므로 여기서 한 번만 찾아
+        // 전원이 나눠 쓴다(<see cref="AssistRadius"/> 와 같은 취지).
+        // ------------------------------------------------------------------
+
+        Wave.WaveManager _wave;
+        bool _waveSearched;
+
+        /// <summary>지금 몬스터가 진군 중인가. 웨이브 매니저가 없으면 false.</summary>
+        public static bool WaveIsMarching
+        {
+            get
+            {
+                if (Instance == null) return false;
+                if (!Instance._waveSearched)
+                {
+                    Instance._wave = FindAnyObjectByType<Wave.WaveManager>();
+                    Instance._waveSearched = true;
+                }
+                return Instance._wave != null &&
+                       Instance._wave.Phase == Wave.WavePhase.Marching;
+            }
         }
 
         // ------------------------------------------------------------------

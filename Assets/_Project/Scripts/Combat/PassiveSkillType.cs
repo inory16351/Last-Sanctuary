@@ -1,7 +1,7 @@
 namespace LastSanctuary.Combat
 {
     /// <summary>
-    /// 패시브 스킬 12종의 <b>분기용 식별자</b>. 캐릭터 테이블 <c>Skill.skill_type</c> 문자열과 1:1 이다.
+    /// 패시브 스킬 15종의 <b>분기용 식별자</b>. 캐릭터 테이블 <c>Skill.skill_type</c> 문자열과 1:1 이다.
     ///
     /// <b>왜 enum 으로 한 번 더 옮기는가</b> — <c>PassiveSkillSO.skillType</c> 은 문자열이고
     /// (테이블의 enum 칸을 그대로 옮긴 것), 전투 로직에서 매 프레임 문자열을 비교하면
@@ -48,6 +48,14 @@ namespace LastSanctuary.Combat
         CalmDown,
         /// <summary>정화의 손길 — 발동 중 때린 적에게 '정화' 부여. 그 적을 때리면 회복.</summary>
         PurifyingTouch,
+
+        // ── 히스톤 9005 ──────────────────────────────────────────────
+        /// <summary>선봉장 — 포지션 전방·공격 유형 근거리로 고정. 근거리 크리티컬 예외.</summary>
+        Vanguard,
+        /// <summary>분노 — '분노' 수치(0~100). 100 에서 죽으면 경직 뒤 부활.</summary>
+        RageOn,
+        /// <summary>복수자 — 부활할 때 반경 안 적에게 피해 + 아군 회복.</summary>
+        Reaver,
     }
 
     public static class PassiveSkillTypes
@@ -74,6 +82,9 @@ namespace LastSanctuary.Combat
                 case "corrosion":       return PassiveSkillType.Corrosion;
                 case "calm_down":       return PassiveSkillType.CalmDown;
                 case "purifying_touch": return PassiveSkillType.PurifyingTouch;
+                case "vanguard":        return PassiveSkillType.Vanguard;
+                case "rage_on":         return PassiveSkillType.RageOn;
+                case "reaver":          return PassiveSkillType.Reaver;
                 default:                return PassiveSkillType.None;
             }
         }

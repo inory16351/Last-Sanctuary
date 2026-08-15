@@ -37,3 +37,9 @@ MonoBehaviour:
   - 130001
   - 130002
   titleKey: boss_title_120001
+  rangedAttackStat: 0
+  accuracyStat: 50
+  criticalStat: 8
+  magicStat: 0
+  cureStat: 0
+  resistanceStat: 50

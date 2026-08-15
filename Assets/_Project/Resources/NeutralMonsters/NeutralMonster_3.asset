@@ -28,7 +28,22 @@ MonoBehaviour:
   attacksPerSecond: 0.968
   moveSpeedTiles: 2.455
   leashRangeTiles: 6
-  maxAlive: 34
-  respawnSeconds: 9
+  maxAlive: 15
+  respawnSeconds: 25
   spawnRangeMinTiles: 200
   spawnRangeMaxTiles: 320
+  attackType: 0
+  groupMaking: 0
+  groupMember: 0
+  packRetaliate: 0
+  epic: 0
+  rangedAttackStat: 0
+  magicStat: 0
+  cureStat: 0
+  accuracyStat: 55
+  criticalStat: 8
+  resistanceStat: 50
+  colliderHeightTiles: 1.9
+  colliderWidthTiles: 2.6
+  illustName: 
+  skinAssetName: 

@@ -32,7 +32,7 @@ import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils import get_column_letter
 
-TABLE_DIR = r'C:\Project\Last-Sanctuary-Vault\데이터 테이블'
+from vault_path import TABLE_DIR   # ★ PC 마다 다른 볼트 위치를 찾아준다(2026-08-15)
 OUT_XLSX = os.path.join(TABLE_DIR, '스트링 키 테이블.xlsx')
 
 # 스크립트 위치에서 프로젝트 루트를 역산한다 (gen_character_assets.py 의 교훈 —
@@ -112,6 +112,9 @@ RULES = [
     # ── 중립 몬스터 ────────────────────────────────────────────────────────
     ('임시용 중립 몬스터.xlsx', 'neutrality_mon', 'mon_id', [
         ('mon_name', 'mon_name', 'kr'),
+        # 칭호 — 2026-08-15 에 표에 생긴 칸. 웨이브 보스의 boss_title 과 같은 역할이다
+        # (지금은 비어 있어 키가 만들어지지 않는다 — 값을 적으면 그때 생긴다).
+        ('mon_title', 'mon_title', 'kr'),
     ]),
 
     # ── 정신 이상 ──────────────────────────────────────────────────────────
