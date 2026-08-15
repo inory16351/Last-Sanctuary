@@ -551,6 +551,93 @@ def sync_boss_skills():
     return len(made)
 
 
+# ---------------------------------------------------------------------------
+# 2-c) 중립 몬스터 스킬 - 중립 표의 Skill 시트 → BossSkillSO 에셋 + 정의의 skillIds
+#      (2026-08-15, 카르시노스)
+#
+# ★ 웨이브 쪽과 <b>같은 폴더</b>(Resources/BossSkills)에 쓴다. id 대역이 겹치지 않고
+#   (웨이브 130001~ · 중립 2001~), 게임 쪽 로더(BossSkillCaster)가 폴더 하나만 읽으면
+#   되기 때문이다 — 폴더를 나누면 캐스터에 "어느 폴더를 볼지" 분기가 생긴다.
+#
+# ⚠⚠ <b>위치가 아니라 필드명으로 읽는다.</b> 두 표의 Skill 시트는 <b>컬럼 순서가 다르다</b>:
+#     웨이브: … value_03 · cool_time · skill_icon · skill_explain · value_04 · cast_time
+#     중립  : … value_03 · value_04 · value_05 · cool_time · skill_icon · skill_explain · cast_time
+#   위 sync_boss_skills() 처럼 인덱스로 읽으면 <b>쿨타임 자리에서 value_04 를 읽는다</b>.
+#   같은 함수를 재사용하지 않고 따로 둔 이유가 이것이다.
+# ---------------------------------------------------------------------------
+def sync_neutral_skills():
+    print('[중립 몬스터 스킬]')
+    if not os.path.exists(XLSX_NEUTRAL):
+        print('  ! 표가 없습니다:', XLSX_NEUTRAL)
+        return 0
+
+    sheets = openpyxl.load_workbook(XLSX_NEUTRAL, read_only=True).sheetnames
+    if 'Skill' not in sheets:
+        print('  ! Skill 시트가 없습니다')
+        return 0
+
+    folder = os.path.join(ASSETS, 'Resources', 'BossSkills')
+    os.makedirs(folder, exist_ok=True)
+    guid = script_guid(os.path.join('Combat', 'BossSkillSO.cs'))
+
+    made = []
+    for row in read_rows(XLSX_NEUTRAL, 'Skill'):
+        raw_id = row.get('skill_id')
+        if raw_id in (None, ''):
+            continue
+        sid = int(num(raw_id))
+        name = 'BossSkill_%d' % sid
+        rel = 'Resources/BossSkills/%s.asset' % name
+
+        body = HEADER.format(script_guid=guid, name=name)
+        body += '  skillId: %d\n' % sid
+        body += '  nameKey: %s\n' % (row.get('skill_name') or '')
+        body += "  displayName: ''\n"
+        body += '  skillType: %s\n' % (row.get('skill_type') or '')
+        body += '  explainKey: %s\n' % (row.get('skill_explain') or '')
+        for i in range(1, 6):
+            body += '  value%02d: %s\n' % (i, num(row.get('value_%02d' % i)))
+        body += '  coolTime: %s\n' % num(row.get('cool_time'))
+        body += '  castSeconds: %s\n' % num(row.get('cast_time'))
+        body += '  rangeType: %s\n' % (row.get('range_type') or '')
+
+        path = os.path.join(folder, name + '.asset')
+        with open(path, 'w', encoding='utf-8', newline='\n') as f:
+            f.write(body)
+        mp = path + '.meta'
+        if not os.path.exists(mp):
+            with open(mp, 'w', encoding='utf-8', newline='\n') as f:
+                f.write(ASSET_META.format(guid=guid_for(rel)))
+
+        made.append(sid)
+        print('  %s: %s · v1~v5 %s/%s/%s/%s/%s · 쿨 %s초 · 시전 %s초 · %s'
+              % (name, row.get('skill_type'),
+                 num(row.get('value_01')), num(row.get('value_02')), num(row.get('value_03')),
+                 num(row.get('value_04')), num(row.get('value_05')),
+                 num(row.get('cool_time')), num(row.get('cast_time')),
+                 row.get('range_type') or 'Line'))
+
+    # neutrality_mon 의 mon_skill_1·2 → 정의 에셋의 skillIds
+    folder_def = os.path.join(ASSETS, 'Resources', 'NeutralMonsters')
+    for row in read_rows(XLSX_NEUTRAL, 'neutrality_mon'):
+        mid = int(num(row.get('mon_id')))
+        asset = NEUTRAL_ASSET_BY_ID.get(mid)
+        if asset is None:
+            continue
+
+        ids = [int(num(row.get(k))) for k in ('mon_skill_1', 'mon_skill_2')
+               if int(num(row.get(k))) > 0]
+        if not ids:
+            continue                    # 스킬 없는 종은 건드리지 않는다
+
+        missing = [i for i in ids if i not in made]
+        if missing:
+            print('  ! %s 의 스킬 %s 가 Skill 시트에 없습니다' % (asset, missing))
+
+        write_int_list(os.path.join(folder_def, asset + '.asset'), 'skillIds', ids, asset)
+    return len(made)
+
+
 def write_int_list(path, key, values, label):
     """`key:` 아래의 정수 배열을 통째로 갈아끼운다. 필드가 없으면 파일 끝에 덧붙인다.
 
@@ -628,6 +715,8 @@ NEUTRAL_NEW_FIELDS = (
     'epic', 'habitatRadiusTiles', 'habitatChaseTiles', 'habitatIdleSlackTiles',
     'titleKey', 'colliderWidthTiles', 'colliderHeightTiles',
     'illustName', 'skinAssetName',
+    # 서식지 바닥 타일 (habitat_design 시트) — 2026-08-15 신설
+    'habitatTileAsset',
 )
 
 
@@ -668,10 +757,22 @@ def sync_neutral_monsters():
         print('  ! 표가 없습니다:', XLSX_NEUTRAL)
         return 0
 
+    sheets = openpyxl.load_workbook(XLSX_NEUTRAL, read_only=True).sheetnames
+
     stats = {int(num(r.get('mon_id'))): r for r in read_rows(XLSX_NEUTRAL, 'first_Stat')} \
-        if 'first_Stat' in openpyxl.load_workbook(XLSX_NEUTRAL, read_only=True).sheetnames else {}
+        if 'first_Stat' in sheets else {}
     if not stats:
         print('  ! first_Stat 시트가 없습니다 - 능력치는 기존 값을 유지합니다')
+
+    # 서식지 바닥 타일 — <b>별도 시트</b>(habitat_design)에 있다. 종당 한 줄이고
+    # 지금은 에픽만 채워져 있다. 빈 종은 값이 '' 라 게임이 아무것도 안 그린다.
+    habitat = {}
+    if 'habitat_design' in sheets:
+        for r in read_rows(XLSX_NEUTRAL, 'habitat_design'):
+            mid = r.get('mon_id')
+            if mid in (None, ''):
+                continue
+            habitat[int(num(mid))] = str(r.get('habitat_tile_asset') or '').strip()
 
     # ★ 2026-08-15 부터 중립 정의는 <b>Resources</b> 에 산다 — 스포너가 폴더를 통째로 읽어
     #   자동 등록하기 때문이다(씬 슬롯을 손으로 만들 필요가 없어졌다).
@@ -733,11 +834,26 @@ def sync_neutral_monsters():
             # 게임은 <b>종 이름</b>만 필요하므로 꼬리표를 뗀다 →
             #   Carcinos_asset → Carcinos → Resources/MonsterSkins/Carcinos/Skin_Carcinos
             'skinAssetName': skin_species(row.get('mon_skin')),
+
+            # 서식지 바닥 타일 묶음 이름 (habitat_design 시트). 게임은
+            # `Resources/HabitatTiles/<이름>/` 을 통째로 읽는다.
+            'habitatTileAsset': habitat.get(mid, ''),
         }
 
-        # 칭호 — 표에 적힌 종만 키를 넣는다(웨이브 보스의 titleKey 와 같은 규칙).
-        if str(row.get('mon_title') or '').strip():
-            changes['titleKey'] = 'mon_title_%d' % mid
+        # 칭호 — 표에 적힌 종만 키를 넣는다.
+        #
+        # ★ 2026-08-15 수정 — <b>칸에 적힌 키를 그대로 쓴다</b>.
+        #   예전에는 웨이브 보스를 따라 `'mon_title_%d' % mid` 로 <b>유추한</b> 키를 넣었는데,
+        #   중립 1004 의 `mon_title` 칸은 <b>`epic_boss_title_1004`</b> 라고 적혀 있다.
+        #   그래서 에셋에는 실재하지 않는 `mon_title_1004` 가 들어가고, StringTable 조회가
+        #   매번 실패해 <b>칭호가 조용히 빈 문자열</b>이 됐다(보스 체력바에 이름만 떴다).
+        #   `looks_like_key` 와 같은 판정으로, 이미 키면 그 값을, 한국어 리터럴이면
+        #   생성기(`gen_string_table.py`)가 만들 이름을 넣는다.
+        title_cell = str(row.get('mon_title') or '').strip()
+        if title_cell:
+            is_key = (title_cell.isascii() and '_' in title_cell
+                      and not any(ch.isspace() for ch in title_cell))
+            changes['titleKey'] = title_cell if is_key else 'mon_title_%d' % mid
 
         st = stats.get(mid)
         if st is not None:
@@ -780,7 +896,9 @@ def sync_neutral_monsters():
                               add_missing=('maxAlive', 'respawnSeconds',
                                            'spawnRangeMinTiles', 'spawnRangeMaxTiles')
                                           + NEUTRAL_NEW_FIELDS)
-        print('    %s: %s · 등장 지름 %s~%s타일(반지름 %.1f~%.1f) · 에너지 %s~%s · '
+        # ⚠ 2026-08-16 부터 등장 범위는 <b>정사각형</b>이다(유저 확정) — 표 값은 "한 변",
+        #   실제 판정은 그 절반(반변, 체비셰프 거리)이다. 로그 문구도 그에 맞췄다.
+        print('    %s: %s · 등장 정사각 변 %s~%s타일(반변 %.1f~%.1f) · 에너지 %s~%s · '
               '비선공%s · 최대 %s마리 · 재생성 %s초'
               % (asset,
                  '에픽(서식지)' if is_epic else '일반',
@@ -931,6 +1049,8 @@ if __name__ == '__main__':
     sync_monsters()
     sync_boss_skills()
     sync_neutral_monsters()
+    # ⚠ 중립 정의(에셋)가 만들어진 <b>뒤에</b> 돌아야 한다 — skillIds 를 그 파일에 쓴다.
+    sync_neutral_skills()
     sync_buildings()
     sync_waves()
     print('\n완료 - Unity 에서 Assets/Refresh 를 실행할 것.')

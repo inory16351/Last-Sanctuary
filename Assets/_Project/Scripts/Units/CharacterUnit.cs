@@ -54,8 +54,11 @@ namespace LastSanctuary.Units
         /// <summary>이 캐릭터가 누구인지. 정의 없이 생성된 캐릭터는 null.</summary>
         public CharacterDefinitionSO Definition => definition;
 
+        /// <summary>초상화 (캐릭터 테이블 <c>illust</c>). 클릭했을 때 <see cref="UI.UnitPortraitPanel"/> 이 띄운다.</summary>
+        public override Sprite Portrait => definition != null ? definition.Illust : null;
+
         /// <summary>표시 이름. 정의가 있으면 테이블의 한글 이름, 없으면 오브젝트 이름.</summary>
-        public string DisplayName =>
+        public override string DisplayName =>
             definition != null && !string.IsNullOrWhiteSpace(definition.DisplayName)
                 ? definition.DisplayName
                 : name;

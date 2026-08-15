@@ -32,6 +32,10 @@ namespace LastSanctuary.UI
         [SerializeField] TMP_Text squadLabel;
         [SerializeField] Image squadBackground;
 
+        [SerializeField] Button subjugateButton;
+        [SerializeField] TMP_Text subjugateLabel;
+        [SerializeField] Image subjugateBackground;
+
         [Header("문구")]
         [SerializeField] string createFormat = "캐릭터 생성 {0}";
         [SerializeField] string createAtLimit = "인원 상한";
@@ -40,6 +44,10 @@ namespace LastSanctuary.UI
         [SerializeField] string squadIdle = "부대 설정";
         [SerializeField] string squadOpen = "부대 설정 닫기";
         [SerializeField] string squadPicking = "집결지 지정 중";
+        [SerializeField] string subjugateOpen = "토벌 지시 닫기";
+        [Tooltip("{0} = 발견한 에픽 몬스터 수. 0 이면 아래 subjugateNone 을 쓴다")]
+        [SerializeField] string subjugateFound = "토벌 지시 ({0})";
+        [SerializeField] string subjugateNone = "토벌 지시";
 
         [Header("색")]
         [SerializeField] Color buttonNormal = new Color(0.13f, 0.17f, 0.22f, 0.95f);
@@ -54,11 +62,15 @@ namespace LastSanctuary.UI
         /// <summary>부대 설정 창. 전술 지침 창과 같은 이유로 비활성 포함 조회가 필요하다.</summary>
         SquadPanel _squadPanel;
 
+        /// <summary>토벌 지시 창(2026-08-15 신설). 위 둘과 같은 이유로 비활성 포함 조회.</summary>
+        SubjugationPanel _subjugationPanel;
+
         // 마지막으로 화면에 반영한 값. 바뀔 때만 갱신한다.
         int _shownCost = int.MinValue;
         bool _shownCanCreate;
         bool _shownTacticsOpen;
         int _shownSquadState = int.MinValue;
+        int _shownSubjugateState = int.MinValue;
 
         void Start()
         {
@@ -68,16 +80,24 @@ namespace LastSanctuary.UI
             // 아직 없다. 비활성 오브젝트까지 포함해 직접 찾는다.
             _tacticsPanel = FindAnyObjectByType<TacticalOrderPanel>(FindObjectsInactive.Include);
             _squadPanel = FindAnyObjectByType<SquadPanel>(FindObjectsInactive.Include);
+            _subjugationPanel = FindAnyObjectByType<SubjugationPanel>(FindObjectsInactive.Include);
 
             // MCP 로는 씬 오브젝트 참조를 인스펙터에 넣을 수 없어서(진행상황 8절 4번),
             // 비어 있으면 이름으로 찾는다.
             Resolve("Buttons/CreateButton", ref createButton, ref createBackground, ref createLabel);
             Resolve("Buttons/TacticsButton", ref tacticsButton, ref tacticsBackground, ref tacticsLabel);
             Resolve("Buttons/SquadButton", ref squadButton, ref squadBackground, ref squadLabel);
+            Resolve("Buttons/SubjugateButton", ref subjugateButton, ref subjugateBackground, ref subjugateLabel);
+
+            // 창들은 "닫힌 채로 시작"이 규칙이다. 창 스스로 Awake 에서 닫으면
+            // <b>열리는 순간 닫히는</b> 버그가 되므로(UnitPortraitPanel.Awake 주석),
+            // 항상 살아 있는 이쪽에서 한 번 확인해 닫는다.
+            if (_subjugationPanel != null && _subjugationPanel.IsOpen) _subjugationPanel.Close();
 
             if (createButton != null) createButton.onClick.AddListener(HandleCreate);
             if (tacticsButton != null) tacticsButton.onClick.AddListener(HandleTactics);
             if (squadButton != null) squadButton.onClick.AddListener(HandleSquad);
+            if (subjugateButton != null) subjugateButton.onClick.AddListener(HandleSubjugate);
 
             if (_creation == null)
                 Debug.LogWarning("[Actions] CharacterCreationService 를 찾지 못했습니다. " +
@@ -143,11 +163,55 @@ namespace LastSanctuary.UI
             Refresh(force: true);
         }
 
+        /// <summary>
+        /// 토벌 지시 창을 연다/닫는다 (2026-08-15 신설). 부대 설정과 같은 이유로
+        /// <b>집결지 지정 중이면 먼저 취소</b>한다 — 맵 클릭을 기다리는 모드를 켜둔 채
+        /// 다른 창을 열면 그다음 클릭이 어디로 갈지 알 수 없다.
+        /// </summary>
+        void HandleSubjugate()
+        {
+            if (_subjugationPanel == null)
+                _subjugationPanel = FindAnyObjectByType<SubjugationPanel>(FindObjectsInactive.Include);
+
+            var rally = RallyPointService.Instance;
+            if (rally != null && rally.IsPicking) rally.CancelPicking();
+
+            _subjugationPanel?.Toggle();
+            Refresh(force: true);
+        }
+
         void Refresh(bool force)
         {
             RefreshCreate(force);
             RefreshTactics(force);
             RefreshSquad(force);
+            RefreshSubjugate(force);
+        }
+
+        /// <summary>
+        /// 토벌 지시 버튼 — 열림 여부와 <b>발견한 에픽 수</b>를 같이 보여준다.
+        /// 발견한 것이 없으면 숫자를 안 붙인다(0 이 붙어 있으면 고장난 것처럼 보인다).
+        /// </summary>
+        void RefreshSubjugate(bool force)
+        {
+            if (subjugateButton == null) return;
+
+            bool open = _subjugationPanel != null && _subjugationPanel.IsOpen;
+            var service = Units.EpicSubjugationService.Instance;
+            int found = service != null ? service.Discovered.Count : 0;
+
+            int state = (open ? 1 : 0) | (found << 1);
+            if (!force && state == _shownSubjugateState) return;
+            _shownSubjugateState = state;
+
+            subjugateButton.interactable = _subjugationPanel != null;
+            if (subjugateBackground != null)
+                subjugateBackground.color = _subjugationPanel == null ? buttonOff
+                                          : (open ? buttonOn : buttonNormal);
+            if (subjugateLabel != null)
+                subjugateLabel.text = open ? subjugateOpen
+                                    : found > 0 ? string.Format(subjugateFound, found)
+                                    : subjugateNone;
         }
 
         void RefreshSquad(bool force)

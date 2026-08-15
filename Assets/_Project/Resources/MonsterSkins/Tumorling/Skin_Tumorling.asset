@@ -1,0 +1,110 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a517e511b352f46488ffa35edf32295d, type: 3}
+  m_Name: Skin_Tumorling
+  m_EditorClassIdentifier:
+  displayName: 종양귀
+  framesPerSecond: 10
+  attackFramesPerSecond: 14
+  idleRight:
+  - {fileID: 21300000, guid: 1c5c5fc005aad261d253f9f30af016e4, type: 3}
+  - {fileID: 21300000, guid: 96890ec5ca9322fa122f9c7d39254622, type: 3}
+  - {fileID: 21300000, guid: 8dac6cce21ad1c10020bca41b81adfb4, type: 3}
+  - {fileID: 21300000, guid: 071f9f7f43b0e0fd516000dddc58733c, type: 3}
+  - {fileID: 21300000, guid: 2ed7ce87eb30fecff53b3e2b4c836866, type: 3}
+  - {fileID: 21300000, guid: 5aafa189fc2204208c05ed18ab6dac2a, type: 3}
+  - {fileID: 21300000, guid: 8d4fc0accb63b45a0639acc8df81136b, type: 3}
+  idleLeft:
+  - {fileID: 21300000, guid: f0ba2a52cd3d83a2135956ec36367bc4, type: 3}
+  - {fileID: 21300000, guid: 1039de253c605b61e57acb29d10644a3, type: 3}
+  - {fileID: 21300000, guid: 01bb76b048d52ba0c34943b57785c881, type: 3}
+  - {fileID: 21300000, guid: 3aa4920dc9b9399cd7cdba0e91fe543b, type: 3}
+  - {fileID: 21300000, guid: ee7cac21eb7359692bb68d98e493775c, type: 3}
+  - {fileID: 21300000, guid: 1dc40bb47bd85974c6fd6342a214f596, type: 3}
+  - {fileID: 21300000, guid: 6076652aeb08c7fd7f6dfe87d260ccc7, type: 3}
+  walkRight:
+  - {fileID: 21300000, guid: bbcffe0e643cb7406c6ef11bdcf4f85d, type: 3}
+  - {fileID: 21300000, guid: 0b6f7678f94c088ec0aaeaf86443d156, type: 3}
+  - {fileID: 21300000, guid: f9502f246b557732800fc27669ff73ee, type: 3}
+  - {fileID: 21300000, guid: 618b06518f4c4666612aab9b535c0429, type: 3}
+  - {fileID: 21300000, guid: 5419d5ea107b389df1a8963c02e151df, type: 3}
+  - {fileID: 21300000, guid: 52df0d9723c89e65b70da2b60e5bf64c, type: 3}
+  - {fileID: 21300000, guid: 1de07f2426e5aaf679d5f12580370269, type: 3}
+  - {fileID: 21300000, guid: ca9d626684acfa107e8fc2279c8062b3, type: 3}
+  walkLeft:
+  - {fileID: 21300000, guid: 374c21f46a8094f8160322ef2ba857f7, type: 3}
+  - {fileID: 21300000, guid: ef6e93e1025f86ab508638dc06901018, type: 3}
+  - {fileID: 21300000, guid: f1c9ee735af8568389474f34cedc5a07, type: 3}
+  - {fileID: 21300000, guid: bbf91706bc749d942cd6a75c95589087, type: 3}
+  - {fileID: 21300000, guid: dec8f8b93b20240010c507335fe28718, type: 3}
+  - {fileID: 21300000, guid: ec3a02a27038ca46be6947050bb3b44c, type: 3}
+  - {fileID: 21300000, guid: 4d1a91970167464335f79adea64f8717, type: 3}
+  - {fileID: 21300000, guid: 5a80220e72d1952dafe75aace317500f, type: 3}
+  attackRight: []
+  attackLeft: []
+  rangedRight:
+  - {fileID: 21300000, guid: 145e94c09853aab828bb81fec30194b0, type: 3}
+  - {fileID: 21300000, guid: 9e69fac74e3a24ff07c7d58da0aacf4c, type: 3}
+  - {fileID: 21300000, guid: 2109cf423f651289954207a58ae78485, type: 3}
+  - {fileID: 21300000, guid: d47cffb05a31a072e320b23a8c188874, type: 3}
+  - {fileID: 21300000, guid: 1cb7888ebdcdf534c0db42e24245b739, type: 3}
+  - {fileID: 21300000, guid: 75e3441e274502d47dba13d0a2038e5c, type: 3}
+  - {fileID: 21300000, guid: c168e16994c19cffd5154c57dd826cad, type: 3}
+  - {fileID: 21300000, guid: 582e2406a1533440fa2d8585255166e0, type: 3}
+  - {fileID: 21300000, guid: 7bf7245412faf101b334971a7fc5f30f, type: 3}
+  - {fileID: 21300000, guid: 6581e89f7a7db37e34aeaba782b015c4, type: 3}
+  - {fileID: 21300000, guid: 3aa1cc1bc18f244d9263f26f9a7d29f1, type: 3}
+  rangedLeft:
+  - {fileID: 21300000, guid: a57171c47213dd59fda8639be30444bd, type: 3}
+  - {fileID: 21300000, guid: a5ee0fe5c4a4f496683811dc7b1d9709, type: 3}
+  - {fileID: 21300000, guid: 748f167e0d1f5dfe2a2fc8781aeb70df, type: 3}
+  - {fileID: 21300000, guid: ac4395db0cbeb767b6059816f5de828d, type: 3}
+  - {fileID: 21300000, guid: d837412cb709a8112ffab7b1dcbbefae, type: 3}
+  - {fileID: 21300000, guid: 9a4987751f81d6c97882bc951366c39e, type: 3}
+  - {fileID: 21300000, guid: 96a852070aa976b103c029dc4a5b2a40, type: 3}
+  - {fileID: 21300000, guid: f4a954b962e3b2161dbb1cc06b0d5d57, type: 3}
+  - {fileID: 21300000, guid: b12e15d35020ab6e760c70c3b54e493a, type: 3}
+  - {fileID: 21300000, guid: c2b3dba6b95a93a8d8b574d2fd2dd5cc, type: 3}
+  - {fileID: 21300000, guid: 0778de002c7f3fb8ada652e144fb1586, type: 3}
+  projectileFrames:
+  - {fileID: 21300000, guid: 768ff6fdd30dbb1fc54b9e453c3138e6, type: 3}
+  - {fileID: 21300000, guid: 221dad844ab92e559bc96c4f651c97a4, type: 3}
+  - {fileID: 21300000, guid: b36988386ee3922cd16a50dfe1baaa42, type: 3}
+  - {fileID: 21300000, guid: 37eb03fef904e11ad44c166a97677da6, type: 3}
+  - {fileID: 21300000, guid: 94f9e0f57ad561a9023d2b99a211b29a, type: 3}
+  - {fileID: 21300000, guid: 828a4d0446d2682c6ec51d7b81076118, type: 3}
+  - {fileID: 21300000, guid: 17fd139a6f770f816e29627fe8a199c5, type: 3}
+  - {fileID: 21300000, guid: 6b74a4714338657b1c970c9d63554f8b, type: 3}
+  - {fileID: 21300000, guid: 5c2d9470e4337e60d5a563dc8bdc12b4, type: 3}
+  - {fileID: 21300000, guid: 76711efb1b5f5d9196e521bc0481a79c, type: 3}
+  - {fileID: 21300000, guid: 0773e0c3efdf04edc6a0d5560409a8b8, type: 3}
+  healRight: []
+  healLeft: []
+  reviveRight: []
+  reviveLeft: []
+  reviveFx: []
+  skill1Right: []
+  skill1Left: []
+  skill2Right: []
+  skill2Left: []
+  skill1Fx: []
+  skill2Fx: []
+  muzzleFlashFrames: []
+  impactFrames: []
+  projectileScale: 0.55
+  impactScale: {x: 1, y: 1}
+  contentSizeTiles: {x: 2.516, y: 2.469}
+  projectileSizeTiles: {x: 4.562, y: 1.312}
+  impactSizeTiles: {x: 0, y: 0}
+  projectileWidthTiles: 1.6
+  impactWidthTiles: 0
+  impactFlattenY: 1

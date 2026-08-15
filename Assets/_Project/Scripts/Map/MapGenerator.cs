@@ -187,6 +187,13 @@ namespace LastSanctuary.Map
         public Tilemap GroundTilemap => groundTilemap;
         public Tilemap ObstacleTilemap => obstacleTilemap;
 
+        /// <summary>
+        /// 바닥 위에 얹는 장식 타일맵(경계·프롭). <b>런타임에 덧그리는 연출</b>이 여기를 쓴다 —
+        /// 지금은 에픽 중립 몬스터의 서식지(<see cref="Units.NeutralHabitat"/>)가 유일하다.
+        /// Ground 가 아니라 여기에 그리면 <b>원래 타일을 기억했다가 되돌릴 수</b> 있다.
+        /// </summary>
+        public Tilemap DecoTilemap => decoTilemap;
+
         /// <summary>맵 중앙 셀. Origin = -MapSize/2 이므로 항상 (0,0) 이다.</summary>
         public Vector3Int CenterCell => Vector3Int.zero;
 

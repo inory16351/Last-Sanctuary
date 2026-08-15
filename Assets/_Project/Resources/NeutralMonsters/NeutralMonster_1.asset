@@ -28,7 +28,7 @@ MonoBehaviour:
   attacksPerSecond: 0.77
   moveSpeedTiles: 2.176
   leashRangeTiles: 6
-  maxAlive: 34
+  maxAlive: 43
   respawnSeconds: 9
   spawnRangeMinTiles: 15
   spawnRangeMaxTiles: 99
@@ -45,5 +45,6 @@ MonoBehaviour:
   resistanceStat: 50
   colliderHeightTiles: 1.9
   colliderWidthTiles: 2.6
-  illustName: 
-  skinAssetName: 
+  illustName: TumorSpider_illust
+  skinAssetName: TumorSpider
+  habitatTileAsset: 

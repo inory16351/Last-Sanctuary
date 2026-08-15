@@ -565,7 +565,24 @@ namespace LastSanctuary.Combat
             return true;
         }
 
-        /// <summary>경직이 끝났는지 보고, 끝났으면 실제로 되살린다. 죽어 있는 동안만 돈다.</summary>
+        /// <summary>
+        /// 경직이 끝났는지 보고, 끝났으면 실제로 되살린다. 죽어 있는 동안만 돈다.
+        ///
+        /// ★★ <b>죽은 그 자리에서 일어난다 — 위치를 절대 옮기지 않는다</b>
+        /// (유저 확정 2026-08-16: <i>"히스톤은 부활할때 사망한 자리에서 부활해야 함.
+        /// 생성할때만 중앙건물에서 생성"</i>).
+        ///
+        /// 그래서 이 함수에는 <b>좌표를 건드리는 줄이 한 줄도 없다</b> — 부활은
+        /// <b>체력을 되돌리는 것</b>뿐이고, 몸은 애초에 파괴되지 않아 그 자리에 그대로 있다
+        /// (<see cref="LastSanctuary.Units.CharacterUnit.OnDeath"/> 가 <c>Destroy</c> 를 건너뛴다).
+        ///
+        /// ⚠ <b>넥서스 생성 경로(<c>UnitSpawner</c>)를 타면 안 된다.</b> 그쪽은
+        /// <b>최초 생성 전용</b>이다 — 되살릴 때 그 경로를 쓰면 히스톤이 맵 반대편에서
+        /// 갑자기 중앙건물로 순간이동한다. 부활에 "다시 만든다"는 개념을 넣지 말 것.
+        ///
+        /// (일어난 <b>뒤에</b> 스스로 집결지·전열로 걸어 돌아가는 것은 평소 이동이라
+        ///  이 규칙과 무관하다.)
+        /// </summary>
         void TickRevive()
         {
             if (Time.time < _reviveAt) return;
@@ -573,6 +590,7 @@ namespace LastSanctuary.Combat
 
             // ★ 체력을 되돌리는 것이 곧 부활이다 — <see cref="DamageableUnit.Heal"/> 은
             //   살아있는 유닛만 회복시키므로(IsAlive 가드) 쓸 수 없다. 전용 통로를 쓴다.
+            //   ⚠ 여기에 위치 대입을 추가하지 말 것(위 주석).
             _unit.ReviveWithHp(_unit.MaxHp);
 
             UI.HudLog.Add($"{_unit.DisplayName} 부활", UI.HudLogKind.Good);
@@ -779,17 +797,16 @@ namespace LastSanctuary.Combat
         }
 
         /// <summary>
-        /// 로그에 쓸 대상 이름. 캐릭터·몬스터는 <b>표의 이름</b>(<c>DisplayName</c>)을 쓰고,
-        /// 그것이 없는 유닛(넥서스·포탑)만 오브젝트 이름으로 떨어진다 —
+        /// 로그에 쓸 대상 이름. 표를 가진 유닛(캐릭터·웨이브 몬스터·중립 몬스터)은
+        /// <b>표의 이름</b>을 쓰고, 그것이 없는 유닛(넥서스·포탑)만 오브젝트 이름으로 떨어진다 —
         /// 복제본 뒤에 붙는 번호가 로그에 새어나오지 않게 하는 규칙이다(유저 지시 2026-08-13).
+        ///
+        /// ★ 2026-08-15 — 여기 있던 종류별 갈래를 지우고
+        /// <see cref="DamageableUnit.DisplayName"/> 에게 물어본다. 갈래가
+        /// <c>BattleLogPanel</c> 에도 한 벌 더 있었고 <b>둘 다 중립을 빠뜨렸다</b>.
         /// </summary>
-        static string DisplayNameOf(DamageableUnit u)
-        {
-            if (u == null) return string.Empty;
-            if (u is CharacterUnit c) return c.DisplayName;
-            if (u is MonsterUnit m) return m.DisplayName;
-            return u.name;
-        }
+        static string DisplayNameOf(DamageableUnit u) =>
+            u != null ? u.DisplayName : string.Empty;
 
         /// <summary>정화의 손길이 지금 켜져 있는지.</summary>
         public bool PurifyActive => Time.time < _purifyEndTime;

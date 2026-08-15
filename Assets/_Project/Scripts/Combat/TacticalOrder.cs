@@ -79,15 +79,22 @@ namespace LastSanctuary.Combat
     /// <code>
     ///   탐험(Expedition) = 맵을 돌아다니는 활동 전체
     ///     ├─ 사냥(Hunt)     중립을 먼저 공격한다
-    ///     ├─ 정찰(Patrol)   먼저 안 때리고 맞으면 반격한다
     ///     └─ 탐색(Explore)  안 때리고 맞아도 반격 없이 도망간다
     /// </code>
-    /// 세 값 모두 <b>안개를 밝히며 돌아다니는 것은 같다</b> — 다른 것은 중립 몬스터를
-    /// 만났을 때뿐이다. 그래서 세 유형을 아우르는 이름이 "탐험"이어야 한다
+    /// 두 값 모두 <b>안개를 밝히며 돌아다니는 것은 같다</b> — 다른 것은 중립 몬스터를
+    /// 만났을 때뿐이다. 그래서 두 유형을 아우르는 이름이 "탐험"이어야 한다
     /// ("탐색 유형"이라고 부르면 하위 유형 하나와 이름이 겹쳐 헷갈린다).
     /// 코드에서도 상위 개념은 <c>Expedition</c>, 하위 유형은 <c>Explore</c> 로 갈라 쓴다.
     ///
-    /// ⚠️ <b>'건물 건설'이 이 목록에서 빠졌다.</b> 건설은 이제 지침으로 고르는 것이 아니라
+    /// ⚠️ <b>'정찰(Patrol)'이 2026-08-15 에 없어졌다</b>(유저 지시: <i>"정찰 삭제(선공 중립
+    /// 몬스터가 없어졌으므로)"</i>). 정찰의 정의는 <b>"먼저 안 때리고, 선공 몹에게 맞으면
+    /// 반격한다"</b> 였는데, 같은 날 <b>중립 몬스터가 예외 없이 전부 비선공</b>으로 확정되면서
+    /// (<see cref="LastSanctuary.Units.NeutralMonsterDefinitionSO"/> 의 무리 주석 참조)
+    /// <b>먼저 맞을 일 자체가 없어졌다</b> — 사냥과 구분되는 지점이 사라져 실질적으로
+    /// 탐색과 같은 값이 되었다. 고르는 항목이 셋인데 둘이 같은 행동을 하면 유저가
+    /// "무슨 차이지"만 남는다.
+    ///
+    /// ⚠️ <b>'건물 건설'도 이 목록에 없다.</b> 건설은 지침으로 고르는 것이 아니라
     /// <b>예정지에서 가장 가까운 캐릭터가 맡는 공용 작업</b>이다(유저 확정 2026-08-12) —
     /// 배정은 <c>Buildings.BuildService.AssignedSiteFor</c> 한 곳에서만 정한다.
     /// </summary>
@@ -96,12 +103,8 @@ namespace LastSanctuary.Combat
         /// <summary>사냥 — 돌아다니다 중립 몬스터를 마주치면 <b>즉시 공격해 사냥</b>한다.</summary>
         Hunt,
 
-        /// <summary>정찰 — 중립 몬스터를 <b>먼저 때리지 않는다</b>.
-        /// 다만 선공 몹에게 공격당하면 <b>즉시 반격</b>한다.</summary>
-        Patrol,
-
         /// <summary>탐색 — 중립 몬스터를 아예 건드리지 않고 <b>안개만 밝힌다</b>.
-        /// 선공 몹에게 공격당해도 <b>반격하지 않고 그 자리를 벗어난다</b>.</summary>
+        /// 맞아도 <b>반격하지 않고 그 자리를 벗어난다</b>.</summary>
         Explore,
     }
 
@@ -225,6 +228,17 @@ namespace LastSanctuary.Combat
         {
             if (position == TacticalPosition.Front)
                 retreatAction = TacticalRetreatAction.KeepFighting;
+
+            // ⚠ 2026-08-15 에 <c>Patrol</c> 이 없어지면서 <b>enum 번호가 하나씩 당겨졌다</b>
+            //   (예전: Hunt 0 · Patrol 1 · Explore 2 → 지금: Hunt 0 · Explore 1).
+            //   씬에 저장된 값은 0 하나뿐이라 실제 영향은 없지만, 인스펙터에서 손으로
+            //   2 를 넣어둔 사본이 있으면 <b>어느 쪽도 아닌 값</b>이 된다.
+            //   모르는 값은 전부 탐색으로 본다 — 없어진 정찰이 사실상 탐색과 같은 행동이
+            //   됐기 때문이고(맨 위 enum 주석), 사냥으로 떨어뜨리면 지침을 안 준
+            //   캐릭터가 갑자기 중립을 때리러 간다.
+            if (expeditionType != TacticalExpeditionType.Hunt &&
+                expeditionType != TacticalExpeditionType.Explore)
+                expeditionType = TacticalExpeditionType.Explore;
         }
 
         /// <summary>이 지침에서 '동료와 함께 후퇴'를 고를 수 있는지 (UI 가 버튼을 잠글 때 쓴다).</summary>
@@ -278,7 +292,6 @@ namespace LastSanctuary.Combat
 
         public static string Label(TacticalExpeditionType v) => v switch
         {
-            TacticalExpeditionType.Patrol  => "정찰",
             TacticalExpeditionType.Explore => "탐색",
             _                              => "사냥",
         };
@@ -292,14 +305,9 @@ namespace LastSanctuary.Combat
         /// </summary>
         public static string Description(TacticalExpeditionType v) => v switch
         {
-            TacticalExpeditionType.Patrol =>
-                "정찰 — 탐험 중 중립 몬스터를 먼저 공격하지 않고 그냥 지나칩니다. 다만 선공형 " +
-                "몬스터에게 공격당하면 즉시 반격합니다. 무해한 사냥감은 건드리지 않으면서도 " +
-                "위협에는 스스로 대응하는, 사냥과 탐색 사이의 균형 잡힌 유형입니다.",
-
             TacticalExpeditionType.Explore =>
                 "탐색 — 탐험 중 중립 몬스터를 절대 공격하지 않고 안개만 밝히며 돌아다닙니다. " +
-                "선공형 몬스터에게 공격당해도 반격 없이 그 자리를 벗어나 도망칩니다(웨이브 " +
+                "중립 몬스터에게 공격당해도 반격 없이 그 자리를 벗어나 도망칩니다(웨이브 " +
                 "몬스터에게 맞을 때는 평소처럼 맞서 싸웁니다). 전투를 최대한 피해 안전하게 " +
                 "시야를 넓히고 싶을 때 적합합니다.",
 

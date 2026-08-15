@@ -34,28 +34,45 @@ namespace LastSanctuary.Units
                  "MonsterDefinitionSO와 같은 패턴으로 스포너 쪽 스폰 테이블에도 별도로 연결한다")]
         public NeutralMonsterUnit template;
 
-        [Header("등장 범위 (테이블 spawn_range_min / spawn_range_max) — ★ 지름 기준")]
-        [Tooltip("★ <b>넥서스를 중심에 둔 원의 지름(타일)</b> 하한이다 (유저 확정 2026-08-13:\n" +
-                 "\"넥서스를 중심에 두고 지름 15의 원에서부터 99의 원까지 — 반지름이 아니라 지름 기준\").\n\n" +
-                 "판정은 <b>360도 원형(유클리드 거리)</b>이다 — 실제 거리 검사에는 이 값의 " +
-                 "<b>절반</b>(반지름)을 쓴다. 예: 15 → 넥서스에서 7.5타일부터.")]
+        // ==================================================================
+        // 등장 범위 — ★★ 2026-08-16 부터 <b>정사각형</b>이다 (유저 확정)
+        //
+        // <i>"몬스터 생성 가능 / 배회 범위를 사각형으로 생성하게 하는 로직으로 해결하자.
+        //    변이 15인 정사각형에서부터 변이 99인 정사각형까지 — 이러면 맵 끝까지 꽉차게
+        //    생성 가능하니까"</i>
+        //
+        // <b>표 값의 뜻은 그대로다</b> — 여전히 "한 변의 길이"이고 숫자를 하나도 안 고쳤다.
+        // 바뀐 것은 <b>거리를 재는 방법</b> 하나뿐이다:
+        //     원형: sqrt(x² + y²)  ≤ 값/2      ← 2026-08-15 까지
+        //     사각: max(|x|, |y|)  ≤ 값/2      ← 지금
+        //
+        // <b>왜 바꿨나</b> — 정사각 맵에서 원으로 뽑으면 <b>네 모서리에 아무것도 안 나온다.</b>
+        // 상한이 변 320(=반변 160)인데 맵 모서리는 중심에서 유클리드로 226 이라, 그 사이
+        // 22,021칸(맵의 <b>21.5%</b>)이 규칙상 후보가 될 수 없었다(진행상황 86-9절).
+        // ==================================================================
+
+        [Header("등장 범위 (테이블 spawn_range_min / spawn_range_max) — ★ 정사각형 한 변")]
+        [Tooltip("★ <b>넥서스를 중심에 둔 정사각형 한 변의 길이(타일)</b> 하한.\n\n" +
+                 "판정은 <b>체비셰프 거리</b> max(|x|,|y|) 다 — 실제 검사에는 이 값의 " +
+                 "<b>절반</b>(반변)을 쓴다. 예: 15 → 넥서스에서 ±7.5타일 바깥부터.\n\n" +
+                 "⚠ 2026-08-16 이전에는 같은 숫자를 <b>원의 지름</b>으로 읽었다 — 뜻이 " +
+                 "'한 변'으로 바뀌었을 뿐 <b>표 값은 그대로</b>다.")]
         [Min(0f)] public float spawnRangeMinTiles = 15f;
 
-        [Tooltip("등장 원의 <b>지름</b>(타일) 상한. 이보다 멀리서는 나타나지도, 배회하지도 않는다.\n" +
+        [Tooltip("등장 정사각형 <b>한 변</b>(타일) 상한. 이보다 멀리서는 나타나지도, 배회하지도 않는다.\n" +
                  "0 이면 제한 없음(맵 끝까지)으로 친다.\n" +
-                 "⚠ 맵 밖까지 적으면 스포너가 맵 크기로 잘라 쓴다 — 320×320 맵이면 지름 320 " +
-                 "(= 반지름 160)이 축 방향으로 닿는 한계다")]
+                 "★ 320×320 맵에서 <b>320 을 적으면 맵 전체</b>가 된다 — 모서리까지 꽉 찬다.")]
         [Min(0f)] public float spawnRangeMaxTiles = 100f;
 
         /// <summary>
-        /// 넥서스 중심에서 이 거리(타일, <b>유클리드 반지름</b>) 이상 떨어져야 스폰 후보가 된다.
-        /// 표의 값은 <b>지름</b>이므로 절반으로 나눈다(유저 확정 2026-08-13).
+        /// 넥서스 중심에서 이 거리(타일, <b>체비셰프 반변</b>) 이상 떨어져야 스폰 후보가 된다.
+        /// 표의 값은 <b>한 변</b>이므로 절반으로 나눈다.
         /// </summary>
         public float MinDistanceFromNexus => Mathf.Max(0f, spawnRangeMinTiles) * 0.5f;
 
         /// <summary>
-        /// 넥서스 중심에서 이 거리(타일, <b>유클리드 반지름</b>) 이하여야 스폰 후보가 된다.
-        /// 표의 값은 <b>지름</b>이므로 절반으로 나눈다. 0 이면 무한대.
+        /// 넥서스 중심에서 이 거리(타일, <b>체비셰프 반변</b>) 이하여야 스폰 후보가 된다.
+        /// 표의 값은 <b>한 변</b>이므로 절반으로 나눈다. 0 이면 무한대.
         /// </summary>
         public float MaxDistanceFromNexus =>
             spawnRangeMaxTiles > 0f
@@ -185,8 +202,38 @@ namespace LastSanctuary.Units
         public bool HasColliderBox => colliderWidthTiles > 0f && colliderHeightTiles > 0f;
 
         [Tooltip("일러스트 이름 (표 mon_illust). Resources/Illust 아래를 찾는다.\n" +
-                 "⚠ 중립 몬스터의 일러스트를 띄우는 UI 는 <b>아직 없다</b> — 원화를 잃지 않게 담아만 둔다")]
+                 "★ 2026-08-15 부터 실제로 쓰인다 — 유닛을 클릭하면 UnitPortraitPanel 이 띄운다")]
         public string illustName = "";
+
+        Sprite _illust;
+        bool _illustLoaded;
+
+        /// <summary>
+        /// 초상화 일러스트. <c>Resources/Illust/</c> 에서 이름으로 읽어 캐시한다 —
+        /// <see cref="CharacterDefinitionSO.Illust"/> 와 <b>같은 규칙·같은 폴더</b>다.
+        ///
+        /// ⚠ 못 찾으면 경고를 한 번 남긴다. 조용히 null 이 되면 "표에 적었는데 왜 안 뜨지"가
+        /// 된다 — 히스톤 초상화가 정확히 그래서 인게임 모션으로 폴백됐다(84-8절 ②,
+        /// 원인은 .meta 의 <c>textureType</c> 이 Sprite 가 아니었던 것).
+        /// </summary>
+        public Sprite Illust
+        {
+            get
+            {
+                if (_illustLoaded) return _illust;
+                _illustLoaded = true;
+
+                string n = illustName != null ? illustName.Trim() : "";
+                if (n.Length == 0) return null;
+
+                _illust = Resources.Load<Sprite>("Illust/" + n);
+                if (_illust == null)
+                    Debug.LogWarning($"[중립] 일러스트 'Resources/Illust/{n}' 을 찾지 못했습니다. " +
+                                     $"({DisplayName}) — 파일 이름과 .meta 의 textureType(8=Sprite) 을 " +
+                                     "확인해주세요.", this);
+                return _illust;
+            }
+        }
 
         [Tooltip("스킨 <b>종 이름</b> (표 mon_skin 에서 '_asset' 을 뗀 것).\n" +
                  "Resources/MonsterSkins/<종>/Skin_<종> 을 찾는다 — 예: Carcinos → " +
@@ -205,10 +252,25 @@ namespace LastSanctuary.Units
         {
             get
             {
-                string s = skinAssetName != null ? skinAssetName.Trim() : "";
+                string s = SpeciesName;
                 return s.Length == 0 ? "" : $"MonsterSkins/{s}/Skin_{s}";
             }
         }
+
+        /// <summary>
+        /// <b>종 이름</b> — 표의 <c>mon_skin</c> 에서 꼬리표를 뗀 것(예: <c>TumorSpider</c>).
+        /// 비어 있으면 빈 문자열.
+        ///
+        /// 이 한 이름이 <b>세 곳을 묶는다</b>:
+        /// <code>
+        ///   Resources/MonsterSkins/&lt;종&gt;/Skin_&lt;종&gt;   외형 에셋
+        ///   Art/Char_Asset/Char_Asset_&lt;종&gt;/…          프레임 원본
+        ///   씬의 &lt;종&gt;_Template                        복제할 템플릿
+        /// </code>
+        /// 그래서 표에 종 이름만 적으면 나머지가 따라온다
+        /// (<see cref="NeutralMonsterSpawner.FindTemplateFor"/> 주석 참조).
+        /// </summary>
+        public string SpeciesName => skinAssetName != null ? skinAssetName.Trim() : "";
 
         // ==================================================================
         // ★ 서식지 (mon_type == Epic) — 롤 정글 캠프 방식 (유저 지시 2026-08-15)
@@ -243,6 +305,58 @@ namespace LastSanctuary.Units
         /// 0 이면 정확히 중앙에 붙어 서므로 살짝 여유를 준다.
         /// </summary>
         [Min(0f)] public float habitatIdleSlackTiles = 1f;
+
+        [Tooltip("★ 이 종이 쓰는 스킬 id (표 mon_skill_1 · mon_skill_2).\n" +
+                 "웨이브 보스의 boss_skill_1~3 과 <b>같은 규칙</b>이다 — 순서가 곧 슬롯 번호이고, " +
+                 "스킨의 skill1*/skill2* 모션과 짝이 된다. 0 은 빈 칸이라 건너뛴다.\n" +
+                 "에셋은 Resources/BossSkills 에서 그 번호로 찾는다 (BossSkillCaster)")]
+        public int[] skillIds;
+
+        /// <summary>스킬을 하나라도 가진 종인가 — 스포너가 BossSkillCaster 를 붙일지 정한다.</summary>
+        public bool HasSkills
+        {
+            get
+            {
+                if (skillIds == null) return false;
+                for (int i = 0; i < skillIds.Length; i++)
+                    if (skillIds[i] > 0) return true;
+                return false;
+            }
+        }
+
+        [Tooltip("서식지 바닥에 깔 <b>타일 묶음 이름</b> (표 habitat_design 시트의 habitat_tile_asset).\n" +
+                 "Resources/HabitatTiles/<이름>/ 폴더의 타일을 전부 후보로 쓴다 — 예: CarcinosHabitat.\n" +
+                 "비어 있으면 서식지를 바닥에 그리지 않는다(예전 동작)")]
+        public string habitatTileAsset = "";
+
+        /// <summary>
+        /// 서식지 <b>바닥</b> 타일 폴더의 Resources 경로. 없으면 빈 문자열.
+        ///
+        /// <b>왜 폴더째인가</b> — 타일이 32종이라 개별 참조를 표에 적을 수 없고, SO 는 씬 참조를
+        /// 가질 수 없다(진행상황 8절 4번). 스킨과 <b>같은 규약</b>이다: 표에는 이름 하나만 적고
+        /// 코드가 <c>Resources.LoadAll</c> 로 폴더를 통째로 읽는다.
+        ///
+        /// ★ 2026-08-16 부터 묶음이 <b>셋</b>이다 — 이름 하나에서 나머지 둘을 <b>접미사로</b>
+        /// 만든다(스킨이 종 이름 하나로 폴더를 찾는 것과 같은 방식):
+        /// <code>
+        ///   CarcinosHabitat        바닥
+        ///   CarcinosHabitatEdge    가장자리 한 칸
+        ///   CarcinosHabitatProps   바닥 위 데코
+        /// </code>
+        /// </summary>
+        public string HabitatTileResourcePath => HabitatPath("");
+
+        /// <summary>서식지 <b>가장자리</b> 타일 폴더. 없으면 빈 문자열.</summary>
+        public string HabitatEdgeResourcePath => HabitatPath("Edge");
+
+        /// <summary>서식지 <b>데코</b> 타일 폴더. 없으면 빈 문자열.</summary>
+        public string HabitatPropResourcePath => HabitatPath("Props");
+
+        string HabitatPath(string suffix)
+        {
+            string s = habitatTileAsset != null ? habitatTileAsset.Trim() : "";
+            return s.Length == 0 ? "" : "HabitatTiles/" + s + suffix;
+        }
 
         /// <summary>
         /// 웨이브 배율 없이 그대로 쓰는 능력치 묶음.

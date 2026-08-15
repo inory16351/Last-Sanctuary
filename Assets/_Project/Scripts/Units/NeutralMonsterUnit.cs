@@ -14,8 +14,14 @@ namespace LastSanctuary.Units
     /// <see cref="NeutralMonsterDefinitionSO.packRetaliate"/> 가 켜져 있으면
     /// <b>같은 무리 전체</b>가 그 공격자에게 덤빈다.
     /// </summary>
-    public class NeutralMonsterUnit : DamageableUnit
+    public class NeutralMonsterUnit : DamageableUnit, IBossSkillOwner
     {
+        /// <summary>표의 <c>mon_skill_1~2</c>. 순서가 곧 스킬 슬롯 번호다 (에픽만 값이 있다).</summary>
+        public int[] BossSkillIds => definition != null ? definition.skillIds : null;
+
+        /// <summary>정의가 들어왔는가 — 스포너가 <c>Initialize</c> 를 부른 뒤에 true.</summary>
+        public bool SkillsReady => definition != null;
+
         [Header("데이터")]
         [SerializeField] NeutralMonsterDefinitionSO definition;
 
@@ -24,6 +30,27 @@ namespace LastSanctuary.Units
 
         public NeutralMonsterDefinitionSO Definition => definition;
         public StatBlock Stats => stats;
+
+        /// <summary>
+        /// 화면·로그에 쓰는 이름 — <b>표의 <c>mon_name</c>(스트링 키)</b> 이 정본이다.
+        ///
+        /// <see cref="MonsterUnit.DisplayName"/> · <see cref="CharacterUnit.DisplayName"/> 과
+        /// 같은 자리다. 중립만 이게 없어서 로그(<c>BattleLogPanel.NameOf</c>)가
+        /// <c>unit.name</c>(하이라키 이름)으로 떨어졌고, 스포너가 붙이던 일련번호가
+        /// 그대로 찍혔다(유저 지시 2026-08-15: "동일 개체면 다 해당 개체 이름으로").
+        /// 스포너 쪽 번호는 없앴지만, <b>하이라키 이름이 어떻게 바뀌든 로그가 흔들리지 않게</b>
+        /// 표시 이름을 여기서 명시적으로 준다.
+        /// </summary>
+        public override string DisplayName =>
+            definition != null && !string.IsNullOrWhiteSpace(definition.DisplayName)
+                ? definition.DisplayName
+                : name;
+
+        /// <summary>칭호 (표 <c>mon_title</c>). 에픽만 값이 있다 — 예: 카르시노스 "검은 숲의 종양".</summary>
+        public override string Title => definition != null ? definition.Title : string.Empty;
+
+        /// <summary>초상화 (표 <c>mon_illust</c>). 클릭했을 때 <see cref="UI.UnitPortraitPanel"/> 이 띄운다.</summary>
+        public override Sprite Portrait => definition != null ? definition.Illust : null;
 
         public override int MaxHp => Balance != null ? Balance.MaxHp(stats.hp) : 0;
         public override int DefenseStat => stats.defense;

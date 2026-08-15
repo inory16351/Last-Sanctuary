@@ -26,6 +26,30 @@ namespace LastSanctuary.Combat
         /// 뒤에서 안전하게 쏘던 원거리·치유 캐릭터를 노리는 기술이다.
         /// </summary>
         VoidLaser,
+
+        // ──────────────────────────────────────────────────────────────
+        // 카르시노스 (에픽 중립 보스 1004) — 2026-08-15
+        //
+        // ⚠ <b>값의 뜻이 단탈리온과 다르다.</b> 단탈리온의 두 스킬은 value_04 가 침식이지만,
+        //   이 둘은 스트링 테이블의 정의문이 각자 다른 것을 말한다:
+        //     할퀴기      value_04 = 방어력 <b>감소 %</b> · value_05 = 지속 <b>초</b>
+        //     죽음의 포효 value_01 = <b>반지름</b> 타일 · value_02 = <b>넉백</b> 타일
+        //   그래서 <see cref="BossSkillSO"/> 의 프로퍼티도 종류별로 갈라 읽는다 —
+        //   칸 번호가 아니라 <b>뜻</b>으로 이름 붙인 프로퍼티를 쓸 것.
+        // ──────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// 할퀴기 (2001) — <b>가장 가까운</b> 적을 향해 전방 5 x 3 타일.
+        /// 맞은 적은 <b>방어력이 깎인다</b>(value_04 % · value_05 초).
+        /// 단탈리온의 「타락한 무덤」과 조준·모양이 같고, 붙는 효과만 다르다.
+        /// </summary>
+        Scratch,
+
+        /// <summary>
+        /// 죽음의 포효 (2002) — 자기 중심 <b>원형</b>. 맞은 적을 <b>뒤로 밀어낸다</b>
+        /// (value_02 타일). 붙어서 때리던 전열을 통째로 떼어내는 기술이다.
+        /// </summary>
+        RoarDeath,
     }
 
     public static class BossSkillTypes
@@ -43,6 +67,8 @@ namespace LastSanctuary.Combat
             {
                 case "fallen_tomb": return BossSkillType.FallenTomb;
                 case "void_laser":  return BossSkillType.VoidLaser;
+                case "scratch":     return BossSkillType.Scratch;
+                case "roar_death":  return BossSkillType.RoarDeath;
                 default:            return BossSkillType.None;
             }
         }

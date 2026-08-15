@@ -518,7 +518,7 @@ namespace LastSanctuary.UI
             if (row.Unit != null)
             {
                 _dead.Add(row.Unit);
-                row.CachedName = row.Unit.name;
+                row.CachedName = NameTextOf(row.Unit);
             }
 
             ApplyDeadAppearance(row);
@@ -699,7 +699,7 @@ namespace LastSanctuary.UI
 
                 CharacterUnit unit = row.Unit;
 
-                if (row.Name != null) row.Name.text = unit.name;
+                if (row.Name != null) row.Name.text = NameTextOf(unit);
 
                 // HP 바는 여기서 건드리지 않는다 — ApplyHp(즉시)+AnimateHpBars(매 프레임)가 반영한다.
                 // 폴링과 애니메이션이 같은 값을 이중으로 쓰면 순서에 따라 잠깐 어긋나 보일 수 있다.
@@ -744,6 +744,30 @@ namespace LastSanctuary.UI
 
             for (int i = 0; i < active.Count; i++)
                 active[i].Root.transform.SetSiblingIndex(i);
+        }
+
+        /// <summary>
+        /// 로스터 행의 이름 칸 — <b>이름 옆에 레벨</b>을 붙인다
+        /// (유저 지시 2026-08-15: <i>"캐릭터의 강화 횟수를 lv로 바꾸고 캐릭터의 레벨을
+        /// 로스터의 이름 옆에 표기"</i>).
+        ///
+        /// <b>왜 칸을 새로 안 만들었나</b> — 행 템플릿(<c>RowTemplate</c>)의 가로 폭은 이미
+        /// 이름·상태·HP·침식으로 꽉 차 있다(48절 미결 64번: Info 컬럼 폭이 상한이다).
+        /// 칸을 하나 더 끼우면 이름이 잘린다. 레벨은 두세 글자라 <b>이름 칸 안에</b>
+        /// 작은 글씨로 얹는 편이 폭을 안 먹는다.
+        ///
+        /// ⚠ TMP 리치 텍스트를 쓴다 — 이 프로젝트의 TMP 는 리치 텍스트가 켜져 있다
+        /// (전술 지침 창의 <c>LV.</c> 표기가 이미 같은 방식이다).
+        ///
+        /// ★ <b>레벨 = 강화 횟수</b>다. 값을 새로 만들지 않았다 —
+        /// <see cref="CharacterUnit.UpgradeCount"/> 가 이미 그 뜻이고, 패시브 해금 조건도
+        /// 그 값을 본다(35절). "강화 횟수"라는 <b>이름만</b> 화면에서 Lv 로 바꾼 것이다.
+        /// </summary>
+        static string NameTextOf(CharacterUnit unit)
+        {
+            if (unit == null) return string.Empty;
+            string lv = ColorUtility.ToHtmlStringRGB(HudTheme.TextAccent);
+            return $"{unit.DisplayName} <size=78%><color=#{lv}>Lv.{unit.UpgradeCount}</color></size>";
         }
 
         /// <summary>"지금 뭐 하는 중인지" 한 단어. 전투가 자율 이동보다 우선이라 먼저 검사한다.</summary>

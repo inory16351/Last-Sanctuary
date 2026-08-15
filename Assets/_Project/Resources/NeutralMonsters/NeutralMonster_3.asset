@@ -28,7 +28,7 @@ MonoBehaviour:
   attacksPerSecond: 0.968
   moveSpeedTiles: 2.455
   leashRangeTiles: 6
-  maxAlive: 15
+  maxAlive: 19
   respawnSeconds: 25
   spawnRangeMinTiles: 200
   spawnRangeMaxTiles: 320
@@ -45,5 +45,6 @@ MonoBehaviour:
   resistanceStat: 50
   colliderHeightTiles: 1.9
   colliderWidthTiles: 2.6
-  illustName: 
-  skinAssetName: 
+  illustName: TumorMole_illust
+  skinAssetName: TumorMole
+  habitatTileAsset: 

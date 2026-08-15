@@ -64,8 +64,8 @@ namespace LastSanctuary.UI
         [Tooltip("미해금 스킬의 이름 자리. 내용을 감춘다")]
         [SerializeField] string lockedTitle = "???";
         [SerializeField] string lockedDesc = "???";
-        [Tooltip("{0} = 해금에 필요한 강화 횟수")]
-        [SerializeField] string lockedNoteFormat = "강화 {0}회에 해금";
+        [Tooltip("{0} = 해금에 필요한 레벨(= 강화 횟수)")]
+        [SerializeField] string lockedNoteFormat = "Lv.{0} 에 해금";
         [SerializeField] string unlockedNote = "해금됨";
         [SerializeField] string passiveClickHint = "클릭 → 상세";
         [SerializeField] string passiveNoneText = "이 캐릭터에는 지정된 스킬이 없습니다.";
@@ -437,7 +437,8 @@ namespace LastSanctuary.UI
             bool has = _unit != null;
 
             if (_nameText != null) _nameText.text = has ? _unit.DisplayName : noSelectionName;
-            if (_countText != null) _countText.text = has ? $"강화 {_unit.UpgradeCount}회" : "-";
+            // ★ 2026-08-15 — "강화 N회" → <b>Lv.N</b> (유저 지시). 값은 그대로 UpgradeCount 다.
+            if (_countText != null) _countText.text = has ? $"Lv.{_unit.UpgradeCount}" : "-";
             if (_hintText != null) _hintText.text = has ? selectionHint : noSelectionHint;
 
             float ratio = has ? _unit.HpRatio : 0f;

@@ -43,6 +43,7 @@ namespace LastSanctuary.Combat
             OnAnyDied = null;
             OnAnyMissed = null;
             OnAnyCritical = null;
+            OnAnyDamaged = null;
         }
 
         bool _wasInCombat;
@@ -61,6 +62,39 @@ namespace LastSanctuary.Combat
 
         /// <summary>유닛 종류. 몬스터의 공격 우선순위 판정에 쓰인다.</summary>
         public abstract UnitKind Kind { get; }
+
+        /// <summary>
+        /// <b>화면·로그에 나가는 이름.</b> 기본은 하이라키 이름이고, 표를 가진 종류
+        /// (캐릭터·웨이브 몬스터·중립 몬스터)가 <b>표의 이름</b>으로 재정의한다.
+        ///
+        /// ★ <b>왜 여기로 올렸나</b> (2026-08-15) — 같은 뜻의 "이 유닛의 표시 이름"을 고르는
+        /// 코드가 <c>BattleLogPanel.NameOf</c> · <c>CharacterPassives.DisplayNameOf</c> 두 곳에
+        /// <b>따로</b> 있었고, 둘 다 <c>is CharacterUnit</c> / <c>is MonsterUnit</c> 만 보고
+        /// <b>중립 몬스터를 빠뜨려</b> 하이라키 이름(일련번호가 붙던 이름)으로 떨어졌다.
+        /// 종류가 하나 늘 때마다 두 곳을 같이 고쳐야 하는 구조여서 반드시 한쪽을 빠뜨린다 —
+        /// 판정을 <b>유닛 자신</b>에게 물어보는 것으로 바꿔 갈래 자체를 없앴다.
+        /// </summary>
+        public virtual string DisplayName => name;
+
+        /// <summary>
+        /// <b>칭호</b> — 이름 아래에 붙는 수식구(예: 카르시노스 "검은 숲의 종양").
+        /// 없으면 빈 문자열이다.
+        ///
+        /// 표에 <c>*_title</c> 칸이 있는 종(웨이브 보스·에픽 중립)만 값이 있다.
+        /// 보스 체력바와 초상화가 <b>같은 값</b>을 쓰게 하려고 여기로 올렸다 —
+        /// 예전에는 <c>MonsterUnit</c> 만 갖고 있어서, 중립 에픽의 칭호를 띄우려면
+        /// UI 쪽에 <c>is</c> 갈래를 또 하나 만들어야 했다.
+        /// </summary>
+        public virtual string Title => string.Empty;
+
+        /// <summary>
+        /// <b>초상화</b> — 클릭했을 때 띄우는 일러스트. 없으면 null.
+        ///
+        /// 표의 <c>illust</c> / <c>mon_illust</c> 칸이 가리키는
+        /// <c>Resources/Illust/</c> 의 그림이다. 원화가 없는 종(웨이브 몬스터·넥서스·포탑)은
+        /// null 을 돌려주고, 초상화 UI 는 그림 없이 이름·칭호만 보여준다.
+        /// </summary>
+        public virtual Sprite Portrait => null;
 
         /// <summary>
         /// <b>외부에서 넣는 회복</b>(치유형 캐릭터 등)을 받을 수 있는지. 기본은 항상 true 이고,
@@ -303,7 +337,8 @@ namespace LastSanctuary.Combat
                 OnAnyCritical?.Invoke(attacker, this);
             }
 
-            // ④ 적용
+            // ④ 적용 — 치명타 여부를 아래 ApplyDamage 가 이벤트에 실어 보낸다.
+            _pendingCritical = critical;
             ApplyDamage(damage);
         }
 
@@ -313,6 +348,27 @@ namespace LastSanctuary.Combat
         /// <summary>치명타가 터졌다 (공격자, 대상). 연출용 — 아직 구독자가 없다.</summary>
         public static event System.Action<DamageableUnit, DamageableUnit> OnAnyCritical;
 
+        /// <summary>
+        /// <b>피해가 실제로 들어갔다</b> (공격자, 대상, 피해량, 치명타 여부) — 2026-08-16 신설.
+        /// 화면에 <b>데미지 숫자</b>를 띄우는 <see cref="DamageNumberFx"/> 가 이걸 듣는다.
+        ///
+        /// ★ 기존 <see cref="OnAnyAttack"/> 과 다른 점 — 저쪽은 <b>계산 전</b>에 발생하고
+        /// 빗나가도 발생한다(웨이브 전투 개시 감지용이라 그래야 한다). 이 이벤트는
+        /// <b>깎인 체력이 확정된 뒤</b>에 그 값과 함께 발생한다.
+        ///
+        /// ⚠ 공격자는 <b>null 일 수 있다</b> — 패시브의 지속 피해처럼 때린 주체 없이
+        /// <see cref="ApplyDamage"/> 를 직접 부르는 경로가 있다. 숫자를 띄우는 데는
+        /// <b>맞은 쪽</b>만 있으면 되므로 대상은 언제나 유효하다.
+        /// </summary>
+        public static event System.Action<DamageableUnit, DamageableUnit, int, bool> OnAnyDamaged;
+
+        /// <summary>
+        /// 지금 적용되는 피해가 치명타인가. <see cref="TakeDamageFrom"/> 이 찍고
+        /// <see cref="ApplyDamage"/> 가 이벤트에 실어 보낸 뒤 지운다 —
+        /// <c>ApplyDamage(int)</c> 의 시그니처를 바꾸지 않으려는 것이다(PROTO 가 쓰는 공개 API).
+        /// </summary>
+        bool _pendingCritical;
+
         /// <summary>계산이 끝난 피해량(정수)을 직접 적용한다.</summary>
         public void ApplyDamage(int amount)
         {
@@ -321,6 +377,11 @@ namespace LastSanctuary.Combat
             MarkCombatAction();       // 피해를 입은 것도 전투 상태
             currentHp -= amount;
             RaiseHpChanged();
+
+            // 데미지 숫자 연출(2026-08-16). 여기에 두는 이유 — 지속 피해처럼
+            // TakeDamageFrom 을 거치지 않고 이 함수를 직접 부르는 경로도 숫자가 뜬다.
+            OnAnyDamaged?.Invoke(_lastAttacker, this, amount, _pendingCritical);
+            _pendingCritical = false;
 
             if (currentHp <= 0)
             {

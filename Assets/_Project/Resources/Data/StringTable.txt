@@ -4,6 +4,7 @@ string_key	kr	en
 event_dialogue_10001		
 ui_btn_open	열기	Open
 ui_btn_close	닫기	Close
+epic_boss_title_1004	검은 숲의 종양	The Tumor of the Black Forest
 boss_title_120001	끝없는 형상의 군주	The Lord Of Endless Forms
 character_name_9001	엘린	Elin
 character_name_9002	비기오르	Bigior
@@ -33,9 +34,9 @@ mental_error_type_desc_Selfishness	해당 캐릭터 치유 불가(본인의 체�
 mental_error_type_desc_Settle_down	해당 캐릭터의 반경{value_01}에 존재하는 아군의 침식 수치가 {value_02}만큼 하락(본인 제외)	
 mental_error_type_desc_Terrified	해당 캐릭터가 전투를 거부하고 넥서스 방향으로 회피함	
 mental_error_type_desc_Upsurge	해당 캐릭터가 {value_01} 만큼 강화됨(자원 소모는 없으니 자원 소모 값은 동일하게 상승)	
-mon_name_1001	역겨운 덩어리 1	
-mon_name_1002	역겨운 덩어리 2	
-mon_name_1003	역겨운 덩어리 3	
+mon_name_1001	종양 거미	TumorSpider
+mon_name_1002	종양귀	Tumorling
+mon_name_1003	종양 두더지	TumorMole
 skill_name_2001	할퀴기	
 skill_name_2002	죽음의 포효	
 monster_name_100001	지옥 송곳니	HellFang

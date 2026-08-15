@@ -212,24 +212,50 @@ namespace LastSanctuary.Units
             spawnTable = list.ToArray();
         }
 
-        /// <summary>정의 에셋 이름 + <c>_Template</c> 로 씬에서 템플릿을 찾는다. 없으면 null.</summary>
+        /// <summary>
+        /// 씬에서 이 종의 템플릿을 <b>이름으로</b> 찾는다. 없으면 null.
+        ///
+        /// ★ 찾는 이름이 두 개다 (유저 지시 2026-08-15: <i>"중립 몬스터 템플릿 또한 몬스터
+        /// 이름에 맞게 수정"</i>):
+        /// <code>
+        ///   ① &lt;종 이름&gt;_Template        예: TumorSpider_Template   ← 지금 쓰는 이름
+        ///   ② &lt;정의 에셋 이름&gt;_Template  예: NeutralMonster_1_Template  ← 예전 이름
+        /// </code>
+        /// <b>종 이름은 표의 <c>mon_skin</c></b> 에서 온다
+        /// (<see cref="NeutralMonsterDefinitionSO.SpeciesName"/>) — 스킨 폴더
+        /// <c>MonsterSkins/TumorSpider</c> 와 <b>같은 이름</b>이라 하이라키·에셋 폴더·표가
+        /// 한 이름으로 묶인다. 예전에는 정의 에셋 이름(<c>NeutralMonster_1</c>)만 봤는데,
+        /// 그 이름은 <b>몇 번째 종인지</b>만 알려줄 뿐 무엇인지 알려주지 않았다.
+        ///
+        /// ⚠ <b>②를 남겨두는 이유</b> — 정의 에셋 이름은 파이썬 파이프라인
+        /// (<c>sync_tables_to_assets.py</c> 의 <c>NEUTRAL_ASSET_BY_ID</c>)이 쓰는 정본이라
+        /// 그대로 두었다. 표에 <c>mon_skin</c> 을 아직 안 적은 종은 종 이름이 비므로
+        /// ②로만 찾히고, 그래야 옛 씬도 그대로 돈다.
+        /// </summary>
         NeutralMonsterUnit FindTemplateFor(NeutralMonsterDefinitionSO def)
         {
-            string wanted = def.name + "_Template";
+            string species = def.SpeciesName;
+            string[] wanted = species.Length > 0
+                ? new[] { species + "_Template", def.name + "_Template" }
+                : new[] { def.name + "_Template" };
 
             Transform root = templateRoot != null ? templateRoot : FindTemplateRoot();
             if (root != null)
             {
-                Transform t = root.Find(wanted);          // ⚠ 비활성도 찾는다(GameObject.Find 와 다름)
-                if (t != null) return t.GetComponent<NeutralMonsterUnit>();
+                for (int i = 0; i < wanted.Length; i++)
+                {
+                    Transform t = root.Find(wanted[i]);   // ⚠ 비활성도 찾는다(GameObject.Find 와 다름)
+                    if (t != null) return t.GetComponent<NeutralMonsterUnit>();
+                }
             }
 
             // 부모를 못 찾았을 때의 마지막 수단 — 씬 전체에서 이름으로 훑는다.
             foreach (GameObject go in gameObject.scene.GetRootGameObjects())
-            {
-                Transform found = FindDeep(go.transform, wanted);
-                if (found != null) return found.GetComponent<NeutralMonsterUnit>();
-            }
+                for (int i = 0; i < wanted.Length; i++)
+                {
+                    Transform found = FindDeep(go.transform, wanted[i]);
+                    if (found != null) return found.GetComponent<NeutralMonsterUnit>();
+                }
             return null;
         }
 
@@ -346,7 +372,14 @@ namespace LastSanctuary.Units
                 : new Vector3(cell.x + 0.5f, cell.y + 0.5f, 0f);
 
             NeutralMonsterUnit unit = Instantiate(template, pos, Quaternion.identity, _root);
-            unit.name = $"{entry.definition.DisplayName}_{_rng.Next(1000, 9999)}";
+
+            // 이름에 <b>일련번호를 붙이지 않는다</b> (유저 지시 2026-08-15: "동일 개체면 다
+            // 해당 개체 이름으로 나오게"). 웨이브 몬스터가 2026-08-13 에 이미 같은 규칙으로
+            // 바뀌었는데(<see cref="MonsterSpawner"/> 의 <c>unit.name = def.DisplayName</c>)
+            // <b>중립만 빠져 있었다</b> — 그래서 로그에 "종양 거미_4821 처치" 처럼 나왔다.
+            // 하이라키에서 개체를 구별하는 데는 순서·instanceId 로 충분하고, 화면에 나가는
+            // 이름은 표의 <c>mon_name</c>(스트링 키) 하나로 통일한다.
+            unit.name = entry.definition.DisplayName;
             unit.gameObject.SetActive(true);
             unit.Initialize(entry.definition, balance);
 
@@ -402,15 +435,96 @@ namespace LastSanctuary.Units
             //   롤 정글 캠프처럼 자기 서식지 한가운데서 기다리다가, 맞으면 서식지 밖
             //   일정 거리까지만 쫓고 돌아온다.
             if (entry.definition.epic)
+            {
                 wander.InitHabitat(pos,
                                    entry.definition.habitatRadiusTiles,
                                    entry.definition.habitatChaseTiles,
                                    entry.definition.habitatIdleSlackTiles);
+                PaintHabitat(unit, entry.definition, cell);
+
+                // ★ 스킬 — 표(mon_skill_1·2)에 값이 있는 종만 캐스터를 붙인다
+                //   (유저 지시 2026-08-15: "에픽 몬스터 스킬 구현(카르시노스)").
+                //   컴포넌트는 <b>웨이브 보스와 같은 것</b>이다 — 조준·범위·연출 코드를
+                //   두 벌로 만들지 않으려고 BossSkillCaster 를 종에 무관하게 고쳤다
+                //   (Combat.IBossSkillOwner 주석 참조).
+                if (entry.definition.HasSkills &&
+                    unit.GetComponent<Combat.BossSkillCaster>() == null)
+                    unit.gameObject.AddComponent<Combat.BossSkillCaster>();
+            }
             else
+            {
                 wander.Init(minDist, ResolveOuterRadius(minDist, maxDist),
                             entry.definition.leashRangeTiles);
+            }
 
             PruneAndGet(entry.definition).Add(unit);
+        }
+
+        // ------------------------------------------------------------------
+        // 서식지 바닥 그리기 (유저 지시 2026-08-15)
+        //
+        // *"매 게임 시작 카르시노스가 소환 될때마다 새로운 서식지 타일 에셋들이 섞여서
+        //   서식지 디자인이 매 게임마다 조금씩 달라지도록"*
+        //
+        // 모양을 만드는 일은 전부 <see cref="NeutralHabitat"/> 에 있다 — 여기서는
+        // <b>씨앗을 주는 것</b>만 한다. 씨앗을 스포너의 난수에서 뽑는 것이 핵심이다:
+        // 그 난수는 게임을 켤 때 새로 시작하므로 같은 자리에 소환돼도 모양이 달라진다.
+        //
+        // ⚠ 타일 묶음은 <b>표(habitat_design 시트)</b>가 정한다. 표에 안 적힌 종은
+        //   폴더가 비어 조용히 아무것도 안 그린다 — 예전 동작 그대로다.
+        // ------------------------------------------------------------------
+
+        [Header("서식지")]
+        [Tooltip("에픽 개체를 소환할 때 서식지가 몇 칸으로 그려졌는지 콘솔에 남긴다")]
+        [SerializeField] bool logHabitat = true;
+
+        /// <summary>종별 서식지 타일 묶음 캐시. 개체마다 Resources 를 다시 읽지 않으려는 것.</summary>
+        readonly Dictionary<string, UnityEngine.Tilemaps.TileBase[]> _habitatTiles =
+            new Dictionary<string, UnityEngine.Tilemaps.TileBase[]>();
+
+        void PaintHabitat(NeutralMonsterUnit unit, NeutralMonsterDefinitionSO def, Vector3Int cell)
+        {
+            if (mapGenerator == null) return;
+
+            // 바닥이 없으면 서식지 자체를 안 그린다. 가장자리·데코는 없어도 된다
+            // (없으면 각각 바닥 타일로 대체 / 데코 생략 — NeutralHabitat.Paint 참조).
+            var ground = LoadHabitatTiles(def.HabitatTileResourcePath, def, unit, required: true);
+            if (ground == null || ground.Length == 0) return;
+
+            var edge = LoadHabitatTiles(def.HabitatEdgeResourcePath, def, unit, required: false);
+            var props = LoadHabitatTiles(def.HabitatPropResourcePath, def, unit, required: false);
+
+            var habitat = unit.gameObject.GetComponent<NeutralHabitat>();
+            if (habitat == null) habitat = unit.gameObject.AddComponent<NeutralHabitat>();
+
+            habitat.Paint(mapGenerator, ground, edge, props, cell,
+                          def.habitatRadiusTiles, _rng.Next());
+
+            if (logHabitat)
+                Debug.Log($"[NeutralMonsterSpawner] {def.DisplayName} 서식지 " +
+                          $"{habitat.PaintedCells}칸 · 데코 {habitat.PropCells}개 " +
+                          $"(반지름 {def.habitatRadiusTiles}타일 · 바닥 {ground.Length}종 · " +
+                          $"가장자리 {(edge != null ? edge.Length : 0)}종 · " +
+                          $"데코 {(props != null ? props.Length : 0)}종)", unit);
+        }
+
+        /// <summary>서식지 타일 묶음 하나를 읽어 캐시한다. 없으면 null.</summary>
+        UnityEngine.Tilemaps.TileBase[] LoadHabitatTiles(
+            string path, NeutralMonsterDefinitionSO def, NeutralMonsterUnit unit, bool required)
+        {
+            if (string.IsNullOrEmpty(path)) return null;
+
+            if (!_habitatTiles.TryGetValue(path, out var tiles))
+            {
+                tiles = Resources.LoadAll<UnityEngine.Tilemaps.TileBase>(path);
+                _habitatTiles[path] = tiles;
+
+                if (required && (tiles == null || tiles.Length == 0))
+                    Debug.LogWarning(
+                        $"[NeutralMonsterSpawner] {def.name} 의 서식지 타일 'Resources/{path}' 이 " +
+                        "비어 있습니다. 표의 habitat_tile_asset 값과 실제 폴더 이름을 확인해주세요.", unit);
+            }
+            return tiles;
         }
 
         // ------------------------------------------------------------------
@@ -490,8 +604,23 @@ namespace LastSanctuary.Units
         }
 
         /// <summary>
-        /// 넥서스(셀 (0,0)) 중심 <b>원형 고리</b>(min ~ max 타일, 유클리드) 안에서 배치 가능한 칸을
+        /// 넥서스(셀 (0,0)) 중심 <b>정사각 고리</b>(변 min ~ 변 max 타일) 안에서 배치 가능한 칸을
         /// 무작위로 찾는다.
+        ///
+        /// ★★ <b>2026-08-16 — 원형에서 정사각형으로 바꿨다</b> (유저 확정).
+        /// <i>"맵 모서리에 몬스터 안 생기는 문제는 몬스터 생성 가능 / 배회 범위를 사각형으로
+        /// 생성하게 하는 로직으로 해결하자. 변이 15인 정사각형에서부터 변이 99인 정사각형까지
+        /// — 이러면 맵 끝까지 꽉차게 생성 가능하니까"</i>
+        ///
+        /// <b>왜 필요했나</b> — 표의 상한이 <b>변 320</b>(=반지름 160)이고 판정이 유클리드
+        /// 원이었는데, 정사각 맵의 <b>모서리는 226타일</b>이다. 그래서 반지름 160~226 사이의
+        /// 네 모서리 <b>22,021칸(맵의 21.5%)</b>이 규칙상 절대 후보가 되지 못했다(86-9절).
+        /// 판정을 <b>체비셰프 거리</b>(max(|x|,|y|))로 바꾸면 "변 N 인 정사각형"이 그대로
+        /// 표현되고, 변 320 이 곧 맵 전체라 <b>모서리까지 꽉 찬다.</b>
+        ///
+        /// ⚠ <b>표 값의 뜻은 안 바뀐다.</b> 여전히 "지름"이 아니라 <b>한 변의 길이</b>로 읽으면
+        /// 되고(15 → 넥서스에서 ±7.5), 숫자를 하나도 고칠 필요가 없다 —
+        /// 원형일 때 지름을 반으로 나누던 자리에서 이제 <b>변을 반으로</b> 나눈다.
         ///
         /// ⚠ <b>고른 자리를 그대로 검사한다</b> — <see cref="MapGenerator.TryFindPlaceableNear"/> 가
         ///   벽을 피해 옆 칸으로 옮겨줄 수 있으므로, 옮겨진 뒤의 거리를 다시 재서 고리를 벗어났으면
@@ -501,8 +630,7 @@ namespace LastSanctuary.Units
         {
             float outer = ResolveOuterRadius(minDist, maxDist);
 
-            // 고리가 맵 모서리 쪽에만 걸치는 경우(하한이 맵 반지름보다 클 때) 각도 추첨이
-            // 자주 헛돌기 때문에 시도 횟수를 넉넉히 잡는다.
+            // 고리가 맵 모서리 쪽에만 걸치는 경우 추첨이 자주 헛돌기 때문에 넉넉히 잡는다.
             const int Attempts = 96;
             for (int i = 0; i < Attempts; i++)
             {
@@ -530,8 +658,8 @@ namespace LastSanctuary.Units
         }
 
         /// <summary>
-        /// 이 종이 실제로 쓸 바깥 반지름(타일, 유클리드). 표의 상한이 맵 밖이면 맵 크기로 자른다.
-        /// 상한이 무한대(표에 0)면 맵에서 닿을 수 있는 최대 거리까지 쓴다.
+        /// 이 종이 실제로 쓸 <b>바깥 반변</b>(정사각형 한 변의 절반, 타일).
+        /// 표의 상한이 맵 밖이면 맵 크기로 자른다. 상한이 무한대(표에 0)면 맵 끝까지 쓴다.
         /// </summary>
         float ResolveOuterRadius(float minDist, float maxDist)
         {
@@ -541,9 +669,11 @@ namespace LastSanctuary.Units
         }
 
         /// <summary>
-        /// 넥서스(맵 중심)에서 맵 안의 한 점까지 나올 수 있는 <b>최대 유클리드 거리</b>(타일) —
-        /// 정사각 맵의 모서리까지, 즉 반쪽 크기 × √2. 320×320 이면 약 226타일이다.
-        /// 맵 참조가 없으면 최소거리 + 탐색 반경으로 폴백한다.
+        /// 넥서스(맵 중심)에서 맵 안의 한 점까지 나올 수 있는 <b>최대 체비셰프 거리</b>(타일) —
+        /// 즉 <b>맵 반쪽 크기</b>다. 320×320 이면 158타일(경계벽 2칸을 뺐다).
+        ///
+        /// ★ 예전에는 여기에 √2 를 곱해 226 을 돌려줬다(유클리드 모서리까지의 거리). 판정이
+        /// 정사각형으로 바뀌면서 <b>모서리와 축 방향이 같은 거리</b>가 됐으므로 곱할 것이 없다.
         /// </summary>
         float MapMaxRadius()
         {
@@ -551,7 +681,7 @@ namespace LastSanctuary.Units
 
             float halfX = mapGenerator.Config.MapSize.x * 0.5f - 2f;
             float halfY = mapGenerator.Config.MapSize.y * 0.5f - 2f;
-            return Mathf.Sqrt(halfX * halfX + halfY * halfY);
+            return Mathf.Min(halfX, halfY);
         }
 
         /// <summary>
@@ -566,18 +696,52 @@ namespace LastSanctuary.Units
         /// ⚠ 예전 방식(체비셰프 정사각 링)에서 이걸로 바꾼 이유는 유저 지시 하나다 —
         ///   등장 범위가 <b>정사각 구역이 아니라 원형</b>이어야 한다.
         /// </summary>
+        /// <summary>
+        /// <b>정사각 고리</b>에서 칸 하나를 고르게 뽑는다 (2026-08-16 — 유저 확정으로 원형에서 교체).
+        ///
+        /// 방법: 먼저 <b>어느 정사각 테두리</b>인지를 고르고(반변 r), 그 테두리 위의 한 점을 고른다.
+        /// <code>
+        ///   ① r = sqrt(lerp(min², max², t))   ← 넓이 균등. 안쪽으로 쏠리지 않게 하는 부분이다
+        ///   ② 그 테두리(한 변 2r)의 둘레 위 한 점을 균등하게 고른다
+        /// </code>
+        ///
+        /// ★ ①의 <b>제곱근</b>이 핵심이다. r 을 그냥 균등하게 뽑으면 <b>안쪽 테두리에 몰린다</b> —
+        /// 정사각 테두리의 길이가 r 에 비례해 자라므로 바깥쪽일수록 칸이 많은데 뽑을 확률은
+        /// 같기 때문이다. 원형일 때 쓰던 것과 같은 보정이고, 71절이 "중앙으로 모인다"로
+        /// 잡았던 문제와 같은 종류다.
+        ///
+        /// ②는 둘레를 네 변으로 갈라 그중 하나를 고르고 그 변 위에서 균등하게 뽑는다.
+        /// (각도로 뽑으면 모서리 쪽이 성기게 나온다 — 각도와 둘레가 비례하지 않는다.)
+        /// </summary>
         static Vector3Int SampleRingCell(System.Random rng, float minDist, float maxDist)
         {
             float t = (float)rng.NextDouble();
             float r = Mathf.Sqrt(Mathf.Lerp(minDist * minDist, maxDist * maxDist, t));
-            float angle = (float)(rng.NextDouble() * System.Math.PI * 2.0);
 
-            return new Vector3Int(Mathf.RoundToInt(Mathf.Cos(angle) * r),
-                                  Mathf.RoundToInt(Mathf.Sin(angle) * r), 0);
+            // 테두리 위의 위치 — 네 변 중 하나를 고르고 그 변에서 균등하게.
+            int side = rng.Next(4);
+            float u = (float)(rng.NextDouble() * 2.0 - 1.0) * r;   // -r ~ +r
+
+            float x, y;
+            switch (side)
+            {
+                case 0: x = u;  y = r;  break;      // 위
+                case 1: x = u;  y = -r; break;      // 아래
+                case 2: x = r;  y = u;  break;      // 오른쪽
+                default: x = -r; y = u; break;      // 왼쪽
+            }
+
+            return new Vector3Int(Mathf.RoundToInt(x), Mathf.RoundToInt(y), 0);
         }
 
-        /// <summary>넥서스(셀 (0,0))로부터의 유클리드 거리(타일).</summary>
-        static float RadiusFromNexus(Vector3Int cell) => Mathf.Sqrt(cell.x * cell.x + cell.y * cell.y);
+        /// <summary>
+        /// 넥서스(셀 (0,0))로부터의 <b>체비셰프 거리</b>(타일) — max(|x|, |y|).
+        ///
+        /// 이 값이 곧 "그 칸이 올라앉은 정사각형의 반변" 이다. 즉 <b>변이 N 인 정사각형 안</b>
+        /// = <c>RadiusFromNexus(cell) &lt;= N/2</c> 로 정확히 표현된다.
+        /// </summary>
+        static float RadiusFromNexus(Vector3Int cell) =>
+            Mathf.Max(Mathf.Abs(cell.x), Mathf.Abs(cell.y));
 
         void OnDrawGizmosSelected()
         {

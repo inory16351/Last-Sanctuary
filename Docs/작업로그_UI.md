@@ -1898,3 +1898,177 @@ UI 소유 — `Scripts/Combat/**`(`UnitCombat` · `CharacterPassives` · `SightA
 ### 씬반영요청 목록
 
 없음.
+
+## UI-26. 중립 몬스터 전면 정비 — 이름·스킨·클릭 초상화·카르시노스 스킬·서식지·토벌 지시 (2026-08-15)
+
+> 상세는 `진행상황.md` **86·87절**. 여기에는 UI 브랜치가 알아야 할 것만 적는다.
+
+유저 지시 9건 + 추가 3건. 전제는 이번에도 **"모든 객체 생성 및 수정은 MCP 로 직접,
+단 템플릿/슬롯 복제는 예외"**.
+
+### ⚠⚠ 먼저 — MCP 가 이 세션에 안 붙어 있었다 (다음 세션이 반드시 볼 것)
+
+`.mcp.json` 이 서버를 `"command": "node"` 로 띄우는데 **이 PC 의 PATH 에 node 가 없었다**
+(설치는 돼 있다). 서버 프로세스가 아예 안 떠서 대화 세션에 MCP 도구가 **하나도** 붙지 않았다.
+Unity 브리지(포트 8090)는 멀쩡했다.
+
+**`Tools/mcp_unity_cli.js` 를 만들어** 같은 브리지에 직접 붙었다 — 같은 규약, 같은 도구.
+씬 YAML 을 직접 건드린 곳은 없다. `.mcp.json` 의 `command` 를 절대경로로 고쳤으니
+**다음 세션부터는 네이티브 MCP 도구가 붙는다.**
+
+★ 이 과정에서 알아낸 **MCP 함정 3가지** (UI-23 의 함정 목록에 추가할 것):
+
+1. ★★ **컴포넌트를 붙이는 호출과 값을 넣는 호출을 나눠야 한다.** 한 번에 하면
+   **"성공" 응답이 오는데도 값이 하나도 안 들어간다**(실측: TMP 의 text 가 빈 문자열,
+   fontSize 가 36 기본값). 두 번 나눠 부르면 전부 들어간다.
+2. **`instanceId` 는 도메인 리로드에서 통째로 무효**가 된다(합성 번호다).
+   `Assets/Refresh`·`recompile_scripts` 가 끼면 못 쓴다 — 계층 조회와 수정을 한 흐름에서.
+3. **`get_scenes_hierarchy` 는 깊이 제한**이 있다. 버튼 같은 잎 노드는 안 보이므로
+   `get_gameobject` 에 `maxDepth` 를 줘서 그 가지만 다시 파야 한다.
+
+### 신규 UI (`Scripts/UI/`)
+
+| 파일 | 역할 |
+|---|---|
+| `UnitPortraitPanel.cs` | 클릭한 유닛의 일러스트·이름·칭호. **로그 창 바로 아래**(`HUD_Portrait`) |
+| `SubjugationPanel.cs` | 부대별 에픽 몬스터 토벌 지시 창(`HUD_Subjugate`). `IExclusiveHudPanel` |
+
+### 고친 UI
+
+- **`UnitSelector`** — 캐릭터 전용에서 **유닛 전반**으로. ★ 기존 이름의 뜻은 한 글자도 안 바꿨다:
+  `Selected`(CharacterUnit) = **조작 대상** · `SelectedUnit`(DamageableUnit) = **표시 대상**.
+  몬스터를 클릭하면 `Selected` 는 **null 이 된다** — 안 그러면 강화창이 몬스터를 강화하려 든다.
+  겹치면 **캐릭터가 이긴다**. 안개에 가려진 적은 안 잡힌다(아군은 예외).
+- **`BossHealthPanel`** — 대상 타입을 `MonsterUnit` → `DamageableUnit`.
+  에픽 중립은 **교전 중일 때만** 뜬다(`IsInCombat`). ⚠ "살아있으면 계속"으로 두면
+  에픽은 맵 상주라 **게임 내내 체력바가 떠 있다.**
+- **`ActionPanel`** — `SubjugateButton` 추가(발견 수를 라벨에 표시). 패널 높이 252 → 300.
+- **`BattleLogPanel` · `CharacterPassives`** — 이름 고르는 `is` 갈래를 지우고
+  `DamageableUnit.DisplayName` 에게 물어본다. **두 곳 다 중립을 빠뜨리고 있었다.**
+- **`CharacterRosterPanel`** — 이름 칸에 `Lv.N` 을 리치 텍스트로. 칸을 새로 만들지 않았다 —
+  행 폭이 이미 꽉 차 있다(48절 미결 64번).
+- **`CharacterGrowthPanel`** — "강화 N회" → `Lv.N` · 해금 문구 "강화 {0}회에 해금" → "Lv.{0} 에 해금".
+- **`TacticalOrderPanel`** — 탐험 유형에서 **정찰 배선 제거**(사냥/탐색 2종).
+
+### 소유권 (§2)
+
+**UI 소유** — `Scripts/UI/**`(UnitSelector · BossHealthPanel · ActionPanel · BattleLogPanel ·
+CharacterRosterPanel · CharacterGrowthPanel · TacticalOrderPanel · UnitPortraitPanel(신규) ·
+SubjugationPanel(신규)) · `Scripts/Combat/**`(DamageableUnit · BossSkillCaster · BossSkillSO ·
+BossSkillType · TacticalOrder · CharacterPassives · IBossSkillOwner(신규)) ·
+`Assets/Scenes/Proto_01.unity`.
+
+**⚠ PROTO 소유 파일을 건드렸다** — `Scripts/Units/**`(NeutralMonsterUnit · NeutralMonsterDefinitionSO ·
+NeutralMonsterSpawner · MonsterUnit · CharacterUnit · CharacterBehavior ·
+NeutralHabitat(신규) · EpicSubjugationService(신규)), `Scripts/Map/MapGenerator.cs`(한 줄 —
+`DecoTilemap` 접근자), `Tools/**`. UI-15·17·18·19·20·21·22·23 과 같은 종류의 크로싱이다.
+(⚠ §2 소유권 표 갱신은 여전히 미결 154번.)
+
+### 씬 변경 여부 — **있음** (전부 MCP · 저장 2회)
+
+| 오브젝트 | 무엇 |
+|---|---|
+| **신설** `UI_Root/HUD_Portrait` + 자식 4 | 클릭 초상화 (비활성 시작) |
+| **신설** `UI_Root/HUD_Subjugate` + 자식 12 | 토벌 지시 창 (비활성 시작 · 행 템플릿 2개도 비활성) |
+| **신설** `HUD_Actions/Buttons/SubjugateButton` + Label | 창 여는 버튼 |
+| `HUD_Actions` | 높이 252 → 300 (버튼 6개 x 40 + 간격 5 x 8 + 여백 20) |
+| `Templates/Neutral_Templates/*` 4개 | 이름을 종 이름으로 + `CharacterAnimator` 부착 |
+| `GameSystems` | `EpicSubjugationService` 추가 |
+| `HUD_Tactics/Col3/Non/Patrol` | 비활성 (**지우지 않았다** — 지우면 세로 배치가 밀린다) |
+
+### 검증
+
+`recompile_scripts` **에러 0 · 경고 0** · 콘솔 에러 **0** · 스트링 테이블 재생성 멱등 ·
+잘라낸 프레임 8묶음을 스트립으로 이어 붙여 눈으로 확인 · 서식지 모양 6시드 시뮬레이션.
+**플레이 모드 검증은 안 했다** — 진행상황 86절의 "아직 확인 못 한 것" 8가지를 유저가 볼 것.
+
+### 씬반영요청 목록
+
+없음.
+
+## UI-27. 창이 안 열리던 버그 · 레이아웃 · 데미지 숫자 · 사각 스폰 · 밸런스 (2026-08-16)
+
+> 상세는 `진행상황.md` **88·89절**. 여기에는 UI 브랜치가 알아야 할 것만 적는다.
+
+### ⚠⚠ 다음 세션이 반드시 볼 것 — MCP 로 UI 를 만들 때의 함정 둘
+
+UI-26 에서 만든 창 둘이 **둘 다 화면에서 안 됐다.** 원인이 서로 다른 종류였고,
+둘 다 **앞으로 반복될 실수**다.
+
+**① 비활성으로 시작하는 창은 `Awake` 에서 자기를 끄면 안 된다**
+
+```csharp
+void Awake() { …; gameObject.SetActive(false); }   // ← 절대 금지
+```
+
+비활성으로 저장된 오브젝트의 `Awake` 는 씬 로드 때 안 돌고, `SetActive(true)` 로
+켜지는 **그 호출 안에서 동기적으로** 처음 돈다. 그래서 이 한 줄이 **열리는 순간
+자기를 다시 끈다** — 창이 영영 안 열린다.
+
+⚠ 이 코드가 `UnitPortraitPanel`·`SubjugationPanel` 뿐 아니라 **`SkillDetailPanel`
+에도** 있었다. 그쪽은 예전에 "Instance 가 null 이라 안 열린다"를 고쳤는데
+(그 절의 긴 주석) **바로 뒤에 이 두 번째 원인이 그대로 남아** 있었다 — 증상이
+"눌러도 아무 일도 안 일어난다"로 같아서 첫 원인을 고친 뒤에도 못 열렸다.
+
+→ "닫힌 채로 시작"은 **씬에 그렇게 저장해서** 지키고, 혹시 켜져 있으면
+**항상 살아 있는 쪽**이 닫아준다(`UnitSelector.Start`·`ActionPanel.Start`). **미결 196번.**
+
+**② 늘린 앵커에 pivot 0 을 쓰면 위치가 부모 중앙 기준이 된다**
+
+`anchorMin.x=0` · `anchorMax.x=1` 인데 `pivot.x=0` 이면 `anchoredPosition.x` 는
+**앵커 사각형의 중심**에서 잰다. 900폭 창에 여백 20 을 주려고 `pos=(20,…)` 을 넣으면
+**글자가 x=470(한가운데)에서 시작한다.**
+
+```
+규칙: 늘린 축의 피벗은 0.5.
+      왼쪽 여백 L · 오른쪽 여백 R → sizeDelta.x = -(L+R) · anchoredPosition.x = (L-R)/2
+```
+`HUD_Subjugate` 8개 + `HUD_Portrait` 2개를 다시 잡았다. **미결 197번.**
+
+### 신규 UI (`Scripts/UI/`)
+
+| 파일 | 역할 |
+|---|---|
+| `DamageNumberFx.cs` | 맞은 자리에 피해량을 숫자로. **가한(흰) / 받은(붉고 크게) / 치명타(금색+`!`)** |
+
+★ **받은 피해를 더 크게** 둔 것이 설계의 핵심이다 — 난전에서 눈이 먼저 가야 하는 쪽은
+"내가 맞고 있다"이지 "내가 넣는 딜"이 아니다.
+★ **가한/받은은 맞은 쪽의 진영으로 가른다** — 공격자로 가르면 지속 피해(공격자 없음)에서 깨진다.
+★ 씬에 배선이 없다(`CombatProjectileFx` 와 같은 `Bootstrap` 구조) · **월드 공간 TMP** · 풀링 + 상한 64.
+
+### 고친 UI
+
+- **`BossHealthPanel`** — (UI-26) 에픽 중립도 교전 중이면 뜬다.
+- **`ActionPanel`** — `Start` 에서 토벌 창을 한 번 닫는다(위 ①).
+- **`UnitSelector`** — `Bind` 에서 초상화 창을 한 번 닫는다(위 ①).
+- **`DamageableUnit`**(Combat) — 신규 정적 이벤트 `OnAnyDamaged(공격자, 대상, 피해량, 치명타)`.
+  ⚠ `ApplyDamage(int)` 의 **시그니처는 안 건드렸다**(PROTO 가 쓰는 공개 API — 준수사항 U-D4).
+  치명타 여부는 `_pendingCritical` 한 칸으로 넘긴다.
+
+### 소유권 (§2)
+
+**UI 소유** — `Scripts/UI/**`(DamageNumberFx 신규 · UnitPortraitPanel · SubjugationPanel ·
+SkillDetailPanel · ActionPanel · UnitSelector) · `Scripts/Combat/**`(DamageableUnit ·
+BossSkillCaster · CharacterPassives) · `Assets/Scenes/Proto_01.unity`.
+
+**⚠ PROTO 소유 파일을 건드렸다** — `Scripts/Units/**`(NeutralMonsterSpawner ·
+NeutralMonsterDefinitionSO · NeutralMonsterWander · NeutralHabitat · CharacterBehavior),
+`Tools/**`. UI-15 이후 계속되는 같은 종류의 크로싱이다(§2 갱신은 여전히 미결 154번).
+
+### 씬 변경 여부 — **있음** (전부 MCP · 저장 1회)
+
+| 오브젝트 | 무엇 |
+|---|---|
+| `HUD_Portrait/Name` · `Title` | 피벗·위치 보정 |
+| `HUD_Subjugate` 하위 8개 | 피벗·위치 보정 |
+| `GameSystems > ErosionService` | 침식 3값 강화 |
+
+### 검증
+
+`recompile_scripts` **에러 0 · 경고 0** · 콘솔 **에러 0 · 경고 0** ·
+사각 범위 커버리지 셀 단위 계산 · 위협도 웨이브별 출력 · 서식지를 실제로 깔아보고 두 번 조정.
+**플레이 모드 검증은 안 했다** — 진행상황 88절의 "아직 확인 못 한 것" 7가지를 유저가 볼 것.
+
+### 씬반영요청 목록
+
+없음.

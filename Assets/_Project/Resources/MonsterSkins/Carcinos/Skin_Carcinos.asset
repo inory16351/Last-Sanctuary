@@ -57,6 +57,46 @@ MonoBehaviour:
   - {fileID: 21300000, guid: 42bca0be7714fb1e5e095e65b6e5a97b, type: 3}
   - {fileID: 21300000, guid: 9a44735d167f4967de8892e442e05252, type: 3}
   - {fileID: 21300000, guid: 80a7d680e44cd2121bd278239fd68225, type: 3}
+  skill1Right:
+  - {fileID: 21300000, guid: cc688b349acc97e6a361c3bb3e75b508, type: 3}
+  - {fileID: 21300000, guid: 201d64c300b7e1fbeb0d16bbd11bdda5, type: 3}
+  - {fileID: 21300000, guid: 70e978651973220757fc4b3916ba1937, type: 3}
+  - {fileID: 21300000, guid: 46a4b5575e2817851a3dc64e447acdc6, type: 3}
+  - {fileID: 21300000, guid: 22554fa541604feaa3e413430d78cdc3, type: 3}
+  - {fileID: 21300000, guid: da635ab066ff0788e1addf5477a373c5, type: 3}
+  skill1Left:
+  - {fileID: 21300000, guid: aebe535ddb39a9f5d7659c82a333544d, type: 3}
+  - {fileID: 21300000, guid: 46095c7c18fd9a2a9897f71affdc9f8d, type: 3}
+  - {fileID: 21300000, guid: 34781396cd9a21d7605fc18b844bce13, type: 3}
+  - {fileID: 21300000, guid: 671c312b13c37d28f84df52dc838306a, type: 3}
+  - {fileID: 21300000, guid: f05b77c8c0b06e1bb02ae129cfa45593, type: 3}
+  - {fileID: 21300000, guid: cce527a170efc5aec11ab6cd30360a22, type: 3}
+  skill2Right:
+  - {fileID: 21300000, guid: 57db684c7da91763cca5b103694b7561, type: 3}
+  - {fileID: 21300000, guid: 70ebd0ecae653f1356b16270d7eb858f, type: 3}
+  - {fileID: 21300000, guid: 86b5c833e69bb73c82276291f55ff59a, type: 3}
+  - {fileID: 21300000, guid: 3cb84b75771d0846f937d6fe226a890f, type: 3}
+  - {fileID: 21300000, guid: 6565247077993db6e3cebe79af8d23ad, type: 3}
+  - {fileID: 21300000, guid: a612efbc7ae0c83c23030891c90e0be1, type: 3}
+  skill2Left:
+  - {fileID: 21300000, guid: 64b959934b9b415f8100b867bc401b1e, type: 3}
+  - {fileID: 21300000, guid: 9dcbbfc5f15bc5f55776c5f913ca54fb, type: 3}
+  - {fileID: 21300000, guid: 53ede7297389e4d5006b72b7a501aeea, type: 3}
+  - {fileID: 21300000, guid: 2026b77e2818560543026349bb86eacb, type: 3}
+  - {fileID: 21300000, guid: 679cd78471a57a718390b2ca90310a6d, type: 3}
+  - {fileID: 21300000, guid: 66412307b43e35f90dee1170002f223e, type: 3}
+  skill1Fx:
+  - {fileID: 21300000, guid: a4c361b08b7d77cf556a8a73bd563d77, type: 3}
+  - {fileID: 21300000, guid: df15a21b6982c77e15c2604e0352ac42, type: 3}
+  - {fileID: 21300000, guid: 697bb8963747b925e046eda441f35789, type: 3}
+  - {fileID: 21300000, guid: b1cf816ae8b54c1e9b3f6f5a0fbe1f19, type: 3}
+  - {fileID: 21300000, guid: f55a8ab84a7976502a9ccadd002f5efa, type: 3}
+  - {fileID: 21300000, guid: cbaf4bdb6e953b48de915fe989849cd1, type: 3}
+  skill2Fx:
+  - {fileID: 21300000, guid: 4f8bb8b9673222f5941be41bfb5c8311, type: 3}
+  - {fileID: 21300000, guid: 97e8013ccb209433c65643075cc59d64, type: 3}
+  - {fileID: 21300000, guid: 2721e551611640d637c4b5d8b5b3b398, type: 3}
+  - {fileID: 21300000, guid: ddc6a0bf5fa6e38b6c59358abbd51775, type: 3}
   rangedRight: []
   rangedLeft: []
   healRight: []
@@ -64,12 +104,6 @@ MonoBehaviour:
   reviveRight: []
   reviveLeft: []
   reviveFx: []
-  skill1Right: []
-  skill1Left: []
-  skill2Right: []
-  skill2Left: []
-  skill1Fx: []
-  skill2Fx: []
   projectileFrames: []
   muzzleFlashFrames: []
   impactFrames: []

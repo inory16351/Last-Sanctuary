@@ -82,13 +82,54 @@ LABEL_X_LIMIT = 190
 # 잘라낼 행. (게임에서 쓰는 모션 이름, 시트에서의 y 범위)
 #   ⚠ y 범위는 이 스크립트가 스스로 찾는다 — 아래 detect_rows() 참조.
 #      여기 순서가 곧 시트 위에서 아래 순서다.
-WANTED_ROWS = ["Idle", "Walk", "MeleeAttack"]
+#
+# ★ 2026-08-15 — <b>스킬 2행을 켰다.</b> 처음 만들 때는 표에 스킬이 없어서 건너뛰었는데
+#   (유저 지시 "스킬은 아직 추가 안했으니"), 이제 표에 2001 할퀴기 · 2002 죽음의 포효가
+#   들어왔다. 원본 시트에는 처음부터 그려져 있었으므로 <b>여기 목록만 늘리면 된다</b>.
+WANTED_ROWS = ["Idle", "Walk", "MeleeAttack", "Skill1", "Skill2"]
 
-# 시트의 실제 행 순서 (스킬 2행은 이번에 안 쓴다)
+# 시트의 실제 행 순서
 SHEET_ROW_ORDER = ["Idle", "Walk", "MeleeAttack", "Skill1", "Skill2"]
 
 # 파일 이름에 쓰는 접두사 — 다른 캐릭터와 같은 규약이다.
-FILE_PREFIX = {"Idle": "Char_Idle", "Walk": "Char_Walk", "MeleeAttack": "Char_MeleeAttack"}
+FILE_PREFIX = {
+    "Idle": "Char_Idle",
+    "Walk": "Char_Walk",
+    "MeleeAttack": "Char_MeleeAttack",
+    "Skill1": "Char_Skill1",
+    "Skill2": "Char_Skill2",
+}
+
+# ──────────────────────────────────────────────────────────────────────────
+# 스킬 <b>이펙트</b> — 원본이 다르다 (2026-08-15)
+#
+# 몸통 모션은 ``asset_02``(개체가 크게 그려진 쪽)를 쓰지만, <b>이펙트는 ``asset_01`` 에만
+# 분리돼 있다.</b> asset_02 는 이펙트가 프레임에 통합돼 있어서 따로 뽑을 수가 없다.
+# 유저 확정(2026-08-15): *"asset_01 의 분리된 이펙트 행"*.
+#
+# <b>왜 분리된 쪽이 필요한가</b> — 스킬 범위 연출(`CharacterSkinSO.skill*Fx`)은 표의 범위
+# (가로 x 세로 타일)에 맞춰 <b>따로 늘려 까는</b> 물건이다(`CombatProjectileFx.PlayArea`).
+# 몸통에 붙어 있으면 범위만큼 늘릴 때 개체까지 같이 늘어난다.
+#
+# 시트의 맨 아래 행 하나에 두 스킬의 이펙트가 <b>가로로 나란히</b> 들어 있다:
+#   왼쪽  할퀴기 궤적 6장   ·  오른쪽  포효 파동 4장   (가운데 점선이 구분선)
+# 실측한 경계는 아래 FX_ROW 에 있다.
+# ──────────────────────────────────────────────────────────────────────────
+
+SRC_FX = os.path.join(VAULT, "리소스", "asset", "Carcinos_asset_01.png")
+
+#: 이펙트 행의 y 범위. ⚠ <b>라벨 글자 아래</b>부터 잡는다 — 행 상단에
+#: "스킬 1 이펙트 (할퀴기)" 같은 제목이 있어서, 그대로 잡으면 글자가 프레임에 섞인다.
+FX_ROW_Y = (895, 1005)
+
+#: 왼쪽 "이펙트 (분리)" 라벨 상자를 버리는 경계. 실측: 라벨은 x 17~98, 첫 프레임은 143 부터.
+FX_LABEL_X_LIMIT = 120
+
+#: (이름, x 범위, 프레임 수) — 가운데 점선(x≈780)을 기준으로 갈랐다.
+FX_STRIPS = [
+    ("Skill1", (FX_LABEL_X_LIMIT, 789), 6),
+    ("Skill2", (790, 1535), 4),
+]
 
 META = """fileFormatVersion: 2
 guid: {guid}
@@ -257,9 +298,56 @@ def detect_frames(mask, y0, y1):
         else:
             merged.append([s, e])
 
-    if len(merged) != 6:
-        raise SystemExit(f"⚠ 프레임이 6개가 아닙니다({len(merged)}개): {merged}")
+    # ★ 2026-08-15 — 여기서 <b>6개가 아니면 바로 죽던 것</b>을 고쳤다.
+    #   스킬 행을 켜면서 드러난 문제다: 할퀴기(Skill1)는 궤적이 <b>다음 프레임 칸까지</b>
+    #   뻗어서 3·4·5번이 하나로 붙는다(실측: 4덩어리). 고정 임계값(MERGE_GAP)으로는
+    #   "붙는 것"은 못 떼고 "떨어진 것"만 붙일 수 있다.
+    #   덩어리가 <b>모자라면</b> 균등 분할로 가르고, <b>남으면</b> 좁은 틈부터 합친다.
+    if len(merged) > 6:
+        merged = [list(m) for m in merge_to_count([tuple(m) for m in merged], 6)]
+    elif len(merged) < 6:
+        merged = [list(m) for m in split_to_count([tuple(m) for m in merged], 6)]
+
     return [tuple(m) for m in merged]
+
+
+def split_to_count(chunks, n):
+    """
+    덩어리가 <paramref>n</paramref> 개보다 <b>적을 때</b>, 가장 넓은 덩어리를 균등 분할해 채운다.
+
+    ★ 왜 균등 분할이어도 되는가 — 이 시트는 프레임 간격이 일정하다(실측: 대기 행의
+      프레임 시작 간격이 거의 같다). 붙어버린 덩어리는 <b>연속된 몇 프레임이 궤적으로
+      이어진 것</b>이라, 그 폭을 프레임 수로 나누면 원래 경계와 거의 맞는다.
+      경계가 몇 픽셀 어긋나도 <b>궤적의 꼬리가 조금 잘릴 뿐</b> 몸통은 안 잘린다
+      (몸통은 프레임 한가운데 있고 덩어리 폭의 절반도 안 된다).
+    """
+    out = [list(c) for c in chunks]
+    while len(out) < n:
+        widths = [c[1] - c[0] for c in out]
+        i = widths.index(max(widths))
+        s, e = out[i]
+        mid = (s + e) // 2
+        out[i] = [s, mid]
+        out.insert(i + 1, [mid + 1, e])
+    return [tuple(m) for m in out]
+
+
+def merge_to_count(chunks, n):
+    """
+    덩어리가 <b>n 개가 될 때까지 가장 좁은 틈부터</b> 합친다.
+
+    이펙트 행에는 궤적이 몇 조각으로 흩날린 프레임이 섞여 있어(실측: 할퀴기 1·2번이
+    각각 두 조각) 고정 임계값으로는 6장이 안 나온다. <b>몇 장이어야 하는지는 알고 있으므로</b>
+    임계값을 맞히려 하지 말고 좁은 틈부터 없애 그 수에 도달한다
+    (`neutral_skin_build.py` 가 같은 이유로 같은 함수를 쓴다).
+    """
+    out = [list(c) for c in chunks]
+    while len(out) > n:
+        gaps = [out[i + 1][0] - out[i][1] for i in range(len(out) - 1)]
+        i = gaps.index(min(gaps))
+        out[i][1] = out[i + 1][1]
+        del out[i + 1]
+    return [tuple(m) for m in out]
 
 
 def to_rgba(rgb_block, bg):
@@ -289,6 +377,73 @@ def ensure_folder_meta(path):
     rel = os.path.relpath(path, os.path.join(PROJECT, "Assets", "_Project")).replace("\\", "/")
     with open(mp, "w", encoding="utf-8", newline="\n") as f:
         f.write(FOLDER_META.format(guid=guid_for(rel)))
+
+
+def build_fx():
+    """
+    스킬 <b>범위 연출</b> 프레임을 ``asset_01`` 의 맨 아래 이펙트 행에서 뽑는다.
+
+    몸통과 달리 <b>좌우 두 벌을 만들지 않는다</b> — 연출은 조준 각도만큼 통째로 회전시켜
+    깔리므로(`CombatProjectileFx.PlayArea` 가 `rotation` 을 준다) 방향별 원화를 넣으면
+    두 번 돌아간다. 투사체와 같은 이유다.
+
+    ⚠ 한 행 안에서 <b>스킬마다 캔버스를 따로</b> 잡는다. 할퀴기(가로로 긴 궤적)와
+      포효(넓은 원반)는 크기가 크게 달라서, 한 캔버스로 묶으면 할퀴기가 원반 크기의
+      투명 여백을 달고 다닌다 — 그 여백까지 범위에 맞춰 늘어나므로 연출이 작아 보인다.
+    """
+    if not os.path.isfile(SRC_FX):
+        print("⚠ 이펙트 원본이 없습니다:", SRC_FX)
+        return 0
+
+    im = Image.open(SRC_FX).convert("RGB")
+    arr = np.asarray(im).astype(np.uint8)
+    bg = arr[0, 0].astype(int)
+    dist = np.abs(arr.astype(int) - bg).sum(axis=2)
+
+    mask = dist > ALPHA_LO
+    seg = dist > SEG_THRESHOLD
+
+    y0, y1 = FX_ROW_Y
+    y1 = min(y1, arr.shape[0] - 1)
+    folder = os.path.join(DST_ROOT, "Fx")
+    made = 0
+
+    print(f"이펙트 원본 {im.size[0]}x{im.size[1]} · 배경 {tuple(bg)} · 행 y {y0}~{y1}")
+
+    for name, (x0, x1), count in FX_STRIPS:
+        x1 = min(x1, arr.shape[1] - 1)
+
+        colhit = seg[y0:y1 + 1, x0:x1 + 1].sum(axis=0) > 0
+        raw = [(a + x0, b + x0) for a, b in bands(colhit, min_len=3)]
+        if len(raw) < count:
+            raise SystemExit(f"⚠ {name} 이펙트가 {count}장으로 갈라지지 않습니다"
+                             f"({len(raw)}개): {raw}")
+        frames = merge_to_count(raw, count)
+
+        boxes = []
+        for fx0, fx1 in frames:
+            sub = mask[y0:y1 + 1, fx0:fx1 + 1]
+            ys = np.where(sub.any(axis=1))[0]
+            xs = np.where(sub.any(axis=0))[0]
+            boxes.append((fx0 + xs.min(), fx0 + xs.max(), y0 + ys.min(), y0 + ys.max()))
+
+        w = max(b[1] - b[0] + 1 for b in boxes)
+        h = max(b[3] - b[2] + 1 for b in boxes)
+
+        for i, (bx0, bx1, by0, by1) in enumerate(boxes):
+            rgba = to_rgba(arr[by0:by1 + 1, bx0:bx1 + 1], bg)
+
+            canvas = np.zeros((h, w, 4), dtype=np.uint8)
+            bw, bh = bx1 - bx0 + 1, by1 - by0 + 1
+            canvas[h - bh:h, (w - bw) // 2:(w - bw) // 2 + bw] = rgba
+
+            write_png(Image.fromarray(canvas, "RGBA"), folder, f"Char_Fx_{name}_{i:02d}")
+            made += 1
+
+        print(f"  Fx/{name}: {w} x {h} · {count}장 (방향 없음)")
+
+    ensure_folder_meta(folder)
+    return made
 
 
 def main():
@@ -346,6 +501,8 @@ def main():
 
         ensure_folder_meta(folder)
         print(f"  {motion}: {w} x {h} · 6장 (+ 좌우 반전 6) · 행 y {y0}~{y1}")
+
+    made += build_fx()
 
     ensure_folder_meta(DST_ROOT)
     ensure_folder_meta(os.path.dirname(DST_ROOT))

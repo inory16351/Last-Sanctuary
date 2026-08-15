@@ -88,10 +88,27 @@ def ensure_folder_meta(path, rel):
             f.write(FOLDER_META.format(guid=md5_guid(rel)))
 
 
+def fx_frames(name):
+    """이펙트는 방향이 없다 — `Char/Fx/Char_Fx_<이름>_NN.png` 한 벌."""
+    folder = os.path.join(ART, "Fx")
+    if not os.path.isdir(folder):
+        return []
+    prefix = f"Char_Fx_{name}_"
+    names = sorted(n for n in os.listdir(folder)
+                   if n.startswith(prefix) and n.endswith(".png"))
+    return [guid_of(os.path.join(folder, n)) for n in names]
+
+
 def main():
     idle_r, idle_l = frames("Idle", "Right"), frames("Idle", "Left")
     walk_r, walk_l = frames("Walk", "Right"), frames("Walk", "Left")
     atk_r, atk_l = frames("MeleeAttack", "Right"), frames("MeleeAttack", "Left")
+
+    # ★ 2026-08-15 — 스킬 두 벌이 들어왔다 (표의 2001 할퀴기 · 2002 죽음의 포효).
+    #   슬롯 번호는 정의의 skillIds 순서와 같다: 슬롯 0 = 2001, 슬롯 1 = 2002.
+    sk1_r, sk1_l = frames("Skill1", "Right"), frames("Skill1", "Left")
+    sk2_r, sk2_l = frames("Skill2", "Right"), frames("Skill2", "Left")
+    fx1, fx2 = fx_frames("Skill1"), fx_frames("Skill2")
 
     if not (idle_r and walk_r and atk_r):
         raise SystemExit("⚠ 프레임이 없습니다 — 먼저 Tools/carcinos_skin_build.py 를 돌리세요")
@@ -122,11 +139,16 @@ def main():
     body += sprite_list("attackRight", atk_r)
     body += sprite_list("attackLeft", atk_l)
 
+    body += sprite_list("skill1Right", sk1_r)
+    body += sprite_list("skill1Left", sk1_l)
+    body += sprite_list("skill2Right", sk2_r)
+    body += sprite_list("skill2Left", sk2_l)
+    body += sprite_list("skill1Fx", fx1)
+    body += sprite_list("skill2Fx", fx2)
+
     # 아직 원화를 안 넣은 칸 — 비어 있으면 각자 폴백이 걸린다(맨 위 주석 참조).
     for key in ("rangedRight", "rangedLeft", "healRight", "healLeft",
                 "reviveRight", "reviveLeft", "reviveFx",
-                "skill1Right", "skill1Left", "skill2Right", "skill2Left",
-                "skill1Fx", "skill2Fx",
                 "projectileFrames", "muzzleFlashFrames", "impactFrames"):
         body += sprite_list(key, [])
 
@@ -161,7 +183,11 @@ def main():
     print(f"  대기      {len(idle_r)}프레임 (좌우)")
     print(f"  이동      {len(walk_r)}프레임 (좌우)")
     print(f"  근접 공격 {len(atk_r)}프레임 (좌우)")
-    print(f"  스프라이트 참조 {len(idle_r + idle_l + walk_r + walk_l + atk_r + atk_l)}개")
+    print(f"  스킬1     {len(sk1_r)}프레임 (좌우) · 이펙트 {len(fx1)}프레임")
+    print(f"  스킬2     {len(sk2_r)}프레임 (좌우) · 이펙트 {len(fx2)}프레임")
+    total = (idle_r + idle_l + walk_r + walk_l + atk_r + atk_l +
+             sk1_r + sk1_l + sk2_r + sk2_l + fx1 + fx2)
+    print(f"  스프라이트 참조 {len(total)}개")
     print("→", REL_OUT)
     print("다음: python Tools/measure_skin_tiles.py  (contentSizeTiles 실측)")
 

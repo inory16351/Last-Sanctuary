@@ -14,13 +14,21 @@ Unity 의 Resources 로 쓰므로, 몇 번을 돌려도 결과가 같고 원본�
 import os
 from PIL import Image
 
-SRC = r'C:\Project\Last-Sanctuary-Vault\리소스\illust\char'
-# ⚠⚠ 이 상수는 두 번 틀렸다. 2026-08-14 에 실측으로 확정했으니 다시 손대지 말 것.
-#   · 원래 값은 옛 프로젝트 경로였다(67-4절에서 발견).
-#   · 그때 고친 값 `C:\Project\Last-Sanctuary\...` 도 틀렸다 — 53절에서 하이픈이 붙은 것은
-#     **볼트**(`Last-Sanctuary-Vault`)이고 **유니티 프로젝트는 계속 공백**(`Last Sanctuary`)이다.
-#     그 폴더는 존재하지 않으므로 `os.makedirs` 가 **엉뚱한 새 폴더를 만들고** 거기에 써 왔다.
-DST = r'C:\Project\Last Sanctuary\Assets\_Project\Resources\Illust'
+from vault_path import VAULT, PROJECT
+
+# ★★ 2026-08-16 — <b>하드코딩을 걷어냈다</b> (미결 193번).
+#
+#   이 상수는 <b>세 번 틀렸다.</b>
+#     · 옛 프로젝트 경로 (67-4절에서 발견)
+#     · 고친 값 `C:\Project\Last-Sanctuary\...` 도 틀렸다 — 하이픈이 붙은 것은 **볼트**이고
+#       유니티 프로젝트는 공백(`Last Sanctuary`)이었다
+#     · 그리고 그 둘 다 **이 PC 에는 아예 없는 경로**다(볼트가 `H:\c팀\...` 에 있다).
+#       그대로 돌리면 `os.makedirs` 가 엉뚱한 새 폴더를 만들고 진짜 에셋은 하나도 안 바뀐 채
+#       "완료" 만 찍힌다 — `vault_path.py` 가 생긴 이유가 정확히 이것이다.
+#
+#   ⚠ 앞으로 이 파일들에 경로를 <b>직접 적지 말 것</b>. `vault_path` 를 쓴다.
+SRC = os.path.join(VAULT, '리소스', 'illust', 'char')
+DST = os.path.join(PROJECT, 'Assets', '_Project', 'Resources', 'Illust')
 
 # 초상화 Sprite 칸: Portrait(226x300) 에 -16 인셋 → 210x284
 #

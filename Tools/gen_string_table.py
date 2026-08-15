@@ -252,7 +252,16 @@ def collect():
 
                 # 이미 키로 바꿔둔 칸이면 그 값 자체가 키다 — 리터럴이 아니므로
                 # 번역으로 넣지 않는다(그러면 kr 칸에 키 문자열이 들어간다).
+                #
+                # ★ 2026-08-15 수정 — <b>칸에 적힌 키를 그대로 쓴다</b>.
+                #   예전에는 여기서도 `f'{prefix}_{row_id}'` 로 <b>규칙에서 유추한</b> 키를
+                #   등록했다. 둘이 같을 때는 티가 안 났지만, 중립 표의 1004 는
+                #   `mon_title` 칸에 <b>`epic_boss_title_1004`</b> 라고 적혀 있어
+                #   실재하지 않는 `mon_title_1004` 가 <b>빈 값으로 새로 생겼다</b>
+                #   (그리고 진짜 칭호는 어디에도 안 연결됐다).
+                #   칸이 정본이므로 유추한 이름이 아니라 적힌 이름을 등록해야 한다.
                 if looks_like_key(text):
+                    key = text
                     rows.setdefault(key, {'kr': '', 'en': '', 'source': ''})
                     rows[key]['source'] = rows[key]['source'] or f'{sheet}.{value_field}'
                     continue

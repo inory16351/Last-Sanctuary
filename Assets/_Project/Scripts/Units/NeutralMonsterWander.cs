@@ -228,10 +228,22 @@ namespace LastSanctuary.Units
             PickReturnDestination();
         }
 
-        /// <summary>지금 위치가 고리(<see cref="_minRadius"/>~<see cref="_maxRadius"/>) 밖으로 얼마나 벗어났는지(타일). 안이면 0.</summary>
+        /// <summary>
+        /// 지금 위치가 고리(<see cref="_minRadius"/>~<see cref="_maxRadius"/>) 밖으로 얼마나
+        /// 벗어났는지(타일). 안이면 0.
+        ///
+        /// ★ <b>일반 배회는 정사각 고리</b>다(2026-08-16, 유저 확정) — 스폰 판정과 <b>같은
+        /// 거리 함수</b>를 써야 "소환 가능한 범위 안에서만 배회한다"(73-5절 유저 지시)가
+        /// 성립한다. 둘이 어긋나면 개체가 스폰 범위 밖으로 걸어 나간다.
+        /// <b>서식지 모드(에픽)는 원형 그대로</b>다 — 자기 자리를 중심으로 한 원이 정의다.
+        /// </summary>
         float DistanceOutsideRing()
         {
-            float d = Vector2.Distance(transform.position, RingCenter());
+            Vector2 v = (Vector2)(transform.position - RingCenter());
+            float d = _habitatMode
+                ? v.magnitude                                        // 서식지 = 원
+                : Mathf.Max(Mathf.Abs(v.x), Mathf.Abs(v.y));         // 배회 고리 = 정사각형
+
             if (d < _minRadius) return _minRadius - d;
             if (d > _maxRadius) return d - _maxRadius;
             return 0f;
@@ -323,22 +335,34 @@ namespace LastSanctuary.Units
         }
 
         /// <summary>
-        /// 그 지점을 <b>넥서스 기준 고리 안</b>으로 접어 넣는다 — 방향(각도)은 그대로 두고
-        /// <b>반지름만</b> [min, max] 로 자른다.
+        /// 그 지점을 <b>넥서스 기준 고리 안</b>으로 접어 넣는다 — 방향은 그대로 두고
+        /// <b>거리만</b> [min, max] 로 자른다.
         ///
         /// 개체가 고리 밖(교전에 끌려나갔거나 스폰 직후)에 있으면 이 함수가 돌려주는 지점은
         /// <b>고리 경계</b>가 되므로, 그쪽으로 걸어가는 것이 곧 <b>복귀</b>가 된다.
+        ///
+        /// ★ <b>정사각 고리</b>(2026-08-16) — 자르는 축이 원형과 다르다.
+        /// 원형은 반지름 하나를 잘랐지만, 정사각형은 <b>max(|x|,|y|) 가 [min,max] 에 들어오도록
+        /// x·y 를 같은 비율로</b> 줄이거나 늘린다. 그러면 방향(넥서스에서 본 각도)이 유지된 채
+        /// 정사각 테두리 위로 정확히 옮겨진다.
+        /// <b>서식지 모드(에픽)는 원형</b>이라 예전 계산을 그대로 쓴다.
         /// </summary>
         Vector3 ClampToRing(Vector3 world, Vector3 nexus)
         {
             Vector2 v = (Vector2)(world - nexus);
-            float d = v.magnitude;
 
-            // 정확히 넥서스 위면 방향을 정할 수 없다 — 임의의 방향으로 밀어낸다.
+            float d = _habitatMode
+                ? v.magnitude
+                : Mathf.Max(Mathf.Abs(v.x), Mathf.Abs(v.y));
+
+            // 정확히 중심 위면 방향을 정할 수 없다 — 임의의 방향으로 밀어낸다.
             if (d < 0.0001f) { v = Vector2.up; d = 1f; }
 
             float clamped = Mathf.Clamp(d, _minRadius, _maxRadius);
-            return clamped == d ? world : nexus + (Vector3)(v / d * clamped);
+            if (Mathf.Approximately(clamped, d)) return world;
+
+            // 두 좌표를 같은 비율로 — 원형이든 정사각형이든 이 한 줄로 경계에 놓인다.
+            return nexus + (Vector3)(v * (clamped / d));
         }
 
         bool IsWalkable(Vector3 worldPos) =>

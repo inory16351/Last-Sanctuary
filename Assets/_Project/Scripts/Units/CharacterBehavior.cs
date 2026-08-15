@@ -504,6 +504,16 @@ namespace LastSanctuary.Units
             UpdateFleeState();
             if (_fleeing) { _combat.SetStandoff(0f); TickFlee(); return; }
 
+            // ★ <b>토벌 명령</b> — 부대에 잡을 대상이 지정돼 있으면 그 대상이 아래의 모든
+            //   자율 판단(웨이브 우선·협동 대열·배회 한계·사냥감 물색)보다 <b>앞선다</b>
+            //   (유저 지시 2026-08-15: "각 부대에 ... 에픽 몬스터를 선택해 토벌할 수 있는 ui").
+            //
+            //   여기(맨 앞)에 두는 이유 — 아래 513~538행의 "사냥 포기" 검사 세 개가
+            //   <b>배회 범위 밖이면 사냥감을 놓는다</b>. 에픽은 맵 바깥 고리(반지름 100~160)에
+            //   사는데 부대의 배회 범위는 보통 그보다 훨씬 좁아서, 뒤에 두면 출발하자마자
+            //   명령이 취소된다. 명시적인 지시는 자동 판단이 취소하면 안 된다.
+            if (TickSubjugation()) return;
+
             // 웨이브 타임(전투·광폭화)이 시작되면 사냥 중이던 중립 몬스터보다 웨이브 몬스터를
             // 우선한다 — 사냥 타겟을 놓아 UnitCombat 의 일반 진영 타겟팅(가장 가까운 웨이브
             // 몬스터)이 대신 잡게 한다(유저 요청: "웨이브 타임에는 웨이브 몬스터 우선 처리").
@@ -903,6 +913,75 @@ namespace LastSanctuary.Units
             if (_combat.IsFogVisible(attacker.transform.position)) return;
 
             SightAlertService.Report(attacker.transform.position, investigateMergeTiles);
+        }
+
+        /// <summary>
+        /// ★ <b>토벌 명령</b>을 수행한다 (2026-08-15). 명령이 있으면 true 를 돌려
+        /// 이 프레임의 자율 판단을 통째로 건너뛴다.
+        ///
+        /// <b>두 단계로 나눈다</b> — 이게 이 함수의 전부다:
+        /// <code>
+        ///   멀 때 : 목적지만 대상 쪽으로 잡고 <b>걸어간다</b> (사냥 타겟은 아직 안 준다)
+        ///   가까울 때: 사냥 타겟으로 넘긴다 → 그다음은 평소 전투(UnitCombat)가 맡는다
+        /// </code>
+        /// ⚠ <b>처음부터 사냥 타겟으로 주면 안 된다.</b> <c>UnitCombat</c> 의 사냥 추격 한계
+        /// (<c>huntPursuitTiles</c>, 기준점은 물기 시작한 자리)는 "우연히 마주친 사냥감을
+        /// 얼마나 쫓을지"를 정하는 값이라 보통 20타일 남짓이다. 에픽은 맵 바깥 고리에 사는데
+        /// 출발점이 넥서스 근처라, 그대로 주면 <b>몇 걸음 만에 포기</b>한다.
+        /// 명시적인 지시는 그 한계에 걸리면 안 되므로, 사거리 안에 들어갈 때까지는
+        /// <b>이동만</b> 시키고 그 안에서만 사냥으로 넘긴다.
+        ///
+        /// ⚠ 교전이 붙으면(<c>_combat.Target</c>) 목적지를 건드리지 않는다 — 평소 전투와
+        /// 같은 규칙이다. 다만 <b>전술 포지션에 따른 교전 거리</b>는 계속 밀어 넣는다.
+        /// </summary>
+        bool TickSubjugation()
+        {
+            EpicSubjugationService service = EpicSubjugationService.Instance;
+            if (service == null) return false;
+
+            NeutralMonsterUnit target = service.TargetFor(_character);
+            if (target == null || !target.IsAlive) return false;
+
+            // ★ <b>웨이브가 오면 전술 지침을 따른다</b> (유저 확정 2026-08-16, 미결 191번).
+            //   웨이브 반응이 '즉시 방어'면 토벌을 <b>잠시 놓고</b> 아래의 평소 판단으로
+            //   내려간다 — 그쪽이 집결지·넥서스로 데려간다. '탐험 우선'이면 계속 간다.
+            //
+            //   ⚠ <b>명령 자체는 해제하지 않는다.</b> 장부(EpicSubjugationService)는 그대로
+            //     두므로 웨이브가 끝나면 하던 토벌을 이어서 한다 — 유저가 다시 지시할
+            //     필요가 없다. "잠시 놓는다"와 "명령을 지운다"는 다른 일이다.
+            if (IsWaveTimePhase() && _waveReaction == TacticalWaveReaction.DefendNow)
+            {
+                _combat.ClearHuntTarget();
+                return false;
+            }
+
+            // 이미 붙어서 싸우는 중이면 이동은 UnitCombat 에 맡긴다.
+            if (_combat.Target != null && _combat.Target.IsAlive)
+            {
+                _combat.SetStandoff(StandoffFor(_combat.Target));
+                return true;
+            }
+
+            float distance = Vector2.Distance(transform.position, target.transform.position);
+            if (distance <= service.EngageRangeTiles)
+            {
+                // 사거리 안 — 여기서부터는 평소 사냥과 같다.
+                _combat.SetStandoff(0f);
+                _combat.SetHuntTarget(target);
+                return true;
+            }
+
+            // 아직 멀다 — 걸어간다. 목적지를 매 프레임 갱신해 대상이 움직여도 따라간다.
+            //
+            // ⚠ 귀환 지점(SetHome)도 대상 자리로 옮긴다. 안 그러면 목줄(leash)이 넥서스
+            //   기준으로 남아 <b>걸어가는 도중에 되끌려온다</b> — 77-1절이 고친 그 래칫의
+            //   반대 방향 증상이다. 목줄 길이는 교전 사거리로 넉넉히 준다.
+            _combat.SetStandoff(0f);
+            _combat.ClearHuntTarget();
+            _duty = CharacterDuty.Expedition;
+            _destination = target.transform.position;
+            _combat.SetHome(_destination, service.EngageRangeTiles);
+            return true;
         }
 
         /// <summary>
@@ -1903,9 +1982,10 @@ namespace LastSanctuary.Units
             if (huntDetectRange <= 0f) return false;
 
             // 탐험 유형 — <b>'사냥'만</b> 중립 몬스터를 먼저 공격한다(유저 확정 2026-08-12).
-            //   정찰(Patrol)  : 먼저 때리지 않는다. 맞으면 UnitCombat 의 반격 경로가 알아서 받는다.
             //   탐색(Explore) : 아예 건드리지 않는다. 맞아도 반격 대신 도망친다
             //                   (UnitCombat.SetNeutralHostilitySuppressed · UpdateFleeState).
+            // ⚠ 2026-08-15 에 '정찰'이 없어졌다 — 중립이 전부 비선공이 되면서 탐색과
+            //   같은 행동이 됐다(TacticalExpeditionType 주석 참조).
             if (_expeditionType != TacticalExpeditionType.Hunt) return false;
 
             // 치유 유형은 애초에 적을 때리지 않는다 — 사냥감을 잡아봐야 쫓아가기만 한다.

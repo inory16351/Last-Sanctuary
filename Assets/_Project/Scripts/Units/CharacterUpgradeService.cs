@@ -121,7 +121,7 @@ namespace LastSanctuary.Units
             unit.ApplyUpgrade(grown);
 
             if (logUpgrades)
-                Debug.Log($"[Upgrade] {unit.name} 강화 {unit.UpgradeCount}회 · 비용 {cost} · " +
+                Debug.Log($"[Upgrade] {unit.DisplayName} Lv.{unit.UpgradeCount} · 비용 {cost} · " +
                           $"성장 유형 {StatGrowthFocusTable.Label(unit.GrowthFocus)} · " +
                           $"{before} → {grown} · 다음 비용 {CostFor(unit)}", unit);
 
@@ -153,8 +153,8 @@ namespace LastSanctuary.Units
             }
 
             if (logUpgrades)
-                Debug.Log($"[Upgrade] {unit.name} 무료 강화 {applied}회(정신 이상 고조) · " +
-                          $"누적 {unit.UpgradeCount}회 · 다음 비용 {CostFor(unit)}", unit);
+                Debug.Log($"[Upgrade] {unit.DisplayName} 무료 강화 {applied}회(정신 이상 고조) · " +
+                          $"Lv.{unit.UpgradeCount} · 다음 비용 {CostFor(unit)}", unit);
 
             OnUpgraded?.Invoke(unit, 0);
             return applied;

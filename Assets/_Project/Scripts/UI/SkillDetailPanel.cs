@@ -72,7 +72,16 @@ namespace LastSanctuary.UI
         {
             Instance = this;
             EnsureBound();
-            gameObject.SetActive(false);   // 항상 닫힌 채로 시작
+
+            // ⚠⚠ <b>2026-08-15 — 여기 있던 <c>gameObject.SetActive(false)</c> 를 지웠다.</b>
+            //
+            //   이 창은 씬에 <b>비활성으로 저장</b>돼 있어 Awake 가 씬 로드 때 안 돌고,
+            //   <see cref="Open"/> 의 <c>SetActive(true)</c> <b>안에서</b> 처음 돈다.
+            //   그 자리에서 자기를 끄면 <b>창이 열리는 순간 닫힌다</b> — 위의
+            //   <see cref="Instance"/> 주석이 고친 "Instance 가 null" 버그 <b>바로 다음에
+            //   숨어 있던 두 번째 원인</b>이다(같은 증상: 눌러도 아무 일도 안 일어난다).
+            //
+            //   "닫힌 채로 시작"은 씬이 그렇게 저장돼 있는 것으로 이미 지켜진다.
         }
 
         void OnDestroy()

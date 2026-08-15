@@ -49,3 +49,8 @@ MonoBehaviour:
   colliderWidthTiles: 11
   illustName: Carcinos_illust
   skinAssetName: Carcinos
+  titleKey: epic_boss_title_1004
+  habitatTileAsset: CarcinosHabitat
+  skillIds:
+  - 2001
+  - 2002

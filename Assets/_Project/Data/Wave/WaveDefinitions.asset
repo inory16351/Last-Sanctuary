@@ -18,7 +18,7 @@ MonoBehaviour:
     rangedCount: 4
     bossCount: 0
     midBossCount: 0
-    statPercent: 50
+    statPercent: 55
     reinforceIntervalSeconds: 0
     reinforceCount: 0
     spawnGroupSize: 2
@@ -27,7 +27,7 @@ MonoBehaviour:
     rangedCount: 5
     bossCount: 0
     midBossCount: 0
-    statPercent: 65
+    statPercent: 75
     reinforceIntervalSeconds: 0
     reinforceCount: 0
     spawnGroupSize: 2
@@ -36,7 +36,7 @@ MonoBehaviour:
     rangedCount: 7
     bossCount: 0
     midBossCount: 0
-    statPercent: 90
+    statPercent: 105
     reinforceIntervalSeconds: 0
     reinforceCount: 0
     spawnGroupSize: 3
@@ -45,151 +45,151 @@ MonoBehaviour:
     rangedCount: 9
     bossCount: 0
     midBossCount: 0
-    statPercent: 120
+    statPercent: 145
     reinforceIntervalSeconds: 0
     reinforceCount: 0
     spawnGroupSize: 3
   - waveNumber: 5
-    meleeCount: 10
-    rangedCount: 10
-    bossCount: 0
-    midBossCount: 1
-    statPercent: 170
-    reinforceIntervalSeconds: 0
-    reinforceCount: 0
-    spawnGroupSize: 4
-  - waveNumber: 6
     meleeCount: 11
     rangedCount: 11
     bossCount: 0
-    midBossCount: 0
+    midBossCount: 1
     statPercent: 210
     reinforceIntervalSeconds: 0
     reinforceCount: 0
     spawnGroupSize: 4
-  - waveNumber: 7
-    meleeCount: 12
-    rangedCount: 12
+  - waveNumber: 6
+    meleeCount: 13
+    rangedCount: 13
     bossCount: 0
     midBossCount: 0
-    statPercent: 250
+    statPercent: 260
     reinforceIntervalSeconds: 0
     reinforceCount: 0
     spawnGroupSize: 4
+  - waveNumber: 7
+    meleeCount: 14
+    rangedCount: 14
+    bossCount: 0
+    midBossCount: 0
+    statPercent: 320
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
+    spawnGroupSize: 5
   - waveNumber: 8
-    meleeCount: 13
-    rangedCount: 13
-    bossCount: 0
-    midBossCount: 0
-    statPercent: 300
-    reinforceIntervalSeconds: 0
-    reinforceCount: 0
-    spawnGroupSize: 5
-  - waveNumber: 9
-    meleeCount: 14
-    rangedCount: 14
-    bossCount: 0
-    midBossCount: 0
-    statPercent: 340
-    reinforceIntervalSeconds: 0
-    reinforceCount: 0
-    spawnGroupSize: 5
-  - waveNumber: 10
-    meleeCount: 7
-    rangedCount: 7
-    bossCount: 1
-    midBossCount: 0
-    statPercent: 430
-    reinforceIntervalSeconds: 0
-    reinforceCount: 0
-    spawnGroupSize: 5
-  - waveNumber: 11
-    meleeCount: 13
-    rangedCount: 13
-    bossCount: 0
-    midBossCount: 0
-    statPercent: 460
-    reinforceIntervalSeconds: 0
-    reinforceCount: 0
-    spawnGroupSize: 5
-  - waveNumber: 12
-    meleeCount: 14
-    rangedCount: 14
-    bossCount: 0
-    midBossCount: 0
-    statPercent: 500
-    reinforceIntervalSeconds: 0
-    reinforceCount: 0
-    spawnGroupSize: 5
-  - waveNumber: 13
-    meleeCount: 14
-    rangedCount: 14
-    bossCount: 0
-    midBossCount: 0
-    statPercent: 540
-    reinforceIntervalSeconds: 0
-    reinforceCount: 0
-    spawnGroupSize: 6
-  - waveNumber: 14
-    meleeCount: 15
-    rangedCount: 15
-    bossCount: 0
-    midBossCount: 0
-    statPercent: 580
-    reinforceIntervalSeconds: 0
-    reinforceCount: 0
-    spawnGroupSize: 6
-  - waveNumber: 15
-    meleeCount: 15
-    rangedCount: 15
-    bossCount: 0
-    midBossCount: 1
-    statPercent: 660
-    reinforceIntervalSeconds: 0
-    reinforceCount: 0
-    spawnGroupSize: 6
-  - waveNumber: 16
-    meleeCount: 15
-    rangedCount: 15
-    bossCount: 0
-    midBossCount: 0
-    statPercent: 690
-    reinforceIntervalSeconds: 0
-    reinforceCount: 0
-    spawnGroupSize: 6
-  - waveNumber: 17
     meleeCount: 16
     rangedCount: 16
     bossCount: 0
     midBossCount: 0
-    statPercent: 730
+    statPercent: 390
     reinforceIntervalSeconds: 0
     reinforceCount: 0
-    spawnGroupSize: 6
-  - waveNumber: 18
-    meleeCount: 17
-    rangedCount: 17
-    bossCount: 0
-    midBossCount: 0
-    statPercent: 770
-    reinforceIntervalSeconds: 0
-    reinforceCount: 0
-    spawnGroupSize: 7
-  - waveNumber: 19
+    spawnGroupSize: 5
+  - waveNumber: 9
     meleeCount: 18
     rangedCount: 18
     bossCount: 0
     midBossCount: 0
-    statPercent: 820
+    statPercent: 470
     reinforceIntervalSeconds: 0
     reinforceCount: 0
-    spawnGroupSize: 7
-  - waveNumber: 20
-    meleeCount: 12
-    rangedCount: 12
+    spawnGroupSize: 6
+  - waveNumber: 10
+    meleeCount: 9
+    rangedCount: 9
     bossCount: 1
     midBossCount: 0
-    statPercent: 900
+    statPercent: 600
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
+    spawnGroupSize: 6
+  - waveNumber: 11
+    meleeCount: 17
+    rangedCount: 17
+    bossCount: 0
+    midBossCount: 0
+    statPercent: 660
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
+    spawnGroupSize: 6
+  - waveNumber: 12
+    meleeCount: 19
+    rangedCount: 19
+    bossCount: 0
+    midBossCount: 0
+    statPercent: 740
     reinforceIntervalSeconds: 0
     reinforceCount: 0
     spawnGroupSize: 7
+  - waveNumber: 13
+    meleeCount: 20
+    rangedCount: 20
+    bossCount: 0
+    midBossCount: 0
+    statPercent: 830
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
+    spawnGroupSize: 7
+  - waveNumber: 14
+    meleeCount: 22
+    rangedCount: 22
+    bossCount: 0
+    midBossCount: 0
+    statPercent: 930
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
+    spawnGroupSize: 7
+  - waveNumber: 15
+    meleeCount: 20
+    rangedCount: 20
+    bossCount: 0
+    midBossCount: 1
+    statPercent: 1080
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
+    spawnGroupSize: 8
+  - waveNumber: 16
+    meleeCount: 22
+    rangedCount: 22
+    bossCount: 0
+    midBossCount: 0
+    statPercent: 1180
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
+    spawnGroupSize: 8
+  - waveNumber: 17
+    meleeCount: 24
+    rangedCount: 24
+    bossCount: 0
+    midBossCount: 0
+    statPercent: 1300
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
+    spawnGroupSize: 8
+  - waveNumber: 18
+    meleeCount: 26
+    rangedCount: 26
+    bossCount: 0
+    midBossCount: 0
+    statPercent: 1440
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
+    spawnGroupSize: 9
+  - waveNumber: 19
+    meleeCount: 28
+    rangedCount: 28
+    bossCount: 0
+    midBossCount: 0
+    statPercent: 1600
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
+    spawnGroupSize: 9
+  - waveNumber: 20
+    meleeCount: 18
+    rangedCount: 18
+    bossCount: 1
+    midBossCount: 0
+    statPercent: 1850
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
+    spawnGroupSize: 9

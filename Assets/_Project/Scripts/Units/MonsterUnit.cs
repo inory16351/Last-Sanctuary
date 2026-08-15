@@ -7,8 +7,14 @@ namespace LastSanctuary.Units
     /// 몬스터 한 마리. 캐릭터·넥서스와 같은 DamageableUnit 을 상속해서
     /// 피해 계산이 한 공식으로 통일된다.
     /// </summary>
-    public class MonsterUnit : DamageableUnit
+    public class MonsterUnit : DamageableUnit, IBossSkillOwner
     {
+        /// <summary>표의 <c>boss_skill_1~3</c>. 순서가 곧 스킬 슬롯 번호다.</summary>
+        public int[] BossSkillIds => definition != null ? definition.bossSkillIds : null;
+
+        /// <summary>정의가 들어왔는가 — 스포너가 <c>Initialize</c> 를 부른 뒤에 true.</summary>
+        public bool SkillsReady => definition != null;
+
         [Header("데이터")]
         [SerializeField] MonsterDefinitionSO definition;
 
@@ -35,7 +41,7 @@ namespace LastSanctuary.Units
         /// 그 이름을 그대로 찍어 "지옥 송곳니_7 처치"처럼 나왔다. 표시 이름을 여기 하나로
         /// 모아두면 하이라키 이름을 어떻게 짓든 로그가 흔들리지 않는다.
         /// </summary>
-        public string DisplayName =>
+        public override string DisplayName =>
             definition != null && !string.IsNullOrWhiteSpace(definition.DisplayName)
                 ? definition.DisplayName
                 : name;
@@ -44,7 +50,7 @@ namespace LastSanctuary.Units
         /// 보스 <b>칭호</b>(예: 단탈리온의 "끝없는 형상의 군주"). 없으면 빈 문자열.
         /// 보스 체력바가 이름 위에 띄운다(유저 지시 2026-08-13).
         /// </summary>
-        public string Title => definition != null ? definition.Title : string.Empty;
+        public override string Title => definition != null ? definition.Title : string.Empty;
 
         /// <summary>
         /// 보스급(중간보스·최종보스)인지 — <see cref="MonsterTier.Normal"/> 이 아니면 보스다.

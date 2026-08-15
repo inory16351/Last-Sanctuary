@@ -2,6 +2,29 @@
 
 Unity 밖에서 도는 보조 스크립트. `Assets/` 밖이라 Unity 가 임포트하지 않는다.
 
+## mcp_unity_cli.js — Unity MCP 브리지에 직접 붙는 명령줄 도구
+
+```bash
+node Tools/mcp_unity_cli.js get_scene_info '{}'
+node Tools/mcp_unity_cli.js get_gameobject '{"objectPath":"UI_Root/HUD_Log"}'
+node Tools/mcp_unity_cli.js --batch 요청목록.json
+```
+
+`.mcp.json` 이 띄우는 mcp-unity 서버와 **같은 WebSocket 브리지(포트 8090)에 같은 규약으로**
+붙는다 — 씬 YAML 을 직접 건드리는 것이 아니라 Unity 에디터 API 를 그대로 태운다.
+도구 이름은 mcp-unity 와 동일하다(`update_gameobject` · `update_component` ·
+`save_scene` · `recompile_scripts` · `get_scenes_hierarchy` …).
+
+**왜 생겼나 (2026-08-15)** — `.mcp.json` 이 서버를 `"command": "node"` 로 띄우는데
+이 PC 의 PATH 에 node 가 없어서 서버 프로세스가 아예 안 떴다(설치는 돼 있었다).
+그래서 대화 세션에 MCP 도구가 하나도 안 붙었다. `.mcp.json` 의 `command` 를
+절대경로(`C:/Program Files/nodejs/node.exe`)로 고쳐 근본 원인은 없앴지만,
+이 CLI 는 남겨둘 값어치가 있다 — **파이썬 파이프라인이 끝난 뒤 스스로
+`refresh_assets`/`recompile_scripts` 를 부를 수 있다**.
+
+⚠ Unity 에디터가 켜져 있어야 한다. 컴파일·임포트 중이면 응답이 느리다(기본 타임아웃 120초,
+`MCP_UNITY_TIMEOUT_MS` 로 조정).
+
 ## wall_depth_pass.py — 벽 타일 3/4 뷰 입체 음영
 
 ```bash

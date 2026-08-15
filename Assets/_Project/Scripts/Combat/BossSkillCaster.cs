@@ -39,7 +39,16 @@ namespace LastSanctuary.Combat
     /// 유지로 최대한 넣고(contain), 그렇게 <b>실제로 그려진 크기</b>를 피해 범위로 쓴다
     /// (<see cref="ResolveArea"/>). 66절이 유닛 콜라이더에 쓴 로직과 같은 것이다.
     /// </summary>
-    [RequireComponent(typeof(MonsterUnit))]
+    /// <remarks>
+    /// ★ <b>2026-08-15 — 웨이브 보스 전용에서 「보스형 유닛」으로 넓혔다.</b>
+    /// 카르시노스(에픽 중립 1004)가 스킬을 갖게 되면서다. 바뀐 것은 <b>두 군데뿐</b>이다:
+    /// <code>
+    ///   ① [RequireComponent(MonsterUnit)] 제거 → 자기 유닛을 DamageableUnit 으로 잡는다
+    ///   ② 스킬 id 를 어디서 읽는지 → IBossSkillOwner 에게 물어본다
+    /// </code>
+    /// 조준·범위·피해·연출은 <b>한 줄도 안 바뀌었다</b> — 그 코드는 원래 유닛 종류를
+    /// 몰라도 되게 짜여 있었다(Faction 과 위치만 본다).
+    /// </remarks>
     [DisallowMultipleComponent]
     public class BossSkillCaster : MonoBehaviour
     {
@@ -49,8 +58,18 @@ namespace LastSanctuary.Combat
         [SerializeField] string skillResourceFolder = "BossSkills";
 
         [Header("시전 규칙")]
-        [Tooltip("소환된 뒤 첫 스킬을 쓰기까지의 대기(초). 0 이면 나오자마자 광역기가 나간다")]
+        [Tooltip("첫 스킬을 쓰기까지의 대기(초). 0 이면 나오자마자 광역기가 나간다.\n" +
+                 "기준 시점은 아래 delayFromFirstCombat 이 정한다")]
         [Min(0f)] [SerializeField] float initialDelaySeconds = 5f;
+
+        [Tooltip("★ 대기 시간을 <b>소환 시점이 아니라 첫 교전 시점부터</b> 센다 " +
+                 "(유저 확정 2026-08-16, 미결 195번).\n\n" +
+                 "⚠ 이 값이 없으면 <b>맵에 상주하는 에픽 중립</b>이 소환 직후부터 시간을 세서, " +
+                 "몇 분 뒤 캐릭터가 찾아오는 순간 <b>준비 시간 없이 즉시 광역기</b>를 맞는다.\n" +
+                 "웨이브 보스에게도 이득이다 — 넥서스까지 진군하는 70여 초 동안 쿨타임이 " +
+                 "헛돌지 않는다.\n" +
+                 "교전 판정은 DamageableUnit.IsInCombat(때렸든 맞았든) 을 그대로 쓴다")]
+        [SerializeField] bool delayFromFirstCombat = true;
 
         [Tooltip("스킬끼리 두는 최소 간격(초). 쿨타임이 동시에 차도 두 개가 같은 프레임에 " +
                  "나가지 않게 한다 — 겹쳐 맞으면 전열이 통째로 증발한다")]
@@ -81,7 +100,7 @@ namespace LastSanctuary.Combat
                  "(ErosionService.enableErosion 과 같은 결)")]
         [SerializeField] bool enableSkills = true;
 
-        MonsterUnit _self;
+        DamageableUnit _self;
         CharacterAnimator _animator;
 
         /// <summary>이 보스가 실제로 쓸 스킬. 정의의 id 순서 = 슬롯 번호 = 스킨의 모션 슬롯.</summary>
@@ -125,7 +144,7 @@ namespace LastSanctuary.Combat
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetCache() => _skillCache.Clear();
 
-        void Awake() => _self = GetComponent<MonsterUnit>();
+        void Awake() => _self = GetComponent<DamageableUnit>();
 
         void OnEnable()
         {
@@ -137,8 +156,12 @@ namespace LastSanctuary.Combat
             _nextUseTime.Clear();
             _priorityOrder.Clear();
             _areaTiles.Clear();
+            _combatStarted = false;
             _nextAnyUseTime = Time.time + initialDelaySeconds;
         }
+
+        /// <summary>첫 교전이 시작됐는가. <see cref="delayFromFirstCombat"/> 가 켜져 있을 때만 본다.</summary>
+        bool _combatStarted;
 
         /// <summary>
         /// 정의에서 스킬 목록을 푼다. <b>Update 에서 늦게 하는 이유</b> — 몬스터는 프레임
@@ -149,15 +172,20 @@ namespace LastSanctuary.Combat
         void EnsureResolved()
         {
             if (_resolved) return;
-            if (_self == null) _self = GetComponent<MonsterUnit>();
+            if (_self == null) _self = GetComponent<DamageableUnit>();
 
-            MonsterDefinitionSO def = _self != null ? _self.Definition : null;
-            if (def == null) return;                 // 아직 초기화 전 — 다음 프레임에 다시 본다
+            // ★ 스킬 목록을 <b>유닛에게 물어본다</b>(2026-08-15). 예전에는
+            //   MonsterDefinitionSO.bossSkillIds 를 직접 읽어서 웨이브 몬스터만 쓸 수 있었다.
+            //   중립 에픽(카르시노스)도 같은 컴포넌트를 쓰게 하려고 한 겹 뺐다.
+            var owner = GetComponent<IBossSkillOwner>();
+            int[] ids = owner != null ? owner.BossSkillIds : null;
+
+            // 정의가 아직 안 들어왔으면(스폰 직후) null 이다 — 다음 프레임에 다시 본다.
+            if (owner == null || !owner.SkillsReady) return;
 
             _resolved = true;
             _animator = GetComponent<CharacterAnimator>();
 
-            int[] ids = def.bossSkillIds;
             if (ids == null || ids.Length == 0) return;
 
             BossSkillSO[] all = LoadSkills(skillResourceFolder);
@@ -171,7 +199,7 @@ namespace LastSanctuary.Combat
 
                 if (found == null)
                 {
-                    Debug.LogWarning($"[보스스킬] {def.DisplayName} 의 스킬 id {ids[i]} 에 해당하는 " +
+                    Debug.LogWarning($"[보스스킬] {_self.DisplayName} 의 스킬 id {ids[i]} 에 해당하는 " +
                                      $"에셋을 Resources/{skillResourceFolder} 에서 찾지 못했습니다.", this);
                     continue;
                 }
@@ -197,7 +225,7 @@ namespace LastSanctuary.Combat
             _priorityOrder.Sort((a, b) => _skills[b].coolTime.CompareTo(_skills[a].coolTime));
 
             if (logCasts && _skills.Count > 0)
-                Debug.Log($"[보스스킬] {def.DisplayName} 스킬 {_skills.Count}종 준비 " +
+                Debug.Log($"[보스스킬] {_self.DisplayName} 스킬 {_skills.Count}종 준비 " +
                           $"(쿨타임 긴 순 {string.Join(" → ", _priorityOrder.ConvertAll(i => _skills[i].DisplayName))})",
                           this);
         }
@@ -263,6 +291,21 @@ namespace LastSanctuary.Combat
             EnsureResolved();
             if (_skills.Count == 0) return;
             if (_self == null || !_self.IsAlive) return;
+
+            // ★ 대기 시간의 기준을 <b>첫 교전</b>으로 (미결 195번).
+            //   교전이 시작되는 그 프레임에 카운트다운을 다시 찍는다.
+            if (delayFromFirstCombat && !_combatStarted)
+            {
+                if (!_self.IsInCombat) return;          // 아직 아무도 안 찾아왔다
+                _combatStarted = true;
+                _nextAnyUseTime = Time.time + initialDelaySeconds;
+
+                // 슬롯별 쿨타임도 같이 다시 찍는다 — 안 그러면 소환 직후부터 돌던 값이
+                // 이미 지나 있어 교전 시작과 동시에 두 스킬이 연달아 나간다.
+                for (int i = 0; i < _nextUseTime.Count; i++)
+                    _nextUseTime[i] = Time.time + initialDelaySeconds + _skills[i].coolTime * 0.5f * i;
+            }
+
             if (Time.time < _nextAnyUseTime) return;
 
             // 동시 발동 방지 — <see cref="_priorityOrder"/>(쿨타임 내림차순)로 시도해
@@ -299,7 +342,14 @@ namespace LastSanctuary.Combat
             // 방향이라는 개념이 없으므로 조준도 필요 없다 — 반지름 안이면 전부 맞는다.
             if (skill.Shape == BossSkillShape.Circle)
             {
-                float radius = length * 0.5f;
+                // ⚠ <b>value_01 이 지름인 스킬과 반지름인 스킬이 섞여 있다.</b>
+                //   단탈리온 계열은 지름, 카르시노스 「죽음의 포효」는 정의문이
+                //   *"카르시노스 + {value_01} 반지름 타일 범위"* 라 반지름이다.
+                //   그대로 반으로 나누면 포효의 실제 범위가 표의 절반이 된다.
+                //   판단은 BossSkillSO.CircleValueIsRadius 한 곳에 있다.
+                float radius = skill.CircleValueIsRadius ? length : length * 0.5f;
+                length = radius * 2f;                     // 아래 연출·로그는 지름을 쓴다
+
                 UnitRegistry.CollectEnemiesInRadius(transform.position, radius, _self.Faction, _scratch);
                 if (requireTarget && _scratch.Count == 0) return false;
 
@@ -361,13 +411,14 @@ namespace LastSanctuary.Combat
                 // 표에서 그대로 읽어 여기서 직접 적용한다. 캐릭터만 침식이 있다(구조물 제외).
                 if (u.IsAlive && u is CharacterUnit character && skill.ErosionValue > 0f)
                     CharacterErosion.EnsureOn(character)?.AddErosion(skill.ErosionValue);
+
+                if (u.IsAlive) ApplySideEffects(skill, u);
             }
 
             // 로그 형식은 캐릭터 스킬(CharacterPassives)과 <b>같은 규칙</b>이다 —
             // "누가 · 무슨 스킬" (유저 지시 2026-08-13: "로그에 스킬 쓰면 스킬 이름이랑
             // 같이 나오게 해줘 누가 썼는지랑"). 형식 문자열은 UI.HudLog.SkillLine 한 곳에 있다.
-            string bossName = _self.Definition != null ? _self.Definition.DisplayName : _self.name;
-            string line = UI.HudLog.SkillLine(bossName, skill.DisplayName,
+            string line = UI.HudLog.SkillLine(_self.DisplayName, skill.DisplayName,
                                               hits > 0 ? $"{hits}명 피격" : null);
             UI.HudLog.Add(line, UI.HudLogKind.Danger);
 
@@ -376,6 +427,64 @@ namespace LastSanctuary.Combat
                           $"공격력 {skill.DamagePercent}%", this);
             return true;
         }
+
+        // ------------------------------------------------------------------
+        // 피해 말고 <b>따라붙는 효과</b> (2026-08-15 — 카르시노스)
+        //
+        // 단탈리온의 두 스킬은 붙는 효과가 침식 하나뿐이라 위 루프에 한 줄로 들어 있었다.
+        // 카르시노스는 스킬마다 다른 효과가 붙어서 한 곳에 모았다 —
+        // <b>스킬이 늘 때 고칠 자리를 하나로</b> 두려는 것이다.
+        // ------------------------------------------------------------------
+
+        /// <summary>이 스킬이 대상에게 얹는 부가 효과. 해당 없는 스킬은 조용히 지나간다.</summary>
+        void ApplySideEffects(BossSkillSO skill, DamageableUnit target)
+        {
+            // ── 방어력 감소 (할퀴기) ────────────────────────────────────
+            // 표의 값은 <b>%</b> 다("방어력이 {value_04}% 만큼 감소"). 실제 장부는
+            // 피올로의 「부식」이 쓰는 것과 <b>같은 것</b>을 쓴다 — 만료·중첩 규칙이
+            // 이미 거기 있고, 방어력 보정 장부가 두 벌이 되면 하나가 새면 영구히 깎인다.
+            if (skill.DefenseDownPercent > 0f && skill.DefenseDownSeconds > 0f)
+            {
+                int amount = Mathf.RoundToInt(target.DefenseStat * skill.DefenseDownPercent / 100f);
+                if (amount > 0)
+                    PassiveSkillService.ApplyCorrosion(target, amount, skill.DefenseDownSeconds);
+            }
+
+            // ── 넉백 (죽음의 포효) ──────────────────────────────────────
+            if (skill.KnockbackTiles > 0f) Knockback(target, skill.KnockbackTiles);
+        }
+
+        /// <summary>
+        /// 대상을 <b>보스 반대 방향으로</b> 밀어낸다.
+        ///
+        /// ⚠ <b>벽을 뚫지 않는다.</b> 목표 지점이 막혀 있으면 한 타일씩 줄여가며 설 수 있는
+        /// 가장 먼 자리를 찾는다 — 통째로 순간이동시키면 벽 안에 박혀 빠져나오지 못한다
+        /// (13절이 이동 충돌을 타일 기준으로 판정하는 것과 같은 이유다).
+        ///
+        /// ⚠ <b>이동 목표(귀환 지점·집결지)는 건드리지 않는다.</b> 밀려난 뒤 스스로 걸어
+        /// 돌아오는 것이 맞고, 목표까지 옮기면 "왜 자리를 이탈했지"가 된다.
+        /// </summary>
+        void Knockback(DamageableUnit target, float tiles)
+        {
+            Vector2 away = (Vector2)(target.transform.position - transform.position);
+            if (away.sqrMagnitude < 0.0001f) away = Vector2.right;   // 정확히 겹쳤으면 아무 쪽으로
+            away.Normalize();
+
+            Vector3 from = target.transform.position;
+            if (_map == null) _map = FindAnyObjectByType<Map.MapGenerator>();
+
+            // 한 타일씩 줄여가며 실제로 설 수 있는 가장 먼 자리를 고른다.
+            for (float d = tiles; d >= 1f; d -= 1f)
+            {
+                Vector3 to = from + (Vector3)(away * d);
+                if (_map != null && !_map.IsCellPlaceable(_map.WorldToCell(to))) continue;
+                target.transform.position = to;
+                return;
+            }
+        }
+
+        /// <summary>넉백이 벽을 뚫지 않게 하려고 본다. 없으면 그냥 밀어낸다(맵 없는 테스트 씬 대비).</summary>
+        Map.MapGenerator _map;
 
         /// <summary>목록에서 <b>가장 가까운</b> 대상. 원형 범위에서 시전 모션이 볼 쪽을 정하는 데 쓴다.</summary>
         DamageableUnit NearestOf(List<DamageableUnit> units)

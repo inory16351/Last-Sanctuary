@@ -60,6 +60,12 @@ namespace LastSanctuary.Combat
                  "BossSkillCaster.TryCast 가 한다")]
         public float value04;
 
+        [Tooltip("value_05 — 표의 다섯 번째 값 칸. <b>스킬 종류마다 뜻이 다르다</b>:\n" +
+                 "  · 할퀴기(2001) — 방어력 감소가 지속되는 <b>초</b>\n" +
+                 "  · 나머지        — 안 쓴다\n" +
+                 "⚠ 칸 번호로 읽지 말고 아래 뜻 있는 프로퍼티(DefenseDownSeconds 등)를 쓸 것")]
+        public float value05;
+
         [Tooltip("cool_time — 재사용 대기시간(초)")]
         public float coolTime = 10f;
 
@@ -107,8 +113,50 @@ namespace LastSanctuary.Combat
         /// <summary>피해 배율(%). 표가 비어 있으면 평타(100%)로 떨어진다.</summary>
         public int DamagePercent => value03 > 0f ? Mathf.RoundToInt(value03) : 100;
 
-        /// <summary>이 스킬에 맞으면 오르는 침식 수치. 음수는 0 으로 자른다.</summary>
-        public float ErosionValue => Mathf.Max(0f, value04);
+        /// <summary>
+        /// 이 스킬에 맞으면 오르는 침식 수치. 음수는 0 으로 자른다.
+        ///
+        /// ⚠ <b>단탈리온의 두 스킬만</b> 이 뜻이다. 카르시노스의 할퀴기는 같은 <c>value_04</c>
+        /// 칸을 <b>방어력 감소 %</b> 로 쓴다 — 종류를 보고 갈라야 값이 섞이지 않는다.
+        /// </summary>
+        public float ErosionValue =>
+            Type == BossSkillType.FallenTomb || Type == BossSkillType.VoidLaser
+                ? Mathf.Max(0f, value04)
+                : 0f;
+
+        // ──────────────────────────────────────────────────────────────────
+        // 카르시노스 — 칸 번호가 아니라 <b>뜻</b>으로 읽는 프로퍼티 (2026-08-15)
+        //
+        // 스트링 테이블의 정의문이 근거다:
+        //   할퀴기      "…맞은 적은 방어력이{value_04}% 만큼 감소하며 지속시간은 {value_05}초…"
+        //   죽음의 포효 "…카르시노스 + {value_01} 반지름 타일 범위… 뒤로 {value_02} 타일 만큼 밀려나며…"
+        // ──────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// 맞은 적의 <b>방어력을 몇 % 깎는지</b>. 할퀴기 전용 — 다른 스킬은 0.
+        /// </summary>
+        public float DefenseDownPercent =>
+            Type == BossSkillType.Scratch ? Mathf.Max(0f, value04) : 0f;
+
+        /// <summary>방어력 감소가 지속되는 초. 할퀴기 전용.</summary>
+        public float DefenseDownSeconds =>
+            Type == BossSkillType.Scratch ? Mathf.Max(0f, value05) : 0f;
+
+        /// <summary>
+        /// 맞은 적을 <b>뒤로 몇 타일</b> 밀어내는지. 죽음의 포효 전용 — 다른 스킬은 0.
+        /// </summary>
+        public float KnockbackTiles =>
+            Type == BossSkillType.RoarDeath ? Mathf.Max(0f, value02) : 0f;
+
+        /// <summary>
+        /// <b>원형 범위의 반지름</b>(타일)이 <c>value_01</c> 로 적혀 있는 스킬인가.
+        ///
+        /// ⚠ 여기가 갈린다 — 기존 <see cref="BossSkillShape.Circle"/> 는 <c>value_01</c> 을
+        /// <b>지름</b>으로 읽는다(단탈리온 기준). 그런데 카르시노스 「죽음의 포효」의 정의문은
+        /// *"카르시노스 + {value_01} 반지름 타일 범위"* 라 <b>반지름</b>이다. 값을 그대로 쓰면
+        /// 실제 범위가 <b>절반</b>이 되어 표와 화면이 어긋난다.
+        /// </summary>
+        public bool CircleValueIsRadius => Type == BossSkillType.RoarDeath;
 
         /// <summary>이 에셋이 쓸 만한지 — 종류를 못 알아보면 시전하지 않는다.</summary>
         public bool IsUsable => Type != BossSkillType.None && coolTime > 0f;

@@ -428,12 +428,12 @@ namespace LastSanctuary.UI
                       () => _tactics.Order.retreatAction == TacticalRetreatAction.FallBackWithAlly,
                       () => _tactics.Order.CanFallBackWithAlly);
 
-            // 탐험 유형 (예전 "비전투 우선 행동". '건물 건설' 항목이 빠지고 '정찰'이 들어왔다 —
-            // 하이라키에서는 기존 버튼 3개를 Hunt / Patrol / Explore 로 개명해 그대로 쓴다)
+            // 탐험 유형 — 2026-08-15 부터 <b>사냥 / 탐색 둘</b>이다.
+            // ⚠ 씬의 `Col3/Non/Patrol` 버튼은 <b>비활성으로 껐다</b>(지우지 않았다) —
+            //   슬롯을 지우면 하이라키의 세로 배치가 밀리고, 정찰이 되살아날 때 다시 만들어야 한다.
+            //   여기서 배선을 안 하므로 눌러도 아무 일도 일어나지 않는다.
             AddOption("Col3/Non/Hunt",    () => Set(t => t.SetExpeditionType(TacticalExpeditionType.Hunt)),
                       () => _tactics.Order.expeditionType == TacticalExpeditionType.Hunt);
-            AddOption("Col3/Non/Patrol",  () => Set(t => t.SetExpeditionType(TacticalExpeditionType.Patrol)),
-                      () => _tactics.Order.expeditionType == TacticalExpeditionType.Patrol);
             AddOption("Col3/Non/Explore", () => Set(t => t.SetExpeditionType(TacticalExpeditionType.Explore)),
                       () => _tactics.Order.expeditionType == TacticalExpeditionType.Explore);
 

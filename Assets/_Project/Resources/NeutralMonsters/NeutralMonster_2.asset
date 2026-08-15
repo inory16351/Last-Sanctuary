@@ -28,7 +28,7 @@ MonoBehaviour:
   attacksPerSecond: 0.873
   moveSpeedTiles: 2.321
   leashRangeTiles: 6
-  maxAlive: 26
+  maxAlive: 33
   respawnSeconds: 13
   spawnRangeMinTiles: 100
   spawnRangeMaxTiles: 199
@@ -45,5 +45,6 @@ MonoBehaviour:
   resistanceStat: 50
   colliderHeightTiles: 1.9
   colliderWidthTiles: 2.6
-  illustName: 
-  skinAssetName: 
+  illustName: Tumorling_illust
+  skinAssetName: Tumorling
+  habitatTileAsset: 
