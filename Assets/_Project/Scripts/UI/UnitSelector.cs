@@ -67,6 +67,17 @@ namespace LastSanctuary.UI
 
         CharacterUnit _selected;
         DamageableUnit _selectedUnit;
+
+        /// <summary>
+        /// 선택 표시를 맡은 컴포넌트(캐릭터에만 있다). 있으면 <b>색은 그쪽이 칠한다</b> —
+        /// 정신 이상 점멸과 색을 두고 다투지 않게 하려는 것이다(<see cref="UnitTintFx"/> 참조).
+        /// </summary>
+        UnitTintFx _selectedTintFx;
+
+        /// <summary>
+        /// <see cref="UnitTintFx"/> 가 없는 유닛(몬스터·넥서스·포탑)용 예전 경로.
+        /// 그쪽은 색을 칠하는 주체가 여기 하나뿐이라 기억-복구로 충분하다.
+        /// </summary>
         SpriteRenderer _selectedRenderer;
         Color _originalColor;
 
@@ -255,11 +266,23 @@ namespace LastSanctuary.UI
             _selectedUnit = unit;
             CharacterUnit asCharacter = unit as CharacterUnit;
 
-            _selectedRenderer = unit.GetComponent<SpriteRenderer>();
-            if (tintSelected && _selectedRenderer != null)
+            if (tintSelected)
             {
-                _originalColor = _selectedRenderer.color;
-                _selectedRenderer.color = selectedTint;
+                // 캐릭터면 색칠 담당에게 "선택됐다"만 알린다 — 직접 칠하지 않는다.
+                _selectedTintFx = unit.GetComponent<UnitTintFx>();
+                if (_selectedTintFx != null)
+                {
+                    _selectedTintFx.SetSelected(true, selectedTint);
+                }
+                else
+                {
+                    _selectedRenderer = unit.GetComponent<SpriteRenderer>();
+                    if (_selectedRenderer != null)
+                    {
+                        _originalColor = _selectedRenderer.color;
+                        _selectedRenderer.color = selectedTint;
+                    }
+                }
             }
 
             if (logSelection) Debug.Log($"[Select] {unit.DisplayName} 선택", unit);
@@ -276,7 +299,8 @@ namespace LastSanctuary.UI
         /// <summary>선택을 해제한다.</summary>
         public void Clear()
         {
-            if (_selectedUnit == null && _selected == null && _selectedRenderer == null) return;
+            if (_selectedUnit == null && _selected == null &&
+                _selectedRenderer == null && _selectedTintFx == null) return;
 
             RestoreTint();
 
@@ -291,6 +315,11 @@ namespace LastSanctuary.UI
 
         void RestoreTint()
         {
+            // ⚠ Unity 의 == 오버로드가 파괴된 오브젝트를 null 로 답한다 — 죽은 유닛의
+            //   선택을 풀 때 여기로 들어오므로 두 경로 모두 null 검사가 필요하다.
+            if (_selectedTintFx != null) _selectedTintFx.SetSelected(false, Color.white);
+            _selectedTintFx = null;
+
             if (tintSelected && _selectedRenderer != null) _selectedRenderer.color = _originalColor;
             _selectedRenderer = null;
         }

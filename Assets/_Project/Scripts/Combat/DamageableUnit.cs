@@ -44,6 +44,7 @@ namespace LastSanctuary.Combat
             OnAnyMissed = null;
             OnAnyCritical = null;
             OnAnyDamaged = null;
+            OnAnyHealed = null;
         }
 
         bool _wasInCombat;
@@ -226,7 +227,10 @@ namespace LastSanctuary.Combat
             while (_regenTimer >= interval && currentHp < MaxHp)
             {
                 _regenTimer -= interval;
-                Heal(amount);
+
+                // ⚠ 재생은 숫자를 띄우지 않는다 — 비전투 중 계속 도는 배경 동작이라
+                //   띄우면 평시 화면이 초록 숫자로 뒤덮인다(OnAnyHealed 주석 참조).
+                HealSilently(amount);
             }
         }
 
@@ -363,11 +367,33 @@ namespace LastSanctuary.Combat
         public static event System.Action<DamageableUnit, DamageableUnit, int, bool> OnAnyDamaged;
 
         /// <summary>
+        /// <b>회복이 실제로 들어갔다</b> (회복받은 유닛, 실제로 찬 체력) — 2026-08-17 신설.
+        /// <see cref="DamageNumberFx"/> 가 초록 숫자를 띄우는 데 쓴다
+        /// (유저 지시: <i>"데미지 표기 처럼 힐 들어가는 숫자도 구현(초록색)으로"</i>).
+        ///
+        /// ★ <b>요청한 양이 아니라 실제로 찬 양</b>을 싣는다 — 체력이 거의 가득한 대상에게
+        /// 100 을 회복시키면 실제로는 3 만 차는데, 화면에 100 이 뜨면 거짓말이 된다.
+        ///
+        /// ⚠ <b>체력 재생(<see cref="TickRegen"/>)은 이 이벤트를 쏘지 않는다.</b>
+        /// 재생은 비전투 중 <c>regenTickSeconds</c> 마다 조용히 도는 배경 동작이라,
+        /// 숫자를 띄우면 <b>아무 일도 없는 평시에 화면이 초록 숫자로 뒤덮인다.</b>
+        /// 구분은 <see cref="_silentHeal"/> 한 칸으로 한다 — <c>Heal(int)</c> 의 시그니처를
+        /// 바꾸지 않으려는 것이다(<see cref="_pendingCritical"/> 과 같은 이유·같은 방식).
+        /// </summary>
+        public static event System.Action<DamageableUnit, int> OnAnyHealed;
+
+        /// <summary>
         /// 지금 적용되는 피해가 치명타인가. <see cref="TakeDamageFrom"/> 이 찍고
         /// <see cref="ApplyDamage"/> 가 이벤트에 실어 보낸 뒤 지운다 —
         /// <c>ApplyDamage(int)</c> 의 시그니처를 바꾸지 않으려는 것이다(PROTO 가 쓰는 공개 API).
         /// </summary>
         bool _pendingCritical;
+
+        /// <summary>
+        /// 지금 들어가는 회복을 <b>화면에 띄우지 않는다</b>. 체력 재생·최대 체력 변동에 따른
+        /// 보정처럼 "플레이어가 한 일이 아닌" 회복에만 켠다. <see cref="OnAnyHealed"/> 참조.
+        /// </summary>
+        bool _silentHeal;
 
         /// <summary>계산이 끝난 피해량(정수)을 직접 적용한다.</summary>
         public void ApplyDamage(int amount)
@@ -396,8 +422,27 @@ namespace LastSanctuary.Combat
         public void Heal(int amount)
         {
             if (!IsAlive || amount <= 0) return;
+
+            // ★ 실제로 찬 양을 재서 이벤트에 싣는다 — 요청량이 아니다(OnAnyHealed 주석 참조).
+            int before = currentHp;
             currentHp = Mathf.Min(MaxHp, currentHp + amount);
+            int applied = currentHp - before;
+
             RaiseHpChanged();
+
+            if (applied > 0 && !_silentHeal) OnAnyHealed?.Invoke(this, applied);
+        }
+
+        /// <summary>
+        /// <b>숫자를 띄우지 않는 회복.</b> 체력 재생·최대 체력 변동 보정처럼 플레이어의 행동이
+        /// 아닌 회복에 쓴다. 회복 자체는 <see cref="Heal"/> 과 완전히 같다 —
+        /// 회복 로직을 두 벌로 만들면 한쪽만 고치는 사고가 난다.
+        /// </summary>
+        public void HealSilently(int amount)
+        {
+            _silentHeal = true;
+            Heal(amount);
+            _silentHeal = false;
         }
 
         /// <summary>

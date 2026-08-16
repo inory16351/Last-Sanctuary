@@ -77,6 +77,11 @@ namespace LastSanctuary.UI
 
         // 초상화 — 캐릭터 성장 창(CharacterGrowthPanel)과 완전히 같은 구조·같은 규칙이다.
         // 액자(Portrait)는 항상 보이고, 그 안의 Sprite 레이어에만 그림을 얹는다.
+        [Header("일러스트 채우기 (2026-08-17)")]
+        [Tooltip("그림이 세로로 잘릴 때 남길 위치 (0=아래 · 0.5=가운데 · 1=위). " +
+                 "인물화는 위쪽을 남겨야 <b>얼굴</b>이 들어온다. PortraitFit 주석 참조")]
+        [Range(0f, 1f)] [SerializeField] float portraitVerticalAnchor = 0.86f;
+
         Image _portraitSprite;
         GameObject _portraitHint;
         SpriteRenderer _unitSprite;
@@ -289,6 +294,12 @@ namespace LastSanctuary.UI
             {
                 _portraitSprite.sprite = sprite;
                 _portraitSprite.color = sprite != null ? Color.white : new Color(1f, 1f, 1f, 0f);
+
+                // ★ 액자(Portrait, RectMask2D)를 꽉 채운다 (2026-08-17) —
+                //   예전에는 preserveAspect 로 '맞춰 넣기' 만 해서, 인게임 스프라이트로
+                //   폴백한 경우(정의가 없는 캐릭터)에 액자 대부분이 비었다.
+                //   인물이므로 잘릴 때 위(얼굴)를 남긴다. PortraitFit 주석 참조.
+                PortraitFit.Cover(_portraitSprite, portraitVerticalAnchor);
             }
 
             if (_portraitHint != null) _portraitHint.SetActive(sprite == null);

@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using LastSanctuary.Combat;
+using LastSanctuary.Units;
 
 namespace LastSanctuary.UI
 {
@@ -45,9 +46,49 @@ namespace LastSanctuary.UI
     ///
     /// ⚠ <b>같은 프레임에 여러 번 맞으면 숫자가 겹친다</b> — 그래서 좌우로 조금씩 흩고
     /// (<see cref="spreadTiles"/>), 같은 대상에게 연달아 뜨면 위로 조금 더 올려 시작한다.
+    ///
+    /// ══════════════════════════════════════════════════════════════════
+    /// <b>2026-08-17 확장 — 네 가지가 더 붙었다</b> (유저 지시)
+    /// ══════════════════════════════════════════════════════════════════
+    /// <code>
+    ///   회복      초록 · "+N"      DamageableUnit.OnAnyHealed
+    ///   빗나감    회색 · "빗나감"  DamageableUnit.OnAnyMissed
+    ///   정신이상  빨강 · 흔들림    ErosionService.OnMentalErrorTriggered  (나쁜 효과)
+    ///   정신이상  노랑 · 떠오름    ErosionService.OnMentalErrorTriggered  (좋은 효과)
+    /// </code>
+    ///
+    /// ★ <b>왜 새 컴포넌트를 만들지 않았나</b> — 넷 다 "월드 좌표에 글자를 잠깐 띄운다"로
+    /// 똑같다. 따로 만들면 <b>폰트 로드·풀링·개수 상한·정렬 레이어·외곽선</b>을 벌 수만큼
+    /// 복제하게 되고, 난전에서 상한이 각자 놀아 프레임 관리가 무너진다. 이 저장소가
+    /// <c>ErosionGaugeView</c> 를 세 패널이 공유하게 만든 것과 같은 판단이다(29-4절).
+    /// 달라지는 것은 <b>움직이는 방식뿐</b>이라 <see cref="PopupStyle"/> 하나로 갈랐다.
+    ///
+    /// ⚠ <b>크기는 2026-08-17 에 전부 절반 가까이 줄였다</b>
+    /// (유저 지시: <i>"숫자 크기 너무 크니까 적절하게 조절"</i>).
+    /// 이전 값(가한 1.1 · 받은 1.45타일)은 캐릭터(약 2.2타일)의 <b>절반~2/3</b> 이라
+    /// 난전에서 유닛이 숫자에 파묻혔다. 지금은 1/4~1/3 이다.
+    /// <b>글자를 줄이면 <see cref="stackTiles"/>·<see cref="spreadTiles"/>·
+    /// <see cref="riseTilesPerSecond"/> 도 같이 줄여야 한다</b> — 안 그러면 작은 글자가
+    /// 큰 간격으로 흩어져 어느 유닛의 숫자인지 알 수 없게 된다.
     /// </summary>
     public class DamageNumberFx : MonoBehaviour
     {
+        /// <summary>
+        /// 떠오르는 방식. <b>뜻이 다른 알림은 움직임도 달라야</b> 곁눈으로도 구분된다 —
+        /// 색만 다르면 난전에서 색을 읽을 새가 없다.
+        /// </summary>
+        enum PopupStyle
+        {
+            /// <summary>위로 곧게 올라가며 끝에서 사라진다. 피해·회복·빗나감.</summary>
+            Float,
+
+            /// <summary>제자리에서 <b>부르르 떨린다</b>. 나쁜 정신 이상 — "지금 이상하다".</summary>
+            Shake,
+
+            /// <summary>아래에서 <b>천천히 떠오르며 페이드 인</b>. 좋은 정신 이상 — 잔잔하게.</summary>
+            RiseIn,
+        }
+
         // ── 표시 규칙 (인스펙터가 없으므로 상수로 둔다 — Bootstrap 이 만드는 오브젝트다) ──
 
         [Header("색")]
@@ -62,6 +103,21 @@ namespace LastSanctuary.UI
 
         [Tooltip("치명타를 <b>맞았을</b> 때. 받은 피해보다 더 밝게 해서 '아팠다'가 보이게")]
         [SerializeField] Color criticalTakenColor = new Color(1f, 0.52f, 0.68f, 1f);
+
+        [Tooltip("<b>회복</b>량 (유저 지시 2026-08-17: \"힐 들어가는 숫자도 초록색으로\"). " +
+                 "피해와 반대 방향의 사건이므로 색도 반대쪽(초록)이다")]
+        [SerializeField] Color healColor = new Color(0.36f, 1f, 0.46f, 1f);
+
+        [Tooltip("<b>빗나감</b>. 아무 일도 일어나지 않았다는 뜻이므로 채도를 죽인 회색 — " +
+                 "피해·회복보다 눈에 덜 띄어야 맞다")]
+        [SerializeField] Color missColor = new Color(0.78f, 0.82f, 0.88f, 1f);
+
+        [Tooltip("<b>나쁜</b> 정신 이상 이름 (혼란·공포·광분·자해·피학·이기심·역겨움·우울)")]
+        [SerializeField] Color mentalBadColor = new Color(1f, 0.24f, 0.24f, 1f);
+
+        [Tooltip("<b>좋은</b> 정신 이상 이름 (진정·각성·고조). " +
+                 "MentalErrorTypes.IsGood 이 이 셋을 가른다")]
+        [SerializeField] Color mentalGoodColor = new Color(1f, 0.86f, 0.30f, 1f);
 
         // ──────────────────────────────────────────────────────────────────
         // 크기 — ★ <b>타일</b>로 적는다 (2026-08-16 수정)
@@ -78,15 +134,26 @@ namespace LastSanctuary.UI
         // ──────────────────────────────────────────────────────────────────
 
         [Header("크기 (타일 — 캐릭터가 약 2.2타일이다)")]
-        [Tooltip("적에게 가한 피해의 글자 높이(타일). 캐릭터의 절반이 기준 " +
-                 "(유저 확정 2026-08-16: \"캐릭터의 1/2 사이즈는 되어야\")")]
-        [Min(0.1f)] [SerializeField] float dealtTiles = 1.1f;
+        [Tooltip("적에게 가한 피해의 글자 높이(타일). ⚠ 2026-08-17 에 1.1 → 0.55 로 줄였다 " +
+                 "(유저 지시: \"숫자 크기 너무 크니까 적절하게 조절\")")]
+        [Min(0.1f)] [SerializeField] float dealtTiles = 0.55f;
 
-        [Tooltip("아군이 받은 피해. 가한 것보다 크게 — 눈이 먼저 가야 하는 쪽이다")]
-        [Min(0.1f)] [SerializeField] float takenTiles = 1.45f;
+        [Tooltip("아군이 받은 피해. 가한 것보다 크게 — 눈이 먼저 가야 하는 쪽이다. " +
+                 "⚠ 2026-08-17 에 1.45 → 0.75")]
+        [Min(0.1f)] [SerializeField] float takenTiles = 0.75f;
 
         [Tooltip("치명타일 때 곱하는 배수")]
-        [Min(1f)] [SerializeField] float criticalScale = 1.4f;
+        [Min(1f)] [SerializeField] float criticalScale = 1.3f;
+
+        [Tooltip("<b>회복</b>량 글자 높이(타일). 가한 피해와 같은 급 — 둘 다 '내가 잘하고 있다' 쪽이다")]
+        [Min(0.1f)] [SerializeField] float healTiles = 0.6f;
+
+        [Tooltip("<b>빗나감</b> 글자 높이(타일). 글자 수가 많으므로(3자) 숫자보다 작게 잡는다")]
+        [Min(0.1f)] [SerializeField] float missTiles = 0.5f;
+
+        [Tooltip("<b>정신 이상 이름</b> 글자 높이(타일). 드물게 뜨는 대신 " +
+                 "떴을 때는 확실히 읽혀야 하므로 피해 숫자보다 크다")]
+        [Min(0.1f)] [SerializeField] float mentalTiles = 0.85f;
 
         [Tooltip("검은 외곽선 두께(0~1). 어두운 지형 위에서도 숫자가 읽히게 한다. " +
                  "0 이면 외곽선 없음")]
@@ -121,21 +188,36 @@ namespace LastSanctuary.UI
         //   겹쳐 붙고 유닛 머리를 덮는다.
         [Header("움직임")]
         [Tooltip("떠 있는 시간(초). 글자가 커진 만큼 조금 길게 — 읽을 시간이 필요하다")]
-        [Min(0.1f)] [SerializeField] float lifeSeconds = 0.95f;
+        [Min(0.1f)] [SerializeField] float lifeSeconds = 0.9f;
 
         [Tooltip("초당 위로 올라가는 거리(타일)")]
-        [SerializeField] float riseTilesPerSecond = 1.5f;
+        [SerializeField] float riseTilesPerSecond = 0.9f;
 
         [Tooltip("좌우로 흩는 폭(타일). 같은 프레임에 여러 숫자가 겹치는 것을 줄인다")]
-        [Min(0f)] [SerializeField] float spreadTiles = 0.9f;
+        [Min(0f)] [SerializeField] float spreadTiles = 0.5f;
 
         [Tooltip("유닛 <b>머리 위</b> 어디에서 시작할지(타일). 유닛이 2.2타일쯤이라 " +
                  "그보다 위에서 시작해야 그림을 안 덮는다")]
-        [SerializeField] float baseHeightTiles = 2.0f;
+        [SerializeField] float baseHeightTiles = 1.9f;
 
         [Tooltip("같은 대상에게 연달아 뜰 때 위로 더 올리는 간격(타일). " +
                  "글자 높이만큼 벌려야 겹쳐 읽히지 않는다")]
-        [SerializeField] float stackTiles = 1.4f;
+        [SerializeField] float stackTiles = 0.7f;
+
+        [Header("정신 이상 문구")]
+        [Tooltip("정신 이상 이름이 떠 있는 시간(초). 피해 숫자보다 <b>오래</b> — " +
+                 "숫자는 못 읽어도 되지만 상태 이름은 반드시 읽혀야 한다")]
+        [Min(0.2f)] [SerializeField] float mentalLifeSeconds = 1.8f;
+
+        [Tooltip("<b>나쁜</b> 효과의 흔들림 폭(타일). 0 이면 안 흔들린다")]
+        [Min(0f)] [SerializeField] float mentalShakeTiles = 0.16f;
+
+        [Tooltip("<b>나쁜</b> 효과의 초당 흔들림 횟수")]
+        [Min(0f)] [SerializeField] float mentalShakeHz = 13f;
+
+        [Tooltip("<b>좋은</b> 효과가 아래에서 떠오르는 거리(타일). " +
+                 "이만큼 아래에서 시작해 제자리까지 올라온다")]
+        [Min(0f)] [SerializeField] float mentalRiseFromTiles = 0.9f;
 
         [Header("동작")]
         [Tooltip("동시에 화면에 띄울 수 있는 최대 개수. 넘으면 가장 오래된 것부터 재활용한다 — " +
@@ -155,6 +237,20 @@ namespace LastSanctuary.UI
             public float Born;
             public float Life;
             public Color Base;
+            public PopupStyle Style;
+
+            /// <summary>
+            /// 따라다닐 대상. <b>정신 이상 문구만</b> 쓴다 — "캐릭터 주변에 나타나기"라는
+            /// 요구는 캐릭터가 걸어가면 문구도 같이 가야 성립한다. 피해 숫자는 반대로
+            /// <b>맞은 자리에 남는 것</b>이 맞아서(어디서 맞았는지가 정보다) null 이다.
+            /// </summary>
+            public Transform Follow;
+
+            /// <summary>따라다닐 때 대상으로부터의 오프셋(월드).</summary>
+            public Vector3 FollowOffset;
+
+            /// <summary>흔들림 위상. 같은 순간에 여럿이 뜨면 같은 박자로 떨려서 어색하다.</summary>
+            public float Phase;
         }
 
         readonly List<Number> _live = new List<Number>();
@@ -201,13 +297,26 @@ namespace LastSanctuary.UI
             _font = HudTheme.Font;
             _rng = new System.Random(12345);
 
+            // ⚠ 먼저 빼고 더한다 — 도메인 리로드를 끈 상태에서 두 번 붙는 것을 막는다.
             DamageableUnit.OnAnyDamaged -= HandleDamaged;
             DamageableUnit.OnAnyDamaged += HandleDamaged;
+
+            DamageableUnit.OnAnyHealed -= HandleHealed;
+            DamageableUnit.OnAnyHealed += HandleHealed;
+
+            DamageableUnit.OnAnyMissed -= HandleMissed;
+            DamageableUnit.OnAnyMissed += HandleMissed;
+
+            ErosionService.OnMentalErrorTriggered -= HandleMentalError;
+            ErosionService.OnMentalErrorTriggered += HandleMentalError;
         }
 
         void OnDestroy()
         {
             DamageableUnit.OnAnyDamaged -= HandleDamaged;
+            DamageableUnit.OnAnyHealed -= HandleHealed;
+            DamageableUnit.OnAnyMissed -= HandleMissed;
+            ErosionService.OnMentalErrorTriggered -= HandleMentalError;
             if (_instance == this) _instance = null;
         }
 
@@ -228,32 +337,110 @@ namespace LastSanctuary.UI
 
             float tiles = (taken ? takenTiles : dealtTiles) * (critical ? criticalScale : 1f);
 
-            Show(victim, amount, color, tiles * FontSizePerTile, critical);
+            Show(victim, critical ? $"{amount}!" : amount.ToString(),
+                 color, tiles, PopupStyle.Float, lifeSeconds);
         }
 
-        void Show(DamageableUnit victim, int amount, Color color, float size, bool critical)
+        /// <summary>
+        /// <b>회복 숫자</b> — 초록 <c>+N</c> (유저 지시 2026-08-17).
+        ///
+        /// 진영을 가르지 않는다: 몬스터가 회복해도 초록으로 뜬다. "체력이 찼다"는 사실 자체가
+        /// 플레이어에게 필요한 정보이고, 색으로 <b>피해와 반대</b>임만 알면 되기 때문이다.
+        /// ⚠ 체력 재생은 여기까지 오지 않는다 — <c>DamageableUnit.HealSilently</c> 가 거른다.
+        /// </summary>
+        void HandleHealed(DamageableUnit unit, int amount)
+        {
+            if (!enableNumbers || unit == null || amount <= 0) return;
+            Show(unit, $"+{amount}", healColor, healTiles, PopupStyle.Float, lifeSeconds);
+        }
+
+        /// <summary>
+        /// <b>빗나감</b> — 유저 지시 2026-08-17: <i>"원거리 공격 빗나갈 경우 '빗나감' 표기"</i>.
+        ///
+        /// ★ 이 이벤트(<c>OnAnyMissed</c>)는 <b>2026-08-16 부터 이미 있었지만 구독자가
+        /// 하나도 없었다</b> — 그래서 33-11절이 적어둔 <i>"빗나가면 화면에 아무 표시가 없어
+        /// 공격이 안 먹는 버그로 보인다"</i> 가 그대로 남아 있었다. 여기가 그 자리다.
+        ///
+        /// ⚠ <b>실제로 빗나갈 수 있는 것은 원거리뿐</b>이다 —
+        /// <c>CharacterUnit.HitChancePercent</c> 가 <c>Ranged</c> 가 아니면 100 을 돌려주므로
+        /// 근거리·마법·치유는 명중 판정 자체를 타지 않는다. 즉 유저가 말한 "원거리 공격"이
+        /// <b>코드에서도 이미 유일한 경우</b>라 별도의 유형 검사를 넣지 않았다.
+        ///
+        /// 표시 위치는 <b>피한 쪽</b>이다 — 피해 숫자와 같은 자리에 떠야 "여기서 뭔가
+        /// 일어났다"가 한 줄로 읽힌다.
+        /// </summary>
+        void HandleMissed(DamageableUnit attacker, DamageableUnit target)
+        {
+            if (!enableNumbers || target == null) return;
+            Show(target, "빗나감", missColor, missTiles, PopupStyle.Float, lifeSeconds);
+        }
+
+        /// <summary>
+        /// <b>정신 이상 발동 문구</b> (유저 지시 2026-08-17).
+        /// <code>
+        ///   나쁜 효과 → 빨강 · 캐릭터 주변에서 <b>흔들린다</b>
+        ///   좋은 효과 → 노랑 · 아래에서 <b>페이드 인 하며 떠오른다</b>
+        /// </code>
+        /// 좋고 나쁨은 <see cref="MentalErrorTypes.IsGood"/> 이 정한다(진정·각성·고조 셋이
+        /// 좋은 효과다). 데이터 테이블에는 이 구분이 컬럼으로 없다 — 그쪽 주석 참조.
+        ///
+        /// 문구는 스트링 키 테이블에서 온다(<c>MentalErrorDefinitionSO.DisplayName</c>) —
+        /// 로스터·게이지·로그가 쓰는 그 이름과 <b>같은 값</b>이라야 같은 상태로 읽힌다.
+        /// </summary>
+        void HandleMentalError(CharacterUnit unit, MentalErrorDefinitionSO def)
+        {
+            if (!enableNumbers || unit == null || def == null) return;
+
+            bool good = MentalErrorTypes.IsGood(def.type);
+
+            Show(unit, def.DisplayName,
+                 good ? mentalGoodColor : mentalBadColor,
+                 mentalTiles,
+                 good ? PopupStyle.RiseIn : PopupStyle.Shake,
+                 mentalLifeSeconds,
+                 follow: unit.transform);
+        }
+
+        void Show(DamageableUnit victim, string text, Color color, float tiles,
+                  PopupStyle style, float life, Transform follow = null)
         {
             Number n = Rent();
             if (n == null) return;
 
             // ── 시작 위치 ────────────────────────────────────────────────
             // 같은 대상에게 짧은 간격으로 또 뜨면 한 단 위에서 시작한다(겹쳐 읽히지 않게).
-            // ⚠ 단은 3 까지만 — 글자가 1.4타일씩 벌어지므로 4단이면 화면 위로 5타일 넘게 솟는다.
+            // ⚠ 단은 3 까지만 — 4단이면 글자가 화면 위로 지나치게 솟는다.
+            //
+            // ★ 정신 이상 문구는 이 쌓임에 참여하지 않는다 — 드물게 한 번 뜨는 알림이라
+            //   "연달아 맞았다"는 뜻의 계단을 만들 이유가 없고, 오히려 캐릭터에서 멀어진다.
             int step = 0;
-            if (_stack.TryGetValue(victim, out var last) && Time.time - last.time < lifeSeconds * 0.5f)
-                step = (last.step + 1) % 3;
-            _stack[victim] = (Time.time, step);
+            bool stacks = style == PopupStyle.Float;
+            if (stacks)
+            {
+                if (_stack.TryGetValue(victim, out var last) &&
+                    Time.time - last.time < lifeSeconds * 0.5f)
+                    step = (last.step + 1) % 3;
+                _stack[victim] = (Time.time, step);
+            }
 
-            float jitter = (float)(_rng.NextDouble() * 2.0 - 1.0) * spreadTiles;
-            n.From = victim.transform.position +
-                     new Vector3(jitter, baseHeightTiles + step * stackTiles, 0f);
+            float jitter = stacks
+                ? (float)(_rng.NextDouble() * 2.0 - 1.0) * spreadTiles
+                : 0f;
+
+            Vector3 offset = new Vector3(jitter, baseHeightTiles + step * stackTiles, 0f);
+
+            n.Style = style;
+            n.Follow = follow;
+            n.FollowOffset = offset;
+            n.From = (follow != null ? follow.position : victim.transform.position) + offset;
+            n.Phase = (float)(_rng.NextDouble() * Mathf.PI * 2.0);
 
             n.Born = Time.time;
-            n.Life = lifeSeconds;
+            n.Life = Mathf.Max(0.05f, life);
             n.Base = color;
 
-            n.Text.text = critical ? $"{amount}!" : amount.ToString();
-            n.Text.fontSize = size;
+            n.Text.text = text;
+            n.Text.fontSize = tiles * FontSizePerTile;
             n.Text.color = color;
 
             n.Root.position = n.From;
@@ -271,15 +458,67 @@ namespace LastSanctuary.UI
                 if (t >= 1f)
                 {
                     n.Root.gameObject.SetActive(false);
+                    n.Follow = null;                 // ⚠ 풀에 남기면 죽은 Transform 을 붙잡는다
                     _pool.Push(n);
                     _live.RemoveAt(i);
                     continue;
                 }
 
-                n.Root.position = n.From + new Vector3(0f, riseTilesPerSecond * n.Life * t, 0f);
+                // 따라다니는 문구(정신 이상)는 매 프레임 대상 위치를 다시 읽는다.
+                // ⚠ 대상이 파괴되면 Unity 의 == 오버로드가 null 로 답한다 — 그때는 마지막
+                //   자리에 그대로 남겨둔다(중간에 사라지면 "무슨 상태였지"가 안 남는다).
+                Vector3 anchor = n.Follow != null ? n.Follow.position + n.FollowOffset : n.From;
+                if (n.Follow != null) n.From = anchor;
 
-                // 뒤쪽 40% 구간에서만 사라진다 — 처음부터 흐려지면 읽기 전에 없어진다.
-                float fade = t < 0.6f ? 1f : 1f - (t - 0.6f) / 0.4f;
+                Vector3 pos;
+                float fade;
+
+                switch (n.Style)
+                {
+                    case PopupStyle.Shake:
+                        // 나쁜 정신 이상 — 제자리에서 좌우로 떨고 아주 조금만 뜬다.
+                        // 세로 흔들림은 가로의 절반이다(같으면 원을 그려서 '떨림'이 아니라
+                        // '돈다'로 보인다). 진폭은 끝으로 갈수록 줄어 자연스럽게 잦아든다.
+                        {
+                            float decay = 1f - t;
+                            float w = (n.Phase + Time.time * mentalShakeHz * Mathf.PI * 2f);
+                            pos = anchor + new Vector3(
+                                Mathf.Sin(w) * mentalShakeTiles * decay,
+                                Mathf.Sin(w * 1.7f) * mentalShakeTiles * 0.5f * decay +
+                                    riseTilesPerSecond * 0.25f * n.Life * t,
+                                0f);
+                            fade = t < 0.7f ? 1f : 1f - (t - 0.7f) / 0.3f;
+                        }
+                        break;
+
+                    case PopupStyle.RiseIn:
+                        // 좋은 정신 이상 — 아래에서 잔잔하게 떠오르며 페이드 인.
+                        // 올라오는 속도는 뒤로 갈수록 느려진다(EaseOut) — 등속으로 올리면
+                        // "튀어오른다"로 보여서 '잔잔하게' 라는 요구와 어긋난다.
+                        {
+                            float ease = 1f - (1f - t) * (1f - t);
+                            pos = anchor + new Vector3(
+                                0f,
+                                -mentalRiseFromTiles * (1f - ease) +
+                                    riseTilesPerSecond * 0.35f * n.Life * t,
+                                0f);
+
+                            // 앞 25% 는 페이드 인, 뒤 25% 는 페이드 아웃.
+                            fade = t < 0.25f ? t / 0.25f
+                                 : t > 0.75f ? 1f - (t - 0.75f) / 0.25f
+                                 : 1f;
+                        }
+                        break;
+
+                    default:
+                        pos = n.From + new Vector3(0f, riseTilesPerSecond * n.Life * t, 0f);
+                        // 뒤쪽 40% 구간에서만 사라진다 — 처음부터 흐려지면 읽기 전에 없어진다.
+                        fade = t < 0.6f ? 1f : 1f - (t - 0.6f) / 0.4f;
+                        break;
+                }
+
+                n.Root.position = pos;
+
                 Color c = n.Base;
                 c.a = fade;
                 n.Text.color = c;

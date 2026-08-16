@@ -133,7 +133,8 @@ namespace LastSanctuary.Units
             float ratio = HpRatio;
             SetupHealth(Balance, fillHp: false);
             int target = Mathf.Clamp(Mathf.RoundToInt(MaxHp * ratio), 1, MaxHp);
-            if (target > CurrentHp) Heal(target - CurrentHp);
+            // 최대 체력이 바뀌어 비율을 맞추는 보정이다 — 회복이 아니므로 숫자를 띄우지 않는다.
+            if (target > CurrentHp) HealSilently(target - CurrentHp);
             else if (target < CurrentHp) ApplyDamage(CurrentHp - target);
         }
 
@@ -266,7 +267,8 @@ namespace LastSanctuary.Units
 
             SetupHealth(Balance, fillHp: false);
             int target = Mathf.Clamp(Mathf.RoundToInt(MaxHp * ratio), 1, MaxHp);
-            if (target > CurrentHp) Heal(target - CurrentHp);
+            // 최대 체력이 바뀌어 비율을 맞추는 보정이다 — 회복이 아니므로 숫자를 띄우지 않는다.
+            if (target > CurrentHp) HealSilently(target - CurrentHp);
             else if (target < CurrentHp) ApplyDamage(CurrentHp - target);
         }
 
@@ -341,7 +343,8 @@ namespace LastSanctuary.Units
 
             // 비율 유지 — 반올림해서 체력이 정수로 유지되게 한다
             int target = Mathf.Clamp(Mathf.RoundToInt(MaxHp * ratio), 1, MaxHp);
-            Heal(target - CurrentHp);
+            // 위와 같은 이유 — 능력치 교체에 따른 비율 보정이라 숫자를 띄우지 않는다.
+            HealSilently(target - CurrentHp);
         }
 
         /// <summary>

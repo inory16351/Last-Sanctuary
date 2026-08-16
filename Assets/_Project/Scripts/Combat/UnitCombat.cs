@@ -208,6 +208,12 @@ namespace LastSanctuary.Combat
         /// <summary>공격 유형이 강제된 상태인지 (정신 이상 "혼란" 의 근거리 고정).</summary>
         bool _attackTypeForced;
 
+        /// <summary>
+        /// 정신 이상(「혼란」)이 사냥 타겟을 <b>잠근</b> 상태.
+        /// 자세한 이유는 <see cref="SetForcedHuntTarget"/> 참조.
+        /// </summary>
+        bool _huntTargetForced;
+
         /// <summary>강제 전환 전의 공격 유형. 해제 시 이 값으로 되돌린다.</summary>
         TacticalAttackType _attackTypeBeforeForce;
 
@@ -482,9 +488,54 @@ namespace LastSanctuary.Combat
             _huntOverrideTarget = target;
         }
 
+        /// <summary>
+        /// ★★ <b>정신 이상이 잡은 사냥감</b> — 전술 지침이 지우지 못하게 <b>잠근다</b>
+        /// (2026-08-17 신설, 유저 지시: <i>"정신 이상 상태에 걸린 캐릭터의 전술을 변경했을 때
+        /// 정신 이상이 풀리거나 효과가 사라지면 안 된다"</i>).
+        ///
+        /// <b>왜 필요했나 — 실제로 지워지고 있었다.</b> 「혼란」은 아군을 때리는 상태를
+        /// <see cref="SetHuntTarget"/> 하나로 구현한다(진영 판정을 건너뛰는 유일한 훅이라서).
+        /// 그런데 그 값을 <b>전술 변경 경로 두 곳이 무조건 지우고 있었다</b>:
+        /// <code>
+        ///   CharacterBehavior.ApplyTactics   : 탐험 유형이 '사냥' 이 아니면 ClearHuntTarget()
+        ///   UnitCombat.SetNeutralHostilitySuppressed : '탐색' 으로 바꾸면 _huntOverrideTarget = null
+        /// </code>
+        /// 즉 <b>혼란에 걸린 캐릭터의 전술 지침을 건드리면 그 순간 아군 공격이 멎었다.</b>
+        /// (<c>TickConfusion</c> 이 0.75초 뒤 다시 잡아주긴 하지만, 그 사이가 눈에 보이고
+        /// 무엇보다 "지침을 바꾸면 정신 이상이 풀린다"는 잘못된 인상을 준다.)
+        ///
+        /// 잠금 방식은 <see cref="SetForcedAttackType"/> 과 <b>일부러 똑같이</b> 맞췄다 —
+        /// 같은 성질의 문제(정신 이상이 소유한 값을 지침이 덮어씀)를 두 가지 방식으로 풀면
+        /// 다음 사람이 한쪽만 보고 나머지를 놓친다.
+        /// </summary>
+        public void SetForcedHuntTarget(DamageableUnit target)
+        {
+            _huntTargetForced = true;
+
+            // ⚠ SetHuntTarget 을 거치지 않는다 — 그쪽의 '중립 억제' 검사에 걸릴 수 있는데,
+            //   정신 이상은 그 억제(전술 지침의 한 항목)보다 우선이라는 것이 이 함수의 뜻이다.
+            if (!ReferenceEquals(_huntOverrideTarget, target)) _huntOrigin = transform.position;
+            _huntOverrideTarget = target;
+        }
+
+        /// <summary>
+        /// 잠금을 풀고 사냥감도 놓는다. <c>CharacterErosion.ClearActive</c> 만 부른다 —
+        /// 정신 이상 해제 경로가 그 한 곳으로 모여 있기 때문이다(만료·사망·중첩 전부).
+        /// </summary>
+        public void ClearForcedHuntTarget()
+        {
+            if (!_huntTargetForced) return;
+            _huntTargetForced = false;
+            ClearHuntTarget();
+        }
+
         /// <summary>사냥을 포기한다. 이미 그 상대를 쫓고 있었다면 타겟도 함께 비운다.</summary>
         public void ClearHuntTarget()
         {
+            // ★ 정신 이상이 잠가둔 사냥감은 지침·자동 판단이 놓을 수 없다
+            //   (<see cref="SetForcedHuntTarget"/> 참조).
+            if (_huntTargetForced) return;
+
             if (_huntOverrideTarget != null && _target == _huntOverrideTarget) _target = null;
             _huntOverrideTarget = null;
         }
@@ -576,7 +627,9 @@ namespace LastSanctuary.Combat
         {
             if (_combatSuppressed == value) return;
             _combatSuppressed = value;
-            if (value) { _target = null; _huntOverrideTarget = null; _backOff = false; }
+            // ⚠ 사냥감은 ClearHuntTarget 을 거쳐 놓는다 — 정신 이상이 잠근 타겟을
+            //   직접 null 로 밀면 그 잠금이 무의미해진다(SetForcedHuntTarget 참조).
+            if (value) { _target = null; ClearHuntTarget(); _backOff = false; }
         }
 
         /// <summary>
@@ -602,7 +655,7 @@ namespace LastSanctuary.Combat
             _engagedWith = null;
             _repositioning = false;
             _backOff = false;
-            if (value) _huntOverrideTarget = null;   // 물러나면서 사냥을 이어갈 수는 없다
+            if (value) ClearHuntTarget();   // 물러나면서 사냥을 이어갈 수는 없다 (잠금은 존중한다)
         }
 
         /// <summary>지금 후퇴하면서 쏘는 중인지 (디버그·표시용).</summary>
@@ -627,7 +680,9 @@ namespace LastSanctuary.Combat
             _neutralHostilitySuppressed = value;
             if (!value) return;
 
-            _huntOverrideTarget = null;
+            // ★★ 여기가 「혼란」을 지우던 자리였다 — 전술 지침의 탐험 유형을 '탐색' 으로
+            //   바꾸는 것만으로 정신 이상이 잡아둔 아군 타겟이 날아갔다(2026-08-17 수정).
+            ClearHuntTarget();
             if (_target != null && _target.Faction == Faction.Neutral)
             {
                 _target = null;

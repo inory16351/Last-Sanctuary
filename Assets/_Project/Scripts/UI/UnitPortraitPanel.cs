@@ -43,6 +43,15 @@ namespace LastSanctuary.UI
         [Header("색")]
         [SerializeField] Color titleColor = new Color(0.84f, 0.64f, 1f, 1f);
 
+        [Header("일러스트 채우기 (2026-08-17)")]
+        [Tooltip("★ <b>캐릭터</b> 그림이 세로로 잘릴 때 남길 위치 (0=아래 · 0.5=가운데 · 1=위).\n" +
+                 "인물화는 위쪽을 남겨야 <b>얼굴</b>이 들어온다 — 가운데를 남기면 가슴이 남는다")]
+        [Range(0f, 1f)] [SerializeField] float characterVerticalAnchor = 0.86f;
+
+        [Tooltip("<b>몬스터</b> 그림이 세로로 잘릴 때 남길 위치. " +
+                 "전신 실루엣 자체가 정보라 가운데가 맞다")]
+        [Range(0f, 1f)] [SerializeField] float monsterVerticalAnchor = 0.5f;
+
         Image _art;
         TMP_Text _nameText;
         TMP_Text _titleText;
@@ -188,7 +197,15 @@ namespace LastSanctuary.UI
                 // 그림이 없을 때 흰 사각형이 남지 않도록 알파로 지운다
                 // (Image 를 끄면 레이아웃이 흔들린다).
                 _art.color = art != null ? Color.white : new Color(1f, 1f, 1f, 0f);
-                _art.preserveAspect = true;
+
+                // ★ 액자를 꽉 채운다 (2026-08-17) — preserveAspect 는 '맞춰 넣기' 라
+                //   세로형 인물화가 가로 액자에서 폭의 46% 만 쓰고 나머지가 빈 공간이었다.
+                //   자세한 계산은 PortraitFit 클래스 주석 참조.
+                //
+                //   ⚠ 사람과 몬스터는 남길 곳이 다르다 — 인물은 위(얼굴), 전신 몬스터는
+                //     가운데(실루엣 전체). 세로로 잘릴 때만 차이가 난다.
+                PortraitFit.Cover(_art,
+                    unit is CharacterUnit ? characterVerticalAnchor : monsterVerticalAnchor);
             }
             if (_noArtLabel != null)
             {
@@ -238,7 +255,14 @@ namespace LastSanctuary.UI
             if (_bound) return;
             _bound = true;
 
-            _art = Find<Image>("Art");
+            // ★ 2026-08-17 구조 변경 — 액자(Art, RectMask2D) 안에 그림(Art/Sprite)이 들어간다.
+            //   전술 지침·성장 창이 이미 쓰던 "Portrait/Sprite" 와 <b>같은 모양</b>으로 맞춘 것이다.
+            //   꽉 채운 그림은 액자 밖으로 넘치므로 <b>가릴 층이 반드시 하나 더</b> 필요하다.
+            //   예전 구조(그림이 곧 Art)로 되돌아간 씬에서도 죽지 않게 폴백을 둔다.
+            _art = transform.Find("Art/Sprite") != null
+                ? Find<Image>("Art/Sprite")
+                : Find<Image>("Art");
+
             _nameText = Find<TMP_Text>("Name");
             _titleText = Find<TMP_Text>("Title");
             _noArtLabel = Find<TMP_Text>("NoArt");

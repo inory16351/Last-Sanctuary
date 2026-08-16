@@ -2072,3 +2072,74 @@ NeutralMonsterDefinitionSO · NeutralMonsterWander · NeutralHabitat · Characte
 ### 씬반영요청 목록
 
 없음.
+
+---
+
+## UI-28. 회복·빗나감 숫자 · 정신 이상 연출 · 전술 충돌 · 초상화 cover (2026-08-17)
+
+> 진행상황 **90·91절**에 전문(全文)이 있다. 여기는 브랜치 기준의 요약이다.
+
+### 무엇을 / 왜
+
+유저 지시 8건 (88절 데미지 숫자 · 29절 침식 · 86절 클릭 초상화의 후속).
+
+1. 힐 숫자를 초록으로 · 2. 원거리 빗나감에 "빗나감" · 3. 네오둥근모 폰트 · 4. 숫자 크기 축소
+5. 정신 이상 문구(나쁨 빨강·흔들림 / 좋음 노랑·페이드인) · 6. 나쁜 정신 이상 = 빨간 점멸
+7. 정신 이상 > 전술 우선순위 검토 · 8. 일러스트 빈 공간 제거(스타크래프트 느낌)
+
+### 핵심 3가지
+
+**① 두 이벤트가 이미 있었고 구독자가 0명이었다.** `DamageableUnit.OnAnyMissed`(88절)와
+`ErosionService.OnMentalErrorTriggered`(29절)는 선언·발생·리셋까지 다 돼 있는데 듣는 코드가
+없었다. 그래서 33-11절의 *"MISS 표시가 없다"* 가 그대로 살아 있었다. **새 판정을 만들지 않고
+구독만 걸었다.** 회복만 이벤트가 아예 없어서 `OnAnyHealed` 를 신설했고, ⚠ 체력 재생을
+`HealSilently` 로 걸러야 한다 — 안 걸면 평시 화면이 초록 숫자로 뒤덮인다.
+
+**② 빨간 점멸을 넣으려면 색칠 주인을 하나로 합쳐야 했다.** `UnitSelector` 의 「기억했다
+복구」 방식은 **칠하는 주체가 하나일 때만** 성립한다. 점멸을 그냥 얹으면, 빨갛게 칠해진
+순간에 클릭할 때 **그 빨간색이 원본으로 기억돼 선택을 풀어도 영영 빨갛게 남는다.**
+신규 `UnitTintFx` 가 매 프레임 원래 색에서 다시 계산하고, 선택·점멸은 상태로만 들어온다.
+
+**③ 정신 이상이 전술 변경에 실제로 지워지고 있었다.** 11종 중 「혼란」 하나 —
+아군 공격이 `SetHuntTarget` 하나로 구현돼 있는데 `CharacterBehavior.ApplyTactics` 와
+`UnitCombat.SetNeutralHostilitySuppressed` **두 곳이 무조건 지웠다.** `SetForcedAttackType` 과
+**똑같은 모양**의 `SetForcedHuntTarget`/`ClearForcedHuntTarget` 잠금을 넣고, 직접
+`_huntOverrideTarget = null` 로 밀던 세 곳을 전부 `ClearHuntTarget()` 경유로 바꿨다.
+
+**④ 초상화 빈 공간의 정체는 `preserveAspect`** — 그건 채우기(cover)가 아니라 맞춰
+넣기(contain)다. 가로 액자(424x262)에 세로 인물화(420x568)를 넣으면 가로의 46%만 쓴다.
+몬스터는 반대로 가로형(1.5)이라 **액자 비율을 어느 한쪽에 맞춰도 다른 쪽이 깨진다.**
+신규 `PortraitFit.Cover` + `RectMask2D` 로 바꾸고 `HUD_Portrait` 를 480x322 세로 액자 +
+오른쪽 이름칸으로 재구성했다. **이미지는 한 장도 다시 만들지 않았다.**
+
+### 겪은 함정
+
+1. ⚠⚠ **비활성 루트 아래를 경로로 지목하면 MCP 가 같은 이름을 새로 만든다.**
+   `update_gameobject` 는 "경로에 없으면 만든다"가 규약인데 `Templates` 루트가 비활성이라
+   조회가 실패했다 → 같은 이름 루트가 2개가 되고 이후 경로 조회가 **빈 쪽**을 잡는다.
+   유저 확인을 받고 지웠다. **비활성은 반드시 `instanceId` 로만 지목할 것.**
+2. **"바꿔달라"를 받으면 먼저 지금 값을 확인할 것** — 폰트는 이미 네오둥근모였다.
+   확인 없이 고쳤으면 같은 값을 다시 써넣고 "고쳤다"고 보고할 뻔했다.
+3. **씬 값이 코드 기본값을 이긴다** — `DamageNumberFx` 는 `GameSystems` 에 붙어 있어
+   코드만 고치면 화면이 안 바뀐다. MCP 로 씬 컴포넌트도 같이 고쳤다.
+
+### 확인된 것
+
+`Assets/Refresh` → `recompile_scripts` **에러 0 · 경고 0**, 콘솔 에러 0.
+씬 값 `get_gameobject` 확인 (`DamageNumberFx` 15칸 · `Character_Template` 에 `UnitTintFx` ·
+`Art` 236x302 + `RectMask2D` · `Sprite` 의 `hasRectClipping: true`).
+저장된 씬 YAML 재파싱으로 `Templates` 루트가 1개뿐임을 확인. **저장 1회.**
+
+### 아직 확인 못 한 것
+
+**플레이 모드 검증은 안 했다** — 진행상황 90절의 "아직 확인 못 한 것" 8가지를 유저가 볼 것.
+
+### 씬 변경 여부
+
+**있음.** `GameSystems > DamageNumberFx` 값 15칸 · `Character_Template` 에 `UnitTintFx` 신설 ·
+`HUD_Portrait` 480x322 재구성(+ `Art/Sprite` 신설, `Art` 에 `RectMask2D`) ·
+`HUD_Tactics`/`HUD_Growth` 의 `Info/Portrait` 에 `RectMask2D`. 저장 1회.
+
+### 씬반영요청 목록
+
+없음.

@@ -340,7 +340,9 @@ namespace LastSanctuary.Combat
             switch (_active.type)
             {
                 case MentalErrorType.Confusion:
-                    _combat?.ClearHuntTarget();
+                    // ⚠ 잠금(SetForcedHuntTarget)을 푸는 쪽을 부른다 — 그냥 ClearHuntTarget 을
+                    //   부르면 잠금 때문에 아무 일도 일어나지 않아 아군 공격이 영영 안 풀린다.
+                    _combat?.ClearForcedHuntTarget();
                     _combat?.ClearForcedAttackType();   // 전술 지침의 원래 공격 유형으로 복귀
                     _behavior?.SetMentalOverride(MentalOverride.None);
                     break;
@@ -385,7 +387,10 @@ namespace LastSanctuary.Combat
             if (ally != null)
             {
                 _combat.SetHome(transform.position, ConfusionSearchRange);
-                _combat.SetHuntTarget(ally);
+
+                // ★ 잠그는 쪽으로 넣는다 — 전술 지침을 바꿔도 이 타겟이 지워지지 않게
+                //   (유저 지시 2026-08-17). 자세한 이유는 UnitCombat.SetForcedHuntTarget 참조.
+                _combat.SetForcedHuntTarget(ally);
             }
         }
 

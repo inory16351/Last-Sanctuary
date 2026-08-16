@@ -202,6 +202,11 @@ namespace LastSanctuary.UI
 
         // 초상화 — 액자(Portrait)는 항상 보이고, 그 안의 Sprite 레이어에만 캐릭터 그림을 얹는다.
         // 액자 자체에 sprite 를 넣으면 선택이 없을 때 액자까지 사라져 패널이 비어 보인다.
+        [Header("일러스트 채우기 (2026-08-17)")]
+        [Tooltip("그림이 세로로 잘릴 때 남길 위치 (0=아래 · 0.5=가운데 · 1=위). " +
+                 "인물화는 위쪽을 남겨야 <b>얼굴</b>이 들어온다. PortraitFit 주석 참조")]
+        [Range(0f, 1f)] [SerializeField] float portraitVerticalAnchor = 0.86f;
+
         Image _portraitSprite;
         GameObject _portraitHint;
         SpriteRenderer _unitSprite;
@@ -498,6 +503,12 @@ namespace LastSanctuary.UI
                 _portraitSprite.sprite = sprite;
                 // 알파로만 켜고 끈다 — 액자(부모 Portrait)는 항상 보여야 한다.
                 _portraitSprite.color = sprite != null ? Color.white : new Color(1f, 1f, 1f, 0f);
+
+                // ★ 액자(Portrait, RectMask2D)를 꽉 채운다 (2026-08-17) —
+                //   예전에는 preserveAspect 로 '맞춰 넣기' 만 해서, 액자와 그림의 비율이
+                //   다르면 남는 쪽이 그대로 빈 공간이 됐다. 인물이므로 잘릴 때 위(얼굴)를 남긴다.
+                //   자세한 계산은 PortraitFit 클래스 주석 참조.
+                PortraitFit.Cover(_portraitSprite, portraitVerticalAnchor);
             }
 
             if (_portraitHint != null) _portraitHint.SetActive(sprite == null);
