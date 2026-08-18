@@ -71,7 +71,41 @@ namespace LastSanctuary.UI
         [SerializeField] string passiveNoneText = "이 캐릭터에는 지정된 스킬이 없습니다.";
         [SerializeField] string passiveNoSelectionText = "캐릭터를 선택하세요.";
 
+        [Header("문구 — 처치 수 · 영웅 각성")]
+        [Tooltip("레벨 옆에 붙는 처치 수. {0} = 인정된 처치 수")]
+        [SerializeField] string killCountFormat = " · 처치 {0}";
+
+        [Tooltip("각성 가능 상태(처치 수를 채웠다)일 때 덧붙이는 말")]
+        [SerializeField] string heroReadyMark = " · 각성 가능";
+
+        [Tooltip("이미 각성한 캐릭터 앞에 붙는 표식")]
+        [SerializeField] string heroAwakenedMark = "★영웅 ";
+
+        [Header("색 — 보정이 걸린 능력치 (유저 확정 2026-08-18)")]
+        [Tooltip("원시 값보다 <b>올라</b> 있을 때의 값 색. " +
+                 "영웅 각성(영구) · 「광란」·「희열」(임시) · 정신 이상 「각성」(임시)")]
+        [SerializeField] Color statBoostedColor = new Color(0.98f, 0.72f, 0.35f, 1f);
+
+        [Tooltip("원시 값보다 <b>내려</b> 있을 때의 값 색")]
+        [SerializeField] Color statWeakenedColor = new Color(0.96f, 0.42f, 0.42f, 1f);
+
+        [Header("문구 · 색 — 분노 게이지 (히스톤 「분노」)")]
+        [Tooltip("{0} = 지금 분노, {1} = 분노 상한(100)")]
+        [SerializeField] string rageFormat = "분노 {0:0.#} / {1:0}";
+
+        [Tooltip("평소 분노 숫자 색")]
+        [SerializeField] Color rageTextColor = new Color(1f, 0.92f, 0.86f, 1f);
+
+        [Tooltip("분노가 가득 찼을 때(= 부활 준비) 숫자 색")]
+        [SerializeField] Color rageFullColor = new Color(1f, 0.85f, 0.35f, 1f);
+
         [Header("색")]
+        [Tooltip("'각성 가능' 문구 색")]
+        [SerializeField] Color heroReadyColor = new Color(0.98f, 0.85f, 0.35f, 1f);
+
+        [Tooltip("'★영웅' 표식 색")]
+        [SerializeField] Color heroAwakenedColor = new Color(0.98f, 0.62f, 0.30f, 1f);
+
         [SerializeField] Color rowActive = new Color(0.13f, 0.17f, 0.22f, 0.95f);
         [SerializeField] Color rowDisabled = new Color(0.09f, 0.10f, 0.12f, 0.75f);
         [SerializeField] Color labelActive = new Color(0.88f, 0.92f, 0.94f, 1f);
@@ -180,6 +214,15 @@ namespace LastSanctuary.UI
             public TMP_Text Desc;
             public TMP_Text Hint;
             public Button Button;
+
+            // ── 분노 게이지 (히스톤 「분노」 전용) — 유저 지시 2026-08-18 ──────────
+            //   <i>"히스톤 두번째 스킬 해금되면 해당 스킬 슬롯 아래에 현재 분노 수치 볼 수
+            //   있는 기능"</i>. ★ <b>슬롯 번호나 인물 이름으로 찾지 않는다</b> — 그 스킬이
+            //   어느 칸에 오는지는 캐릭터 정의(에셋)가 정하므로, 세 칸 모두에 게이지를
+            //   만들어 두고 <b>스킬 종류가 rage_on 인 칸</b>만 켠다(82-8절의 그 원칙).
+            public GameObject RageRoot;
+            public Image RageFill;
+            public TMP_Text RageLabel;
         }
 
         const int PassiveSlotCount = 3;
@@ -443,7 +486,10 @@ namespace LastSanctuary.UI
 
             if (_nameText != null) _nameText.text = has ? _unit.DisplayName : noSelectionName;
             // ★ 2026-08-15 — "강화 N회" → <b>Lv.N</b> (유저 지시). 값은 그대로 UpgradeCount 다.
-            if (_countText != null) _countText.text = has ? $"Lv.{_unit.UpgradeCount}" : "-";
+            // ★ 2026-08-18 — 같은 줄에 <b>처치 수와 영웅 각성 상태</b>를 얹었다(유저 지시).
+            //   새 오브젝트를 만들지 않은 이유: Info 칸(250x640)이 이미 꽉 차 있고, 레벨과
+            //   처치 수는 <b>같은 성장 축</b>이라 한 줄에 있는 편이 읽기도 쉽다.
+            if (_countText != null) _countText.text = has ? LevelLine(_unit) : "-";
             if (_hintText != null) _hintText.text = has ? selectionHint : noSelectionHint;
 
             float ratio = has ? _unit.HpRatio : 0f;
@@ -462,6 +508,43 @@ namespace LastSanctuary.UI
             RefreshPassives(has);
             RefreshFooter(has);
         }
+
+        /// <summary>
+        /// 레벨 줄 한 줄을 조립한다 — <c>★영웅 Lv.12 · 처치 137</c> 같은 모양.
+        ///
+        /// <b>왜 한 줄에 다 넣나</b> — Info 칸(250x640)에 빈 자리가 10px 밖에 없다
+        /// (초상화·체력·침식·비용·강화 버튼·안내가 차례로 채우고 있다). 줄을 하나 더
+        /// 만들려면 아래 전부를 밀어야 하고, 그 배치는 유저가 82-14절에서 직접 잡은 것이다.
+        ///
+        /// 색은 리치 텍스트로 넣는다 — <see cref="TMP_Text"/> 하나에 여러 색을 쓰는
+        /// 이 프로젝트의 기존 방식이다(<see cref="CharacterRosterPanel"/> 의 레벨 표기).
+        /// </summary>
+        string LevelLine(CharacterUnit unit)
+        {
+            string line = $"Lv.{unit.UpgradeCount}";
+
+            int kills = HeroAwakeningService.KillsOf(unit);
+            if (kills > 0 && !string.IsNullOrEmpty(killCountFormat))
+                line += string.Format(killCountFormat, kills);
+
+            switch (HeroAwakeningService.StateOf(unit))
+            {
+                case HeroState.Awakened:
+                    line = Tint(heroAwakenedMark, heroAwakenedColor) + line;
+                    break;
+                case HeroState.Ready:
+                    line += Tint(heroReadyMark, heroReadyColor);
+                    break;
+            }
+
+            return line;
+        }
+
+        /// <summary>리치 텍스트 색 태그로 감싼다. 빈 문자열이면 그대로 돌려준다.</summary>
+        static string Tint(string text, Color color) =>
+            string.IsNullOrEmpty(text)
+                ? string.Empty
+                : $"<color=#{ColorUtility.ToHtmlStringRGB(color)}>{text}</color>";
 
         /// <summary>성장 유형 버튼 5개 — 펼침 여부와 선택 표시.</summary>
         void RefreshFocusButtons(bool has)
@@ -536,6 +619,7 @@ namespace LastSanctuary.UI
                 // 선택이 없거나 이 캐릭터에 스킬 자체가 없으면 빈 칸으로 둔다
                 if (skill == null)
                 {
+                    ShowRageGauge(card, false, 0f);
                     if (card.Background != null) card.Background.color = passiveEmptyColor;
                     if (card.Icon != null) card.Icon.color = new Color(1f, 1f, 1f, 0f);
                     if (card.Name != null) { card.Name.text = "-"; card.Name.color = labelDisabled; }
@@ -579,10 +663,58 @@ namespace LastSanctuary.UI
                     card.Desc.color = unlocked ? passiveDescColor : labelDisabled;
                 }
 
-                if (card.Hint != null) card.Hint.text = unlocked ? passiveClickHint : "";
+                // ★ 분노 게이지 — <b>해금된 「분노」 칸에만</b> 나온다.
+                //   히스톤은 이게 두 번째 칸이지만, 그건 캐릭터 정의가 정하는 것이라
+                //   슬롯 번호로 판단하지 않는다(다른 인물이 다른 칸에 들고 나올 수 있다).
+                bool showRage = unlocked &&
+                                PassiveSkillTypes.Parse(skill.skillType) == PassiveSkillType.RageOn;
+                float rage = showRage ? RageOf(_unit) : 0f;
+                ShowRageGauge(card, showRage, rage);
+
+                // ⚠ 게이지와 클릭 안내는 <b>카드 안 같은 자리</b>를 쓴다(카드 176px 이 이미 꽉 찼다).
+                //   게이지가 나오는 칸에서는 안내를 접는다 — 안내는 세 칸 모두에 같은 문구라
+                //   하나쯤 없어도 뜻이 전달되지만, 분노 수치는 여기서만 볼 수 있다.
+                if (card.Hint != null) card.Hint.text = unlocked && !showRage ? passiveClickHint : "";
 
                 // 해금된 것만 상세 창을 열 수 있다 — 잠긴 스킬의 내용이 새어나가지 않게
                 if (card.Button != null) card.Button.interactable = unlocked;
+            }
+        }
+
+        /// <summary>
+        /// 지금 이 캐릭터의 분노 수치. 「분노」를 안 가진 캐릭터거나 패시브 컴포넌트가
+        /// 없으면 0 이다 — 호출부가 <c>null</c> 을 신경 쓰지 않아도 되게 여기서 막는다.
+        /// </summary>
+        static float RageOf(CharacterUnit unit)
+        {
+            if (unit == null) return 0f;
+            var passives = unit.GetComponent<CharacterPassives>();
+            return passives != null ? passives.Rage : 0f;
+        }
+
+        /// <summary>
+        /// 분노 게이지 한 칸을 그린다. <paramref name="show"/> 가 false 면 통째로 끈다.
+        ///
+        /// 게이지 조각(<c>RageBack</c>·<c>RageFill</c>·<c>RageLabel</c>)이 하이라키에 없으면
+        /// <b>조용히 아무것도 하지 않는다</b> — 씬이 아직 갱신되지 않은 상태에서 콘솔이
+        /// 에러로 도배되지 않게 하려는 것이다(<see cref="ErosionGaugeView"/> 와 같은 태도).
+        /// </summary>
+        void ShowRageGauge(PassiveCard card, bool show, float rage)
+        {
+            if (card == null || card.RageRoot == null) return;
+
+            if (card.RageRoot.activeSelf != show) card.RageRoot.SetActive(show);
+            if (!show) return;
+
+            float ratio = Mathf.Clamp01(rage / CharacterPassives.RageMax);
+            if (card.RageFill != null) card.RageFill.fillAmount = ratio;
+
+            if (card.RageLabel != null)
+            {
+                // 소수 한 자리 — 분노는 초당 value02 씩 <b>실수로</b> 깎이므로
+                // 정수로 반올림하면 줄어드는 것이 화면에서 뚝뚝 끊겨 보인다.
+                card.RageLabel.text = string.Format(rageFormat, rage, CharacterPassives.RageMax);
+                card.RageLabel.color = ratio >= 1f ? rageFullColor : rageTextColor;
             }
         }
 
@@ -630,7 +762,30 @@ namespace LastSanctuary.UI
                                          : favored ? rowFocused : rowActive;
 
                 if (row.Value != null)
-                    row.Value.text = active ? stats[slot.Type.Value].ToString() : "-";
+                {
+                    // ★★ 값 칸은 <b>지금 실제로 적용되는 능력치</b>다 (유저 확정 2026-08-18:
+                    //   <i>"표기되는 스탯은 현재 실제로 적용되는 값으로, 단 올랐거나 하락했으면
+                    //   색 다르게 해서 표기"</i>). 즉 전투가 쓰는 값 = <see cref="CharacterUnit.EffectiveStat"/>.
+                    //
+                    //   예전에는 원시 값(_unit.Stats)만 그려서, <b>보정이 걸려도 화면이 그대로</b>였다:
+                    //     · 영웅 각성 +8 (영구 · 상한 100 을 넘긴다)
+                    //     · 「광란」 공격력 +10 · 「희열」 공속·이속 (임시)
+                    //     · 정신 이상 「각성」 전 능력치 +10% (임시)
+                    //   넷 다 실제 전투력을 바꾸는데 창에는 한 번도 안 나왔다.
+                    //
+                    //   ⚠ 임시 보정이 붙었다 떨어지면 <b>값이 바뀌는 것이 정상</b>이다 —
+                    //     "지금 적용되는 값" 이 정의이기 때문이다. 색이 그 사실을 알려준다.
+                    //   ⚠ 「로 아이아스」 오라·「부식」은 여기 안 들어온다 — 능력치가 아니라
+                    //     DamageableUnit.DefenseModifier 라 피해 계산에서만 더해진다(미결 218).
+                    //
+                    //   ⚠ 옆 칸의 +N 은 <b>직전 강화에서 오른 폭</b>(원시 값 기준)이라 기준이 다르다.
+                    int raw = active ? stats[slot.Type.Value] : 0;
+                    int shown = active ? _unit.EffectiveStat(slot.Type.Value) : 0;
+
+                    row.Value.text = active ? shown.ToString() : "-";
+                    if (active && shown != raw)
+                        row.Value.color = shown > raw ? statBoostedColor : statWeakenedColor;
+                }
 
                 if (row.Delta != null)
                 {
@@ -792,9 +947,15 @@ namespace LastSanctuary.UI
                     Lock = FindText($"{path}/Lock"),
                     Desc = FindText($"{path}/Desc"),
                     Hint = FindText($"{path}/Hint"),
+                    RageRoot = node.Find("RageBack")?.gameObject,
+                    RageFill = FindImage($"{path}/RageBack/RageFill"),
+                    RageLabel = FindText($"{path}/RageBack/RageLabel"),
                     Button = node.GetComponent<Button>(),
                 };
                 _passives[i] = card;
+
+                // 스프라이트가 비어 있으면 fillAmount 가 무시된다 — UiFillBar 문서 참조.
+                UiFillBar.Prepare(card.RageFill);
 
                 if (card.Button != null)
                 {

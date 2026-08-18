@@ -62,6 +62,13 @@ namespace LastSanctuary.UI
         bool _bound;
 
         /// <summary>
+        /// 강화 서비스를 구독해 뒀는지. 서비스는 <c>GameSystems</c> 에 상주하지만
+        /// <b>이 패널보다 늦게 살아날 수 있어</b> 한 번에 못 걸릴 때가 있다 —
+        /// 그래서 <see cref="Subscribe"/> 를 여러 곳에서 다시 부르고 이 칸으로 중복을 막는다.
+        /// </summary>
+        bool _upgradeHooked;
+
+        /// <summary>
         /// 비활성으로 시작하므로 <c>Awake</c> 가 안 돌 수 있다 — <c>SkillDetailPanel</c> 이 겪은
         /// 함정 그대로다(49-6절·36-4절). 비활성까지 포함해 찾고 배선을 보장한다.
         /// </summary>
@@ -124,6 +131,11 @@ namespace LastSanctuary.UI
         void OnDestroy()
         {
             if (_selector != null) _selector.OnUnitSelectionChanged -= HandleUnitSelected;
+
+            Units.CharacterUpgradeService service = Units.CharacterUpgradeService.Instance;
+            if (service != null) service.OnUpgraded -= HandleUpgraded;
+            _upgradeHooked = false;
+
             if (_instance == this) _instance = null;
         }
 
@@ -136,10 +148,56 @@ namespace LastSanctuary.UI
         /// </summary>
         void Subscribe()
         {
-            if (_selector == null) _selector = UnitSelector.Instance;
-            if (_selector == null) return;
-            _selector.OnUnitSelectionChanged -= HandleUnitSelected;
-            _selector.OnUnitSelectionChanged += HandleUnitSelected;
+            if (_selector != null || (_selector = UnitSelector.Instance) != null)
+            {
+                _selector.OnUnitSelectionChanged -= HandleUnitSelected;
+                _selector.OnUnitSelectionChanged += HandleUnitSelected;
+            }
+
+            HookUpgrades();
+        }
+
+        /// <summary>
+        /// ★ <b>강화하면 레벨이 즉시 이 카드에 반영되게</b> 한다 (유저 지시 2026-08-18:
+        /// <i>"캐릭터 강화 시에 레벨 단계가 즉시 일러스트 ui 에 연동되게"</i>).
+        ///
+        /// <b>왜 필요했나</b> — 이름 줄은 예전부터 <c>Lv.N</c> 을 같이 적고 있었다
+        /// (<see cref="NameLineOf"/>, 86-8절). 그런데 그 글자를 쓰는 곳이
+        /// <see cref="Show"/> <b>하나뿐</b>이고 <see cref="Show"/> 는 <b>선택이 바뀔 때만</b>
+        /// 불린다. 그래서 카드를 띄워 둔 채로 강화하면 <b>레벨이 옛 값 그대로 남았다</b> —
+        /// 다른 캐릭터를 클릭했다 돌아와야 갱신됐다.
+        ///
+        /// ⚠ <b>매 프레임 다시 그리지 않는다.</b> 이 카드는 값이 거의 안 바뀌는 정적 카드라
+        /// (로스터·성장 창처럼 주기 갱신이 없다) 폴링을 넣으면 그것만으로 상시 비용이 생긴다.
+        /// <b>바뀌는 순간에만</b> 알림을 받는 편이 이 창의 성격에 맞는다.
+        ///
+        /// ⚠ 구독은 <b>델리게이트</b>라 이 패널이 꺼져 있어도 살아 있다 —
+        /// <see cref="OnDisable"/> 주석의 그 성질을 여기서도 그대로 쓴다.
+        /// 그래서 카드를 닫아 둔 동안 강화가 일어나도, 다시 열면 이미 맞는 값이 그려진다.
+        /// </summary>
+        void HookUpgrades()
+        {
+            if (_upgradeHooked) return;
+
+            Units.CharacterUpgradeService service = Units.CharacterUpgradeService.Instance;
+            if (service == null) return;          // 아직 안 살아났다 — 다음 기회에 다시 시도한다
+
+            service.OnUpgraded -= HandleUpgraded;
+            service.OnUpgraded += HandleUpgraded;
+            _upgradeHooked = true;
+        }
+
+        /// <summary>
+        /// 강화가 성사됐다. <b>지금 이 카드에 떠 있는 그 캐릭터</b>일 때만 다시 그린다 —
+        /// 다른 캐릭터를 강화했다고 이 카드가 흔들릴 이유가 없다.
+        ///
+        /// ⚠ 정신 이상 「고조」의 무료 강화(<c>GrowFree</c>)도 같은 이벤트를 쏜다 —
+        /// 그쪽도 레벨이 오르므로 <b>같이 반영되는 것이 맞다</b>.
+        /// </summary>
+        void HandleUpgraded(Units.CharacterUnit unit, int cost)
+        {
+            if (unit == null || !ReferenceEquals(unit, _shown)) return;
+            Show(unit);
         }
 
         /// <summary>
@@ -156,9 +214,14 @@ namespace LastSanctuary.UI
             if (gameObject.activeSelf) Close();
 
             _selector = selector;
-            if (_selector == null) return;
-            _selector.OnUnitSelectionChanged -= HandleUnitSelected;
-            _selector.OnUnitSelectionChanged += HandleUnitSelected;
+            if (_selector != null)
+            {
+                _selector.OnUnitSelectionChanged -= HandleUnitSelected;
+                _selector.OnUnitSelectionChanged += HandleUnitSelected;
+            }
+
+            // 강화 서비스도 같이 건다 — 이 시점(UnitSelector.Start)이면 GameSystems 는 이미 깨어 있다.
+            HookUpgrades();
         }
 
         // ------------------------------------------------------------------
@@ -187,6 +250,7 @@ namespace LastSanctuary.UI
             if (unit == null) { Close(); return; }
 
             EnsureBound();
+            HookUpgrades();      // 서비스가 늦게 살아난 경우를 대비 — 이미 걸려 있으면 즉시 반환한다
             _shown = unit;
             if (!gameObject.activeSelf) gameObject.SetActive(true);
 

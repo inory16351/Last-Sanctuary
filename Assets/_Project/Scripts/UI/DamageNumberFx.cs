@@ -55,6 +55,7 @@ namespace LastSanctuary.UI
     ///   빗나감    회색 · "빗나감"  DamageableUnit.OnAnyMissed
     ///   정신이상  빨강 · 흔들림    ErosionService.OnMentalErrorTriggered  (나쁜 효과)
     ///   정신이상  노랑 · 떠오름    ErosionService.OnMentalErrorTriggered  (좋은 효과)
+    ///   영웅각성  금빛 · 떠오름    HeroAwakeningService.OnAwakened
     /// </code>
     ///
     /// ★ <b>왜 새 컴포넌트를 만들지 않았나</b> — 넷 다 "월드 좌표에 글자를 잠깐 띄운다"로
@@ -205,9 +206,11 @@ namespace LastSanctuary.UI
         [SerializeField] float stackTiles = 0.7f;
 
         [Header("정신 이상 문구")]
-        [Tooltip("정신 이상 이름이 떠 있는 시간(초). 피해 숫자보다 <b>오래</b> — " +
-                 "숫자는 못 읽어도 되지만 상태 이름은 반드시 읽혀야 한다")]
-        [Min(0.2f)] [SerializeField] float mentalLifeSeconds = 1.8f;
+        [Tooltip("정신 이상 이름이 떠 있는 시간(초). 좋고 나쁨 <b>상관없이</b> 같은 시간이다. " +
+                 "★ 유저 지시 2026-08-18: \"뭔지 유저가 확실하게 읽을 수 있도록\" — " +
+                 "피해 숫자(lifeSeconds 0.9)의 <b>4배</b>다. 숫자는 못 읽어도 되지만 " +
+                 "상태 이름은 반드시 읽혀야 한다")]
+        [Min(0.2f)] [SerializeField] float mentalLifeSeconds = 3.6f;
 
         [Tooltip("<b>나쁜</b> 효과의 흔들림 폭(타일). 0 이면 안 흔들린다")]
         [Min(0f)] [SerializeField] float mentalShakeTiles = 0.16f;
@@ -215,9 +218,34 @@ namespace LastSanctuary.UI
         [Tooltip("<b>나쁜</b> 효과의 초당 흔들림 횟수")]
         [Min(0f)] [SerializeField] float mentalShakeHz = 13f;
 
+        [Tooltip("떠 있는 시간 중 <b>앞쪽 몇 할</b>까지 흔들리는지 (0~1). " +
+                 "★ 유저 확정 2026-08-18: <b>1 = 전 구간</b>(뜰 때부터 사라질 때까지 계속 떤다). " +
+                 "진폭은 그 구간 안에서 서서히 잦아든다 — 값을 줄이면 앞쪽에서만 떨고 " +
+                 "나머지는 가만히 서 있게 된다")]
+        [Range(0.05f, 1f)] [SerializeField] float mentalShakeRatio = 1f;
+
         [Tooltip("<b>좋은</b> 효과가 아래에서 떠오르는 거리(타일). " +
                  "이만큼 아래에서 시작해 제자리까지 올라온다")]
         [Min(0f)] [SerializeField] float mentalRiseFromTiles = 0.9f;
+
+        [Header("영웅 각성 문구 (유저 지시 2026-08-18)")]
+        [Tooltip("영웅으로 각성한 순간 캐릭터 머리 위에 뜨는 문구. " +
+                 "{0} = 몇 번째 각성인지 (최대 각성 횟수가 1 이면 안 쓰인다)")]
+        [SerializeField] string heroAwakenText = "영웅 각성!";
+
+        [Tooltip("각성이 2회 이상 가능할 때의 문구. {0} = 몇 번째 각성인지")]
+        [SerializeField] string heroAwakenStageFormat = "영웅 각성! {0}단계";
+
+        [Tooltip("각성 문구 색. 좋은 정신 이상(노랑)과 구분되게 <b>금빛</b> 쪽으로 잡았다 — " +
+                 "같은 노랑이면 '또 각성 걸렸네' 로 흘려보게 된다")]
+        [SerializeField] Color heroAwakenColor = new Color(1f, 0.72f, 0.22f, 1f);
+
+        [Tooltip("각성 문구의 글자 높이(타일). 정신 이상 문구보다 크다 — " +
+                 "한 판에 몇 번 없는 사건이라 눈에 확실히 띄어야 한다")]
+        [Min(0.1f)] [SerializeField] float heroAwakenTiles = 1.15f;
+
+        [Tooltip("각성 문구가 떠 있는 시간(초). 정신 이상 문구보다 <b>더</b> 길게 둔다")]
+        [Min(0.2f)] [SerializeField] float heroAwakenLifeSeconds = 5f;
 
         [Header("동작")]
         [Tooltip("동시에 화면에 띄울 수 있는 최대 개수. 넘으면 가장 오래된 것부터 재활용한다 — " +
@@ -309,6 +337,9 @@ namespace LastSanctuary.UI
 
             ErosionService.OnMentalErrorTriggered -= HandleMentalError;
             ErosionService.OnMentalErrorTriggered += HandleMentalError;
+
+            HeroAwakeningService.OnAwakened -= HandleHeroAwakened;
+            HeroAwakeningService.OnAwakened += HandleHeroAwakened;
         }
 
         void OnDestroy()
@@ -317,6 +348,7 @@ namespace LastSanctuary.UI
             DamageableUnit.OnAnyHealed -= HandleHealed;
             DamageableUnit.OnAnyMissed -= HandleMissed;
             ErosionService.OnMentalErrorTriggered -= HandleMentalError;
+            HeroAwakeningService.OnAwakened -= HandleHeroAwakened;
             if (_instance == this) _instance = null;
         }
 
@@ -401,6 +433,33 @@ namespace LastSanctuary.UI
                  follow: unit.transform);
         }
 
+        /// <summary>
+        /// <b>영웅 각성 문구</b> (유저 지시 2026-08-18: <i>"영웅 각성도 정신 이상 긍정적 효과처럼
+        /// 화면에 나오게"</i>).
+        ///
+        /// 좋은 정신 이상과 <b>같은 연출</b>(<see cref="PopupStyle.RiseIn"/> — 아래에서
+        /// 잔잔하게 떠오르며 페이드 인)을 쓰되, <b>색과 크기와 시간을 따로</b> 둔다.
+        /// 좋은 정신 이상은 한 판에 수십 번 뜨지만 각성은 <b>캐릭터당 한 번</b>이라,
+        /// 같은 노랑·같은 크기로 뜨면 "또 그거네" 로 흘려보게 된다.
+        ///
+        /// ⚠ 이 이벤트는 <see cref="HeroAwakeningService"/> 가 능력치를 <b>이미 올린 뒤</b>에
+        /// 쏜다 — 문구가 뜨는 순간 성장 창의 숫자도 이미 올라가 있다.
+        ///
+        /// ⚠ 각성은 <b>처치 판정 도중</b>(적이 죽는 그 프레임)에 일어난다. 같은 프레임에
+        /// 데미지 숫자도 뜨는데, <see cref="Show"/> 의 단 쌓기가 알아서 위로 밀어준다.
+        /// </summary>
+        void HandleHeroAwakened(CharacterUnit unit, int awakenings)
+        {
+            if (!enableNumbers || unit == null) return;
+
+            string text = awakenings > 1
+                ? string.Format(heroAwakenStageFormat, awakenings)
+                : heroAwakenText;
+
+            Show(unit, text, heroAwakenColor, heroAwakenTiles,
+                 PopupStyle.RiseIn, heroAwakenLifeSeconds, follow: unit.transform);
+        }
+
         void Show(DamageableUnit victim, string text, Color color, float tiles,
                   PopupStyle style, float life, Transform follow = null)
         {
@@ -480,7 +539,11 @@ namespace LastSanctuary.UI
                         // 세로 흔들림은 가로의 절반이다(같으면 원을 그려서 '떨림'이 아니라
                         // '돈다'로 보인다). 진폭은 끝으로 갈수록 줄어 자연스럽게 잦아든다.
                         {
-                            float decay = 1f - t;
+                            // 흔들림은 <b>앞쪽 mentalShakeRatio 구간</b>에서 살아 있고 그 뒤로는 0 이다.
+                            // ★ 기본값 1 = <b>전 구간</b>(유저 확정 2026-08-18) — 뜰 때부터
+                            //   사라질 때까지 계속 떤다. 이때 식은 원래의 (1 - t) 와 같아진다.
+                            float shakeSpan = Mathf.Max(0.01f, mentalShakeRatio);
+                            float decay = Mathf.Clamp01(1f - t / shakeSpan);
                             float w = (n.Phase + Time.time * mentalShakeHz * Mathf.PI * 2f);
                             pos = anchor + new Vector3(
                                 Mathf.Sin(w) * mentalShakeTiles * decay,
@@ -503,8 +566,10 @@ namespace LastSanctuary.UI
                                     riseTilesPerSecond * 0.35f * n.Life * t,
                                 0f);
 
-                            // 앞 25% 는 페이드 인, 뒤 25% 는 페이드 아웃.
-                            fade = t < 0.25f ? t / 0.25f
+                            // 앞 15% 페이드 인, 뒤 25% 페이드 아웃 — 나머지 60% 는 <b>완전히
+                            // 또렷하게</b> 서 있는다. 표시 시간이 3.6초로 늘면서 예전 비율(25%)
+                            // 로는 페이드 인에만 0.9초가 걸려 "떠오르는 중"이 너무 길었다.
+                            fade = t < 0.15f ? t / 0.15f
                                  : t > 0.75f ? 1f - (t - 0.75f) / 0.25f
                                  : 1f;
                         }

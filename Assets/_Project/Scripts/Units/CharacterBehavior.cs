@@ -154,6 +154,11 @@ namespace LastSanctuary.Units
                  "웨이브 타임(전투·광폭화)에는 웨이브 몬스터가 우선이라 사냥하지 않는다")]
         [Min(0f)] [SerializeField] float huntDetectRange = 10f;
 
+        [Tooltip("★ 에픽 중립(카르시노스 등)도 <b>지나가다 알아서</b> 사냥할지. 기본은 끔. " +
+                 "에픽은 「토벌 지시」 창으로 부대에 <b>명시적으로 시키는</b> 상대다(86-8절) — " +
+                 "켜 두면 사냥 유형 캐릭터가 근처를 지나기만 해도 혼자 달려들어 그 창이 무의미해진다")]
+        [SerializeField] bool huntEpicNeutrals = false;
+
         [Header("건설 (플레이어가 찍어둔 예정지)")]
         [Tooltip("이 거리 안까지 들어가면 건설 작업이 진행된다(타일)")]
         [Min(0.5f)] [SerializeField] float buildWorkRange = 1.8f;
@@ -2068,6 +2073,14 @@ namespace LastSanctuary.Units
             {
                 DamageableUnit u = all[i];
                 if (u == null || !u.IsAlive || u.Faction != Faction.Neutral) continue;
+
+                // ★ 에픽은 <b>토벌 지시</b>로만 상대한다 (2026-08-18). 이게 없으면 사냥 유형
+                //   캐릭터가 카르시노스 10타일 안을 지나가기만 해도 혼자 달려들어,
+                //   86-8절이 만든 「토벌 지시」 창이 하는 일이 없어진다.
+                //   ⚠ 토벌 명령을 받은 캐릭터는 이 함수를 <b>거치지 않는다</b> —
+                //     TickSubjugation 이 훨씬 앞에서 직접 SetHuntTarget 을 한다.
+                if (!huntEpicNeutrals && u is NeutralMonsterUnit ne &&
+                    ne.Definition != null && ne.Definition.epic) continue;
 
                 float sqr = (u.transform.position - transform.position).sqrMagnitude;
                 if (sqr > bestSqr) continue;

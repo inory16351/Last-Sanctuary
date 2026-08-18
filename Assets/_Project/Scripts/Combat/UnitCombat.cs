@@ -1099,6 +1099,36 @@ namespace LastSanctuary.Combat
             return _fog.IsVisibleWorld(worldPos);
         }
 
+        /// <summary>
+        /// ★★ <b>이 유닛이 지금 보이는가</b> — <see cref="IsFogVisible"/> 와 달리
+        /// <b>몸집을 안다</b>(2026-08-18).
+        ///
+        /// <b>왜 필요했나 — 카르시노스 앞에서 캐릭터가 얼어붙었다.</b>
+        /// 거리 판정은 몸집을 더해서 재는데(<see cref="TargetRadius"/>, 에픽은 <b>2.2타일</b>)
+        /// 시야 판정은 <b>중심점 한 점</b>만 봤다. 그래서 4.4x5.1타일짜리 몸의 가장자리에 붙어
+        /// 서면 <b>"사거리 안"인데 "안 보이는"</b> 상태가 성립하고, 그 조합은
+        /// <see cref="DecideState"/> 를 Attack 에 묶어 <b>이동도 공격도 하지 않는</b> 정지가 된다.
+        ///
+        /// 고친 방식 — 중심이 안 보이면 <b>나에게 가장 가까운 몸 가장자리</b>를 한 번 더 본다.
+        /// 몸의 일부라도 시야에 들어와 있으면 보이는 것으로 친다. 몸집이 없는 유닛
+        /// (<see cref="TargetRadius"/> 기본 0.4)은 두 점이 사실상 같아 동작이 안 바뀐다.
+        /// </summary>
+        public bool IsUnitVisible(DamageableUnit unit)
+        {
+            if (unit == null) return false;
+
+            Vector3 center = unit.transform.position;
+            if (IsFogVisible(center)) return true;
+
+            float radius = TargetRadius(unit);
+            if (radius <= 0.45f) return false;          // 몸집이 없는 유닛 — 중심이 곧 전부다
+
+            Vector2 toMe = (Vector2)(transform.position - center);
+            if (toMe.sqrMagnitude < 0.0001f) return true;   // 겹쳐 있으면 당연히 보인다
+
+            return IsFogVisible(center + (Vector3)(toMe.normalized * radius));
+        }
+
         /// <summary>타겟이 지금 당장 때릴 수 있는 거리인지 (못 때리는 최소 거리도 함께 본다).</summary>
         bool InAttackRange(DamageableUnit unit)
         {
@@ -1408,7 +1438,22 @@ namespace LastSanctuary.Combat
                     _engagedWith = _target;
                 }
 
-                if (dist <= EffectiveAttackRange + TargetRadius(_target))
+                // ★★ <b>사거리 안이어도 "지금 때릴 수 있어야" Attack 이다</b> (2026-08-18).
+                //   Attack 상태는 <b>이동하지 않는다</b>. 그래서 때릴 수 없는 상대에게 Attack 으로
+                //   굳으면 그 자리에서 영영 멈춘다 — 캐릭터 쪽은 더 확실히 멈춘다.
+                //   <c>CharacterBehavior.Update</c> 가 "타겟이 있으면 목적지를 안 건드린다" 로
+                //   일찍 빠져나가기 때문에 <b>목적지조차 새로 안 고른다.</b>
+                //
+                //   ⚠ 실제로 그 조합이 성립했다 — <b>카르시노스</b>(몸집 2.2타일)를 사냥 타겟으로
+                //   문 마법 캐릭터는 사거리 8 + 2.2 = <b>10.2타일</b>에서 Attack 에 들어가는데
+                //   시야는 3.5타일이라 <c>TryAttack</c> 이 안개에서 막혔다. 사냥 타겟 경로는
+                //   <see cref="AcquireTargetIfNeeded"/> 에서 안개 필터를 건너뛰므로 타겟도 안 풀린다.
+                //
+                //   → 못 때리면 <b>Chase 로 떨어뜨려 다가가게</b> 한다. 가까워지면 시야에 들어와
+                //     자연히 Attack 으로 올라간다. 치유는 예외다(아군을 시야로 막지 않는다).
+                bool canHitNow = attackType == TacticalAttackType.Heal || IsUnitVisible(_target);
+
+                if (dist <= EffectiveAttackRange + TargetRadius(_target) && canHitNow)
                 {
                     // 사거리 안에 들어온 그 순간이 교전 시작이다 — 이후로는 자리를 지킨다.
                     _engaged = true;
@@ -1533,7 +1578,7 @@ namespace LastSanctuary.Combat
             //   ⚠️ 치유 유형은 예외다 — 이때 <c>_target</c> 은 <b>적이 아니라 아군</b>이고,
             //   아군을 시야 때문에 못 살리는 것은 이 규칙의 취지가 아니다.
             if (attackType != TacticalAttackType.Heal && _target != null &&
-                !IsFogVisible(_target.transform.position))
+                !IsUnitVisible(_target))
                 return;
 
             // 능력치(공격 속도)가 있으면 그게 최우선이다 — 캐릭터만 해당하고,

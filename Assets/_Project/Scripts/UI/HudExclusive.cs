@@ -5,7 +5,7 @@ namespace LastSanctuary.UI
 {
     /// <summary>
     /// <b>동시에 하나만 켜져 있어야 하는 HUD 창</b>임을 나타낸다.
-    /// 지금은 전술 지침 · 부대 설정 · 캐릭터 성장 셋이다 — 셋 다 화면 같은 자리에 뜬다.
+    /// 지금은 전술 지침 · 부대 설정 · 캐릭터 성장 · 토벌 지시 넷이다 — 전부 화면 가운데를 덮는다.
     /// </summary>
     public interface IExclusiveHudPanel
     {
@@ -77,6 +77,18 @@ namespace LastSanctuary.UI
 
                     p.Close();
                 }
+
+                // ★ 남은 창을 <b>맨 앞</b>으로 올린다 (유저 지시 2026-08-18:
+                //   <i>"일러스트 ui 가 다른 창 켰을때 해당 창들 가리지 못하게"</i>).
+                //
+                //   유니티 UI 의 그리는 순서는 <b>형제 순서</b>다. 유닛 클릭 초상화
+                //   (<c>HUD_Portrait</c>)는 창들보다 뒤에 만들어져 형제 순서가 더 뒤라
+                //   <b>항상 창 위에 그려지고 있었다</b>. 초상화 쪽에서 피하게 만들면
+                //   앞으로 겹치는 UI 가 생길 때마다 같은 규칙을 또 짜야 한다 —
+                //   <b>여는 쪽이 맨 앞으로 올라온다</b>는 규칙 하나로 끝낸다.
+                //
+                //   ⚠ 창을 새로 만들어도 자동으로 적용된다 — IExclusiveHudPanel 만 구현하면 된다.
+                if (keep is MonoBehaviour mb && mb != null) mb.transform.SetAsLastSibling();
 
                 CancelMapModes();
             }

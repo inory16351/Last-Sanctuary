@@ -30,6 +30,28 @@ namespace LastSanctuary.UI
     /// <b>버튼은 씬에 실물로 있다</b>(준수사항 §10 H-1, MCP 생성). 이 스크립트는 이름으로 찾아
     /// 배선하고 값만 칠한다 — MCP 로는 이벤트·오브젝트 참조를 인스펙터에 넣을 수 없기 때문이다
     /// (진행상황 8절 4번). 다른 HUD 패널이 전부 쓰는 방식과 같다.
+    ///
+    /// ─────────────────────────────────────────────────────────────────────
+    /// <b>일시정지</b>(유저 지시 2026-08-18: <i>"배속 버튼 옆에 일시정지 버튼 넣기"</i>)
+    ///
+    /// 배속과 <b>같은 손잡이</b>(<see cref="Time.timeScale"/>)를 쓴다 — 0 이 곧 정지다.
+    /// 그래서 별도 시스템을 만들지 않고 이 패널이 배속 단계 하나를 더 든 것처럼 다룬다.
+    ///
+    /// ★★ <b>timeScale = 0 의 주인이 둘이 되는 것이 이 기능의 유일한 위험이다.</b>
+    /// 패배·승리 화면(<see cref="DefeatPanel"/> · <see cref="VictoryPanel"/>)도 0 으로 멈추는데,
+    /// 그쪽이 멈춰둔 것을 이 패널이 "일시정지 해제" 로 풀어버리면 <b>끝난 게임이 다시 흐른다.</b>
+    /// 그래서 <b>내가 멈춘 것인지</b>(<see cref="_paused"/>)를 반드시 들고 다니고,
+    ///   · 내가 멈춘 게 아닌데 0 이면 → 일시정지 버튼 자체를 <b>먹지 않는다</b>
+    ///   · 내가 멈춘 상태인데 밖에서 0 이 아니게 되면 → 소유권을 잃은 것으로 보고 스스로 푼다
+    /// 두 방향을 모두 막는다. <see cref="Apply"/> 가 원래 갖고 있던
+    /// "0 인 동안에는 배속을 다시 걸지 않는다" 가드와 <b>같은 판단의 확장</b>이다.
+    ///
+    /// ⚠ 정지 중에도 HUD·카메라는 살아 있다 — 둘 다 <c>Time.unscaledTime</c> 기준이라
+    /// 원래부터 그렇게 동작한다(패배 화면에서 버튼을 누를 수 있는 것과 같은 이유).
+    ///
+    /// ⚠ <b>정지 중에는 <see cref="Time.fixedDeltaTime"/> 을 건드리지 않는다</b> — 배속처럼
+    /// 곱하면 0 이 되어 유니티가 예외를 던진다. 어차피 <c>timeScale</c> 이 0 이면
+    /// FixedUpdate 가 돌지 않으므로 원래 값 그대로 두면 된다.
     /// </summary>
     public class GameSpeedPanel : MonoBehaviour
     {
@@ -51,9 +73,23 @@ namespace LastSanctuary.UI
         [Tooltip("선택되지 않은 버튼의 글자색")]
         [SerializeField] Color idleTextColor = new Color(0.78f, 0.86f, 0.92f, 1f);
 
+        [Header("일시정지")]
+        [Tooltip("일시정지 버튼의 자식 오브젝트 이름. 씬의 'Pause' 와 짝을 맞춘다")]
+        [SerializeField] string pauseButtonName = "Pause";
+
+        [Tooltip("게임이 흐르는 동안 일시정지 버튼에 적히는 글자 (누르면 멈춘다)")]
+        [SerializeField] string pauseLabel = "정지";
+
+        [Tooltip("멈춰 있는 동안 일시정지 버튼에 적히는 글자 (누르면 다시 흐른다)")]
+        [SerializeField] string resumeLabel = "재개";
+
         [Header("동작")]
         [Tooltip("키보드 1·2·3·4 로도 바꿀 수 있게 한다")]
         [SerializeField] bool keyboardShortcuts = true;
+
+        [Tooltip("키보드 P 로도 일시정지/재개할 수 있게 한다. " +
+                 "스페이스는 카메라 되돌리기(CameraRigController), 숫자는 배속이 이미 쓰고 있다")]
+        [SerializeField] bool pauseKeyboardShortcut = true;
 
         [Tooltip("배속을 바꿀 때 HUD 로그에 남긴다")]
         [SerializeField] bool logChanges = true;
@@ -62,10 +98,24 @@ namespace LastSanctuary.UI
         readonly List<Image> _backgrounds = new List<Image>();
         readonly List<TMP_Text> _labels = new List<TMP_Text>();
 
+        Button _pauseButton;
+        Image _pauseBackground;
+        TMP_Text _pauseLabel;
+
         int _index;
+
+        /// <summary>
+        /// <b>내가 멈춰둔 상태인가.</b> 단순한 표시가 아니라 <b>소유권 증표</b>다 —
+        /// 패배·승리 화면도 <c>timeScale = 0</c> 을 쓰기 때문에, "지금 0 이다" 만으로는
+        /// 누가 멈춘 것인지 알 수 없다. 이 칸이 true 일 때만 이 패널이 0 을 풀 수 있다.
+        /// </summary>
+        bool _paused;
 
         /// <summary>지금 걸려 있는 배속. 다른 시스템이 참고할 수 있다.</summary>
         public float CurrentSpeed => _index >= 0 && _index < speeds.Length ? speeds[_index] : 1f;
+
+        /// <summary>지금 이 패널이 게임을 멈춰둔 상태인가. 다른 시스템이 참고할 수 있다.</summary>
+        public bool IsPaused => _paused;
 
         /// <summary>
         /// 배속을 걸지 않은 상태의 물리 보폭. <see cref="Time.fixedDeltaTime"/> 을 배속만큼
@@ -105,7 +155,29 @@ namespace LastSanctuary.UI
                 _labels.Add(child.GetComponentInChildren<TMP_Text>());
             }
 
+            BindPauseButton();
             Select(0, silent: true);
+        }
+
+        /// <summary>
+        /// 일시정지 버튼을 찾아 배선한다. <b>없으면 조용히 넘어간다</b> — 배속 버튼과 달리
+        /// 이 버튼이 빠져도 게임은 그대로 돌아가므로, 씬이 아직 갱신되지 않은 상태에서
+        /// 콘솔을 에러로 채우지 않는다(키보드 P 는 그래도 동작한다).
+        /// </summary>
+        void BindPauseButton()
+        {
+            if (string.IsNullOrWhiteSpace(pauseButtonName)) return;
+
+            Transform child = transform.Find(pauseButtonName);
+            if (child == null) return;
+
+            _pauseButton = child.GetComponent<Button>();
+            _pauseBackground = child.GetComponent<Image>();
+            _pauseLabel = child.GetComponentInChildren<TMP_Text>();
+
+            if (_pauseButton == null) return;
+            _pauseButton.onClick.RemoveAllListeners();
+            _pauseButton.onClick.AddListener(TogglePause);
         }
 
         /// <summary>
@@ -115,22 +187,67 @@ namespace LastSanctuary.UI
         void OnDisable()
         {
             // 패배·승리 화면이 0 으로 멈춰둔 상태라면 그쪽 책임이므로 건드리지 않는다.
-            if (Time.timeScale <= 0f) return;
+            // ★ 단, <b>내가 멈춘 것</b>(_paused)이면 여기서 반드시 풀어야 한다 —
+            //   안 그러면 일시정지한 채로 Stop 을 누른 다음 플레이가 멈춘 채로 시작한다
+            //   (이 클래스가 원래 배속에서 겪은 그 함정과 같은 것이다).
+            if (Time.timeScale <= 0f && !_paused) return;
+
+            _paused = false;
             Time.timeScale = 1f;
             Time.fixedDeltaTime = _baseFixedDelta;
         }
 
         void Update()
         {
-            if (!keyboardShortcuts) return;
-
             var kb = UnityEngine.InputSystem.Keyboard.current;   // 구 Input Manager 혼용 금지(U-D7)
             if (kb == null) return;
+
+            // ⚠ 내가 멈춘 상태인데 밖에서 시간이 다시 흐르면(예: 패배 화면이 되돌려 놓았다)
+            //   소유권을 잃은 것이므로 표시를 사실에 맞춘다 — 안 그러면 "정지 중"이라고
+            //   적힌 채 게임이 흘러 버튼이 거짓말을 한다.
+            if (_paused && Time.timeScale > 0f)
+            {
+                _paused = false;
+                Paint();
+            }
+
+            if (pauseKeyboardShortcut && kb.pKey.wasPressedThisFrame) TogglePause();
+
+            if (!keyboardShortcuts) return;
 
             if (kb.digit1Key.wasPressedThisFrame) Select(0);
             else if (kb.digit2Key.wasPressedThisFrame) Select(1);
             else if (kb.digit3Key.wasPressedThisFrame) Select(2);
             else if (kb.digit4Key.wasPressedThisFrame) Select(3);
+        }
+
+        // ==================================================================
+        // 일시정지
+        // ==================================================================
+
+        /// <summary>일시정지 ↔ 재개. 버튼과 키보드 P 가 함께 부른다.</summary>
+        public void TogglePause() => SetPaused(!_paused);
+
+        /// <summary>
+        /// 게임을 멈추거나 다시 흐르게 한다.
+        ///
+        /// ★ <b>남이 멈춰둔 것은 건드리지 않는다</b> — 패배·승리 화면이 <c>timeScale = 0</c> 으로
+        /// 멈춰둔 동안(그때 <see cref="_paused"/> 는 false 다) 이 함수는 아무것도 하지 않는다.
+        /// 그러지 않으면 결과 화면 위에서 이 버튼을 눌러 <b>끝난 게임을 다시 흐르게</b> 할 수 있다.
+        /// </summary>
+        public void SetPaused(bool value, bool silent = false)
+        {
+            if (_paused == value) return;
+            if (Time.timeScale <= 0f && !_paused) return;   // 남이 멈춰둔 상태 — 관여하지 않는다
+
+            _paused = value;
+
+            // 재개일 때만 force — 위 가드를 통과했다는 것은 <b>0 의 주인이 나였다</b>는 뜻이다.
+            Apply(force: !value);
+            Paint();
+
+            if (!silent && logChanges)
+                HudLog.Add(value ? "일시정지" : $"재개 ({ButtonName(CurrentSpeed)})", HudLogKind.Info);
         }
 
         /// <summary>배속 단계를 고른다. 범위 밖이면 조용히 무시한다(키보드 단축키가 부를 수 있다).</summary>
@@ -139,20 +256,44 @@ namespace LastSanctuary.UI
             if (index < 0 || index >= speeds.Length) return;
 
             _index = index;
-            Apply();
+
+            // 멈춰 있을 때 배속을 고르면 <b>그 배속으로 재개</b>한다 — 정지 상태에서 배속만
+            // 바꾸고 화면이 그대로 멈춰 있으면 "버튼이 안 먹는다" 로 보인다.
+            bool resuming = _paused;
+            if (resuming) _paused = false;
+
+            Apply(force: resuming);
             Paint();
 
             if (!silent && logChanges)
                 HudLog.Add($"게임 속도 {ButtonName(speeds[index])}", HudLogKind.Info);
         }
 
-        void Apply()
+        /// <summary>
+        /// 지금 상태를 <see cref="Time.timeScale"/> 에 반영한다.
+        ///
+        /// ★ <paramref name="force"/> — <b>내가 걸어둔 정지를 푸는 순간에만</b> true 다.
+        /// 아래의 "0 이면 손대지 않는다" 가드는 <b>남이 멈춰둔 것</b>을 지키기 위한 것인데,
+        /// 방금까지 0 의 주인이 나였다면 그 가드가 <b>내 재개까지 막아</b> 화면이 영영 멈춘다.
+        /// 소유권 판정은 부르는 쪽(<see cref="SetPaused"/>·<see cref="Select"/>)이 이미 했으므로
+        /// 여기서는 그 결과만 받는다.
+        /// </summary>
+        void Apply(bool force = false)
         {
+            // ★ 내가 멈춘 상태라면 무조건 0 이다 — 아래 가드보다 먼저 본다.
+            //   ⚠ fixedDeltaTime 은 건드리지 않는다: 0 을 곱하면 유니티가 예외를 던지고,
+            //     timeScale 이 0 이면 FixedUpdate 자체가 안 돌아 원래 값을 둬도 문제가 없다.
+            if (_paused)
+            {
+                Time.timeScale = 0f;
+                return;
+            }
+
             float speed = Mathf.Max(0.01f, speeds[_index]);
 
             // 패배·승리로 멈춰 있는 동안에는 시간을 다시 흐르게 만들지 않는다 —
             // 그쪽이 timeScale 의 주인이고, 되돌리는 것도 그쪽이다.
-            if (Time.timeScale <= 0f) return;
+            if (!force && Time.timeScale <= 0f) return;
 
             Time.timeScale = speed;
             // 물리 보폭도 같이 키운다 — 안 그러면 8배속에서 FixedUpdate 가 8배 돌아 프레임이 급락한다.
@@ -163,9 +304,19 @@ namespace LastSanctuary.UI
         {
             for (int i = 0; i < _buttons.Count; i++)
             {
-                bool on = i == _index;
+                // 멈춰 있는 동안에는 어느 배속도 "지금 걸려 있다" 가 아니다 —
+                // 재개하면 돌아갈 배속이라 선택 표시를 끄고 글자만 남긴다.
+                bool on = !_paused && i == _index;
                 if (_backgrounds[i] != null) _backgrounds[i].color = on ? activeColor : idleColor;
                 if (_labels[i] != null) _labels[i].color = on ? activeTextColor : idleTextColor;
+            }
+
+            if (_pauseBackground != null)
+                _pauseBackground.color = _paused ? activeColor : idleColor;
+            if (_pauseLabel != null)
+            {
+                _pauseLabel.text = _paused ? resumeLabel : pauseLabel;
+                _pauseLabel.color = _paused ? activeTextColor : idleTextColor;
             }
         }
 

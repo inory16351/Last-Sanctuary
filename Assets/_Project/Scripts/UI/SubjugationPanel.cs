@@ -336,6 +336,17 @@ namespace LastSanctuary.UI
 
             if (_squadTemplate == null || _targetTemplate == null)
                 Debug.LogWarning("[토벌] Squads/RowTemplate · Targets/RowTemplate 을 찾지 못했습니다.", this);
+
+            // ★ 닫기 버튼 (유저 지시 2026-08-18: "토벌 지시 ui도 x로 끌 수 있는 버튼 추가").
+            //   이 창만 닫는 방법이 없어서, 한 번 열면 다른 창을 열어 밀어내는 수밖에 없었다
+            //   (HudExclusive 가 배타로 닫아주는 것에 기대고 있었다).
+            //   ⚠ 없어도 조용히 넘어간다 — 씬이 아직 갱신되지 않은 상태에서 에러를 내지 않는다.
+            var close = transform.Find("CloseButton")?.GetComponent<Button>();
+            if (close != null)
+            {
+                close.onClick.RemoveAllListeners();
+                close.onClick.AddListener(Close);
+            }
         }
 
         static TMP_Text FindText(Transform parent, string path)
