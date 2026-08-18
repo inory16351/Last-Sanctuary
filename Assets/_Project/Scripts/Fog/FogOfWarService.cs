@@ -251,6 +251,75 @@ namespace LastSanctuary.Fog
         }
 
         // ------------------------------------------------------------------
+        // 저장/복원 (2026-08-18 신설 — 98절)
+        //
+        // 밝힌 칸을 <b>칸당 비트 하나</b>로 접어 base64 문자열로 주고받는다. 맵이 320x320 이면
+        // 102,400칸이라 칸마다 숫자를 쓰면 저장 파일이 수백 KB가 된다 — 비트로 접으면 12.5KB다.
+        //
+        // ⚠ <b>"지금 시야 안"(Visible)은 저장하지 않는다.</b> 그건 유닛이 어디 서 있느냐로
+        //   매 프레임 다시 계산되는 값이라(<see cref="Refresh"/>), 복원한 유닛들이 자리를 잡으면
+        //   저절로 올바르게 채워진다. 저장해야 하는 것은 <b>되돌아오지 않는 정보</b> —
+        //   "한 번이라도 봤다" 뿐이다.
+        // ------------------------------------------------------------------
+
+        public Vector2Int FogSize => _size;
+
+        /// <summary>밝힌 칸을 base64 비트맵으로 내보낸다. 아직 안개가 준비되지 않았으면 빈 문자열.</summary>
+        public string ExportExplored()
+        {
+            if (_state == null) return string.Empty;
+
+            var bits = new byte[(_state.Length + 7) / 8];
+            for (int i = 0; i < _state.Length; i++)
+                if (_state[i] != Unexplored) bits[i >> 3] |= (byte)(1 << (i & 7));
+
+            return System.Convert.ToBase64String(bits);
+        }
+
+        /// <summary>
+        /// base64 비트맵을 되돌려 칠한다. 맵 크기가 저장 당시와 다르면 <b>아무것도 하지 않는다</b> —
+        /// 크기가 다른데 억지로 채우면 안개가 엉뚱한 칸에 걸려 맵이 뒤틀린 것처럼 보인다.
+        /// </summary>
+        public void ImportExplored(string base64, int width, int height)
+        {
+            if (_state == null || string.IsNullOrEmpty(base64)) return;
+
+            if (width != _size.x || height != _size.y)
+            {
+                Debug.LogWarning($"[FogOfWar] 저장된 안개 크기({width}x{height})가 지금 맵" +
+                                 $"({_size.x}x{_size.y})과 달라 복원하지 않습니다.", this);
+                return;
+            }
+
+            byte[] bits;
+            try { bits = System.Convert.FromBase64String(base64); }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning($"[FogOfWar] 안개 복원 실패 — {e.Message}", this);
+                return;
+            }
+
+            Color32 dim = exploredColor;
+            int explored = 0;
+
+            for (int i = 0; i < _state.Length; i++)
+            {
+                int b = i >> 3;
+                bool on = b < bits.Length && (bits[b] & (1 << (i & 7))) != 0;
+                if (!on) continue;
+
+                _state[i] = Explored;
+                _pixels[i] = dim;
+                explored++;
+            }
+
+            ExploredCount = explored;
+            _visibleLastRefresh.Clear();   // 저장하지 않은 값이라 옛 목록을 들고 있으면 안 된다
+            _dirty = true;
+            _nextRefresh = 0f;             // 다음 LateUpdate 에서 곧바로 시야를 다시 계산한다
+        }
+
+        // ------------------------------------------------------------------
         // 조회
         // ------------------------------------------------------------------
 

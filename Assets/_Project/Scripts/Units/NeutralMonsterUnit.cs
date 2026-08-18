@@ -32,6 +32,23 @@ namespace LastSanctuary.Units
         public StatBlock Stats => stats;
 
         /// <summary>
+        /// 이 개체를 가리키는 <b>런타임 고유 번호</b> (2026-08-18 신설 — 저장 복원용).
+        ///
+        /// ★ <b>왜 필요한가</b> — 표의 <c>monId</c> 는 <b>종(種)</b>을 가리키지 <b>개체</b>를
+        /// 가리키지 않는다. 같은 종이 여러 마리 있을 수 있고(<c>maxAlive</c> &gt; 1),
+        /// 발견 목록(<see cref="EpicSubjugationService.Discovered"/>)과 토벌 명령
+        /// (<see cref="EpicSubjugationService.SetOrder"/>)은 <b>특정 개체 하나</b>를 가리켜야 한다.
+        ///
+        /// 저장할 때는 이 번호를 그대로 적고, 복원할 때는 <see cref="NeutralMonsterSpawner"/> 가
+        /// <b>같은 번호를 그 개체에 다시 매긴다</b> — 그래야 "부대 2가 노리던 그 개체"를
+        /// 저장 전과 똑같이 다시 가리킬 수 있다.
+        /// </summary>
+        public int SpawnId { get; private set; }
+
+        /// <summary>스포너만 부른다 — 소환 직후(신규) 또는 복원 직후(저장된 값 재부여) 한 번뿐이다.</summary>
+        public void AssignSpawnId(int id) => SpawnId = id;
+
+        /// <summary>
         /// 화면·로그에 쓰는 이름 — <b>표의 <c>mon_name</c>(스트링 키)</b> 이 정본이다.
         ///
         /// <see cref="MonsterUnit.DisplayName"/> · <see cref="CharacterUnit.DisplayName"/> 과

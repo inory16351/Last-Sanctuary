@@ -483,6 +483,19 @@ namespace LastSanctuary.Combat
             }
         }
 
+        /// <summary>
+        /// 저장에서 침식 수치를 되돌린다 (98절).
+        ///
+        /// ⚠ <b>정신 이상은 같이 되돌리지 않는다</b> — 지속 시간·해제 조건이 얽혀 있어
+        /// 걸린 상태만 복원하면 <b>영영 안 풀리는 정신 이상</b>이 남는다. 침식 수치가 그대로라
+        /// 불러온 직후 조건이 차면 <see cref="Tick"/> 이 정상 경로로 다시 걸어준다.
+        /// </summary>
+        public void RestoreErosion(float value)
+        {
+            int max = ErosionService.Instance != null ? ErosionService.Instance.ErosionMax : 100;
+            erosion = Mathf.Clamp(value, 0f, max);
+        }
+
         /// <summary>침식을 직접 올리거나 내린다 (진정·우울이 서로에게 쓴다).</summary>
         public void AddErosion(float delta)
         {

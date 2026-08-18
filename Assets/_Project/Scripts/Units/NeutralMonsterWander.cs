@@ -161,6 +161,16 @@ namespace LastSanctuary.Units
         }
 
         /// <summary>
+        /// 서식지 모드인가 (에픽). 저장할 때 "이 개체의 집이 어디인지"를 가르는 기준이다 —
+        /// 서식지 모드는 <b>자기 스폰 지점</b>이 중심이고, 아니면 <b>넥서스 고리</b>가 중심이라
+        /// 개체마다 따로 기억할 집이 없다.
+        /// </summary>
+        public bool IsHabitatMode => _habitatMode;
+
+        /// <summary>서식지 중심. <see cref="IsHabitatMode"/> 가 참일 때만 뜻이 있다.</summary>
+        public Vector3 HabitatCenter => _habitatCenter;
+
+        /// <summary>
         /// 고리·복귀 판정의 <b>중심</b>. 서식지 모드면 스폰 지점, 아니면 넥서스.
         /// 두 모드가 같은 판정 코드를 공유할 수 있게 하는 한 지점이다.
         /// </summary>

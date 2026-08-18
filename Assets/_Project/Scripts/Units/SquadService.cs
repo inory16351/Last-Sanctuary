@@ -126,6 +126,51 @@ namespace LastSanctuary.Units
             return squad;
         }
 
+        // ==================================================================
+        // 저장 복원 (2026-08-18 신설 — 98절)
+        // ==================================================================
+
+        /// <summary>
+        /// 저장된 부대를 <b>id 와 이름을 그대로</b> 되살린다.
+        ///
+        /// <b>왜 <see cref="CreateSquad"/> 를 못 쓰나</b> — 그쪽은 id 를 스스로 매기고 이름을
+        /// "N번 부대" 로 짓는다. 저장 파일의 캐릭터는 <b>저장 당시의 id</b> 로 소속을 가리키므로,
+        /// id 가 하나라도 어긋나면 부대 편성이 통째로 뒤섞인다.
+        ///
+        /// <see cref="CanCreate"/>(상한)를 <b>보지 않는다</b> — 저장된 판에 이미 존재했던 부대라
+        /// 지금 상한에 걸린다면 그건 상한을 낮춘 쪽의 문제이고, 여기서 잘라내면 캐릭터가
+        /// 소속을 잃는다.
+        /// </summary>
+        public Squad CreateSquadWithId(int id, string name)
+        {
+            if (id <= 0) return null;
+            if (Find(id) != null) return Find(id);
+
+            var squad = new Squad
+            {
+                Id = id,
+                Name = string.IsNullOrWhiteSpace(name)
+                    ? string.Format(squadNameFormat, _squads.Count + 1)
+                    : name,
+                CoopExpedition = coopExpeditionDefault,
+            };
+            _squads.Add(squad);
+
+            // 다음에 만들 부대가 복원된 id 와 부딪히지 않게 밀어둔다.
+            if (_nextId <= id) _nextId = id + 1;
+
+            OnSquadsChanged?.Invoke();
+            return squad;
+        }
+
+        /// <summary>부대를 전부 지운다 (복원 직전에 판을 비우는 용도).</summary>
+        public void ClearAllForRestore()
+        {
+            if (_squads.Count == 0) return;
+            _squads.Clear();
+            OnSquadsChanged?.Invoke();
+        }
+
         /// <summary>부대를 없앤다. 소속돼 있던 캐릭터는 무소속이 된다.</summary>
         public void RemoveSquad(int squadId)
         {

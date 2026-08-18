@@ -1,0 +1,535 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using LastSanctuary.Buildings;
+using LastSanctuary.Combat;
+using LastSanctuary.Fog;
+using LastSanctuary.Resource;
+using LastSanctuary.UI;
+using LastSanctuary.Units;
+using LastSanctuary.Wave;
+
+namespace LastSanctuary.Save
+{
+    /// <summary>
+    /// 게임 상태를 <see cref="SaveData"/> 로 <b>담고(Capture)</b> 되돌린다<b>(Restore)</b>.
+    /// 파일·슬롯은 <see cref="SaveService"/> 가 맡고, 이쪽은 씬 안의 값만 다룬다.
+    ///
+    /// <b>복원 방식 — "기본 생성이 끝난 뒤 덮어쓴다"</b>
+    /// 씬이 열리면 평소대로 맵이 생성되고 캐릭터 3명이 나오고 웨이브가 시작된다. 이 컴포넌트는
+    /// <b>그 뒤에</b> 판을 비우고 저장된 것으로 채운다.
+    ///
+    /// 반대 방식(스포너들이 "복원 중이니 만들지 마라"를 각자 확인하게 하는 것)도 가능하지만,
+    /// 그러려면 <c>UnitSpawner</c>·<c>MonsterSpawner</c>·<c>NeutralMonsterSpawner</c>·
+    /// <c>WaveManager</c> 네 곳의 시작 경로에 전부 갈래를 내야 하고, <b>하나라도 빠뜨리면
+    /// 복원한 판에 유령 유닛이 섞인다</b>. 덮어쓰기는 그 위험이 없다 — 조금 낭비지만
+    /// (한 프레임어치 생성) 틀릴 구석이 훨씬 적다.
+    ///
+    /// ⚠ <b>한 프레임 기다린 뒤 덮어쓴다</b>(<see cref="RestoreNextFrame"/>). 다른 컴포넌트의
+    /// <c>Start</c> 가 아직 안 돌았을 수 있는데, 그 상태에서 지우면 <b>없어진 것을 다시 만드는</b>
+    /// 스포너가 생긴다. <c>yield return null</c> 한 번이면 모든 <c>Start</c> 가 끝난 뒤가 보장된다.
+    /// </summary>
+    public class GameSnapshot : MonoBehaviour
+    {
+        /// <summary>다른 곳(환경 설정 창·자동 저장)이 부를 수 있게 하나만 둔다.</summary>
+        public static GameSnapshot Instance { get; private set; }
+
+        [Header("자동 저장")]
+        [Tooltip("되돌리면 이득을 보는 순간마다 저장한다 — 캐릭터 강화 · 캐릭터 사망 · 웨이브 클리어.\n" +
+                 "끄면 환경 설정 창의 '저장하기' 로만 저장된다")]
+        [SerializeField] bool autoSave = true;
+
+        [Tooltip("자동 저장이 일어났을 때 HUD 로그에 한 줄 남긴다")]
+        [SerializeField] bool logAutoSave = true;
+
+        [Tooltip("같은 프레임에 여러 사건이 겹쳐도 이 시간 안에는 한 번만 저장한다(초). " +
+                 "웨이브 클리어 순간에는 마지막 몬스터 사망과 클리어가 같이 일어난다")]
+        [Min(0f)] [SerializeField] float autoSaveCooldown = 0.5f;
+
+        WaveManager _wave;
+        UnitSpawner _unitSpawner;
+        MonsterSpawner _monsterSpawner;
+        NeutralMonsterSpawner _neutralSpawner;
+        FogOfWarService _fog;
+
+        float _nextAutoSaveAllowed;
+        bool _restoring;
+
+        void Awake()
+        {
+            Instance = this;
+            SaveService.ApplyVolume();      // 빌드를 새로 켰을 때 저장된 음량을 실제로 반영한다
+        }
+
+        void OnDestroy()
+        {
+            if (Instance == this) Instance = null;
+
+            // ★ 구독 해제를 <b>전부 여기</b>에 모은다.
+            //
+            //   ⚠ 처음에는 웨이브·강화 구독을 <c>OnDisable</c> 에서 풀었는데, 그러면
+            //   <b>껐다 켜면 그 둘이 영영 안 돌아온다</b> — 다시 거는 곳(<see cref="Start"/>)이
+            //   한 번만 도는 <c>Start</c> 라서다. 사망 구독만 <c>OnEnable/OnDisable</c> 짝이었어서
+            //   <b>셋 중 하나만 살아 돌아오는</b> 어긋난 상태가 된다.
+            //   생애가 오브젝트와 같은 구독은 <c>OnDestroy</c> 에서 푸는 것이 맞다.
+            DamageableUnit.OnAnyDied -= HandleAnyDied;
+            if (_wave != null) _wave.OnWaveEnded -= HandleWaveEnded;
+
+            CharacterUpgradeService upgrade = CharacterUpgradeService.Instance;
+            if (upgrade != null) upgrade.OnUpgraded -= HandleUpgraded;
+        }
+
+        void Start()
+        {
+            _wave = FindAnyObjectByType<WaveManager>();
+            _unitSpawner = FindAnyObjectByType<UnitSpawner>();
+            _monsterSpawner = FindAnyObjectByType<MonsterSpawner>();
+            _neutralSpawner = FindAnyObjectByType<NeutralMonsterSpawner>();
+            _fog = FindAnyObjectByType<FogOfWarService>();
+
+            HookAutoSave();
+
+            if (SaveService.PendingLoad != null) StartCoroutine(RestoreNextFrame());
+        }
+
+        /// <summary>
+        /// 자동 저장 사건 셋을 구독한다. <b>정적 이벤트(<c>OnAnyDied</c>)까지 여기서 건다</b> —
+        /// <c>OnEnable</c> 에 두면 <see cref="Start"/> 에서 거는 나머지 둘과 생애가 어긋난다
+        /// (<see cref="OnDestroy"/> 주석 참조).
+        /// </summary>
+        void HookAutoSave()
+        {
+            DamageableUnit.OnAnyDied += HandleAnyDied;
+
+            if (_wave != null) _wave.OnWaveEnded += HandleWaveEnded;
+
+            CharacterUpgradeService upgrade = CharacterUpgradeService.Instance;
+            if (upgrade != null) upgrade.OnUpgraded += HandleUpgraded;
+        }
+
+        // ==================================================================
+        // 자동 저장 — "되돌리면 이득을 보는 순간"
+        //
+        // 유저 확정 2026-08-18: <i>"게임에 되돌릴 경우 베네핏을 볼 수 있을 상황이 발생하는
+        // 경우엔 자동 저장 되어야 해"</i>. 그래서 <b>나쁜 일이 일어난 직후</b>(사망)에도 저장한다 —
+        // 그 저장이 없으면 유저가 게임을 껐다 켜서 죽음을 무를 수 있다.
+        // ==================================================================
+
+        void HandleWaveEnded(int wave) => AutoSave($"웨이브 {wave} 클리어");
+
+        void HandleUpgraded(CharacterUnit unit, int cost) =>
+            AutoSave($"{(unit != null ? unit.DisplayName : "캐릭터")} 강화");
+
+        /// <summary>
+        /// 캐릭터가 죽었을 때만 저장한다. 몬스터 사망은 초당 수십 번 일어나 저장이 의미가 없다.
+        ///
+        /// ⚠ <b>부활 대기는 사망이 아니다</b> — 「분노」(히스톤)가 되살릴 캐릭터까지 저장하면
+        /// 불러왔을 때 <b>부활 코루틴이 없는 시체</b>가 남는다. 그건 되돌리기 이득이 아니라 손해다.
+        /// </summary>
+        void HandleAnyDied(DamageableUnit unit)
+        {
+            if (unit is not CharacterUnit character) return;
+            if (character.IsRevivePending) return;
+
+            AutoSave($"{character.DisplayName} 사망");
+        }
+
+        /// <summary>
+        /// 자동 저장 진입점. <b>이벤트가 늘어나면 여기로만 붙인다</b> — 유저가 예고한
+        /// "이후에 추가할 이벤트"도 이 한 줄을 부르면 된다.
+        /// </summary>
+        public void AutoSave(string reason)
+        {
+            if (!autoSave || _restoring) return;
+
+            // 결과가 확정된 판은 저장하지 않는다 — 패배 화면에서 저장하면 그 세이브는
+            // 불러오자마자 다시 패배한다(승리도 같다).
+            if (_wave != null && _wave.IsFinished) return;
+
+            if (Time.unscaledTime < _nextAutoSaveAllowed) return;
+            _nextAutoSaveAllowed = Time.unscaledTime + autoSaveCooldown;
+
+            if (!SaveNow(reason)) return;
+            if (logAutoSave) HudLog.Add($"자동 저장 — {reason}", HudLogKind.Info);
+        }
+
+        /// <summary>지금 상태를 파일에 쓴다. 환경 설정 창의 "저장하기" 도 이 경로를 쓴다.</summary>
+        public bool SaveNow(string reason)
+        {
+            SaveData data = Capture(reason);
+            return SaveService.Write(data);
+        }
+
+        // ==================================================================
+        // 담기
+        // ==================================================================
+
+        public SaveData Capture(string reason)
+        {
+            var data = new SaveData { reason = reason ?? string.Empty };
+
+            if (_wave != null)
+            {
+                data.waveNumber = _wave.WaveNumber;
+                data.wavePhase = (int)_wave.Phase;
+                data.phaseRemaining = _wave.PhaseRemaining;
+            }
+
+            ResourceManager resources = ResourceManager.Instance;
+            if (resources != null) data.energy = resources.Energy;
+
+            if (_unitSpawner != null && _unitSpawner.SpawnedNexus != null)
+                data.nexusHp = _unitSpawner.SpawnedNexus.CurrentHp;
+
+            CaptureCharacters(data);
+            CaptureSquads(data);
+            CaptureTowers(data);
+            CaptureMonsters(data);
+            CaptureNeutrals(data);
+            CaptureFog(data);
+
+            return data;
+        }
+
+        void CaptureCharacters(SaveData data)
+        {
+            var all = FindObjectsByType<CharacterUnit>(FindObjectsSortMode.None);
+            SquadService squads = SquadService.Instance;
+
+            foreach (CharacterUnit unit in all)
+            {
+                if (unit == null) continue;
+
+                // 쓰러진 채 부활을 기다리는 캐릭터는 <b>살아있는 것으로</b> 담는다 —
+                // 없어진 게 아니라 잠깐 누워 있는 것이다(CharacterUnit.IsRevivePending 주석).
+                if (!unit.IsAlive && !unit.IsRevivePending) continue;
+
+                var save = new CharacterSave
+                {
+                    characterId = unit.Definition != null ? unit.Definition.characterId : 0,
+                    stats = unit.Stats,
+                    upgradeCount = unit.UpgradeCount,
+                    growthFocus = (int)unit.GrowthFocus,
+                    currentHp = Mathf.Max(1, unit.CurrentHp),
+                    position = unit.transform.position,
+                    squadId = squads != null ? squads.SquadIdOf(unit) : 0,
+                };
+
+                CharacterTactics tactics = unit.GetComponent<CharacterTactics>();
+                if (tactics != null) save.order = tactics.Order;
+
+                CharacterKills kills = CharacterKills.Of(unit);
+                if (kills != null)
+                {
+                    save.kills = kills.Kills;
+                    save.awakenings = kills.Awakenings;
+
+                    // 영웅 각성 보정은 <b>능력치에 안 들어 있다</b>(AddFlatStatBonus 는 상한 밖
+                    // 별도 칸이다) — 따로 담지 않으면 불러왔을 때 각성이 통째로 사라진다.
+                    // ⚠ StatType.COUNT 는 개수를 세는 표식이지 능력치가 아니다 — 빼고 돈다.
+                    for (int i = 0; i < (int)StatType.COUNT; i++)
+                    {
+                        int bonus = kills.AwakenBonus((StatType)i);
+                        if (bonus == 0) continue;
+                        save.awakenBonusStats.Add(i);
+                        save.awakenBonusAmounts.Add(bonus);
+                    }
+                }
+
+                CharacterErosion erosion = CharacterErosion.Of(unit);
+                if (erosion != null)
+                {
+                    save.erosion = erosion.Erosion;
+                    save.mentalErrorType = (int)erosion.ActiveType;
+                }
+
+                data.characters.Add(save);
+            }
+        }
+
+        void CaptureSquads(SaveData data)
+        {
+            SquadService service = SquadService.Instance;
+            if (service == null) return;
+
+            RallyPointService rally = RallyPointService.Instance;
+
+            foreach (SquadService.Squad squad in service.Squads)
+            {
+                if (squad == null) continue;
+
+                var save = new SquadSave
+                {
+                    id = squad.Id,
+                    name = squad.Name,
+                    coopExpedition = service.IsCoopExpedition(squad.Id),
+                };
+
+                RallyPointService.RallyPoint point = rally != null ? rally.FindBySquad(squad.Id) : null;
+                if (point != null)
+                {
+                    save.hasRallyPoint = true;
+                    save.rallyPoint = point.World;
+                }
+
+                data.squads.Add(save);
+            }
+        }
+
+        void CaptureTowers(SaveData data)
+        {
+            BuildService build = BuildService.Instance;
+            if (build == null) return;
+
+            foreach (TowerUnit tower in build.AliveTowers())
+            {
+                if (tower == null || !tower.IsAlive) continue;
+                data.towers.Add(new TowerSave
+                {
+                    minCell = tower.FootprintMinCell,
+                    currentHp = tower.CurrentHp,
+                });
+            }
+        }
+
+        void CaptureMonsters(SaveData data)
+        {
+            if (_monsterSpawner == null) return;
+
+            foreach (MonsterUnit monster in _monsterSpawner.Alive)
+            {
+                if (monster == null || !monster.IsAlive) continue;
+                if (monster.Definition == null) continue;
+
+                data.monsters.Add(new MonsterSave
+                {
+                    definitionName = monster.Definition.name,
+                    position = monster.transform.position,
+                    currentHp = monster.CurrentHp,
+                    stats = monster.Stats,
+                });
+            }
+        }
+
+        /// <summary>
+        /// 중립 몬스터 (유저 지시 2026-08-18 — "소환된 숫자와 서식지 위치는 유지").
+        /// 개체를 하나씩 담으므로 마리 수는 저절로 맞고, 서식지는 <b>중심 칸과 씨앗</b>만 담는다.
+        /// </summary>
+        void CaptureNeutrals(SaveData data)
+        {
+            if (_neutralSpawner == null) return;
+
+            foreach (NeutralMonsterUnit unit in _neutralSpawner.AliveAll())
+            {
+                if (unit == null || unit.Definition == null) continue;
+
+                var save = new NeutralSave
+                {
+                    monId = unit.Definition.monId,
+                    position = unit.transform.position,
+                    currentHp = unit.CurrentHp,
+                    homePosition = unit.transform.position,
+                };
+
+                // 에픽(서식지 모드)만 개체마다 "집"이 있다 — 지금 서 있는 자리는 쫓아 나간
+                // 도중일 수 있으므로 서식지 중심이 정본이다. 그 외 중립은 넥서스 고리 안을
+                // 도는 것이라 개체마다 기억할 집이 없다(태어난 자리를 그대로 쓴다).
+                var wander = unit.GetComponent<NeutralMonsterWander>();
+                if (wander != null && wander.IsHabitatMode) save.homePosition = wander.HabitatCenter;
+
+                var habitat = unit.GetComponent<NeutralHabitat>();
+                if (habitat != null && habitat.HasPainted)
+                {
+                    save.hasHabitat = true;
+                    save.habitatCell = habitat.CenterCell;
+                    save.habitatSeed = habitat.Seed;
+                }
+
+                data.neutrals.Add(save);
+            }
+        }
+
+        void CaptureFog(SaveData data)
+        {
+            if (_fog == null || !_fog.IsReady) return;
+
+            data.fogExplored = _fog.ExportExplored();
+            data.fogWidth = _fog.FogSize.x;
+            data.fogHeight = _fog.FogSize.y;
+        }
+
+        // ==================================================================
+        // 되돌리기
+        // ==================================================================
+
+        IEnumerator RestoreNextFrame()
+        {
+            // 다른 컴포넌트의 Start 가 전부 끝난 뒤에 손대야 한다 (클래스 doc 참조).
+            yield return null;
+
+            SaveData data = SaveService.PendingLoad;
+            SaveService.PendingLoad = null;
+            if (data == null) yield break;
+
+            _restoring = true;
+            try { Restore(data); }
+            finally { _restoring = false; }
+
+            HudLog.Add($"불러왔습니다 — 웨이브 {data.waveNumber} ({data.savedAt})", HudLogKind.Good);
+        }
+
+        void Restore(SaveData data)
+        {
+            RestoreSquads(data);        // 캐릭터를 배정하려면 부대가 먼저 있어야 한다
+            RestoreCharacters(data);
+            RestoreTowers(data);
+            RestoreMonsters(data);
+            RestoreNeutrals(data);
+
+            ResourceManager resources = ResourceManager.Instance;
+            if (resources != null) resources.RestoreEnergy(data.energy);
+
+            RestoreNexus(data);
+            RestoreFog(data);
+
+            // ★ 웨이브는 <b>맨 마지막</b>이다 — 단계를 Battle 로 바꾸는 순간
+            //   WaveManager 가 "몬스터가 다 죽었나"를 보기 시작하는데, 몬스터를 아직 안 만들었으면
+            //   그 프레임에 웨이브가 클리어된다.
+            if (_wave != null)
+                _wave.RestoreState(data.waveNumber, (WavePhase)data.wavePhase, data.phaseRemaining);
+        }
+
+        void RestoreSquads(SaveData data)
+        {
+            SquadService service = SquadService.Instance;
+            if (service == null) return;
+
+            service.ClearAllForRestore();
+
+            RallyPointService rally = RallyPointService.Instance;
+
+            foreach (SquadSave save in data.squads)
+            {
+                SquadService.Squad squad = service.CreateSquadWithId(save.id, save.name);
+                if (squad == null) continue;
+
+                service.SetCoopExpedition(squad.Id, save.coopExpedition);
+                if (save.hasRallyPoint && rally != null)
+                    rally.SetRallyPoint(save.rallyPoint, squad.Id);
+            }
+        }
+
+        void RestoreCharacters(SaveData data)
+        {
+            if (_unitSpawner == null) return;
+
+            _unitSpawner.DestroySpawnedCharactersForRestore();
+
+            SquadService squads = SquadService.Instance;
+
+            foreach (CharacterSave save in data.characters)
+            {
+                CharacterDefinitionSO def = CharacterDefinitionRegistry.ById(save.characterId);
+
+                CharacterUnit unit = _unitSpawner.SpawnRestored(def, save.stats,
+                                                                save.upgradeCount, save.position);
+                if (unit == null) continue;
+
+                unit.SetGrowthFocus((StatGrowthFocus)save.growthFocus);
+
+                CharacterTactics tactics = unit.GetComponent<CharacterTactics>();
+                if (tactics != null && save.order != null) tactics.SetOrder(save.order);
+
+                // 각성 보정을 먼저 되돌린다 — 체력 상한이 이 보정에 걸려 있어서(AddFlatStatBonus),
+                // 체력을 맞추기 전에 넣어야 최대 체력이 저장 당시와 같아진다.
+                CharacterKills kills = CharacterKills.EnsureOn(unit);
+                if (kills != null)
+                {
+                    kills.RestoreCounts(save.kills, save.awakenings);
+
+                    int pairs = Mathf.Min(save.awakenBonusStats.Count, save.awakenBonusAmounts.Count);
+                    for (int i = 0; i < pairs; i++)
+                    {
+                        var type = (StatType)save.awakenBonusStats[i];
+                        int amount = save.awakenBonusAmounts[i];
+                        unit.AddFlatStatBonus(type, amount);
+                        kills.RecordAwakenBonus(type, amount);
+                    }
+                }
+
+                CharacterErosion erosion = CharacterErosion.EnsureOn(unit);
+                if (erosion != null) erosion.RestoreErosion(save.erosion);
+
+                if (squads != null && save.squadId != 0) squads.Assign(unit, save.squadId);
+
+                // 체력은 최대치로 태어난 뒤 저장된 값까지 깎는다 — 포탑 복원과 같은 이유로
+                // 피해 파이프라인 밖에 체력 대입 통로를 만들지 않는다.
+                int target = Mathf.Clamp(save.currentHp, 1, unit.MaxHp);
+                if (target < unit.CurrentHp) unit.ApplyDamage(unit.CurrentHp - target);
+            }
+        }
+
+        void RestoreTowers(SaveData data)
+        {
+            BuildService build = BuildService.Instance;
+            if (build == null) return;
+
+            foreach (TowerSave save in data.towers)
+                build.RestoreTower(save.minCell, save.currentHp);
+        }
+
+        void RestoreMonsters(SaveData data)
+        {
+            if (_monsterSpawner == null) return;
+
+            _monsterSpawner.ClearAll();
+
+            foreach (MonsterSave save in data.monsters)
+            {
+                MonsterUnit unit = _monsterSpawner.RestoreMonster(
+                    save.definitionName, save.position, save.stats);
+                if (unit == null) continue;
+
+                int target = Mathf.Clamp(save.currentHp, 1, unit.MaxHp);
+                if (target < unit.CurrentHp) unit.ApplyDamage(unit.CurrentHp - target);
+            }
+        }
+
+        void RestoreNeutrals(SaveData data)
+        {
+            if (_neutralSpawner == null) return;
+
+            // ⚠⚠ 서식지를 <b>즉시</b> 되돌린 뒤에 지운다 — 그냥 파괴하면 사라지는 연출이
+            //    7.5초 동안 돌면서 <b>방금 새로 그린 서식지를 뒤에서 지워 나간다</b>
+            //    (같은 중심·같은 씨앗이라 칸이 정확히 겹친다). ClearAllForRestore 주석 참조.
+            _neutralSpawner.ClearAllForRestore();
+
+            foreach (NeutralSave save in data.neutrals)
+            {
+                NeutralMonsterUnit unit = _neutralSpawner.RestoreNeutral(
+                    save.monId, save.position, save.homePosition,
+                    save.hasHabitat, save.habitatCell, save.habitatSeed);
+                if (unit == null) continue;
+
+                int target = Mathf.Clamp(save.currentHp, 1, unit.MaxHp);
+                if (target < unit.CurrentHp) unit.ApplyDamage(unit.CurrentHp - target);
+            }
+        }
+
+        void RestoreNexus(SaveData data)
+        {
+            if (_unitSpawner == null || _unitSpawner.SpawnedNexus == null) return;
+            if (data.nexusHp <= 0) return;
+
+            Nexus nexus = _unitSpawner.SpawnedNexus;
+            int target = Mathf.Clamp(data.nexusHp, 1, nexus.MaxHp);
+            if (target < nexus.CurrentHp) nexus.ApplyDamage(nexus.CurrentHp - target);
+        }
+
+        void RestoreFog(SaveData data)
+        {
+            if (_fog == null || !_fog.IsReady) return;
+            _fog.ImportExplored(data.fogExplored, data.fogWidth, data.fogHeight);
+        }
+    }
+}

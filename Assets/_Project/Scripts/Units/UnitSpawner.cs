@@ -263,6 +263,69 @@ namespace LastSanctuary.Units
             return unit;
         }
 
+        // ==================================================================
+        // 저장 복원 (2026-08-18 신설 — 98절)
+        // ==================================================================
+
+        /// <summary>
+        /// 지금 있는 캐릭터를 전부 없앤다. 복원은 <b>기본 생성이 끝난 뒤에</b> 덮어쓰는 방식이라
+        /// (<c>GameSnapshot.Restore</c> 주석 참조) 먼저 판을 비워야 한다.
+        ///
+        /// ⚠ <see cref="Clear"/> 와 달리 <b>넥서스는 건드리지 않는다</b> — 넥서스를 다시 만들면
+        /// 그것을 참조하는 것들(플로우 필드 목적지 · 집결지 기준점 · 카메라 초기 위치)이
+        /// 전부 옛 오브젝트를 가리킨 채로 남는다. 넥서스는 체력만 되돌린다.
+        /// </summary>
+        public void DestroySpawnedCharactersForRestore()
+        {
+            for (int i = SpawnedCharacters.Count - 1; i >= 0; i--)
+            {
+                CharacterUnit unit = SpawnedCharacters[i];
+                if (unit != null) Destroy(unit.gameObject);
+            }
+            SpawnedCharacters.Clear();
+        }
+
+        /// <summary>
+        /// 저장된 캐릭터 한 명을 <b>그 자리에 그 능력치로</b> 되살린다.
+        ///
+        /// <see cref="SpawnOneCharacter"/> 와 갈라 둔 이유 — 그쪽은 "누가 나올지"와 "어디 설지"를
+        /// <b>난수로 정하는</b> 것이 일이고, 복원은 그 둘이 이미 정해져 있다. 같은 함수에
+        /// 인자를 붙여 갈래를 만들면 난수열이 소비되어 <b>같은 시드 = 같은 결과</b>가 깨진다.
+        /// </summary>
+        public CharacterUnit SpawnRestored(CharacterDefinitionSO def, StatBlock stats,
+                                           int upgrades, Vector3 worldPos)
+        {
+            if (!Validate()) return null;
+
+            if (_unitsRoot == null)
+            {
+                _unitsRoot = new GameObject("Units").transform;
+                _unitsRoot.SetParent(transform, false);
+            }
+
+            CharacterUnit unit = Instantiate(characterTemplate, worldPos,
+                                             Quaternion.identity, _unitsRoot);
+            unit.name = $"Character_{SpawnedCharacters.Count + 1}";
+            unit.gameObject.SetActive(true);
+
+            if (def != null)
+            {
+                // ★ 정의로 먼저 만든 뒤 <b>저장된 능력치로 덮어쓴다</b> — InitializeFrom 은
+                //   정의의 <b>기본</b> 능력치를 넣기 때문에, 강화로 오른 값이 그대로 사라진다.
+                unit.InitializeFrom(def, balance);
+                unit.Initialize(stats, balance, upgrades);
+                CharacterDefinitionRegistry.MarkAppeared(def.characterId);
+            }
+            else
+            {
+                unit.Initialize(stats, balance, upgrades);
+            }
+
+            SpawnedCharacters.Add(unit);
+            OnCharacterSpawned?.Invoke(unit);
+            return unit;
+        }
+
         /// <summary>넥서스 주위를 균등하게 둘러싸는 위치를 고르고, 막혀 있으면 근처 빈 칸을 찾는다.</summary>
         Vector3Int PickCharacterCell(Vector3Int centerCell, int index, int ringDivisor,
                                      HashSet<Vector3Int> used)

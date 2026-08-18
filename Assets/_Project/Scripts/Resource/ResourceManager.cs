@@ -75,6 +75,21 @@ namespace LastSanctuary.Resource
             OnEnergyChanged?.Invoke(amount, _energy);
         }
 
+        /// <summary>
+        /// 총량을 <b>그 값으로 만든다</b> (저장 복원 전용 — 98절).
+        /// <see cref="AddEnergy"/>·<see cref="TrySpend"/> 는 "얼마를 더하고 뺀다"는 게임 규칙이고,
+        /// 복원은 "그 때 그 값이었다"를 재현하는 것이라 규칙을 타면 안 된다
+        /// (음수 지급이나 잔액 부족 판정에 걸려 값이 달라진다).
+        /// </summary>
+        public void RestoreEnergy(int amount)
+        {
+            int next = Mathf.Max(0, amount);
+            int delta = next - _energy;
+            _energy = next;
+            if (logChanges) Debug.Log($"[Resource] 에너지 복원 → 총 {_energy}");
+            OnEnergyChanged?.Invoke(delta, _energy);
+        }
+
         /// <summary>보유량이 충분한지. 소비 전에 버튼 활성화 여부를 판단할 때 쓴다.</summary>
         public bool CanAfford(int amount) => amount <= 0 || _energy >= amount;
 

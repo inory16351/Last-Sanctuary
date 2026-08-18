@@ -225,6 +225,30 @@ namespace LastSanctuary.Wave
             BeginPreparation();
         }
 
+        /// <summary>
+        /// 저장된 웨이브 상태를 그대로 되돌린다 (98절 — 저장 복원 전용).
+        ///
+        /// <b>왜 <see cref="StartGame"/> 을 안 쓰는가</b> — 그쪽은 "첫 웨이브를 시작한다"는 게임
+        /// 규칙이라 항상 <see cref="WavePhase.Preparation"/> 부터 돈다. 복원은 <b>전투 도중</b>일 수도
+        /// 있고(자동 저장이 캐릭터 사망 시점에도 걸린다), 그때 준비 단계로 되돌리면
+        /// 죽은 웨이브를 처음부터 다시 하게 되어 자동 저장이 되돌리기 수단이 된다.
+        ///
+        /// ⚠ 몬스터는 <see cref="MonsterSpawner"/> 가 따로 복원한다 — 여기서는 단계와 시계만 맞춘다.
+        /// 전투 단계로 복원했는데 몬스터가 하나도 없으면 <see cref="AllMonstersCleared"/> 가
+        /// 곧바로 참이 되어 그 프레임에 웨이브가 끝난다(그것이 옳은 동작이다).
+        /// </summary>
+        public void RestoreState(int waveNumber, WavePhase phase, float remaining)
+        {
+            _waveNumber = Mathf.Max(1, waveNumber);
+            _defeatReason = DefeatReason.None;
+            _enrageElapsed = 0f;
+
+            _remaining = Mathf.Max(0f, remaining);
+            _phaseDuration = _remaining > 0f ? _remaining : 0f;
+
+            SetPhase(phase, $"저장 복원 — 웨이브 {_waveNumber} · {phase} · 남은 {_remaining:0.#}초");
+        }
+
         /// <summary>현재 타이머를 즉시 끝낸다 (밸런싱 테스트용).</summary>
         [ContextMenu("현재 단계 건너뛰기")]
         public void SkipPhase()

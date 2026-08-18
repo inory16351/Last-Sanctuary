@@ -100,6 +100,21 @@ namespace LastSanctuary.Combat
             awakenBonus[(int)type] += amount;
         }
 
+        /// <summary>
+        /// 저장에서 처치 수·각성 횟수를 되돌린다 (98절).
+        /// <see cref="AddKill"/>·<see cref="RegisterAwakening"/> 는 "하나 늘린다"는 게임 규칙이고,
+        /// 복원은 "그때 그 값이었다"를 재현하는 것이라 규칙을 타면 안 된다.
+        ///
+        /// ⚠ 각성으로 오른 <b>능력치</b>는 여기서 되돌리지 않는다 —
+        /// <see cref="CharacterUnit.AddFlatStatBonus"/> 로 실제 보정을 걸고
+        /// <see cref="RecordAwakenBonus"/> 로 장부를 채우는 것은 부르는 쪽 책임이다.
+        /// </summary>
+        public void RestoreCounts(int killCount, int awakenCount)
+        {
+            kills = Mathf.Max(0, killCount);
+            awakenings = Mathf.Max(0, awakenCount);
+        }
+
         /// <summary>각성으로 영구히 오른 양. 각성한 적이 없으면 0.</summary>
         public int AwakenBonus(StatType type)
         {

@@ -75,6 +75,13 @@ namespace LastSanctuary.Units
         readonly Dictionary<NeutralMonsterDefinitionSO, List<NeutralMonsterUnit>> _alive =
             new Dictionary<NeutralMonsterDefinitionSO, List<NeutralMonsterUnit>>();
 
+        /// <summary>
+        /// 다음에 매길 <see cref="NeutralMonsterUnit.SpawnId"/>. 0 은 "아직 안 매김"의 뜻으로
+        /// 남겨두고 <b>1부터</b> 매긴다 — 복원 때 <c>save.spawnId == 0</c> 이면 구버전 세이브
+        /// (99-9절 직후, 아직 이 번호가 없던 시절)로 알아보기 위한 여지다.
+        /// </summary>
+        int _nextSpawnId = 1;
+
         void Start()
         {
             _rng = new System.Random(seed);
@@ -373,6 +380,24 @@ namespace LastSanctuary.Units
 
             NeutralMonsterUnit unit = Instantiate(template, pos, Quaternion.identity, _root);
 
+            // 서식지 씨앗은 <b>여기서 뽑는다</b> — 스포너의 난수는 게임을 켤 때 새로 시작하므로
+            // 같은 자리에 소환돼도 모양이 달라진다(유저 지시 2026-08-15). 저장 복원은 이 값을
+            // 그대로 되돌려 주므로 <b>불러온 판에서는 모양이 안 바뀐다</b>.
+            ConfigureSpawnedNeutral(unit, entry, pos, cell, minDist, maxDist, _rng.Next());
+        }
+
+        /// <summary>
+        /// 복제된 중립 몬스터에 능력치·AI·외형·무리·배회·서식지를 주입하고 살아있는 목록에 넣는다.
+        ///
+        /// <b>왜 갈라 뒀나</b> — 저장 복원(<see cref="RestoreNeutral"/>)이 <b>똑같은 준비</b>를
+        /// 해야 하는데 다른 점은 "어디서 나오고 어떤 씨앗을 쓰는가" 뿐이다. 같은 준비를 두 벌
+        /// 적으면 표 컬럼이 하나 늘 때마다 한쪽을 반드시 빠뜨린다(준수사항 §10 H-3).
+        /// <see cref="MonsterSpawner.ConfigureSpawnedMonster"/> 가 같은 이유로 같은 모양이다.
+        /// </summary>
+        void ConfigureSpawnedNeutral(NeutralMonsterUnit unit, NeutralSpawnEntry entry,
+                                     Vector3 pos, Vector3Int cell,
+                                     float minDist, float maxDist, int habitatSeed)
+        {
             // 이름에 <b>일련번호를 붙이지 않는다</b> (유저 지시 2026-08-15: "동일 개체면 다
             // 해당 개체 이름으로 나오게"). 웨이브 몬스터가 2026-08-13 에 이미 같은 규칙으로
             // 바뀌었는데(<see cref="MonsterSpawner"/> 의 <c>unit.name = def.DisplayName</c>)
@@ -440,7 +465,7 @@ namespace LastSanctuary.Units
                                    entry.definition.habitatRadiusTiles,
                                    entry.definition.habitatChaseTiles,
                                    entry.definition.habitatIdleSlackTiles);
-                PaintHabitat(unit, entry.definition, cell);
+                PaintHabitat(unit, entry.definition, cell, habitatSeed);
 
                 // ★ 스킬 — 표(mon_skill_1·2)에 값이 있는 종만 캐스터를 붙인다
                 //   (유저 지시 2026-08-15: "에픽 몬스터 스킬 구현(카르시노스)").
@@ -458,6 +483,141 @@ namespace LastSanctuary.Units
             }
 
             PruneAndGet(entry.definition).Add(unit);
+        }
+
+        // ==================================================================
+        // 저장 복원 (2026-08-18 신설 — 99절, 유저 지시
+        //   <i>"중립 몬스터의 소환된 숫자와 서식지 위치는 유지하는 로직으로 만들어줘"</i>)
+        //
+        // ★ <b>서식지는 칸을 저장하지 않는다.</b> 모양이 (중심 칸 · 반지름 · 씨앗) 셋으로
+        //   완전히 결정되므로(<see cref="NeutralHabitat"/>), 그 셋만 되돌리면 수천 칸이
+        //   같은 모양으로 다시 그려진다. 반지름은 표에 있으니 실제로 저장할 것은 <b>둘</b>이다.
+        //
+        // ★ <b>개체를 하나씩 저장하므로 "소환된 숫자"가 저절로 유지된다.</b> 마리 수를 따로
+        //   세어 저장하고 복원 때 그만큼 새로 뽑는 방법도 있지만, 그러면 <b>있던 자리가 아니라
+        //   아무 데나</b> 다시 태어난다 — 유저가 같이 요구한 "서식지 위치 유지"와 어긋난다.
+        // ==================================================================
+
+        /// <summary>살아있는 중립 전부. 저장할 때 훑는다.</summary>
+        public IEnumerable<NeutralMonsterUnit> AliveAll()
+        {
+            foreach (var pair in _alive)
+            {
+                List<NeutralMonsterUnit> list = pair.Value;
+                for (int i = 0; i < list.Count; i++)
+                {
+                    NeutralMonsterUnit unit = list[i];
+                    if (unit != null && unit.IsAlive) yield return unit;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 지금 있는 중립을 전부 없앤다 (복원 직전에 판을 비우는 용도).
+        ///
+        /// ★★ <b>파괴하기 전에 서식지를 반드시 <see cref="NeutralHabitat.Restore"/> 로
+        /// 즉시 되돌려야 한다.</b> 안 그러면 <b>새로 그린 서식지가 7.5초에 걸쳐 지워진다.</b>
+        ///
+        /// 이유 — <see cref="NeutralHabitat.OnDestroy"/> 는 <b>페이드아웃 연출</b>을 시작한다
+        /// (96-3절, "저그 점막이 걷히듯"). 그 연출은 몬스터가 죽는 즉시 파괴되는 탓에
+        /// <see cref="HabitatFadeOut"/> 이라는 <b>독립 오브젝트</b>가 이어받아
+        /// <c>fadeSpreadSeconds(6) + fadeCellSeconds(1.5)</c> = <b>7.5초 동안</b> 칸을 하나씩
+        /// 훑으며 <b>원래(서식지 이전) 타일로 되돌린다.</b>
+        ///
+        /// 그런데 복원은 <b>같은 중심 · 같은 씨앗</b>으로 새 서식지를 <b>곧바로</b> 그린다 —
+        /// 즉 <b>정확히 같은 칸</b>이다. 그래서 그 7.5초 동안 연출이 <b>방금 그린 서식지를
+        /// 뒤에서 지워 나간다.</b> 불러오면 서식지가 보였다가 스르르 사라지고 에픽이 맨땅에 선다.
+        ///
+        /// <see cref="NeutralHabitat.Restore"/> 는 <b>동기적으로</b> 되돌리고 칸 목록을 <b>비운다</b>.
+        /// 목록이 비면 뒤이어 도는 <c>OnDestroy</c> 의 <see cref="HabitatFadeOut.Begin"/> 이
+        /// "되돌릴 칸이 없다"로 즉시 빠져나가므로(그 함수 첫 줄의 <c>anything</c> 검사),
+        /// <b>나중에 끼어들 기록자가 아예 안 생긴다.</b>
+        ///
+        /// ⚠ 이것이 <b>미결 230번</b>("페이드 중에 같은 자리에 새 서식지가 그려지면 겹친다")이
+        /// 실제로 터지는 경로다 — 그 절은 카르시노스 재생성이 600초라 안 부딪힌다고 봤지만,
+        /// <b>저장 복원은 0초 만에 같은 자리에 다시 그린다.</b>
+        /// </summary>
+        public void ClearAllForRestore()
+        {
+            foreach (var pair in _alive)
+            {
+                List<NeutralMonsterUnit> list = pair.Value;
+                for (int i = 0; i < list.Count; i++)
+                {
+                    NeutralMonsterUnit unit = list[i];
+                    if (unit == null) continue;
+
+                    var habitat = unit.GetComponent<NeutralHabitat>();
+                    if (habitat != null) habitat.Restore();
+
+                    Destroy(unit.gameObject);
+                }
+                list.Clear();
+            }
+        }
+
+        /// <summary>
+        /// 저장된 중립 한 마리를 <b>그 자리에 그 서식지로</b> 되살린다.
+        /// 정의는 표의 <c>monId</c> 로 찾는다 — 웨이브 몬스터와 달리 중립 정의에는 id 칸이 있다.
+        /// </summary>
+        /// <returns>되살린 개체. 정의나 템플릿을 못 찾으면 null.</returns>
+        public NeutralMonsterUnit RestoreNeutral(int monId, Vector3 worldPos, Vector3 homePos,
+                                                 bool hasHabitat, Vector3Int habitatCell,
+                                                 int habitatSeed)
+        {
+            if (!TryFindEntry(monId, out NeutralSpawnEntry entry))
+            {
+                Debug.LogWarning($"[NeutralMonsterSpawner] 저장된 중립 id {monId} 의 정의를 " +
+                                 "스폰 표에서 찾지 못했습니다 — 이 마리는 복원하지 않습니다.", this);
+                return null;
+            }
+
+            NeutralMonsterUnit template =
+                entry.template != null ? entry.template : entry.definition.template;
+            if (template == null) return null;
+
+            if (_root == null)
+            {
+                _root = new GameObject("NeutralMonsters").transform;
+                _root.SetParent(transform, false);
+            }
+
+            NeutralMonsterUnit unit = Instantiate(template, worldPos, Quaternion.identity, _root);
+
+            // ★ 서식지 중심은 <b>지금 서 있는 자리가 아니라 저장된 중심</b>이다 — 에픽은 맞으면
+            //   서식지 밖까지 쫓아 나가므로, 저장된 순간 자리를 중심으로 삼으면 서식지가
+            //   불러올 때마다 조금씩 밀려난다.
+            Vector3Int cell = hasHabitat
+                ? habitatCell
+                : (mapGenerator != null ? mapGenerator.WorldToCell(worldPos) : Vector3Int.zero);
+
+            ConfigureSpawnedNeutral(unit, entry, homePos, cell,
+                                    entry.definition.MinDistanceFromNexus,
+                                    entry.definition.MaxDistanceFromNexus,
+                                    habitatSeed);
+
+            // ⚠ ConfigureSpawnedNeutral 은 <b>배회 기준점</b>을 잡으려고 homePos 를 받았다.
+            //   실제 서 있어야 할 자리는 저장된 위치이므로 마지막에 옮긴다.
+            unit.transform.position = worldPos;
+
+            return unit;
+        }
+
+        /// <summary>표의 <c>monId</c> 로 스폰 표의 줄을 찾는다.</summary>
+        bool TryFindEntry(int monId, out NeutralSpawnEntry entry)
+        {
+            if (spawnTable != null)
+            {
+                foreach (NeutralSpawnEntry e in spawnTable)
+                {
+                    if (e.definition == null || e.definition.monId != monId) continue;
+                    entry = e;
+                    return true;
+                }
+            }
+
+            entry = default;
+            return false;
         }
 
         // ------------------------------------------------------------------
@@ -482,7 +642,8 @@ namespace LastSanctuary.Units
         readonly Dictionary<string, UnityEngine.Tilemaps.TileBase[]> _habitatTiles =
             new Dictionary<string, UnityEngine.Tilemaps.TileBase[]>();
 
-        void PaintHabitat(NeutralMonsterUnit unit, NeutralMonsterDefinitionSO def, Vector3Int cell)
+        void PaintHabitat(NeutralMonsterUnit unit, NeutralMonsterDefinitionSO def, Vector3Int cell,
+                          int seed)
         {
             if (mapGenerator == null) return;
 
@@ -497,8 +658,10 @@ namespace LastSanctuary.Units
             var habitat = unit.gameObject.GetComponent<NeutralHabitat>();
             if (habitat == null) habitat = unit.gameObject.AddComponent<NeutralHabitat>();
 
+            // ⚠ 씨앗을 <b>여기서 뽑지 않는다</b> — 부르는 쪽이 준다. 저장 복원이 같은 씨앗을
+            //   넘겨 같은 모양을 다시 그려야 하기 때문이다(NeutralHabitat._seed 주석).
             habitat.Paint(mapGenerator, ground, edge, props, cell,
-                          def.habitatRadiusTiles, _rng.Next());
+                          def.habitatRadiusTiles, seed);
 
             if (logHabitat)
                 Debug.Log($"[NeutralMonsterSpawner] {def.DisplayName} 서식지 " +

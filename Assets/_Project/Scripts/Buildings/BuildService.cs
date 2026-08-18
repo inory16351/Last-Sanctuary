@@ -554,6 +554,70 @@ namespace LastSanctuary.Buildings
             return tower;
         }
 
+        // ==================================================================
+        // 저장 복원 (2026-08-18 신설 — 98절)
+        // ==================================================================
+
+        /// <summary>
+        /// 저장된 <b>완성된 포탑</b> 하나를 되살린다.
+        ///
+        /// ⚠ <b>건설 중이던 자리는 저장하지도 복원하지도 않는다</b> — 진행도가 캐릭터의 작업 배정
+        /// (<see cref="AssignedSiteFor"/>)과 얽혀 있어 되살리면 배정이 어긋난 채로 남는다.
+        /// 저장 시점에 짓고 있던 포탑은 <b>취소된 것</b>으로 다룬다(자원은 이미 나갔지만,
+        /// 자동 저장이 웨이브 클리어·강화·사망 시점이라 건설 도중일 확률이 낮다).
+        ///
+        /// <b>건설 횟수(<see cref="_builtCount"/>)도 같이 올린다</b> — 이 값이 다음 건설 비용과
+        /// 개수 상한을 정하므로(<see cref="CurrentCost"/>·<see cref="AtLimit"/>), 안 올리면
+        /// 불러온 판에서 포탑을 <b>처음 값으로 다시</b> 지을 수 있다.
+        /// </summary>
+        public TowerUnit RestoreTower(Vector3Int minCell, int currentHp)
+        {
+            if (turretDefinition == null)
+            {
+                Debug.LogWarning("[Build] 포탑 정의가 없어 저장된 포탑을 복원하지 못했습니다.", this);
+                return null;
+            }
+
+            if (towerTemplate == null) towerTemplate = FindTemplate();
+            if (towerTemplate == null)
+            {
+                Debug.LogError("[Build] 포탑 템플릿이 없어 저장된 포탑을 복원하지 못했습니다.", this);
+                return null;
+            }
+
+            if (_map == null) _map = FindAnyObjectByType<MapGenerator>();
+
+            if (_towerRoot == null)
+            {
+                _towerRoot = new GameObject("Towers").transform;
+                _towerRoot.SetParent(transform, false);
+            }
+
+            Vector3 center = _map != null
+                ? _map.FootprintCenterWorld(minCell, FootprintSize)
+                : new Vector3(minCell.x + FootprintSize * 0.5f, minCell.y + FootprintSize * 0.5f, 0f);
+
+            TowerUnit tower = Instantiate(towerTemplate, center, Quaternion.identity, _towerRoot);
+            tower.name = $"{turretDefinition.DisplayName}_{_builtCount + 1}";
+            tower.gameObject.SetActive(true);
+            tower.Initialize(turretDefinition, minCell, balance);
+
+            _builtCount++;
+
+            // 체력은 최대치로 세워진 뒤 저장된 값까지 깎는다 — 체력을 직접 넣는 통로가 없고,
+            // 만들 이유도 없다(피해 파이프라인이 유일한 감소 경로여야 규칙이 한 곳에 남는다).
+            int target = Mathf.Clamp(currentHp, 1, tower.MaxHp);
+            if (target < tower.CurrentHp) tower.ApplyDamage(tower.CurrentHp - target);
+
+            return tower;
+        }
+
+        /// <summary>지금 세워져 있는 포탑 전부. 저장할 때 훑는다.</summary>
+        public TowerUnit[] AliveTowers() =>
+            _towerRoot == null
+                ? System.Array.Empty<TowerUnit>()
+                : _towerRoot.GetComponentsInChildren<TowerUnit>(includeInactive: false);
+
         // ------------------------------------------------------------------
         // 오버레이 — 예정지 사각형 + 미리보기
         // ------------------------------------------------------------------

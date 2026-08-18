@@ -36,6 +36,10 @@ namespace LastSanctuary.UI
         [SerializeField] TMP_Text subjugateLabel;
         [SerializeField] Image subjugateBackground;
 
+        [SerializeField] Button settingsButton;
+        [SerializeField] TMP_Text settingsLabel;
+        [SerializeField] Image settingsBackground;
+
         [Header("문구")]
         [SerializeField] string createFormat = "캐릭터 생성 {0}";
         [SerializeField] string createAtLimit = "인원 상한";
@@ -48,6 +52,8 @@ namespace LastSanctuary.UI
         [Tooltip("{0} = 발견한 에픽 몬스터 수. 0 이면 아래 subjugateNone 을 쓴다")]
         [SerializeField] string subjugateFound = "토벌 지시 ({0})";
         [SerializeField] string subjugateNone = "토벌 지시";
+        [SerializeField] string settingsIdle = "환경 설정";
+        [SerializeField] string settingsOpen = "환경 설정 닫기";
 
         [Header("색")]
         [SerializeField] Color buttonNormal = new Color(0.13f, 0.17f, 0.22f, 0.95f);
@@ -65,12 +71,16 @@ namespace LastSanctuary.UI
         /// <summary>토벌 지시 창(2026-08-15 신설). 위 둘과 같은 이유로 비활성 포함 조회.</summary>
         SubjugationPanel _subjugationPanel;
 
+        /// <summary>환경 설정 창(2026-08-18 신설). 위 셋과 같은 이유로 비활성 포함 조회.</summary>
+        SettingsPanel _settingsPanel;
+
         // 마지막으로 화면에 반영한 값. 바뀔 때만 갱신한다.
         int _shownCost = int.MinValue;
         bool _shownCanCreate;
         bool _shownTacticsOpen;
         int _shownSquadState = int.MinValue;
         int _shownSubjugateState = int.MinValue;
+        int _shownSettingsState = int.MinValue;
 
         void Start()
         {
@@ -81,6 +91,7 @@ namespace LastSanctuary.UI
             _tacticsPanel = FindAnyObjectByType<TacticalOrderPanel>(FindObjectsInactive.Include);
             _squadPanel = FindAnyObjectByType<SquadPanel>(FindObjectsInactive.Include);
             _subjugationPanel = FindAnyObjectByType<SubjugationPanel>(FindObjectsInactive.Include);
+            _settingsPanel = FindAnyObjectByType<SettingsPanel>(FindObjectsInactive.Include);
 
             // MCP 로는 씬 오브젝트 참조를 인스펙터에 넣을 수 없어서(진행상황 8절 4번),
             // 비어 있으면 이름으로 찾는다.
@@ -88,16 +99,19 @@ namespace LastSanctuary.UI
             Resolve("Buttons/TacticsButton", ref tacticsButton, ref tacticsBackground, ref tacticsLabel);
             Resolve("Buttons/SquadButton", ref squadButton, ref squadBackground, ref squadLabel);
             Resolve("Buttons/SubjugateButton", ref subjugateButton, ref subjugateBackground, ref subjugateLabel);
+            Resolve("Buttons/SettingsButton", ref settingsButton, ref settingsBackground, ref settingsLabel);
 
             // 창들은 "닫힌 채로 시작"이 규칙이다. 창 스스로 Awake 에서 닫으면
             // <b>열리는 순간 닫히는</b> 버그가 되므로(UnitPortraitPanel.Awake 주석),
             // 항상 살아 있는 이쪽에서 한 번 확인해 닫는다.
             if (_subjugationPanel != null && _subjugationPanel.IsOpen) _subjugationPanel.Close();
+            if (_settingsPanel != null && _settingsPanel.IsOpen) _settingsPanel.Close();
 
             if (createButton != null) createButton.onClick.AddListener(HandleCreate);
             if (tacticsButton != null) tacticsButton.onClick.AddListener(HandleTactics);
             if (squadButton != null) squadButton.onClick.AddListener(HandleSquad);
             if (subjugateButton != null) subjugateButton.onClick.AddListener(HandleSubjugate);
+            if (settingsButton != null) settingsButton.onClick.AddListener(HandleSettings);
 
             if (_creation == null)
                 Debug.LogWarning("[Actions] CharacterCreationService 를 찾지 못했습니다. " +
@@ -180,12 +194,46 @@ namespace LastSanctuary.UI
             Refresh(force: true);
         }
 
+        /// <summary>
+        /// 환경 설정 창을 연다/닫는다. 부대·토벌과 같은 이유로 <b>집결지 지정 중이면 먼저 취소</b>한다.
+        /// </summary>
+        void HandleSettings()
+        {
+            if (_settingsPanel == null)
+                _settingsPanel = FindAnyObjectByType<SettingsPanel>(FindObjectsInactive.Include);
+
+            var rally = RallyPointService.Instance;
+            if (rally != null && rally.IsPicking) rally.CancelPicking();
+
+            _settingsPanel?.Toggle();
+            Refresh(force: true);
+        }
+
         void Refresh(bool force)
         {
             RefreshCreate(force);
             RefreshTactics(force);
             RefreshSquad(force);
             RefreshSubjugate(force);
+            RefreshSettings(force);
+        }
+
+        /// <summary>환경 설정 버튼 — 열림 여부만 보여준다(다른 창들과 같은 구조).</summary>
+        void RefreshSettings(bool force)
+        {
+            if (settingsButton == null) return;
+
+            bool open = _settingsPanel != null && _settingsPanel.IsOpen;
+            int state = open ? 1 : 0;
+            if (!force && state == _shownSettingsState) return;
+            _shownSettingsState = state;
+
+            settingsButton.interactable = _settingsPanel != null;
+            if (settingsBackground != null)
+                settingsBackground.color = _settingsPanel == null ? buttonOff
+                                         : (open ? buttonOn : buttonNormal);
+            if (settingsLabel != null)
+                settingsLabel.text = open ? settingsOpen : settingsIdle;
         }
 
         /// <summary>

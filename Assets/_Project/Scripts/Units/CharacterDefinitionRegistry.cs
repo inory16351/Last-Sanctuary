@@ -86,6 +86,32 @@ namespace LastSanctuary.Units
             return picked;
         }
 
+        /// <summary>
+        /// id 로 정의를 찾는다 (저장 복원 전용 — 98절). 저장 파일은 <b>에셋 이름이 아니라 id</b> 를
+        /// 적는다 — 파일명은 언제든 바뀌지만 id 는 캐릭터 테이블이 정한 정본이기 때문이다.
+        /// </summary>
+        public static CharacterDefinitionSO ById(int characterId)
+        {
+            if (characterId == 0) return null;
+
+            var all = All;
+            for (int i = 0; i < all.Length; i++)
+                if (all[i].characterId == characterId) return all[i];
+
+            Debug.LogWarning($"[Character] 저장된 캐릭터 id {characterId} 의 정의를 찾지 못했습니다. " +
+                             "능력치만 복원합니다.");
+            return null;
+        }
+
+        /// <summary>
+        /// 복원한 캐릭터를 "이미 등장했다"로 표시한다. <see cref="preventReappearance"/> 를 켰을 때
+        /// 불러온 캐릭터가 <b>다시 뽑히는 것</b>을 막는다 — 표시하지 않으면 같은 인물이 두 명 생긴다.
+        /// </summary>
+        public static void MarkAppeared(int characterId)
+        {
+            if (characterId != 0) _spawned.Add(characterId);
+        }
+
         /// <summary>이 판에 이미 등장했는가 (사망자 포함).</summary>
         public static bool HasAppeared(int characterId) => _spawned.Contains(characterId);
 

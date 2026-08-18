@@ -107,6 +107,24 @@ namespace LastSanctuary.Units
         /// <summary>서식지 중심 칸. 연출이 "먼 곳부터" 를 재는 기준점이다.</summary>
         Vector3Int _centerCell;
 
+        /// <summary>
+        /// 이 서식지 모양을 만든 씨앗 (98·99절 — 저장 복원용).
+        ///
+        /// ★ 서식지는 <b>(중심 칸 · 반지름 · 씨앗) 셋으로 완전히 결정된다</b>(<see cref="BuildMask"/>).
+        /// 그래서 저장할 것은 <b>그려진 칸 수천 개가 아니라 이 세 값</b>이면 충분하다 —
+        /// 불러올 때 같은 값으로 다시 그리면 <b>같은 모양</b>이 나온다.
+        /// </summary>
+        int _seed;
+
+        /// <summary>서식지 중심 칸. 저장할 때 읽는다.</summary>
+        public Vector3Int CenterCell => _centerCell;
+
+        /// <summary>이 모양을 만든 씨앗. 저장할 때 읽는다.</summary>
+        public int Seed => _seed;
+
+        /// <summary>서식지가 실제로 그려져 있는가.</summary>
+        public bool HasPainted => _paintedGround.Count > 0;
+
         /// <summary>지금 이 서식지가 차지한 칸 수. 로그·디버그용.</summary>
         public int PaintedCells => _paintedGround.Count;
 
@@ -135,6 +153,7 @@ namespace LastSanctuary.Units
             if (_ground == null) return;
 
             _centerCell = centerCell;      // 사라지는 연출이 "먼 곳부터" 를 재는 기준점
+            _seed = seed;                  // 저장 복원이 같은 모양을 다시 그리는 근거
 
             bool[] mask = BuildMask(centerCell, radiusTiles, seed, out int w, out int h,
                                     out Vector3Int min);

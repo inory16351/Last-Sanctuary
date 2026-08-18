@@ -598,8 +598,21 @@ namespace LastSanctuary.Units
             unit.name = def.DisplayName;
             unit.gameObject.SetActive(true);
 
-            StatBlock scaled = def.BuildStats(hpScale, atkScale);   // ★ 상한 없음 (2026-08-18)
-            unit.Initialize(def, scaled, balance);
+            // ★ 상한 없음 (2026-08-18, 96-1절)
+            ConfigureSpawnedMonster(unit, def, def.BuildStats(hpScale, atkScale));
+        }
+
+        /// <summary>
+        /// 복제된 몬스터에 능력치·크기·AI 를 주입하고 살아있는 목록에 넣는다.
+        ///
+        /// <b>왜 갈라 뒀나</b> — 저장 복원(<see cref="RestoreMonster"/>)이 <b>똑같은 준비</b>를 해야
+        /// 하는데, 다른 점은 "어디서 나오는가"(포탈 추첨 ↔ 저장된 좌표) 하나뿐이다.
+        /// 같은 준비를 두 벌 적으면 표 컬럼이 하나 늘 때마다 한쪽을 반드시 빠뜨린다
+        /// (준수사항 §10 H-3 — 같은 기능을 두 벌 만들지 않는다).
+        /// </summary>
+        void ConfigureSpawnedMonster(MonsterUnit unit, MonsterDefinitionSO def, StatBlock stats)
+        {
+            unit.Initialize(def, stats, balance);
 
             // 크기 보정 — <b>표의 콜라이더 상자(타일)</b>를 넘긴다(유저 확정 2026-08-13).
             // 애니메이터가 그 상자 안에 비율을 유지한 최대 크기로 그림을 맞추고, 콜라이더를
@@ -633,6 +646,73 @@ namespace LastSanctuary.Units
             }
 
             _alive.Add(unit);
+        }
+
+        // ==================================================================
+        // 저장 복원 (2026-08-18 신설 — 98절)
+        // ==================================================================
+
+        /// <summary>
+        /// 저장된 몬스터 한 마리를 <b>그 자리에 그 배율로</b> 되살린다.
+        /// 정의는 <b>에셋 이름</b>으로 찾는다 — <c>MonsterDefinitionSO</c> 에는 id 칸이 없다.
+        /// </summary>
+        /// <returns>되살린 몬스터. 정의나 템플릿을 못 찾으면 null.</returns>
+        public MonsterUnit RestoreMonster(string definitionName, Vector3 worldPos, StatBlock stats)
+        {
+            if (string.IsNullOrEmpty(definitionName)) return null;
+
+            if (!TryFindSlot(definitionName, out MonsterDefinitionSO def, out MonsterUnit template))
+            {
+                Debug.LogWarning($"[MonsterSpawner] 저장된 몬스터 '{definitionName}' 의 정의를 " +
+                                 "스폰 슬롯에서 찾지 못했습니다 — 이 마리는 복원하지 않습니다.", this);
+                return null;
+            }
+
+            if (_root == null)
+            {
+                _root = new GameObject("Monsters").transform;
+                _root.SetParent(transform, false);
+            }
+
+            MonsterUnit unit = Instantiate(template, worldPos, Quaternion.identity, _root);
+            unit.name = def.DisplayName;
+            unit.gameObject.SetActive(true);
+
+            ConfigureSpawnedMonster(unit, def, stats);
+            return unit;
+        }
+
+        /// <summary>에셋 이름으로 스폰 슬롯(정의 + 템플릿)을 찾는다. 슬롯 5종을 전부 뒤진다.</summary>
+        bool TryFindSlot(string definitionName, out MonsterDefinitionSO def, out MonsterUnit template)
+        {
+            if (Match(meleeSlot, definitionName, out def, out template)) return true;
+            if (Match(rangedSlot, definitionName, out def, out template)) return true;
+            if (Match(bossSlot, definitionName, out def, out template)) return true;
+
+            if (midBossSlots != null)
+                foreach (MonsterSpawnEntry e in midBossSlots)
+                    if (Match(e, definitionName, out def, out template)) return true;
+
+            if (spawnTable != null)
+                foreach (MonsterSpawnEntry e in spawnTable)
+                    if (Match(e, definitionName, out def, out template)) return true;
+
+            def = null;
+            template = null;
+            return false;
+        }
+
+        static bool Match(MonsterSpawnEntry entry, string definitionName,
+                          out MonsterDefinitionSO def, out MonsterUnit template)
+        {
+            def = null;
+            template = null;
+
+            if (entry.definition == null || entry.definition.name != definitionName) return false;
+
+            def = entry.definition;
+            template = entry.template != null ? entry.template : entry.definition.template;
+            return template != null;
         }
 
         /// <summary>
