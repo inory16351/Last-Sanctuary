@@ -758,6 +758,19 @@ namespace LastSanctuary.Combat
         /// <summary>지금 「구속」되어 있는지 (연출·UI 에서 쓸 수 있게 공개).</summary>
         public bool IsBound => Time.time < _boundUntil;
 
+        /// <summary>
+        /// 구속을 <b>즉시</b> 푼다 — 피올로의 「정신 안정」이 쓴다.
+        ///
+        /// ★ 근거는 스킬 정의문이다 (`skill_type_desc_Huge_threat`, 2026-08-19):
+        /// <i>"구속 상태는 부정적인 정신 이상 상태를 해제하는 효과로 해제 가능하다"</i>.
+        /// 구속은 정신 이상이 <b>아니지만</b>(그쪽은 <c>CharacterErosion</c> 이 들고 있다)
+        /// 표가 <b>같은 해제 수단</b>을 지정했으므로 그 하나에 같이 태운다.
+        ///
+        /// ⚠ 말파스 구속탄의 구속에도 <b>같이</b> 적용된다 — 같은 상태에 해제 규칙이
+        ///   두 벌 있으면 하나를 고칠 때 다른 하나가 남는다.
+        /// </summary>
+        public void ClearBind() => _boundUntil = 0f;
+
         public TacticalAttackType AttackType => attackType;
 
         /// <summary>

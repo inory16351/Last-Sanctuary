@@ -63,6 +63,17 @@ ILLUSTS = [
     # ★ 넥서스 (2026-08-18) — 몬스터는 아니지만 <b>같은 UI·같은 폴더</b>를 쓴다
     #   (NexusDefinitionSO.illustName). 이 스크립트가 「클릭 초상화용 그림 임포트」 담당이다.
     (os.path.join("Nexus", "Nexus_illust.png"),                            "Nexus_illust"),
+    # ★ 중립 2종 (2026-08-19).
+    #
+    # ⚠⚠ <b>두 파일 다 이름이 표와 달랐다</b> — 여기서 <b>표 쪽 이름으로 바로잡는다</b>
+    #   (출력 이름이 표의 `mon_illust` 와 같아야 게임이 찾는다):
+    #     Anasakil_illust.webp → <b>Anisakil_illust</b>   (원화 시트 제목이 ANISAKIL 이다)
+    #     Gordone_illust.png   → Gordone_illust           (표를 Gordonae → Gordone 로 고쳤다)
+    #
+    # ⚠ 아니사킬만 <b>.webp</b> 다(나머지는 전부 png). Pillow 가 읽어 png 로 저장하므로
+    #   따로 변환할 것은 없다 — 다만 <b>원본 확장자를 그대로 적어야</b> 파일을 찾는다.
+    (os.path.join("neutrality nomal monster", "Anasakil_illust.webp"),      "Anisakil_illust"),
+    (os.path.join("neutrality nomal monster", "Gordone_illust.png"),        "Gordonae_illust"),
 ]
 
 #: 초상화용 임포트 설정. `Resources/Illust/illust_*.png.meta` 와 같은 값이다

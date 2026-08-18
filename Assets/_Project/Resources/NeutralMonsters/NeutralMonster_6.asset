@@ -1,0 +1,49 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 18e202102e9bc194dbbe06c73ec9a070, type: 3}
+  m_Name: NeutralMonster_6
+  m_EditorClassIdentifier:
+  monId: 1006
+  nameKey: mon_name_1006
+  displayName: NeutralMonster_6
+  template: {fileID: 0}
+  minEnergy: 26
+  maxEnergy: 44
+  attackStat: 0
+  hpStat: 10
+  defenseStat: 3
+  regenStat: 1
+  detectRange: 6
+  attackRange: 1.2
+  attacksPerSecond: 0.822
+  moveSpeedTiles: 2.25
+  leashRangeTiles: 6
+  spawnRangeMinTiles: 100
+  spawnRangeMaxTiles: 199
+  maxAlive: 33
+  respawnSeconds: 13
+  attackType: 1
+  groupMaking: 0
+  groupMember: 0
+  packRetaliate: 0
+  epic: 0
+  colliderHeightTiles: 1.9
+  colliderWidthTiles: 2.6
+  illustName: Gordonae_illust
+  skinAssetName: Gordonae
+  habitatTileAsset: 
+  rangedAttackStat: 7
+  magicStat: 0
+  cureStat: 0
+  accuracyStat: 55
+  criticalStat: 3
+  resistanceStat: 50

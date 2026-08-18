@@ -756,16 +756,26 @@ namespace LastSanctuary.Combat
                 if (!(all[i] is CharacterUnit ally) || !ally.IsAlive) continue;
                 if (ReferenceEquals(ally, _unit)) continue;
 
+                // ★ 2026-08-19 — <b>구속도 푸는 대상이다.</b> 근거는 아니사킬
+                //   「거대한 위협 포효」의 정의문: <i>"구속 상태는 부정적인 정신 이상 상태를
+                //   해제하는 효과로 해제 가능하다"</i>. 구속은 정신 이상이 아니라
+                //   <c>UnitCombat</c> 의 상태지만, 표가 <b>이 스킬을 해제 수단으로 지정</b>했다.
+                //   ⚠ 말파스 구속탄의 구속에도 같이 걸린다 — 같은 상태다.
                 CharacterErosion ero = CharacterErosion.Of(ally);
-                if (ero == null || !ero.HasActive) continue;
-                if (MentalErrorTypes.IsGood(ero.ActiveType)) continue;   // 좋은 효과는 풀지 않는다
+                UnitCombat allyCombat = ally.GetComponent<UnitCombat>();
+
+                bool badMental = ero != null && ero.HasActive
+                                 && !MentalErrorTypes.IsGood(ero.ActiveType);
+                bool bound = allyCombat != null && allyCombat.IsBound;
+                if (!badMental && !bound) continue;
 
                 if (!UI.RallyPointService.TryGetRallyPoint(ally, out Vector3 rally)) continue;
                 if ((rally - myRally).sqrMagnitude > 0.01f) continue;     // 같은 집결지인지
 
                 _calmDownReadyAt = Time.time + Mathf.Max(0f, so.coolTime);
-                ero.ClearActiveExternally();
-                ero.AddErosion(-so.value01);
+                if (badMental) ero.ClearActiveExternally();
+                if (bound) allyCombat.ClearBind();
+                ero?.AddErosion(-so.value01);
 
                 UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName,
                                                   $"{ally.DisplayName} 회복"), UI.HudLogKind.Good);

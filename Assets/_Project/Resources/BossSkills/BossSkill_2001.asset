@@ -16,12 +16,13 @@ MonoBehaviour:
   nameKey: skill_name_2001
   displayName: ''
   skillType: Scratch
-  explainKey: 
+  explainKey: skill_explain_2001
   value01: 5
   value02: 3
   value03: 150
   value04: 10
   value05: 5
+  erosionValue: 0
   coolTime: 10
   castSeconds: 1.2
   rangeType: Line

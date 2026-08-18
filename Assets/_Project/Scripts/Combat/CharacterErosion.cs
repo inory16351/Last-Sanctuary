@@ -37,7 +37,23 @@ namespace LastSanctuary.Combat
 
         /// <summary>초당 소수 피해(피학·역겨움)를 정수로 만들 때까지 모아두는 나머지.</summary>
         float _selfDamageCarry;
+
+        /// <summary>역겨움 — 다음 묶음 처리까지 모아둔 <b>시간</b>(초).</summary>
         float _allyDamageCarry;
+
+        /// <summary>
+        /// 역겨움 — <b>아군별로</b> 1 미만의 소수 피해를 모아두는 나머지.
+        ///
+        /// ⚠⚠ <b>이 칸이 없으면 역겨움이 아무 피해도 주지 않는다.</b> 초당 0.5% · 묶음 0.25초 ·
+        /// 캐릭터 최대 체력 80~200 이면 한 묶음의 피해가 <c>0.1~0.25</c> 라, 예전처럼 매 묶음마다
+        /// <c>RoundToInt</c> 하면 <b>언제나 0</b> 이 되어 40초 내내 체력이 1 도 안 깎였다 —
+        /// 로스터에 「역겨움」이 뜨고 로그도 남는데 실제로는 아무 일도 안 일어난다.
+        /// <see cref="ApplySelfDamage"/> 가 피학에 쓰는 것과 <b>같은 방법</b>(내림 + 나머지 보관)이고,
+        /// 대상이 여러 명이라 나머지를 <b>대상마다</b> 따로 들고 있어야 한다
+        /// (최대 체력이 아군마다 다르므로 하나로 묶으면 누구의 나머지인지 알 수 없다).
+        /// </summary>
+        readonly System.Collections.Generic.Dictionary<int, float> _allyDamageCarryById =
+            new System.Collections.Generic.Dictionary<int, float>();
 
         /// <summary>혼란 — 다음에 아군 타겟을 다시 고를 시각.</summary>
         float _nextConfusionRetarget;
@@ -222,6 +238,7 @@ namespace LastSanctuary.Combat
 
             _selfDamageCarry = 0f;
             _allyDamageCarry = 0f;
+            _allyDamageCarryById.Clear();
             _nextConfusionRetarget = 0f;
             _nextMadnessRetarget = 0f;
 
@@ -365,6 +382,7 @@ namespace LastSanctuary.Combat
                     break;
             }
 
+            _allyDamageCarryById.Clear();   // 다음 발동에 남은 나머지가 새지 않게 한다
             _active = null;
         }
 
@@ -433,8 +451,15 @@ namespace LastSanctuary.Combat
                 DamageableUnit ally = _allyScratch[i];
                 if (ally == null || !ally.IsAlive) continue;
 
-                int amount = Mathf.RoundToInt(ally.MaxHp * _active.value02 / 100f * elapsed);
-                if (amount > 0) ally.ApplyDamage(amount);
+                // ⚠ <b>반올림하지 않는다</b> — 한 묶음의 피해가 1 미만이라 반올림하면 언제나 0 이다
+                //   (_allyDamageCarryById 주석 참조). 내림하고 나머지는 <b>그 아군 몫으로</b> 남긴다.
+                int id = ally.GetInstanceID();
+                _allyDamageCarryById.TryGetValue(id, out float carry);
+                carry += ally.MaxHp * _active.value02 / 100f * elapsed;
+
+                int whole = Mathf.FloorToInt(carry);
+                _allyDamageCarryById[id] = carry - whole;
+                if (whole > 0) ally.ApplyDamage(whole);
             }
         }
 

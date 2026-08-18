@@ -1,0 +1,121 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a517e511b352f46488ffa35edf32295d, type: 3}
+  m_Name: Skin_Anisakil
+  m_EditorClassIdentifier:
+  displayName: 아니사킬
+  framesPerSecond: 10
+  attackFramesPerSecond: 14
+  idleRight:
+  - {fileID: 21300000, guid: 0a2614bb771e3826d9a4ae29c1223714, type: 3}
+  - {fileID: 21300000, guid: 12b08108fe1741c64ba767b72904c1bc, type: 3}
+  - {fileID: 21300000, guid: 8bc666511beb1670dbe79fc8717ab72b, type: 3}
+  - {fileID: 21300000, guid: 5ee2c98acec8d8d8c71da03a26ab84de, type: 3}
+  - {fileID: 21300000, guid: c665055d0350ad7c0082d1e205cdbf83, type: 3}
+  - {fileID: 21300000, guid: f0f2af2ed866e751e3b68f6ec9e4edaf, type: 3}
+  idleLeft:
+  - {fileID: 21300000, guid: bf51b8aa798f8f7ec1d7b8359e1afa38, type: 3}
+  - {fileID: 21300000, guid: 0ff790fb3df147de0db32cecf974d48f, type: 3}
+  - {fileID: 21300000, guid: 9f064479ecee89bb9466108b254fd92f, type: 3}
+  - {fileID: 21300000, guid: 6b479225ae75c2b8aab701f85c6c5f70, type: 3}
+  - {fileID: 21300000, guid: 17510a1624fbc6b9b2571e753dcc00bd, type: 3}
+  - {fileID: 21300000, guid: 6ffd1fe12592eeb0694a0da397241005, type: 3}
+  walkRight:
+  - {fileID: 21300000, guid: 3cd2ee9a3181e3f2fc8b6049bc8a89c2, type: 3}
+  - {fileID: 21300000, guid: 050230ce87580a5dfecf79120efd9fe2, type: 3}
+  - {fileID: 21300000, guid: e562f0e85e59c7bb3984368a6257c61b, type: 3}
+  - {fileID: 21300000, guid: 01d48546741bd08edcc2a3ce9a4ef0d5, type: 3}
+  - {fileID: 21300000, guid: 6c13c79aea989b6135f8962ce26f2706, type: 3}
+  - {fileID: 21300000, guid: 813a1825e0b82e2e4fc898636c685679, type: 3}
+  walkLeft:
+  - {fileID: 21300000, guid: 26b393de29b9751f5e112dbfcfd9aba6, type: 3}
+  - {fileID: 21300000, guid: 16f59678894e886c642f5ebed9bfebd4, type: 3}
+  - {fileID: 21300000, guid: d74a98739c8be1c0a1930ca72ad30d71, type: 3}
+  - {fileID: 21300000, guid: d941edd4a227cee01a0e5239ab618ea8, type: 3}
+  - {fileID: 21300000, guid: 031cd5b9cc06dc2441bafabbf3de74da, type: 3}
+  - {fileID: 21300000, guid: 8402271f81658336dba7265cffe8dc79, type: 3}
+  attackRight:
+  - {fileID: 21300000, guid: cd56d8bb7fc336d79a8b9129a78a8a4e, type: 3}
+  - {fileID: 21300000, guid: e592ccea3c5d0a5ae302502c5f05eef8, type: 3}
+  - {fileID: 21300000, guid: df80a61ef03b9adc2d7ae7c73a5f8d81, type: 3}
+  - {fileID: 21300000, guid: 44257e46a99bb50765f87b7f4ce4330f, type: 3}
+  - {fileID: 21300000, guid: 45fda3ceb9611c299abbd8b6fa123324, type: 3}
+  - {fileID: 21300000, guid: 0304014702b67e87b34316bca79f85c8, type: 3}
+  attackLeft:
+  - {fileID: 21300000, guid: 76fdf856bff7f097dc1d161f0edd8bdc, type: 3}
+  - {fileID: 21300000, guid: 6bf4422672c6b72c06efe2e2ddba7b76, type: 3}
+  - {fileID: 21300000, guid: 252dc6d85cc256a78cbf488da8cfa0ee, type: 3}
+  - {fileID: 21300000, guid: 09dc546eb3643e5e5c9976c920353ca0, type: 3}
+  - {fileID: 21300000, guid: 77cda91f4820437e22fa8cfeb36fb4ed, type: 3}
+  - {fileID: 21300000, guid: ae09f5d9bc1787c15e2b1db026c479c4, type: 3}
+  skill1Right:
+  - {fileID: 21300000, guid: 145f048bb7ebf137b9edffa59d964ac7, type: 3}
+  - {fileID: 21300000, guid: e79c384943fca65e2ee64f23e0c4a386, type: 3}
+  - {fileID: 21300000, guid: 0f07f67c1d3a9713ab63363c728fd155, type: 3}
+  - {fileID: 21300000, guid: 730096a4c7e50aa01fa63b78826111d7, type: 3}
+  - {fileID: 21300000, guid: beaff6c1d68ef487aa73c5037869eafa, type: 3}
+  - {fileID: 21300000, guid: b32835c6650eb30a4a50e3bc62dc68fb, type: 3}
+  skill1Left:
+  - {fileID: 21300000, guid: 395d282562b142eb9e9a27dd4cad98bf, type: 3}
+  - {fileID: 21300000, guid: cb8de5911688553ec8ca472c423d480f, type: 3}
+  - {fileID: 21300000, guid: e9300f0436f68dc5611fe184f8f685ba, type: 3}
+  - {fileID: 21300000, guid: 33026c42aa268599a40a665a95544f4c, type: 3}
+  - {fileID: 21300000, guid: 4391cbbe2b0858b56499bf35010672c5, type: 3}
+  - {fileID: 21300000, guid: bc3f32a665a667412e735e914b9b08eb, type: 3}
+  skill2Right:
+  - {fileID: 21300000, guid: a82206ba154f2b90e2bc395474cfd5b8, type: 3}
+  - {fileID: 21300000, guid: e47a9ffb228862e7c6df145a79529994, type: 3}
+  - {fileID: 21300000, guid: b33cb3d7f5f678e36b75b5e4f7054744, type: 3}
+  - {fileID: 21300000, guid: 00f8beaa0626bd51591becc91e4b5d02, type: 3}
+  - {fileID: 21300000, guid: 34763895dc2bc9005fe8d3007f04dbf3, type: 3}
+  - {fileID: 21300000, guid: af74e8234e0f25b3ba805af9030af612, type: 3}
+  skill2Left:
+  - {fileID: 21300000, guid: b89b0b98eaa87c728f841ce5f033906e, type: 3}
+  - {fileID: 21300000, guid: fd45545bae01f86c1a31b41a9126d6b0, type: 3}
+  - {fileID: 21300000, guid: d4a95d064e17094d2ebf540b73551b02, type: 3}
+  - {fileID: 21300000, guid: 182ffba97b7389aeeba35a7850785810, type: 3}
+  - {fileID: 21300000, guid: 8967923344a1c5ce675e4d1c77ee78af, type: 3}
+  - {fileID: 21300000, guid: ea7d1cec90dde4a52da304192a205dea, type: 3}
+  skill1Fx:
+  - {fileID: 21300000, guid: 0a64abda95ad77b201f5e9d9618429c0, type: 3}
+  - {fileID: 21300000, guid: 67f8261df7f316ed082609ad47936075, type: 3}
+  - {fileID: 21300000, guid: 907a2dbbe6956fec5fea0dc7a8ee5c17, type: 3}
+  - {fileID: 21300000, guid: 7eba0595a50155c8cdfb0e04017992f2, type: 3}
+  - {fileID: 21300000, guid: 9aa4c6dffb70d81917124b9879c5c2b0, type: 3}
+  - {fileID: 21300000, guid: bab4278684f49a475a4f5c9561f766ee, type: 3}
+  skill2Fx:
+  - {fileID: 21300000, guid: 1133fff03827f958634794496bdc61e8, type: 3}
+  - {fileID: 21300000, guid: 99f2311b5f990aa220342ae20d527475, type: 3}
+  - {fileID: 21300000, guid: d31947b20b90de13ee582d252325d1b2, type: 3}
+  - {fileID: 21300000, guid: 7a782d44ef69f009b21123c4082cf590, type: 3}
+  - {fileID: 21300000, guid: 879e4a07335ab19e6b00959f3e093ecd, type: 3}
+  - {fileID: 21300000, guid: 2d1a3fffdaf0d683e06005d07be8dcc2, type: 3}
+  rangedRight: []
+  rangedLeft: []
+  healRight: []
+  healLeft: []
+  reviveRight: []
+  reviveLeft: []
+  reviveFx: []
+  skill1Projectile: []
+  skill2Projectile: []
+  projectileFrames: []
+  muzzleFlashFrames: []
+  impactFrames: []
+  projectileScale: 1
+  impactScale: {x: 1, y: 1}
+  contentSizeTiles: {x: 2.734, y: 1.359}
+  projectileSizeTiles: {x: 0, y: 0}
+  impactSizeTiles: {x: 0, y: 0}
+  projectileWidthTiles: 0
+  impactWidthTiles: 0
+  impactFlattenY: 1

@@ -103,6 +103,43 @@ namespace LastSanctuary.Combat
         /// 나눠 넣는다 — 원화가 6타 연격이고, 한 프레임에 몰면 회복·방어가 끼어들 틈이 없다.
         /// </summary>
         DeathSong,
+
+        // ──────────────────────────────────────────────────────────────
+        // 아니사킬 (에픽 중립 보스 1005) — 2026-08-19
+        //
+        // ⚠ 여기도 <b>칸의 뜻이 다르다.</b> 스트링 테이블 정의문이 근거다:
+        //   치명적 꼬리 타격 value_01 = 가로 · value_02 = 세로 · value_03 = 피해 %
+        //                    (단탈리온 「타락한 무덤」·카르시노스 「할퀴기」와 같은 배치)
+        //   거대한 위협 포효 value_01 = <b>반지름</b> 타일 · value_02 = <b>피해 %</b>
+        //                    · value_03 = <b>구속 초</b>
+        //                    (⚠ 피해가 value_02 다 — 「이끌리는 혈취」와 같이 한 칸 앞이다)
+        // ──────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// 치명적 꼬리 타격 (2003) — <b>가장 가까운</b> 적을 향해 3(가로) x 5(세로) 타일에
+        /// 근거리 공격력의 <c>value_03</c>%.
+        ///
+        /// 조준·모양·값 배치가 「타락한 무덤」·「할퀴기」와 <b>완전히 같다</b> — 붙는 효과가
+        /// 없다는 점만 다르다. 그래서 <see cref="BossSkillCaster"/> 에 전용 분기가 없고
+        /// 기본 직사각형 갈래를 그대로 탄다.
+        /// </summary>
+        TailStrike,
+
+        /// <summary>
+        /// 거대한 위협 포효 (2004) — 자기 중심 <b>원형</b>(반지름 <c>value_01</c>)에
+        /// <c>value_02</c>% 피해. 맞은 적은 <c>value_03</c>초 동안 <b>「구속」</b>
+        /// (이동·공격 불가 = 기절).
+        ///
+        /// ★ <b>「구속」은 말파스 구속탄과 같은 상태다</b> — <c>UnitCombat.ApplyBind</c> 를
+        ///   그대로 쓴다. 다른 것은 <b>거는 조건</b>뿐이다: 구속탄은 「허약 상태에서 또 맞으면」
+        ///   이지만 이쪽은 <b>맞으면 바로</b> 걸린다.
+        ///
+        /// ★ 정의문에 <i>"구속 상태는 부정적인 정신 이상 상태를 해제하는 효과로 해제 가능하다"</i>
+        ///   가 붙어 있다 — 그래서 피올로의 「정신 안정」이 구속도 푼다
+        ///   (<c>CharacterPassives.TryCalmDown</c>). 그 규칙은 <b>구속탄의 구속에도 같이</b>
+        ///   적용된다: 같은 상태에 해제 규칙이 두 벌 있으면 안 된다.
+        /// </summary>
+        HugeThreat,
     }
 
     public static class BossSkillTypes
@@ -126,6 +163,8 @@ namespace LastSanctuary.Combat
                 case "curse_beam":  return BossSkillType.CurseBeam;
                 case "lure_blood":  return BossSkillType.LureBlood;
                 case "death_song":  return BossSkillType.DeathSong;
+                case "tail_strike": return BossSkillType.TailStrike;
+                case "huge_threat": return BossSkillType.HugeThreat;
                 default:            return BossSkillType.None;
             }
         }

@@ -734,6 +734,12 @@ def sync_neutral_skills():
         body += '  explainKey: %s\n' % (row.get('skill_explain') or '')
         for i in range(1, 6):
             body += '  value%02d: %s\n' % (i, num(row.get('value_%02d' % i)))
+        # ★ 2026-08-19 — 중립 Skill 시트에도 `mentalerror_damage` 칸이 생겼다.
+        #   그전까지 이 값을 안 써서 중립 에픽의 침식은 <b>표에 없는 코드 기본값 0</b> 이었다.
+        #   설계상 0 이 맞지만(29절: 중립 사냥은 침식을 올리지 않는다) 이제 <b>표가 그 0 을
+        #   말한다</b> — 올리려면 코드가 아니라 표를 고친다.
+        #   ⚠ 칸이 없는 옛 표로도 돌아야 하므로 기본값 0 을 준다.
+        body += '  erosionValue: %s' % num(row.get('mentalerror_damage'), 0) + chr(10)
         body += '  coolTime: %s\n' % num(row.get('cool_time'))
         body += '  castSeconds: %s\n' % num(row.get('cast_time'))
         body += '  rangeType: %s\n' % (row.get('range_type') or '')
@@ -830,6 +836,8 @@ NEUTRAL_ASSET_BY_ID = {
     1002: 'NeutralMonster_2',
     1003: 'NeutralMonster_3',
     1004: 'NeutralMonster_4',      # ★ 에픽 보스 (2026-08-15 신설)
+    1005: 'NeutralMonster_5',      # ★ 에픽 보스 아니사킬 (2026-08-19 신설)
+    1006: 'NeutralMonster_6',      # ★ 원거리 일반 고르도네 (2026-08-19 신설)
 }
 
 # 표의 atk_type 문자열 → TacticalAttackType 의 <b>정수값</b>(YAML 은 enum 을 정수로 쓴다).

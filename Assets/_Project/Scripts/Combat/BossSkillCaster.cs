@@ -248,7 +248,29 @@ namespace LastSanctuary.Combat
         /// </summary>
         Vector2 ResolveArea(int slot, BossSkillSO skill)
         {
-            var box = new Vector2(skill.LengthTiles, skill.WidthTiles);
+            // ★★ <b>원형 스킬은 상자가 정사각이다</b> (2026-08-19).
+            //
+            // ⚠ <c>WidthTiles</c> 는 <c>value_02</c> 인데, 원형 스킬에서 그 칸은 <b>세로가
+            //   아니다</b> — 「죽음의 포효」는 넉백 타일, 「거대한 위협 포효」는 <b>피해 %</b> 다.
+            //   그대로 넣으면 상자가 <c>4 x 200</c> 이 되어(실제로 로그에 그렇게 찍혔다)
+            //   원화 비율 맞추기가 <b>엉뚱한 값을 기준으로</b> 돌아간다.
+            //
+            // 지금까지 사고가 안 난 이유는 <b>아래 fit 이 그 값을 눌러 버리고</b>, 원형 갈래가
+            // <c>.x</c> 만 읽기 때문이다. 하지만 이펙트 원화가 <b>세로로 긴</b> 스킬이 하나
+            // 들어오면 반지름이 그 자리에서 틀어진다 — 그 전에 막는다.
+            //
+            // ⚠⚠ <b>고치는 것은 세로(.y) 하나뿐이다.</b> 가로(.x)를 건드리면 안 된다 —
+            //   원형 갈래(<see cref="TryCast"/>)가 <c>area.x</c> 를 <b>value_01 그대로</b>로
+            //   읽어 반지름을 정한다. 여기서 지름으로 바꿔 넣으면 <b>반지름이 두 배</b>가 된다.
+            //   (실제로 그렇게 고쳤다가 바로 되돌렸다.)
+            //
+            // 세로를 가로와 같게 두면 지금 있는 두 원형 스킬의 결과는 <b>한 픽셀도 안 바뀐다</b>:
+            // 원화가 가로로 길어(2.25:1 · 1.86:1) fit 의 최소값을 <b>가로가 정하기</b> 때문이다.
+            // 바뀌는 것은 <b>세로로 긴 이펙트가 들어올 때</b>뿐이고, 그때가 사고가 날 자리였다.
+            var box = new Vector2(
+                skill.LengthTiles,
+                skill.Shape == BossSkillShape.Circle ? skill.LengthTiles : skill.WidthTiles);
+
             if (!fitAreaToSkillArt) return box;
 
             Sprite[] fx = _animator != null && _animator.Skin != null
@@ -631,20 +653,43 @@ namespace LastSanctuary.Combat
             //   반대로 하면 첫 발에서 바로 구속에 걸린다.
             if (skill.WeakenSeconds > 0f)
             {
+                // ⚠ 예전에는 여기서 `if (combat == null) return;` 로 <b>메서드를 빠져나갔다</b>.
+                //   그때는 이게 마지막 블록이라 결과가 같았지만, 아래에 효과가 하나 붙은
+                //   지금은 그 return 이 <b>그 효과를 삼킨다</b>. 조건 안으로 접었다.
                 var combat = target.GetComponent<UnitCombat>();
-                if (combat == null) return;
-
-                if (combat.IsWeakened && skill.BindSeconds > 0f)
+                if (combat != null)
                 {
-                    combat.ClearWeaken();
-                    combat.ApplyBind(skill.BindSeconds);
-                    UI.HudLog.Add($"{target.DisplayName} 구속!", UI.HudLogKind.Danger);
-                }
-                else
-                {
-                    combat.ApplyWeaken(skill.WeakenAttackSpeedPercent, skill.WeakenSeconds);
+                    if (combat.IsWeakened && skill.BindSeconds > 0f)
+                    {
+                        combat.ClearWeaken();
+                        Bind(combat, target, skill.BindSeconds);
+                    }
+                    else
+                    {
+                        combat.ApplyWeaken(skill.WeakenAttackSpeedPercent, skill.WeakenSeconds);
+                    }
                 }
             }
+
+            // ── 즉시 구속 (아니사킬 「거대한 위협 포효」) ────────────────
+            // 정의문: "피격 당한 적은 '구속'상태에 걸리며, {value_03}초 만큼 이동과 공격이
+            //          불가능해진다(기절상태)."
+            //
+            // ★ <b>구속탄과 같은 상태를 쓴다</b>(UnitCombat.ApplyBind) — 다른 것은 <b>거는
+            //   조건</b>뿐이다. 구속탄은 「허약 중에 또 맞으면」이고 이쪽은 <b>맞으면 바로</b>다.
+            //   상태를 새로 만들면 해제 규칙(정신 안정)이 두 벌이 되어 한쪽이 새게 된다.
+            if (skill.Type == BossSkillType.HugeThreat && skill.BindSeconds > 0f)
+            {
+                var combat = target.GetComponent<UnitCombat>();
+                if (combat != null) Bind(combat, target, skill.BindSeconds);
+            }
+        }
+
+        /// <summary>구속을 걸고 로그를 남긴다 — 거는 자리가 둘이라 문구를 한 곳에 모았다.</summary>
+        static void Bind(UnitCombat combat, DamageableUnit target, float seconds)
+        {
+            combat.ApplyBind(seconds);
+            UI.HudLog.Add($"{target.DisplayName} 구속!", UI.HudLogKind.Danger);
         }
 
         /// <summary>

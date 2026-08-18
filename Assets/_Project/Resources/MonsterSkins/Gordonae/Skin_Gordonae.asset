@@ -1,0 +1,91 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a517e511b352f46488ffa35edf32295d, type: 3}
+  m_Name: Skin_Gordonae
+  m_EditorClassIdentifier:
+  displayName: 고르도네
+  framesPerSecond: 10
+  attackFramesPerSecond: 14
+  idleRight:
+  - {fileID: 21300000, guid: 3f948721b910890ebceb13aeb49d38b5, type: 3}
+  - {fileID: 21300000, guid: 19c59800639740bb1953c3ef108b83a0, type: 3}
+  - {fileID: 21300000, guid: 5cacba34d0422bfc3229e6fe65627cb1, type: 3}
+  - {fileID: 21300000, guid: 236474f8d2214567310dfd6c536c9806, type: 3}
+  - {fileID: 21300000, guid: 91e1e0e5b8bdd650ed1985b6521efd79, type: 3}
+  - {fileID: 21300000, guid: b67482f119484c48bf958ec7bf200fb0, type: 3}
+  - {fileID: 21300000, guid: 75078ce1fd7fb4a80e6db5e3c05033f7, type: 3}
+  - {fileID: 21300000, guid: 512e39f5e6d612c82862cebf210ef95e, type: 3}
+  idleLeft:
+  - {fileID: 21300000, guid: d4b789169024324bd72d7484ded8aa8b, type: 3}
+  - {fileID: 21300000, guid: 15c1b67176186f2df141a786079cab7b, type: 3}
+  - {fileID: 21300000, guid: ff28f8a4862e93ae2618ba5672a5f493, type: 3}
+  - {fileID: 21300000, guid: 79d12d66e04e17590ac68623e5e39831, type: 3}
+  - {fileID: 21300000, guid: e1fa5b857512028ee0dc7e58cd4d36f7, type: 3}
+  - {fileID: 21300000, guid: c9b55d6735cc18f91bea2fd390edd333, type: 3}
+  - {fileID: 21300000, guid: 86920b71fb5604fd81708d0cc6baf3fa, type: 3}
+  - {fileID: 21300000, guid: ce44f3e971aed8ce4bb2790e62c96e34, type: 3}
+  walkRight:
+  - {fileID: 21300000, guid: bbd4dd1e9dcce52eebc03f153261b65b, type: 3}
+  - {fileID: 21300000, guid: badd0321c6e0e141faacf6f9b9674faf, type: 3}
+  - {fileID: 21300000, guid: aa89279ecb444c31a6410ea94a816e20, type: 3}
+  - {fileID: 21300000, guid: c1640078cfe7240c59b522f816cf4d7c, type: 3}
+  - {fileID: 21300000, guid: 35698e526738f0ebd5aab702c8a22e7a, type: 3}
+  - {fileID: 21300000, guid: 134cd6058c3f8019c05f7f74d8c79076, type: 3}
+  - {fileID: 21300000, guid: 6bff36c4abfb18c0461ee5c723e63949, type: 3}
+  walkLeft:
+  - {fileID: 21300000, guid: 264fc9eee90ce5209309c7c0a5870e1d, type: 3}
+  - {fileID: 21300000, guid: 02ec183ed6b3f35a9affe48e2d8a4e4d, type: 3}
+  - {fileID: 21300000, guid: eaab57ba6db905f970a4395c03655b34, type: 3}
+  - {fileID: 21300000, guid: 97b5628b36955d831452d903c1c88903, type: 3}
+  - {fileID: 21300000, guid: e404f2b231463e1e80c3a1c8b9399f5c, type: 3}
+  - {fileID: 21300000, guid: f2eebe61d4454dbaad7ab52d130c9d1a, type: 3}
+  - {fileID: 21300000, guid: 0ddc431c81ad657e577d6c0f67911f3b, type: 3}
+  rangedRight:
+  - {fileID: 21300000, guid: deb9970b6cbc0a2b16d0fbd6d66ff5c9, type: 3}
+  - {fileID: 21300000, guid: 976149db1e5c816502c1de25b4721278, type: 3}
+  - {fileID: 21300000, guid: 9c1d1ec97e84502b185c6589b2be4b6c, type: 3}
+  - {fileID: 21300000, guid: e3a796595b61d7331d388f7f424a9a5b, type: 3}
+  - {fileID: 21300000, guid: cef1a0f314c8977381b7230f6e627da1, type: 3}
+  - {fileID: 21300000, guid: 44f2ffc0b1bab9d6394fc19af0fdda6b, type: 3}
+  rangedLeft:
+  - {fileID: 21300000, guid: d4a0cf574bc8baa005015d6630140d6d, type: 3}
+  - {fileID: 21300000, guid: 867cfb707ff386fec878d19f9eb5262a, type: 3}
+  - {fileID: 21300000, guid: 09ec06f29727f935ddf8dee489570b6e, type: 3}
+  - {fileID: 21300000, guid: e857ee61a2e560e7706cee2d79f686c4, type: 3}
+  - {fileID: 21300000, guid: 64468271fe0b4eeed4977b5c05722931, type: 3}
+  - {fileID: 21300000, guid: a7923e6ba0020c2c8a5c6352a71032a3, type: 3}
+  attackRight: []
+  attackLeft: []
+  healRight: []
+  healLeft: []
+  reviveRight: []
+  reviveLeft: []
+  reviveFx: []
+  skill1Right: []
+  skill1Left: []
+  skill2Right: []
+  skill2Left: []
+  skill1Fx: []
+  skill2Fx: []
+  skill1Projectile: []
+  skill2Projectile: []
+  projectileFrames: []
+  muzzleFlashFrames: []
+  impactFrames: []
+  projectileScale: 1
+  impactScale: {x: 1, y: 1}
+  contentSizeTiles: {x: 1.938, y: 2.156}
+  projectileSizeTiles: {x: 0, y: 0}
+  impactSizeTiles: {x: 0, y: 0}
+  projectileWidthTiles: 0
+  impactWidthTiles: 0
+  impactFlattenY: 1

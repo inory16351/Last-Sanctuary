@@ -171,8 +171,18 @@ namespace LastSanctuary.Units
 
                     var cell = new Vector3Int(min.x + x, min.y + y, 0);
 
-                    // 맵 밖 · 벽칸은 건드리지 않는다 — 서식지는 바닥 장식이다.
-                    if (!map.IsCellInsideMap(cell) || map.IsCellBlocked(cell)) continue;
+                    // 맵 밖 · <b>벽 타일이 깔린 칸</b>은 건드리지 않는다 — 서식지는 바닥
+                    // 장식이라, 벽칸을 칠하면 벽 그림이 지워진다.
+                    //
+                    // ⚠⚠ <b>IsCellBlocked 가 아니라 HasWallTile 을 쓴다</b>
+                    //   (2026-08-18, 유저 리포트: "중앙 건물 바로 아래 타일은 왜 기본 타일
+                    //   그대로지"). IsCellBlocked 는 「못 지나가는가」라서 <b>구조물 발판</b>
+                    //   (넥서스 3x3 · 타워)과 <b>벽 앞면</b>까지 포함한다. 그 둘은 Ground
+                    //   타일맵에 <b>평범한 바닥이 깔려 있고</b> 그 위를 스프라이트가 덮을 뿐이라,
+                    //   칠해도 지워지는 그림이 없다 — 오히려 안 칠하면 <b>성역 가운데에
+                    //   건물 발판 모양 구멍</b>이 남는다(스프라이트가 가려서 삐져나온 한 줄만
+                    //   원래 바닥으로 보였다). 자세한 구분은 MapGenerator.HasWallTile 참조.
+                    if (!map.IsCellInsideMap(cell) || map.HasWallTile(cell)) continue;
 
                     // ── 바닥 ────────────────────────────────────────────
                     bool onEdge = IsBoundary(mask, w, h, x, y);

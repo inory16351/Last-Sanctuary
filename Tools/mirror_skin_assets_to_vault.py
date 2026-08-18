@@ -55,6 +55,12 @@ SPECIES = [
     ("Malphas",     CANCER_ROOT),
     ("Kasinoma",    CANCER_ROOT),
     ("Nexus",       os.path.join(TOWER_ROOT, "Nexus_asset")),
+    # ★ 2026-08-19 — 중립 2종 추가.
+    #   ⚠ 폴더 이름은 <b>표(neutrality_mon.mon_skin)</b> 를 따른다 — 볼트 원화 파일이
+    #     `Gordone_asset.png` 라도 게임·볼트 사본은 <b>Gordonae</b> 다(유저 확정:
+    #     "표 기준이 맞으니까 표 기준으로 일러스트나 스킨 에셋 이름을 바꿔").
+    ("Anisakil",    NEUTRAL_ROOT),
+    ("Gordonae",    NEUTRAL_ROOT),
 ]
 
 #: 종 폴더가 아닌 것들 — (유니티 쪽 폴더, 볼트 쪽 부모, 볼트 쪽 폴더 이름)
@@ -67,6 +73,13 @@ EXTRA = [
     (os.path.join(TILE_ROOT, "Sanctuary"),            TOWER_ROOT, "Sanctuary_tiles"),
     (os.path.join(TILE_ROOT, "SanctuaryEdge"),        TOWER_ROOT, "Sanctuary_edge"),
     (os.path.join(TILE_ROOT, "SanctuaryProps"),       TOWER_ROOT, "Sanctuary_props"),
+    # ★ 2026-08-19 — 아니사킬 서식지. 원본은 유저가 준 <b>진짜 타일 시트 두 장</b>이고
+    #   (chunk_anisikill.png · Deco_anisikill.png) 게임이 쓰는 것은 색을 보정한 이쪽이다.
+    #   ⚠ 가장자리 16종은 <b>바닥에서 파생</b>한 것이다(원화 없음 —
+    #     gen_anisakil_habitat_tiles.py 맨 위 참조).
+    (os.path.join(TILE_ROOT, "AnisakilHabitat"),      NEUTRAL_ROOT, "AnisakilHabitat_tiles"),
+    (os.path.join(TILE_ROOT, "AnisakilHabitatEdge"),  NEUTRAL_ROOT, "AnisakilHabitat_edge"),
+    (os.path.join(TILE_ROOT, "AnisakilHabitatProps"), NEUTRAL_ROOT, "AnisakilHabitat_props"),
 ]
 
 

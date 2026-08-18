@@ -36,11 +36,25 @@ namespace LastSanctuary.Units
     public class NexusSanctuary : MonoBehaviour
     {
         [Header("범위")]
-        [Tooltip("성역 반지름(타일). 카르시노스 서식지가 14 다 — 넥서스는 맵 한가운데의 " +
-                 "거점이라 그보다 넓게 잡는다.\n" +
-                 "⚠ 너무 키우면 <b>맵의 상당 부분이 성역</b>이 되어 「다른 공간」이라는 인상이 " +
-                 "사라진다. 맵이 320타일이므로 20 이면 반경 6% 남짓이다")]
-        [Min(1f)] [SerializeField] float radiusTiles = 20f;
+        [Tooltip("★ <b>성역의 지름</b>(타일). 유저 확정 2026-08-18: <b>15</b> " +
+                 "(처음 지시는 10 이었고, 눈으로 보고 15 로 올렸다). " +
+                 "<b>왜 반지름이 아니라 지름인가</b> — 지시가 「지름 10의 원 범위」 였다. " +
+                 "반지름 칸에 지름 값을 넣으면 <b>지시의 두 배</b>가 된다. " +
+                 "값의 뜻을 칸 이름이 말하게 해서 그 착각이 생길 자리를 없앤다. " +
+                 "⚠ 1차(2026-08-18)에는 <b>반지름 20 = 지름 40</b> 이었다. 유저 리포트: " +
+                 "「중앙건물 청크 구역이 너무 큼」 — 맵이 320타일이지만 화면에 보이는 범위에 " +
+                 "비하면 지름 40 은 시야를 거의 채운다. 지름 15 면 넥서스 발판(3x3)을 " +
+                 "여유 있게 두르는 정도다")]
+        [Min(2f)] [SerializeField] float diameterTiles = 15f;
+
+        [Tooltip("★ <b>생성할 때마다 지름을 이 비율만큼 흔든다</b> (유저 지시: " +
+                 "「해당 원 범위와 비슷한 범위내에서 생성 시마다 불규칙」). " +
+                 "0.2 면 지름이 매 게임 <b>−20% ~ +20%</b> 안에서 뽑힌다(지름 15 → 12~18). " +
+                 "0 이면 언제나 위 지름 그대로다. " +
+                 "⚠ <b>모양</b>의 불규칙함은 이 값과 별개다 — 그쪽은 NeutralHabitat 의 " +
+                 "노이즈(Edge Wobble)가 만들고, 씨앗이 매 게임 달라 이미 매번 다른 덩어리가 " +
+                 "나온다. 이 칸은 거기에 <b>크기의 편차</b>를 더한다")]
+        [Range(0f, 0.5f)] [SerializeField] float diameterJitter = 0.2f;
 
         [Header("타일 묶음 (Resources/HabitatTiles/ 아래)")]
         [Tooltip("바닥 타일 폴더 이름. Tools/gen_sanctuary_tiles.py 가 굽는다.\n" +
@@ -75,13 +89,38 @@ namespace LastSanctuary.Units
             int seed = fixedSeed != 0 ? fixedSeed : Random.Range(int.MinValue, int.MaxValue);
             Vector3Int center = map.WorldToCell(transform.position);
 
-            habitat.Paint(map, ground, edge, props, center, radiusTiles, seed);
+            // ★ 크기도 <b>씨앗에서</b> 뽑는다 — 모양과 같은 씨앗을 쓰므로 씨앗을 고정하면
+            //   크기까지 함께 재현된다(fixedSeed 로 모양을 눈으로 비교할 때 필요하다).
+            float diameter = RollDiameter(seed);
+            habitat.Paint(map, ground, edge, props, center, diameter * 0.5f, seed);
 
             if (logSanctuary)
                 Debug.Log($"[성역] 넥서스 둘레 {habitat.PaintedCells}칸 · 데코 {habitat.PropCells}개 " +
-                          $"(반지름 {radiusTiles}타일 · 바닥 {ground.Length}종 · " +
+                          $"(지름 {diameter:0.##}타일 — 기준 {diameterTiles} ±{diameterJitter:P0} · " +
+                          $"바닥 {ground.Length}종 · " +
                           $"가장자리 {(edge != null ? edge.Length : 0)}종 · " +
                           $"데코 {(props != null ? props.Length : 0)}종 · 씨앗 {seed})", this);
+        }
+
+        /// <summary>
+        /// 이번 게임의 지름. 기준 지름을 <see cref="diameterJitter"/> 비율 안에서 흔든다.
+        ///
+        /// ⚠ <b>씨앗에서 뽑는다</b>(<c>System.Random</c>) — <c>UnityEngine.Random</c> 을 쓰면
+        ///   씨앗을 고정해도 크기만 매번 달라져 "같은 씨앗 = 같은 성역" 이 깨진다.
+        ///
+        /// ⚠ <b>씨앗을 그대로 쓰지 않고 한 번 비튼다</b>(<c>seed ^ 0x5F3759DF</c>) —
+        ///   <c>NeutralHabitat</c> 의 마스크 생성이 <b>같은 씨앗의 첫 두 난수</b>를 노이즈 위치로
+        ///   쓴다. 여기서 첫 난수를 크기로 쓰면 크기와 노이즈 위치가 한 값에 묶여, 지름이
+        ///   클 때마다 <b>같은 방향으로</b> 울퉁불퉁해진다.
+        /// </summary>
+        float RollDiameter(int seed)
+        {
+            float baseDiameter = Mathf.Max(2f, diameterTiles);
+            if (diameterJitter <= 0f) return baseDiameter;
+
+            var rng = new System.Random(seed ^ 0x5F3759DF);
+            float t = (float)rng.NextDouble() * 2f - 1f;         // −1~1
+            return Mathf.Max(2f, baseDiameter * (1f + t * diameterJitter));
         }
 
         /// <summary>타일 폴더 하나를 통째로 읽는다. 없으면 null.</summary>

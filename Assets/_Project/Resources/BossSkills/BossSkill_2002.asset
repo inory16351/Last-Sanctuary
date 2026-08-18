@@ -16,12 +16,13 @@ MonoBehaviour:
   nameKey: skill_name_2002
   displayName: ''
   skillType: Roar_death
-  explainKey: 
+  explainKey: skill_explain_2002
   value01: 5
   value02: 3
   value03: 180
   value04: 0
   value05: 0
+  erosionValue: 0
   coolTime: 20
   castSeconds: 2.5
   rangeType: Circle

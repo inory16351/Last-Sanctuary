@@ -128,15 +128,22 @@ namespace LastSanctuary.Combat
         /// <summary>
         /// 피해 배율(%). 표가 비어 있으면 평타(100%)로 떨어진다.
         ///
-        /// ⚠ <b>「이끌리는 혈취」만 칸이 하나 앞이다</b>(<c>value_02</c>) — 정의문이
-        /// *"…{value_01} 지름 타일 범위 안에 적 1명에게 돌진하여 {value_02}% 의 데미지"* 라
-        /// 가로·세로 두 칸을 쓰지 않기 때문이다. 칸 번호가 아니라 <b>정의문</b>이 정본이다.
+        /// ⚠ <b>두 스킬만 칸이 하나 앞이다</b>(<c>value_02</c>) — 정의문이 가로·세로 두 칸을
+        /// 쓰지 않기 때문이다. 칸 번호가 아니라 <b>정의문</b>이 정본이다:
+        /// <code>
+        ///   이끌리는 혈취 (130005) "…{value_01} 지름 타일 범위 안에 적 1명에게 돌진하여
+        ///                            {value_02}% 의 데미지"
+        ///   거대한 위협 포효 (2004) "…{value_01} 반지름 타일 범위에 원형 피해를
+        ///                            {value_02}% 만큼 준다"
+        /// </code>
         /// </summary>
         public int DamagePercent
         {
             get
             {
-                float raw = Type == BossSkillType.LureBlood ? value02 : value03;
+                bool damageInValue02 = Type == BossSkillType.LureBlood
+                                    || Type == BossSkillType.HugeThreat;
+                float raw = damageInValue02 ? value02 : value03;
                 return raw > 0f ? Mathf.RoundToInt(raw) : 100;
             }
         }
@@ -217,9 +224,25 @@ namespace LastSanctuary.Combat
         public float WeakenSeconds =>
             Type == BossSkillType.BindingOrb ? Mathf.Max(0f, value05) : 0f;
 
-        /// <summary>「구속」이 지속되는 초 — <b>허약 상태에서 또 맞았을 때만</b>. 구속탄 전용.</summary>
-        public float BindSeconds =>
-            Type == BossSkillType.BindingOrb ? Mathf.Max(0f, value06) : 0f;
+        /// <summary>
+        /// 「구속」이 지속되는 초. <b>두 스킬이 같은 상태를 걸지만 칸이 다르다</b>:
+        /// <code>
+        ///   구속탄 (130003)         value_06  ← <b>허약 상태에서 또 맞았을 때만</b>
+        ///   거대한 위협 포효 (2004)  value_03  ← <b>맞으면 바로</b>
+        /// </code>
+        /// ⚠ 중립 `Skill` 시트에는 <c>value_06</c> 칸이 <b>아예 없다</b>(웨이브 쪽에만 있다).
+        ///   그래서 아니사킬의 구속을 value_06 에 둘 수는 없었고, 정의문도 value_03 이라고
+        ///   적혀 있다 — 표와 코드가 같은 곳을 가리킨다.
+        /// </summary>
+        public float BindSeconds
+        {
+            get
+            {
+                if (Type == BossSkillType.BindingOrb) return Mathf.Max(0f, value06);
+                if (Type == BossSkillType.HugeThreat) return Mathf.Max(0f, value03);
+                return 0f;
+            }
+        }
 
         /// <summary>
         /// <b>원형 범위의 반지름</b>(타일)이 <c>value_01</c> 로 적혀 있는 스킬인가.
@@ -229,7 +252,11 @@ namespace LastSanctuary.Combat
         /// *"카르시노스 + {value_01} 반지름 타일 범위"* 라 <b>반지름</b>이다. 값을 그대로 쓰면
         /// 실제 범위가 <b>절반</b>이 되어 표와 화면이 어긋난다.
         /// </summary>
-        public bool CircleValueIsRadius => Type == BossSkillType.RoarDeath;
+        /// ★ 2026-08-19 — 아니사킬 「거대한 위협 포효」도 정의문이
+        /// *"아니사킬 + {value_01} 반지름 타일 범위"* 라 같은 쪽이다. 지금은 <b>반지름 쪽이
+        /// 둘</b>이고 지름 쪽이 단탈리온 계열이다.
+        public bool CircleValueIsRadius =>
+            Type == BossSkillType.RoarDeath || Type == BossSkillType.HugeThreat;
 
         /// <summary>이 에셋이 쓸 만한지 — 종류를 못 알아보면 시전하지 않는다.</summary>
         public bool IsUsable => Type != BossSkillType.None && coolTime > 0f;
