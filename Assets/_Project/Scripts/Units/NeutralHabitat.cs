@@ -75,14 +75,37 @@ namespace LastSanctuary.Units
                  "끄면 서식지가 맵에 남는다(잡은 흔적이 남는 연출)")]
         [SerializeField] bool restoreOnDestroy = true;
 
-        /// <summary>그린 칸과 <b>그 자리에 원래 있던 타일</b>. 복원에 쓴다.</summary>
-        readonly List<KeyValuePair<Vector3Int, TileBase>> _paintedGround =
-            new List<KeyValuePair<Vector3Int, TileBase>>();
-        readonly List<KeyValuePair<Vector3Int, TileBase>> _paintedDeco =
-            new List<KeyValuePair<Vector3Int, TileBase>>();
+        [Header("사라지는 연출 (유저 지시 2026-08-18)")]
+        [Tooltip("★ <b>가장 바깥 칸이 사라지기 시작해서 중심 칸이 시작할 때까지</b> 걸리는 시간(초). " +
+                 "저그 점막이 걷히듯 경계가 안쪽으로 오므라든다. 0 이면 예전처럼 즉시 사라진다")]
+        [Min(0f)] [SerializeField] float fadeSpreadSeconds = 6f;
+
+        [Tooltip("<b>칸 하나</b>가 완전히 투명해지는 데 걸리는 시간(초). " +
+                 "이 값이 곧 걷혀 나가는 <b>띠의 두께</b>다 — 크면 넓게 흐려지며 사라지고 " +
+                 "작으면 선명한 경계가 지나간다. 전체 길이 = 위 값 + 이 값")]
+        [Min(0.05f)] [SerializeField] float fadeCellSeconds = 1.5f;
+
+        /// <summary>그린 칸 하나 — <b>원래 타일과 원래 색</b>을 같이 기억한다.</summary>
+        public struct PaintedCell
+        {
+            public Vector3Int Cell;
+            public TileBase Original;
+
+            /// <summary>
+            /// 원래 색. ⚠ 타일맵의 색은 <b>타일이 아니라 칸</b>에 붙는다 — 연출이 알파를 낮춘 뒤
+            /// 이 값으로 되돌리지 않으면 <b>새로 깔린 지형까지 투명한 채로</b> 남는다.
+            /// </summary>
+            public Color OriginalColor;
+        }
+
+        readonly List<PaintedCell> _paintedGround = new List<PaintedCell>();
+        readonly List<PaintedCell> _paintedDeco = new List<PaintedCell>();
 
         Tilemap _ground;
         Tilemap _deco;
+
+        /// <summary>서식지 중심 칸. 연출이 "먼 곳부터" 를 재는 기준점이다.</summary>
+        Vector3Int _centerCell;
 
         /// <summary>지금 이 서식지가 차지한 칸 수. 로그·디버그용.</summary>
         public int PaintedCells => _paintedGround.Count;
@@ -111,6 +134,8 @@ namespace LastSanctuary.Units
             _deco = map.DecoTilemap;
             if (_ground == null) return;
 
+            _centerCell = centerCell;      // 사라지는 연출이 "먼 곳부터" 를 재는 기준점
+
             bool[] mask = BuildMask(centerCell, radiusTiles, seed, out int w, out int h,
                                     out Vector3Int min);
             if (mask == null) return;
@@ -134,14 +159,24 @@ namespace LastSanctuary.Units
                     bool onEdge = IsBoundary(mask, w, h, x, y);
                     TileBase[] set = onEdge && hasEdge ? edge : ground;
 
-                    _paintedGround.Add(new KeyValuePair<Vector3Int, TileBase>(cell, _ground.GetTile(cell)));
+                    _paintedGround.Add(new PaintedCell
+                    {
+                        Cell = cell,
+                        Original = _ground.GetTile(cell),
+                        OriginalColor = _ground.GetColor(cell),
+                    });
                     _ground.SetTile(cell, set[rng.Next(set.Length)]);
 
                     // ── 데코 ────────────────────────────────────────────
                     // ⚠ 테두리에는 안 얹는다 — 경계가 잦아드는 인상을 데코가 도로 진하게 만든다.
                     if (!hasProps || onEdge || rng.NextDouble() >= propChance) continue;
 
-                    _paintedDeco.Add(new KeyValuePair<Vector3Int, TileBase>(cell, _deco.GetTile(cell)));
+                    _paintedDeco.Add(new PaintedCell
+                    {
+                        Cell = cell,
+                        Original = _deco.GetTile(cell),
+                        OriginalColor = _deco.GetColor(cell),
+                    });
                     _deco.SetTile(cell, props[rng.Next(props.Length)]);
                 }
             }
@@ -160,23 +195,71 @@ namespace LastSanctuary.Units
         static bool Out(bool[] mask, int w, int h, int x, int y) =>
             x < 0 || y < 0 || x >= w || y >= h || !mask[x + y * w];
 
-        /// <summary>그려둔 칸을 원래 타일로 되돌린다 (바닥·데코 둘 다).</summary>
+        /// <summary>
+        /// 그려둔 칸을 <b>즉시</b> 원래 타일로 되돌린다 (바닥·데코 둘 다).
+        /// 서식지를 다시 그릴 때(<see cref="Paint"/> 첫 줄)와, 연출을 끈 경우에 쓴다.
+        /// </summary>
         public void Restore()
         {
-            if (_ground != null)
-                for (int i = 0; i < _paintedGround.Count; i++)
-                    _ground.SetTile(_paintedGround[i].Key, _paintedGround[i].Value);
-            _paintedGround.Clear();
+            RestoreAll(_ground, _paintedGround);
+            RestoreAll(_deco, _paintedDeco);
+        }
 
-            if (_deco != null)
-                for (int i = 0; i < _paintedDeco.Count; i++)
-                    _deco.SetTile(_paintedDeco[i].Key, _paintedDeco[i].Value);
+        static void RestoreAll(Tilemap map, List<PaintedCell> cells)
+        {
+            if (map != null)
+                for (int i = 0; i < cells.Count; i++)
+                {
+                    map.SetTile(cells[i].Cell, cells[i].Original);
+                    // 색도 되돌린다 — 연출 도중에 불릴 수 있어 알파가 낮아진 칸이 있을 수 있다.
+                    map.SetTileFlags(cells[i].Cell, TileFlags.None);
+                    map.SetColor(cells[i].Cell, cells[i].OriginalColor);
+                }
+            cells.Clear();
+        }
+
+        /// <summary>
+        /// ★ <b>바깥에서 안쪽으로 서서히 걷힌다</b> (유저 지시 2026-08-18:
+        /// <i>"저그 해처리 점막 없어지는 거처럼"</i>).
+        ///
+        /// ⚠ <b>연출은 이 컴포넌트에서 돌릴 수 없다</b> — 이 컴포넌트는 몬스터에 붙어 있고
+        /// 몬스터는 죽는 즉시 <c>Destroy</c> 된다. 파괴되는 오브젝트의 <c>Update</c>·코루틴은
+        /// 그 프레임에 멈추므로 첫 프레임만 보이고 끊긴다. 그래서 <see cref="HabitatFadeOut"/>
+        /// 이라는 <b>독립 오브젝트</b>에 칸 목록을 통째로 넘기고 이쪽은 손을 뗀다.
+        ///
+        /// 넘긴 뒤 목록을 비우는 것이 중요하다 — 안 비우면 곧이어 도는 <see cref="OnDestroy"/> 가
+        /// <b>같은 칸을 즉시 되돌려</b> 연출이 시작하자마자 사라진다.
+        /// </summary>
+        public void FadeOutAndRestore()
+        {
+            if (fadeSpreadSeconds <= 0f && fadeCellSeconds <= 0f) { Restore(); return; }
+
+            HabitatFadeOut.Begin(_ground, _deco, _paintedGround, _paintedDeco,
+                                 _centerCell, fadeSpreadSeconds, fadeCellSeconds);
+
+            _paintedGround.Clear();
             _paintedDeco.Clear();
         }
 
+        /// <summary>
+        /// 씬을 떠나거나 플레이 모드를 끝낼 때는 <b>연출을 시작하지 않는다</b> —
+        /// 그 순간 새 오브젝트를 만들면 유니티가 경고를 내고, 어차피 타일맵 변경은
+        /// 플레이 모드를 나가면 통째로 사라진다.
+        /// </summary>
+        static bool _quitting;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics() => _quitting = false;
+
+        void OnApplicationQuit() => _quitting = true;
+
         void OnDestroy()
         {
-            if (restoreOnDestroy) Restore();
+            if (!restoreOnDestroy) return;
+
+            if (_quitting || !Application.isPlaying || !gameObject.scene.isLoaded) { Restore(); return; }
+
+            FadeOutAndRestore();
         }
 
         // ------------------------------------------------------------------

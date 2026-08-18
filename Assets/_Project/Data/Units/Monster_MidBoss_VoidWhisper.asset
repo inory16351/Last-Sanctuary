@@ -17,7 +17,7 @@ MonoBehaviour:
   titleKey: boss_title_110002
   tier: 1
   template: {fileID: 0}
-  hpStat: 9
+  hpStat: 64
   attackStat: 0
   defenseStat: 6
   regenStat: 1
@@ -27,7 +27,7 @@ MonoBehaviour:
   accuracyStat: 50
   criticalStat: 5
   resistanceStat: 50
-  hpPercent: 600
+  hpPercent: 100
   attackType: 1
   detectRange: 8
   attackRange: 5.0

@@ -598,7 +598,7 @@ namespace LastSanctuary.Units
             unit.name = def.DisplayName;
             unit.gameObject.SetActive(true);
 
-            StatBlock scaled = def.BuildStats(hpScale, atkScale, balance.statMax);
+            StatBlock scaled = def.BuildStats(hpScale, atkScale);   // ★ 상한 없음 (2026-08-18)
             unit.Initialize(def, scaled, balance);
 
             // 크기 보정 — <b>표의 콜라이더 상자(타일)</b>를 넘긴다(유저 확정 2026-08-13).

@@ -99,29 +99,29 @@ namespace LastSanctuary.Units
         [Tooltip("웨이브 몬스터와 같은 BalanceConfigSO 치환 공식을 그대로 쓴다.\n" +
                  "★ 2026-08-13 부터 `임시용 중립 몬스터.xlsx` 의 <b>first_Stat 시트</b>가 정본이다 — " +
                  "웨이브 몬스터 테이블과 같은 형식(웨이브 몬스터의 first_Stat 을 그대로 따랐다)")]
-        [Range(0, 100)] public int attackStat = 0;
-        [Range(1, 100)] public int hpStat = 3;
-        [Range(0, 100)] public int defenseStat = 0;
-        [Range(0, 100)] public int regenStat = 0;
+        [Min(0)] public int attackStat = 0;
+        [Min(1)] public int hpStat = 3;
+        [Min(0)] public int defenseStat = 0;
+        [Min(0)] public int regenStat = 0;
 
         [Tooltip("원거리 공격력 (ranged_atk). attackType 이 Ranged 일 때 쓰인다")]
-        [Range(0, 100)] public int rangedAttackStat = 0;
+        [Min(0)] public int rangedAttackStat = 0;
 
         [Tooltip("마법 공격력 (magic). attackType 이 Magic 일 때 쓰인다")]
-        [Range(0, 100)] public int magicStat = 0;
+        [Min(0)] public int magicStat = 0;
 
         [Tooltip("회복력 (cure). attackType 이 Heal 일 때 쓰인다")]
-        [Range(0, 100)] public int cureStat = 0;
+        [Min(0)] public int cureStat = 0;
 
         [Tooltip("명중률 (accuracy). ⚠ <b>원거리 공격 유형에만</b> 적용된다 (유저 확정 2026-08-15).\n" +
                  "적중% = 80 + 명중률 (상한 100)")]
-        [Range(0, 100)] public int accuracyStat = 50;
+        [Min(0)] public int accuracyStat = 50;
 
         [Tooltip("크리티컬 확률 (critical). ⚠ <b>원거리 공격 유형에만</b> 적용된다")]
-        [Range(0, 100)] public int criticalStat = 0;
+        [Min(0)] public int criticalStat = 0;
 
         [Tooltip("저항력 (resistance). 표시용 — 중립은 침식을 받지 않는다")]
-        [Range(0, 100)] public int resistanceStat = 50;
+        [Min(0)] public int resistanceStat = 50;
 
         // ==================================================================
         // ★ 무리 (테이블 group_making / group_member / atk_take) — 2026-08-15 재정의

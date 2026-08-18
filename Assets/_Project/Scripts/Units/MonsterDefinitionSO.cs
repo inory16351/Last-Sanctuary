@@ -50,14 +50,35 @@ namespace LastSanctuary.Units
         [Tooltip("복제할 원본. 종류마다 다른 템플릿을 지정한다")]
         public MonsterUnit template;
 
-        [Header("능력치 (1 ~ 100)")]
-        [Range(1, 100)] public int hpStat = 7;
+        // ==================================================================
+        // 능력치 — ★★ <b>몬스터에는 상한이 없다</b> (유저 지시 2026-08-18:
+        //   <i>"몬스터들은 스탯 상한값 없는 걸로 해줘 특히 보스들 체력 배율로 넣지말고"</i>)
+        //
+        // 예전에는 캐릭터와 같은 <b>1~100</b> 척도를 강제했다(<c>BalanceConfigSO.statMax</c>).
+        // 그 상한은 <b>캐릭터 강화</b>가 무한히 오르지 않게 하려는 규칙인데, 몬스터에까지
+        // 걸리면서 두 가지 사고를 냈다:
+        //
+        //   ① <b>보스 체력을 능력치로 표현할 수 없었다.</b> 그래서 54-3절이
+        //      <c>hp_percent</c>(체력 배율) 칸을 따로 만들어 <b>상한을 우회</b>했다 —
+        //      "보스가 3초에 죽던 문제" 를 배율로 덮은 것이다. 같은 체력이 두 칸
+        //      (<c>hp</c> · <c>hp_percent</c>)에 나뉘어 있어 표를 읽어도 실제 체력을 모른다.
+        //   ② <b>후반 웨이브에서 능력치가 조용히 잘렸다.</b> 웨이브 배율(<c>statPercent</c>)이
+        //      1440%(18웨이브)를 넘으면 잡몹 체력 7 → 100 에서 멈춘다. 표가 설계한 곡선이
+        //      <b>말없이 평평해지고 있었다.</b>
+        //
+        // ★ 이제 <c>[Min]</c> 이다 — 표에 174 를 적으면 174 로 동작한다.
+        //   <b>캐릭터 쪽 상한(<c>statMax</c>)은 그대로다</b> — 강화가 무한히 오르면 안 된다는
+        //   규칙은 유효하고, 영웅 각성만 그 위를 뚫는다(92-3절).
+        // ==================================================================
+
+        [Header("능력치 (상한 없음 — 위 주석 참조)")]
+        [Min(1)] public int hpStat = 7;
 
         [Tooltip("근거리 공격력 (melee_atk). attackType 이 Melee 일 때 쓰인다")]
-        [Range(0, 100)] public int attackStat = 5;
+        [Min(0)] public int attackStat = 5;
 
-        [Range(1, 100)] public int defenseStat = 2;
-        [Range(0, 100)] public int regenStat = 0;
+        [Min(1)] public int defenseStat = 2;
+        [Min(0)] public int regenStat = 0;
 
         // ------------------------------------------------------------------
         // 나머지 공격 계열 + 명중·치명 (2026-08-15 신설)
@@ -73,27 +94,33 @@ namespace LastSanctuary.Units
         // ------------------------------------------------------------------
 
         [Tooltip("원거리 공격력 (ranged_atk). attackType 이 Ranged 일 때 쓰인다")]
-        [Range(0, 100)] public int rangedAttackStat = 0;
+        [Min(0)] public int rangedAttackStat = 0;
 
         [Tooltip("마법 공격력 (magic). attackType 이 Magic 일 때 쓰인다")]
-        [Range(0, 100)] public int magicStat = 0;
+        [Min(0)] public int magicStat = 0;
 
         [Tooltip("회복력 (cure). attackType 이 Heal 일 때 쓰인다 — 지금 몬스터에는 회복형이 없다")]
-        [Range(0, 100)] public int cureStat = 0;
+        [Min(0)] public int cureStat = 0;
 
         [Tooltip("명중률 (accuracy). ⚠ <b>원거리 공격 유형에만</b> 적용된다.\n" +
                  "적중% = 80 + 명중률 (상한 100) 이므로 20 이상이면 사실상 항상 명중")]
-        [Range(0, 100)] public int accuracyStat = 50;
+        [Min(0)] public int accuracyStat = 50;
 
         [Tooltip("크리티컬 확률 (critical). ⚠ <b>원거리 공격 유형에만</b> 적용된다.\n" +
                  "치명% = 크리티컬 × 1")]
-        [Range(0, 100)] public int criticalStat = 0;
+        [Min(0)] public int criticalStat = 0;
 
         [Tooltip("저항력 (resistance). 침식 배율에 쓰인다 — 몬스터는 침식을 받지 않아 지금은 표시용")]
-        [Range(0, 100)] public int resistanceStat = 50;
+        [Min(0)] public int resistanceStat = 50;
 
-        [Header("체력 보정")]
-        [Tooltip("보스처럼 체력 규모를 따로 키울 때 사용. 퍼센트(정수) — 100 이면 보정 없음")]
+        [Header("체력 보정 (⚠ 더 이상 쓰지 않는다 — 100 으로 둘 것)")]
+        [Tooltip("★ 2026-08-18 부터 <b>보스도 체력을 능력치로 적는다</b> " +
+                 "(유저 지시: \"보스들 체력 배율로 넣지말고\"). " +
+                 "이 칸은 능력치 상한 100 을 우회하려고 54-3절이 만든 것이다. " +
+                 "상한이 없어진 지금은 같은 체력을 hp 칸 하나로 적을 수 있고, " +
+                 "그래야 표만 봐도 실제 체력을 안다. " +
+                 "필드를 지우지는 않는다(U-D3) — 옛 에셋이 남아 있어도 조용히 곱해지도록. " +
+                 "새로 적을 일은 없다")]
         [Min(1)] public int hpPercent = 100;
 
         [Header("전투 파라미터 (타일)")]
@@ -233,30 +260,37 @@ namespace LastSanctuary.Units
         /// <summary>
         /// 웨이브 배율을 반영한 능력치를 만든다. 배율은 퍼센트(정수)로 받고
         /// 결과도 정수 능력치이므로, 치환된 체력·공격력도 정수로 떨어진다.
+        ///
+        /// ★★ <b>상한이 없다</b> (2026-08-18) — 예전에는 <c>statMax</c>(100)를 받아
+        /// 모든 칸을 잘랐다. 그래서 <b>후반 웨이브에서 표가 설계한 곡선이 말없이 평평해졌다</b>:
+        /// 잡몹 체력 7 은 18웨이브(배율 1440%)부터, 최종보스 공격력 8 은 20웨이브(1850%)에서
+        /// 상한에 닿아 <b>그 위로는 배율을 올려도 아무 일도 일어나지 않았다.</b>
+        /// 아래 낮은 쪽 자르기(1 · 0)만 남긴다 — 그건 "0 이면 아예 안 때린다" 를 막는 것이라
+        /// 성격이 다르다.
         /// </summary>
-        public StatBlock BuildStats(int hpPercentScale = 100, int attackPercentScale = 100,
-                                    int statMax = 100)
+        public StatBlock BuildStats(int hpPercentScale = 100, int attackPercentScale = 100)
         {
             // ★ 웨이브 배율은 <b>지금 쓰는 공격 계열에만</b> 걸어도 되지만, 어느 칸을 쓸지는
             //   런타임의 <c>UnitCombat.AttackType</c> 이 정하므로 여기서는 알 수 없다 —
             //   <b>네 칸 모두에 같은 배율</b>을 건다. 쓰지 않는 칸은 0 이라 아무 영향이 없고,
             //   나중에 유형을 바꿔도 배율이 빠지지 않는다.
-            int Scaled(int raw, int lowClamp) =>
-                Mathf.Clamp(BalanceConfigSO.ScaleByPercent(raw, attackPercentScale), lowClamp, statMax);
+            int Scaled(int raw, int lowFloor) =>
+                Mathf.Max(lowFloor, BalanceConfigSO.ScaleByPercent(raw, attackPercentScale));
 
             return new StatBlock
             {
-                hp           = Mathf.Clamp(BalanceConfigSO.ScaleByPercent(hpStat, hpPercentScale),
-                                           1, statMax),
+                hp           = Mathf.Max(1, BalanceConfigSO.ScaleByPercent(hpStat, hpPercentScale)),
                 attack       = Scaled(attackStat, 1),
                 rangedAttack = Scaled(rangedAttackStat, 0),
                 magic        = Scaled(magicStat, 0),
                 cure         = Scaled(cureStat, 0),
-                defense      = Mathf.Clamp(defenseStat, 1, statMax),
-                regen        = Mathf.Clamp(regenStat, 0, statMax),
-                accuracy     = Mathf.Clamp(accuracyStat, 0, statMax),
-                critical     = Mathf.Clamp(criticalStat, 0, statMax),
-                resistance   = Mathf.Clamp(resistanceStat, 0, statMax),
+                // ⚠ 아래 다섯 칸은 <b>웨이브 배율을 받지 않는다</b>(예전부터 그랬다) —
+                //   표 값을 그대로 쓰므로 상한을 뗀 것만으로는 아무것도 안 바뀐다.
+                defense      = Mathf.Max(1, defenseStat),
+                regen        = Mathf.Max(0, regenStat),
+                accuracy     = Mathf.Max(0, accuracyStat),
+                critical     = Mathf.Max(0, criticalStat),
+                resistance   = Mathf.Max(0, resistanceStat),
             };
         }
     }

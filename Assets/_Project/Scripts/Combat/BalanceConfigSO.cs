@@ -30,7 +30,11 @@ namespace LastSanctuary.Combat
         [Tooltip("능력치의 최소값. 유저에게 보이는 값과 동일한 척도")]
         [Min(1)] public int statMin = 1;
 
-        [Tooltip("능력치의 최대값")]
+        [Tooltip("능력치의 최대값. ★ <b>캐릭터 전용</b>이다 (2026-08-18) — " +
+                 "강화(CharacterUpgradeService.Grow)가 여기서 잘리고, 영웅 각성만 그 위를 뚫는다. " +
+                 "⚠ <b>몬스터에는 걸리지 않는다.</b> 예전에는 MonsterDefinitionSO.BuildStats 가 " +
+                 "이 값으로 몬스터 능력치까지 잘랐는데, 그 때문에 후반 웨이브에서 표가 설계한 " +
+                 "곡선이 말없이 평평해지고 보스 체력을 배율(hp_percent)로 우회해야 했다")]
         [Min(1)] public int statMax = 100;
 
         [Header("생성 시 랜덤 범위")]
