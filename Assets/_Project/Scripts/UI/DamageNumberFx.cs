@@ -294,24 +294,60 @@ namespace LastSanctuary.UI
         static DamageNumberFx _instance;
 
         /// <summary>
-        /// <b>안전망</b> — 씬의 <c>GameSystems</c> 에 이 컴포넌트가 없을 때만 스스로 만든다.
+        /// <b>안전망 걸기</b> — 씬이 열릴 때마다 "전투 씬인데 이 컴포넌트가 없는가"를 본다.
         ///
-        /// ⚠ <c>AfterSceneLoad</c> 는 씬 오브젝트의 <c>Awake</c> <b>뒤에</b> 돈다. 그래서
-        /// 씬에 붙어 있으면 그쪽이 이미 <see cref="_instance"/> 를 채워 여기서 조용히 물러난다 —
-        /// <b>인스펙터에서 조정한 값이 이 폴백에 덮이지 않는다.</b>
+        /// ★★ <b>왜 씬마다 다시 보는가 — 로비 씬이 생기면서 안전망이 오작동했다</b>
+        /// (2026-08-18, 유저 리포트: 로비에서 시작하자마자 아래 경고가 떴다).
         ///
-        /// 여기서 만든 오브젝트의 값은 <b>코드 기본값</b>이다(고칠 자리가 없다). 그래도
-        /// 남겨두는 이유는 컴포넌트가 씬에서 빠지는 사고가 실제로 두 번 있었기 때문이다
-        /// (28-3·28-4절) — 그때 데미지 숫자가 통째로 사라지는 것보다는 기본값이 낫다.
+        /// 예전에는 이 함수가 <c>AfterSceneLoad</c> 에 <b>한 번만</b> 돌면서 "지금 <c>_instance</c> 가
+        /// 없으면 만든다"였다. 그 판단은 <b>첫 씬이 전투 씬</b>일 때만 옳다. 빌드 0번이
+        /// <c>Lobby</c> 가 된 뒤로는(99-6절) 그 시점에 컴포넌트가 없는 것이 <b>정상</b>인데도
+        /// 폴백을 만들고, <c>DontDestroyOnLoad</c> 라서 <b>게임 씬까지 따라갔다.</b>
+        ///
+        /// 그러면 <c>Proto_01</c> 의 <c>GameSystems</c> 에 붙은 진짜 컴포넌트와 <b>둘이 함께
+        /// 살아남는다</b>. 둘 다 <c>Awake</c> 에서 정적 이벤트를 구독하므로 — 그리고 그 구독은
+        /// <c>-=</c> 로 못 지운다(대상이 서로 다른 인스턴스다) — <b>피해 숫자가 두 번 뜬다.</b>
+        /// 하나는 씬 값, 하나는 코드 기본값이라 <b>크기가 다른 숫자가 겹쳐 보인다.</b>
+        ///
+        /// 그래서 두 가지를 바꿨다:
+        ///   ① <b>전투 씬일 때만</b> 만든다(<see cref="Wave.WaveManager"/> 가 있는가로 판정) —
+        ///      로비에는 피해 숫자를 띄울 대상이 아예 없다.
+        ///   ② <b><c>DontDestroyOnLoad</c> 를 쓰지 않는다</b> — 폴백은 자기가 태어난 씬과
+        ///      생애를 같이 해야 한다. 씬을 넘길 때 사라져 다음 씬의 진짜 컴포넌트와 겹치지 않는다.
+        ///
+        /// ⚠ <c>sceneLoaded</c> 는 새 씬 오브젝트의 <c>Awake</c> <b>뒤</b> · <c>Start</c> <b>앞</b>에
+        /// 돈다. 그래서 씬에 컴포넌트가 있으면 그쪽이 이미 <see cref="_instance"/> 를 채워
+        /// 여기서 조용히 물러난다 — <b>인스펙터에서 조정한 값이 폴백에 덮이지 않는다.</b>
+        ///
+        /// 안전망 자체를 남겨두는 이유는 컴포넌트가 씬에서 빠지는 사고가 실제로 두 번
+        /// 있었기 때문이다(28-3·28-4절) — 그때 데미지 숫자가 통째로 사라지는 것보다는
+        /// 기본값이 낫다.
         /// </summary>
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Bootstrap()
         {
+            // ⚠ 먼저 빼고 더한다 — 도메인 리로드를 끈 상태에서 두 번 걸리는 것을 막는다(Awake 와 같은 규칙).
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded -= HandleSceneLoaded;
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded += HandleSceneLoaded;
+
+            // 첫 씬은 이벤트가 이미 지나갔으므로 여기서 직접 본다.
+            EnsureFallbackForBattleScene();
+        }
+
+        static void HandleSceneLoaded(UnityEngine.SceneManagement.Scene scene,
+                                      UnityEngine.SceneManagement.LoadSceneMode mode) =>
+            EnsureFallbackForBattleScene();
+
+        static void EnsureFallbackForBattleScene()
+        {
             if (_instance != null) return;
+
+            // ★ 전투 씬이 아니면 만들지 않는다. 로비에서 만들면 그 폴백이 게임 씬까지 따라가
+            //   진짜 컴포넌트와 <b>둘이</b> 구독한다(위 주석 참조).
+            if (FindAnyObjectByType<Wave.WaveManager>() == null) return;
 
             var go = new GameObject("~DamageNumberFx");
             go.hideFlags = HideFlags.DontSave;
-            DontDestroyOnLoad(go);
             _instance = go.AddComponent<DamageNumberFx>();
 
             Debug.LogWarning("[데미지숫자] 씬(GameSystems)에 DamageNumberFx 가 없어 " +

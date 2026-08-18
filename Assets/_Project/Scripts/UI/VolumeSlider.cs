@@ -12,7 +12,8 @@ namespace LastSanctuary.UI
     /// ★★ <b>유니티 <see cref="Slider"/> 는 MCP 로 완성할 수 없다</b> — <c>fillRect</c> ·
     /// <c>handleRect</c> · <c>targetGraphic</c> 이 전부 <b>씬 오브젝트 참조</b>인데 MCP 로는
     /// 인스펙터에 참조를 넣을 수 없다(진행상황 8절 4번). 그래서 <b>구조는 MCP 로 만들고
-    /// 참조는 코드가 이름으로 찾아 꽂는다</b> — 이 프로젝트의 모든 HUD 가 쓰는 그 방식이다.
+    /// 참조는 코드가 이름으로 찾아 꽂는다</b> — 그 배선은 <see cref="SliderWiring"/> 이 맡는다
+    /// (전술 지침의 후퇴 기준 슬라이더가 같은 것을 쓴다).
     /// 처음엔 그 제약 때문에 −/+ 버튼으로 만들었는데, 유저가 드래그를 원해 이렇게 바꿨다.
     ///
     /// <b>왜 별도 컴포넌트인가</b> — 게임 중(<see cref="SettingsPanel"/>)과 로비
@@ -67,7 +68,7 @@ namespace LastSanctuary.UI
                 return;
             }
 
-            WireSliderParts();
+            SliderWiring.Wire(_slider, Find<RectTransform>(fillPath), Find<RectTransform>(handlePath));
 
             _slider.minValue = 0f;
             _slider.maxValue = 1f;
@@ -79,38 +80,6 @@ namespace LastSanctuary.UI
             _slider.onValueChanged.AddListener(HandleChanged);
 
             Paint(SaveService.Volume);
-        }
-
-        /// <summary>
-        /// 슬라이더의 <b>오브젝트 참조 세 칸</b>을 이름으로 찾아 꽂는다 — MCP 가 못 하는 그 일이다.
-        ///
-        /// ⚠ <c>fillRect</c>/<c>handleRect</c> 를 대입하면 유니티가 그 <see cref="RectTransform"/> 의
-        /// 앵커를 <b>스스로 몰기 시작한다</b>(driven). 그래서 씬에서 잡아둔 앵커 값이 실행 중에
-        /// 바뀌어 보이는 것이 정상이다 — 손으로 다시 맞추려 들면 안 된다.
-        ///
-        /// ⚠ 이미 꽂혀 있으면 건드리지 않는다 — 나중에 프리팹으로 승격해 인스펙터에 제대로
-        /// 배선되면 그쪽이 정본이어야 한다.
-        /// </summary>
-        void WireSliderParts()
-        {
-            if (_slider.fillRect == null)
-            {
-                RectTransform fill = Find<RectTransform>(fillPath);
-                if (fill != null) _slider.fillRect = fill;
-            }
-
-            if (_slider.handleRect == null)
-            {
-                RectTransform handle = Find<RectTransform>(handlePath);
-                if (handle != null) _slider.handleRect = handle;
-            }
-
-            // 손잡이가 눌린 상태를 보여줄 그래픽. 없으면 클릭해도 색이 안 변할 뿐 동작은 한다.
-            if (_slider.targetGraphic == null && _slider.handleRect != null)
-            {
-                var graphic = _slider.handleRect.GetComponent<Graphic>();
-                if (graphic != null) _slider.targetGraphic = graphic;
-            }
         }
 
         T Find<T>(string path) where T : Component

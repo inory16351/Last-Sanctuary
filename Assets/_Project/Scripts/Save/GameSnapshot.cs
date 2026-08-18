@@ -186,6 +186,7 @@ namespace LastSanctuary.Save
             CaptureTowers(data);
             CaptureMonsters(data);
             CaptureNeutrals(data);
+            CaptureSubjugation(data);
             CaptureFog(data);
 
             return data;
@@ -345,8 +346,30 @@ namespace LastSanctuary.Save
                     save.habitatSeed = habitat.Seed;
                 }
 
+                save.spawnId = unit.SpawnId;
+
                 data.neutrals.Add(save);
             }
+
+            // 재생성 대기 — <b>죽어 있는 종</b>의 기다림이다. 개체 목록에는 아무 흔적이 없으므로
+            // 이걸 안 담으면 "죽은 지 얼마나 됐는지"가 불러올 때 0 으로 되돌아간다.
+            _neutralSpawner.ExportRestockDelays(data.neutralRestockMonIds, data.neutralRestockSeconds);
+        }
+
+        /// <summary>
+        /// 토벌 발견 목록 · 부대 토벌 지시 (2026-08-18).
+        ///
+        /// ★★ 발견 판정이 <b>"지금 시야에 들어와 있는가"</b> 라서, 저장하지 않으면 불러온 순간
+        /// 목록이 비고 부대에 걸어둔 지시도 같이 사라진다
+        /// (<c>EpicSubjugationService.RestoreState</c> 주석 참조).
+        /// </summary>
+        void CaptureSubjugation(SaveData data)
+        {
+            EpicSubjugationService service = EpicSubjugationService.Instance;
+            if (service == null) return;
+
+            service.ExportDiscovered(data.subjugationDiscovered);
+            service.ExportOrders(data.subjugationOrderSquads, data.subjugationOrderTargets);
         }
 
         void CaptureFog(SaveData data)
@@ -385,6 +408,7 @@ namespace LastSanctuary.Save
             RestoreTowers(data);
             RestoreMonsters(data);
             RestoreNeutrals(data);
+            RestoreSubjugation(data);   // 가리킬 개체가 생긴 뒤여야 한다
 
             ResourceManager resources = ResourceManager.Instance;
             if (resources != null) resources.RestoreEnergy(data.energy);
@@ -497,6 +521,7 @@ namespace LastSanctuary.Save
 
         void RestoreNeutrals(SaveData data)
         {
+            _restoredNeutrals.Clear();
             if (_neutralSpawner == null) return;
 
             // ⚠⚠ 서식지를 <b>즉시</b> 되돌린 뒤에 지운다 — 그냥 파괴하면 사라지는 연출이
@@ -508,12 +533,53 @@ namespace LastSanctuary.Save
             {
                 NeutralMonsterUnit unit = _neutralSpawner.RestoreNeutral(
                     save.monId, save.position, save.homePosition,
-                    save.hasHabitat, save.habitatCell, save.habitatSeed);
+                    save.hasHabitat, save.habitatCell, save.habitatSeed, save.spawnId);
                 if (unit == null) continue;
+
+                // 토벌 목록이 개체를 번호로 가리킨다 — 여기서 짝을 기억해 두면 그쪽에서
+                // 씬을 다시 훑지 않아도 된다(복원한 마리만 후보라는 것도 여기서 보장된다).
+                if (save.spawnId > 0) _restoredNeutrals[save.spawnId] = unit;
 
                 int target = Mathf.Clamp(save.currentHp, 1, unit.MaxHp);
                 if (target < unit.CurrentHp) unit.ApplyDamage(unit.CurrentHp - target);
             }
+
+            // 죽어 있던 종의 남은 재생성 대기. ⚠ <b>Start 가 이미 자기 주기를 잡은 뒤</b>라
+            // 덮어쓰는 순서가 맞다(스포너 쪽 ImportRestockDelays 주석).
+            _neutralSpawner.ImportRestockDelays(data.neutralRestockMonIds, data.neutralRestockSeconds);
+        }
+
+        /// <summary>복원한 중립을 개체 번호로 찾기 위한 짝. 토벌 목록 복원에만 쓴다.</summary>
+        readonly Dictionary<int, NeutralMonsterUnit> _restoredNeutrals =
+            new Dictionary<int, NeutralMonsterUnit>();
+
+        /// <summary>
+        /// 토벌 발견 목록 · 부대 토벌 지시를 되돌린다. <b>중립 복원 뒤에</b> 불러야 한다 —
+        /// 가리킬 개체가 그때 생긴다.
+        /// </summary>
+        void RestoreSubjugation(SaveData data)
+        {
+            EpicSubjugationService service = EpicSubjugationService.Instance;
+            if (service == null) return;
+
+            var discovered = new List<NeutralMonsterUnit>();
+            foreach (int spawnId in data.subjugationDiscovered)
+                if (_restoredNeutrals.TryGetValue(spawnId, out NeutralMonsterUnit unit))
+                    discovered.Add(unit);
+
+            var squadIds = new List<int>();
+            var targets = new List<NeutralMonsterUnit>();
+
+            int pairs = Mathf.Min(data.subjugationOrderSquads.Count, data.subjugationOrderTargets.Count);
+            for (int i = 0; i < pairs; i++)
+            {
+                if (!_restoredNeutrals.TryGetValue(data.subjugationOrderTargets[i],
+                                                   out NeutralMonsterUnit target)) continue;
+                squadIds.Add(data.subjugationOrderSquads[i]);
+                targets.Add(target);
+            }
+
+            service.RestoreState(discovered, squadIds, targets);
         }
 
         void RestoreNexus(SaveData data)

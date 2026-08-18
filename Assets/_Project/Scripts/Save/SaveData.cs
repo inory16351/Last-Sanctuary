@@ -62,6 +62,32 @@ namespace LastSanctuary.Save
 
         /// <summary>넥서스 체력. 0 이하로 저장되는 일은 없다(그 판은 이미 패배다).</summary>
         public int nexusHp;
+
+        // ── 토벌 (2026-08-18) ──
+        //
+        // ★★ <b>발견은 "지금 보이는가"로 판정되므로 저장하지 않으면 불러온 순간 비어버린다.</b>
+        // 안개의 <b>밝힌 칸</b>은 복원되지만 <b>지금 시야</b>는 유닛 위치로 매 프레임 다시
+        // 계산되는 값이다 — <c>EpicSubjugationService.RestoreState</c> 주석 참조.
+
+        /// <summary>발견한 에픽들의 <c>NeutralMonsterUnit.SpawnId</c>.</summary>
+        public List<int> subjugationDiscovered = new List<int>();
+
+        /// <summary>토벌 지시를 걸어둔 부대 id. 아래 목록과 <b>같은 순서로 짝</b>지어진다.</summary>
+        public List<int> subjugationOrderSquads = new List<int>();
+
+        /// <summary>위 부대가 노리던 개체의 <c>SpawnId</c>.</summary>
+        public List<int> subjugationOrderTargets = new List<int>();
+
+        // ── 중립 재생성 대기 (2026-08-18, 유저 지시 "타이머 넣어서") ──
+        //
+        // ⚠ <b>남은 초</b>로 담는다. <c>Time.time</c> 은 씬을 새로 부르면 0 부터 다시 시작하므로
+        // 절대 시각을 적으면 아무 뜻이 없다 — <c>NeutralMonsterSpawner.ExportRestockDelays</c> 참조.
+
+        /// <summary>재생성 대기가 걸려 있는 종의 <c>monId</c>.</summary>
+        public List<int> neutralRestockMonIds = new List<int>();
+
+        /// <summary>위 종의 남은 대기 시간(초). 같은 순서로 짝지어진다.</summary>
+        public List<float> neutralRestockSeconds = new List<float>();
     }
 
     /// <summary>캐릭터 한 명. 능력치·성장·상태를 전부 담는다.</summary>
@@ -188,5 +214,15 @@ namespace LastSanctuary.Save
 
         /// <summary>서식지 모양을 만든 씨앗.</summary>
         public int habitatSeed;
+
+        /// <summary>
+        /// 개체를 가리키는 런타임 번호(<c>NeutralMonsterUnit.SpawnId</c>). 토벌 발견 목록·
+        /// 토벌 지시가 이 번호로 <b>같은 마리</b>를 다시 찾는다.
+        ///
+        /// ⚠ 0 이면 이 칸이 생기기 전(2026-08-18 이전)에 저장된 파일이다 — 복원할 때 스포너가
+        /// 새 번호를 매기고, 그 세이브의 토벌 목록은 아무 개체와도 안 이어져 비게 된다.
+        /// 조용히 빈 목록이 되는 것이 잘못된 마리를 가리키는 것보다 낫다.
+        /// </summary>
+        public int spawnId;
     }
 }

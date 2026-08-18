@@ -196,6 +196,89 @@ namespace LastSanctuary.Units
             OnChanged?.Invoke();
         }
 
+        // ------------------------------------------------------------------
+        // 저장 복원 (2026-08-18 신설)
+        //
+        // ★★ <b>왜 저장해야 하는가 — 발견은 "지금 보이는가"로 판정되기 때문이다.</b>
+        //   <see cref="ScanForNewlySeen"/> 는 <c>IsVisibleWorld</c>(지금 시야에 들어와 있는가)로
+        //   판정하는데, 안개의 <b>밝힌 칸</b>은 저장·복원되지만 <b>지금 보이는 칸</b>은 유닛
+        //   위치로 매 프레임 다시 계산되는 값이라 복원 직후엔 아무것도 안 보인다. 그래서
+        //   저장하지 않으면 <b>불러온 순간 발견 목록이 비고</b>(근처에 캐릭터가 없으면 다시 가서
+        //   봐야 한다), 그 목록에 걸어둔 <b>부대 토벌 지시도 같이 사라진다.</b>
+        //
+        //   클래스 주석의 원칙("한 번 본 개체는 안개가 다시 덮여도 목록에 남는다")이 저장을
+        //   건너뛰면 <b>게임을 껐다 켜는 순간에만 깨지고 있었다.</b>
+        //
+        // ⚠ <b>개체는 <see cref="NeutralMonsterUnit.SpawnId"/> 로 가리킨다</b> — 표의 monId 는
+        //   종을 가리키지 개체를 가리키지 않아서, 같은 종이 여럿이면 누구를 발견했는지 알 수 없다.
+        //   번호를 다시 매기는 일은 스포너가 한다(<c>NeutralMonsterSpawner.RestoreNeutral</c>).
+        // ------------------------------------------------------------------
+
+        /// <summary>발견한 개체들의 <see cref="NeutralMonsterUnit.SpawnId"/> 를 담는다.</summary>
+        public void ExportDiscovered(List<int> spawnIds)
+        {
+            if (spawnIds == null) return;
+
+            for (int i = 0; i < _discovered.Count; i++)
+            {
+                NeutralMonsterUnit unit = _discovered[i];
+                if (unit == null || !unit.IsAlive || unit.SpawnId <= 0) continue;
+                spawnIds.Add(unit.SpawnId);
+            }
+        }
+
+        /// <summary>부대별 토벌 지시를 <b>두 목록에 짝지어</b> 담는다 (부대 id · 대상 개체 번호).</summary>
+        public void ExportOrders(List<int> squadIds, List<int> targetSpawnIds)
+        {
+            if (squadIds == null || targetSpawnIds == null) return;
+
+            foreach (var kv in _orders)
+            {
+                NeutralMonsterUnit target = kv.Value;
+                if (target == null || !target.IsAlive || target.SpawnId <= 0) continue;
+
+                squadIds.Add(kv.Key);
+                targetSpawnIds.Add(target.SpawnId);
+            }
+        }
+
+        /// <summary>
+        /// 저장된 발견 목록과 토벌 지시를 되돌린다. 목록에 없는 개체(복원에 실패한 마리)는
+        /// 조용히 건너뛴다.
+        ///
+        /// ⚠ <see cref="SetOrder"/> 를 쓰지 않는다 — 그쪽은 로그를 남기고 사냥 타겟을 놓는
+        /// <b>지시가 바뀌었을 때의 처리</b>다. 복원은 "그때 그 상태였다"를 재현하는 것이라
+        /// 화면에 아무 말도 하지 않아야 한다(다른 서비스의 <c>Restore*</c> 와 같은 규칙).
+        /// </summary>
+        public void RestoreState(IReadOnlyList<NeutralMonsterUnit> discovered,
+                                 IReadOnlyList<int> orderSquadIds,
+                                 IReadOnlyList<NeutralMonsterUnit> orderTargets)
+        {
+            _discovered.Clear();
+            _orders.Clear();
+
+            if (discovered != null)
+                for (int i = 0; i < discovered.Count; i++)
+                {
+                    NeutralMonsterUnit unit = discovered[i];
+                    if (unit == null || !unit.IsAlive || _discovered.Contains(unit)) continue;
+                    _discovered.Add(unit);
+                }
+
+            if (orderSquadIds != null && orderTargets != null)
+            {
+                int pairs = Mathf.Min(orderSquadIds.Count, orderTargets.Count);
+                for (int i = 0; i < pairs; i++)
+                {
+                    NeutralMonsterUnit target = orderTargets[i];
+                    if (orderSquadIds[i] <= 0 || target == null || !target.IsAlive) continue;
+                    _orders[orderSquadIds[i]] = target;
+                }
+            }
+
+            OnChanged?.Invoke();
+        }
+
         /// <summary>이 부대원 전원의 사냥 타겟을 놓는다 (명령이 바뀔 때).</summary>
         void ReleaseHunts(int squadId)
         {

@@ -18,8 +18,13 @@ namespace LastSanctuary.UI
     /// 한다 — 되돌릴 것을 하나라도 빠뜨리면 이전 판의 잔재가 새 판에 섞인다.
     /// 씬을 새로 부르면 그 문제가 통째로 없어진다.
     ///
-    /// <b>연출</b>(유저 지시) — 타이틀 이미지가 먼저 페이드 인 하고, 그 뒤 버튼들이
-    /// <b>순차적으로</b> 페이드 인 한다. 시간은 <see cref="Time.unscaledDeltaTime"/> 으로 잰다 —
+    /// <b>연출</b>(유저 지시 2026-08-18 — <b>순서대로 하나씩</b>, 겹치지 않는다):
+    /// <code>
+    ///   ① 흰 화면에서 시작 → 흰 막이 걷히며 배경이 드러난다   (screenFadeSeconds)
+    ///   ② 그것이 <b>완전히</b> 끝난 뒤 타이틀이 화면 중앙에서 제자리로 떠오르며 밝아진다
+    ///   ③ 타이틀이 다 떠오른 뒤 버튼들이 <b>순차적으로</b> 페이드 인 한다
+    /// </code>
+    /// 시간은 <see cref="Time.unscaledDeltaTime"/> 으로 잰다 —
     /// 게임에서 일시정지(<c>timeScale = 0</c>)한 채 로비로 나오면 연출이 멈춰버린다.
     /// (<see cref="SettingsPanel"/> 이 씬을 넘기기 전에 되돌리지만, 그 한 곳에만 의존하지 않는다.)
     /// </summary>
@@ -34,13 +39,44 @@ namespace LastSanctuary.UI
         [SerializeField] string savedAtPath = "Menu/SavedAt";
         [SerializeField] string settingsWindowPath = "SettingsWindow";
 
+        [Header("그림 (2026-08-18 — 볼트의 타이틀·배경 반영)")]
+        [Tooltip("배경 액자(RectMask2D). 이 아래의 Sprite 에 그림이 들어간다")]
+        [SerializeField] string backgroundPath = "Background";
+
+        [Tooltip("배경 그림을 그리는 Image. 그 부모가 잘라내는 액자다(RectMask2D)")]
+        [SerializeField] string backgroundSpritePath = "Background/Sprite";
+
+        [Tooltip("맨 앞을 덮는 흰 막. 이것이 걷히면서 화면이 페이드 인 한다")]
+        [SerializeField] string curtainPath = "Curtain";
+
+        [Tooltip("타이틀 뒤에 깔아 배경의 밝은 후광을 누르는 어두운 원(2026-08-18 유저 확정)")]
+        [SerializeField] string vignettePath = "Vignette";
+
+        [SerializeField] string vignetteResource = "UI/Lobby/TitleVignette";
+
+        [Tooltip("버튼 네 개가 공통으로 쓰는 판 그림. 그림자는 그림에 구워져 있다")]
+        [SerializeField] string buttonResource = "UI/Lobby/LobbyButton";
+
+        [Tooltip("Resources 경로 — ⚠ 스프라이트 참조는 MCP 로 인스펙터에 못 넣는다(8절 4번)")]
+        [SerializeField] string backgroundResource = "UI/Lobby/LobbyBg";
+
+        [SerializeField] string titleResource = "UI/Lobby/LobbyTitle";
+
         [Header("씬")]
         [Tooltip("게임 본편 씬 이름. 빌드 세팅에 들어 있어야 한다")]
         [SerializeField] string gameSceneName = "Proto_01";
 
         [Header("페이드 인")]
+        [Tooltip("흰 화면이 걷히는 시간(초). 이것이 <b>완전히</b> 끝난 뒤에 타이틀이 시작한다 " +
+                 "(유저 지시 2026-08-18)")]
+        [Min(0f)] [SerializeField] float screenFadeSeconds = 2f;
+
         [Tooltip("타이틀 이미지가 떠오르는 시간(초)")]
-        [Min(0f)] [SerializeField] float titleFadeSeconds = 1.2f;
+        [Min(0f)] [SerializeField] float titleFadeSeconds = 2.4f;
+
+        [Tooltip("타이틀이 떠오르면서 올라오는 높이(px). 화면 <b>중앙</b>에서 출발해 제자리로 " +
+                 "올라오는 값이다(200 ≈ 중앙). 0 이면 제자리에서 밝아지기만 한다")]
+        [Min(0f)] [SerializeField] float titleRisePixels = 200f;
 
         [Tooltip("타이틀이 다 뜬 뒤 첫 버튼이 뜨기까지 기다리는 시간(초)")]
         [Min(0f)] [SerializeField] float menuDelaySeconds = 0.25f;
@@ -56,6 +92,9 @@ namespace LastSanctuary.UI
         [SerializeField] string noSaveText = "저장된 게임이 없습니다";
 
         CanvasGroup _titleGroup;
+        CanvasGroup _vignetteGroup;
+        CanvasGroup _curtainGroup;
+        RectTransform _titleRect;
         Button _continueButton;
         Button _newGameButton;
         Button _settingsButton;
@@ -82,7 +121,24 @@ namespace LastSanctuary.UI
 
         void Bind()
         {
+            ApplyArt();
+            ApplyDrawOrder();
+
             _titleGroup = EnsureGroup(titlePath);
+            _titleRect = transform.Find(titlePath) as RectTransform;
+
+            // 비네트는 타이틀과 <b>같이</b> 떠오른다 — 먼저 나오면 배경에 검은 얼룩이 지고,
+            // 나중에 나오면 로고가 밝은 후광 위에 떠 있는 그 상태를 한 번 보여주게 된다.
+            _vignetteGroup = EnsureGroup(vignettePath);
+
+            // ⚠ 흰 막은 <b>덮은 상태로</b> 시작한다 — EnsureGroup 은 알파를 0 으로 두므로
+            //   (페이드 인 하는 것들의 규칙) 여기만 따로 1 로 세운다.
+            _curtainGroup = FindComponent<CanvasGroup>(curtainPath);
+            if (_curtainGroup != null)
+            {
+                _curtainGroup.alpha = 1f;
+                _curtainGroup.blocksRaycasts = false;   // 막이 버튼을 먹지 않게(연출용일 뿐이다)
+            }
 
             _continueButton = FindComponent<Button>(continueButtonPath);
             _newGameButton = FindComponent<Button>(newGameButtonPath);
@@ -105,6 +161,147 @@ namespace LastSanctuary.UI
             AddMenuGroup(newGameButtonPath);
             AddMenuGroup(settingsButtonPath);
             AddMenuGroup(quitButtonPath);
+        }
+
+        /// <summary>
+        /// 타이틀·배경 그림을 얹는다 (2026-08-18 — 유저 지시 <i>"타이틀 이미지랑 로비 배경 화면
+        /// 볼트에 넣어놨으니까 확인하고 넣어"</i>. 99-6절의 회색 사각형 자리 표시를 대체한다).
+        ///
+        /// ⚠ <b>스프라이트는 오브젝트 참조라 MCP 로 인스펙터에 넣을 수 없다</b>(8절 4번) —
+        /// 그래서 <c>Resources</c> 에서 <b>코드가 읽어 꽂는다</b>. 이 프로젝트의 초상화·일러스트가
+        /// 전부 같은 방식이다.
+        ///
+        /// ⚠ 그림이 null 로 나오면 십중팔구 <c>.meta</c> 의 <c>textureType</c> 이 8(Sprite)이 아니다 —
+        /// 히스톤 초상화가 인게임 모션으로 뜨던 그 함정이다(84-8절 ②). 조용히 넘기지 말고 경고한다.
+        /// </summary>
+        void ApplyArt()
+        {
+            Image background = FindComponent<Image>(backgroundSpritePath);
+            if (background != null)
+            {
+                Sprite sprite = Load(backgroundResource);
+                if (sprite != null)
+                {
+                    background.sprite = sprite;
+                    background.color = Color.white;
+
+                    // ★ <b>화면비가 달라도 빈 곳이 생기지 않게 cover 로 채운다</b> — preserveAspect
+                    //   (contain)로 두면 16:10 같은 화면에서 위아래에 띠가 남는다(90-7절).
+                    PortraitFit.Cover(background, 0.5f, 0.5f);
+                }
+            }
+
+            // ★ 타이틀 뒤 비네트 — 배경에서 <b>가장 밝은 자리</b>(성 첨탑 + 붉은 후광)가 하필
+            //   타이틀 자리라, 그 밝기를 눌러 로고가 앉을 어두운 자리를 만든다.
+            //   ⚠ 배경 그림 자체를 어둡게 굽지 않는다 — 그러면 나중에 배경만 갈아끼울 때
+            //     이 보정이 따라오지 않는다.
+            Image vignette = FindComponent<Image>(vignettePath);
+            if (vignette != null)
+            {
+                Sprite sprite = Load(vignetteResource);
+                if (sprite != null)
+                {
+                    vignette.sprite = sprite;
+                    vignette.color = Color.white;      // 어두움은 그림의 알파가 들고 있다
+                    vignette.preserveAspect = false;   // 타원으로 늘려 쓴다
+                }
+            }
+
+            Image title = FindComponent<Image>(titlePath);
+            if (title == null) return;
+
+            Sprite titleSprite = Load(titleResource);
+            if (titleSprite == null) return;
+
+            title.sprite = titleSprite;
+            title.color = Color.white;
+
+            // 타이틀은 <b>잘리면 안 된다</b> — 로고가 반쯤 사라지면 무엇인지 알 수 없다.
+            // 그래서 배경과 달리 contain(preserveAspect)이다. 씬의 칸도 그림 비율로 잡아 뒀다.
+            title.preserveAspect = true;
+
+            ApplyButtonArt();
+        }
+
+        /// <summary>
+        /// 버튼 네 개에 <b>같은 판 그림</b>을 깐다 (2026-08-18 유저 지시:
+        /// <i>"버튼도 이미지 넣었으니까 자연스럽게 그림자 등등 효과 넣어서 적용"</i>).
+        ///
+        /// ★ 그림 하나를 넷이 나눠 쓴다 — 버튼마다 그림을 따로 두면 판 모양을 바꿀 때
+        /// 네 군데를 고쳐야 하고, 하나를 빼먹으면 그 버튼만 다른 모양이 된다.
+        ///
+        /// ⚠ <b>그림자는 그림에 구워져 있다</b>(<c>import_lobby_art.py</c> 의 <c>BUTTON_FX</c>).
+        /// 그래서 판보다 위아래로 여백이 있는 그림이고, 씬의 버튼 칸(70px)도 그만큼 크다 —
+        /// <b>보이는 판은 52px</b> 이다. 칸 높이를 판 높이로 착각해 줄이면 그림자가 잘린다.
+        ///
+        /// ⚠ <c>preserveAspect</c> 를 <b>끈다</b> — 켜면 화면비가 다른 해상도에서 판이 칸
+        /// 가운데로 모여 좌우에 빈 곳이 생긴다. 판은 가로로 늘어나도 이상하지 않은 그림이다.
+        /// </summary>
+        void ApplyButtonArt()
+        {
+            Sprite plate = Load(buttonResource);
+            if (plate == null) return;
+
+            ApplyPlate(continueButtonPath, plate);
+            ApplyPlate(newGameButtonPath, plate);
+            ApplyPlate(settingsButtonPath, plate);
+            ApplyPlate(quitButtonPath, plate);
+        }
+
+        void ApplyPlate(string path, Sprite plate)
+        {
+            Image image = FindComponent<Image>(path);
+            if (image == null) return;
+
+            image.sprite = plate;
+            image.type = Image.Type.Simple;
+            image.preserveAspect = false;
+
+            // ⚠ 색은 <b>건드리지 않는다</b> — 버튼의 ColorTint 전이가 매 프레임 이 값을
+            //   상태 색으로 덮어쓴다. 여기서 흰색으로 바꿔도 곧바로 normalColor 가 이긴다.
+            //   판의 밝기는 씬의 Button 상태 색(정본)에서 정한다.
+        }
+
+        /// <summary>
+        /// 겹치는 순서를 <b>코드가 정한다</b> — 배경 → 타이틀 → (메뉴 · 환경 설정 창) → 흰 막.
+        ///
+        /// ⚠ <b>MCP 로 만든 오브젝트는 형제 중 맨 마지막</b>에 들어와 <b>가장 위에</b> 그려진다.
+        /// 그대로 두면 배경이 타이틀과 버튼을 덮는다. 겹침을 <b>형제 순서 한 곳</b>에서 정하는 것은
+        /// 94-3절이 초상화에서 내린 결론과 같다.
+        ///
+        /// ★ <b>흰 막만은 맨 위</b>여야 한다 — 화면 전체를 덮는 것이 그 일이다.
+        /// </summary>
+        void ApplyDrawOrder()
+        {
+            int next = 0;
+            Place(backgroundPath, ref next);
+            Place(vignettePath, ref next);      // 배경보다 위 · 타이틀보다 아래
+            Place(titlePath, ref next);
+
+            Transform curtain = string.IsNullOrWhiteSpace(curtainPath)
+                ? null : transform.Find(curtainPath);
+            if (curtain != null) curtain.SetAsLastSibling();
+        }
+
+        void Place(string path, ref int index)
+        {
+            Transform node = string.IsNullOrWhiteSpace(path) ? null : transform.Find(path);
+            if (node == null) return;
+
+            node.SetSiblingIndex(index);
+            index++;
+        }
+
+        static Sprite Load(string resourcePath)
+        {
+            if (string.IsNullOrWhiteSpace(resourcePath)) return null;
+
+            var sprite = Resources.Load<Sprite>(resourcePath);
+            if (sprite == null)
+                Debug.LogWarning($"[로비] 'Resources/{resourcePath}' 을 찾지 못했습니다. " +
+                                 "Tools/import_lobby_art.py 를 돌렸는지, .meta 의 textureType 이 " +
+                                 "8(Sprite)인지 확인해주세요.");
+            return sprite;
         }
 
         void RefreshSaveInfo()
@@ -160,7 +357,22 @@ namespace LastSanctuary.UI
 
         IEnumerator PlayIntro()
         {
-            yield return Fade(_titleGroup, titleFadeSeconds);
+            // ① 흰 화면에서 시작해 배경이 드러난다 (유저 지시 2026-08-18:
+            //    <i>"하얀색 배경에서 시작해서 화면 페이드 인"</i>).
+            //
+            // ★ 배경 자체의 알파를 올리지 않고 <b>덮고 있던 흰 막을 걷는다.</b> 두 방식의
+            //   보이는 결과가 다르다 — 알파를 올리면 <b>검은 바닥에서</b> 그림이 차오르고,
+            //   막을 걷으면 <b>흰 화면에서</b> 밝은 쪽부터 드러난다. 유저가 말한 것은 후자다.
+            //
+            // ★ <b>완전히 끝난 뒤에</b> 타이틀로 넘어간다(지시: "화면이 완전히 끝나면").
+            //   여기서 기다리므로 앞 절처럼 겹쳐 시작하지 않는다.
+            yield return FadeOut(_curtainGroup, screenFadeSeconds);
+
+            // ② 타이틀이 화면 중앙에서 제자리로 떠오르며 밝아진다.
+            //    비네트는 <b>제자리에서</b> 같은 시간에 걸쳐 같이 밝아진다 — 따라 움직이면
+            //    어두운 얼룩이 화면을 타고 올라가는 것이 보인다.
+            StartCoroutine(Fade(_vignetteGroup, titleFadeSeconds));
+            yield return RiseIn(_titleGroup, _titleRect, titleFadeSeconds, titleRisePixels);
 
             if (menuDelaySeconds > 0f)
                 yield return new WaitForSecondsRealtime(menuDelaySeconds);
@@ -174,6 +386,73 @@ namespace LastSanctuary.UI
                 if (buttonStaggerSeconds > 0f && i < _menuGroups.Count - 1)
                     yield return new WaitForSecondsRealtime(buttonStaggerSeconds);
             }
+        }
+
+        /// <summary>
+        /// 덮고 있던 막을 걷는다(알파 1 → 0). <see cref="Fade"/> 의 반대 방향이다.
+        /// ⚠ 같은 이유로 <see cref="Time.unscaledDeltaTime"/> 을 쓴다.
+        /// </summary>
+        static IEnumerator FadeOut(CanvasGroup group, float seconds)
+        {
+            if (group == null) yield break;
+
+            if (seconds <= 0f)
+            {
+                group.alpha = 0f;
+                yield break;
+            }
+
+            group.alpha = 1f;
+
+            float t = 0f;
+            while (t < 1f)
+            {
+                t += Time.unscaledDeltaTime / seconds;
+                group.alpha = 1f - Mathf.Clamp01(t);
+                yield return null;
+            }
+            group.alpha = 0f;
+        }
+
+        /// <summary>
+        /// 투명도를 0 → 1 로 올리면서 <b>살짝 올라오게</b> 한다 (유저 지시 2026-08-18:
+        /// <i>"타이틀 글씨가 조금 더 천천히 올라오게"</i>).
+        ///
+        /// ⚠ <b>제자리(씬에 잡아둔 위치)를 먼저 기억하고 그 아래에서 출발한다</b> — 반대로 하면
+        /// (지금 위치에서 위로 올리면) 연출이 끝난 뒤 타이틀이 <b>씬에서 맞춰둔 자리보다 위에</b>
+        /// 남는다. 연출은 자리를 옮기는 것이 아니라 <b>제자리로 도착하는 것</b>이다.
+        ///
+        /// 끝에서 감속한다(<c>1 - (1-t)²</c>) — 등속으로 멈추면 툭 서는 느낌이 난다.
+        /// </summary>
+        static IEnumerator RiseIn(CanvasGroup group, RectTransform rect, float seconds, float rise)
+        {
+            if (group == null) yield break;
+
+            Vector2 home = rect != null ? rect.anchoredPosition : Vector2.zero;
+
+            if (seconds <= 0f)
+            {
+                group.alpha = 1f;
+                if (rect != null) rect.anchoredPosition = home;
+                yield break;
+            }
+
+            float t = 0f;
+            while (t < 1f)
+            {
+                t += Time.unscaledDeltaTime / seconds;
+                float e = Mathf.Clamp01(t);
+                float eased = 1f - (1f - e) * (1f - e);
+
+                group.alpha = eased;
+                if (rect != null)
+                    rect.anchoredPosition = new Vector2(home.x, home.y - rise * (1f - eased));
+
+                yield return null;
+            }
+
+            group.alpha = 1f;
+            if (rect != null) rect.anchoredPosition = home;
         }
 
         /// <summary>

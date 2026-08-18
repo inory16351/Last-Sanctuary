@@ -383,7 +383,7 @@ namespace LastSanctuary.Units
             // 서식지 씨앗은 <b>여기서 뽑는다</b> — 스포너의 난수는 게임을 켤 때 새로 시작하므로
             // 같은 자리에 소환돼도 모양이 달라진다(유저 지시 2026-08-15). 저장 복원은 이 값을
             // 그대로 되돌려 주므로 <b>불러온 판에서는 모양이 안 바뀐다</b>.
-            ConfigureSpawnedNeutral(unit, entry, pos, cell, minDist, maxDist, _rng.Next());
+            ConfigureSpawnedNeutral(unit, entry, pos, cell, minDist, maxDist, _rng.Next(), spawnId: 0);
         }
 
         /// <summary>
@@ -394,10 +394,22 @@ namespace LastSanctuary.Units
         /// 적으면 표 컬럼이 하나 늘 때마다 한쪽을 반드시 빠뜨린다(준수사항 §10 H-3).
         /// <see cref="MonsterSpawner.ConfigureSpawnedMonster"/> 가 같은 이유로 같은 모양이다.
         /// </summary>
+        /// <param name="spawnId">
+        /// 0 이면 새 번호를 매긴다. 복원은 <b>저장된 번호를 그대로</b> 넘긴다 — 토벌 발견 목록과
+        /// 부대 토벌 지시가 그 번호로 개체를 다시 찾는다(<see cref="NeutralMonsterUnit.SpawnId"/>).
+        /// </param>
         void ConfigureSpawnedNeutral(NeutralMonsterUnit unit, NeutralSpawnEntry entry,
                                      Vector3 pos, Vector3Int cell,
-                                     float minDist, float maxDist, int habitatSeed)
+                                     float minDist, float maxDist, int habitatSeed, int spawnId)
         {
+            // ⚠ 복원한 번호가 이미 매긴 번호보다 크면 다음 번호를 그 위로 밀어야 한다 —
+            //   안 그러면 복원 뒤에 새로 소환된 개체가 <b>복원된 개체와 같은 번호</b>를 받아
+            //   토벌 목록이 엉뚱한 마리를 가리킨다.
+            if (spawnId > 0) _nextSpawnId = Mathf.Max(_nextSpawnId, spawnId + 1);
+            else spawnId = _nextSpawnId++;
+
+            unit.AssignSpawnId(spawnId);
+
             // 이름에 <b>일련번호를 붙이지 않는다</b> (유저 지시 2026-08-15: "동일 개체면 다
             // 해당 개체 이름으로 나오게"). 웨이브 몬스터가 2026-08-13 에 이미 같은 규칙으로
             // 바뀌었는데(<see cref="MonsterSpawner"/> 의 <c>unit.name = def.DisplayName</c>)
@@ -563,7 +575,7 @@ namespace LastSanctuary.Units
         /// <returns>되살린 개체. 정의나 템플릿을 못 찾으면 null.</returns>
         public NeutralMonsterUnit RestoreNeutral(int monId, Vector3 worldPos, Vector3 homePos,
                                                  bool hasHabitat, Vector3Int habitatCell,
-                                                 int habitatSeed)
+                                                 int habitatSeed, int spawnId)
         {
             if (!TryFindEntry(monId, out NeutralSpawnEntry entry))
             {
@@ -594,7 +606,7 @@ namespace LastSanctuary.Units
             ConfigureSpawnedNeutral(unit, entry, homePos, cell,
                                     entry.definition.MinDistanceFromNexus,
                                     entry.definition.MaxDistanceFromNexus,
-                                    habitatSeed);
+                                    habitatSeed, spawnId);
 
             // ⚠ ConfigureSpawnedNeutral 은 <b>배회 기준점</b>을 잡으려고 homePos 를 받았다.
             //   실제 서 있어야 할 자리는 저장된 위치이므로 마지막에 옮긴다.
@@ -618,6 +630,56 @@ namespace LastSanctuary.Units
 
             entry = default;
             return false;
+        }
+
+        // ------------------------------------------------------------------
+        // 재생성 대기 시각 (2026-08-18 신설 — 유저 지시 "타이머 넣어서")
+        //
+        // ★ <b>왜 이것까지 저장해야 하는가</b> — <see cref="_nextRestockTime"/> 은
+        //   <c>Time.time</c>(씬이 열린 뒤 흐른 시간) 기준이라, 씬을 새로 부르면 <b>0 부터
+        //   다시 시작한다</b>. 그러면 저장 시점에 죽어 있던 카르시노스는 <b>죽은 지 얼마나
+        //   됐는지를 잊고</b> 불러온 순간부터 다시 재생성 주기(600초)를 꽉 기다린다 —
+        //   재생성 직전에 저장했다가 불러오면 기다림이 통째로 되돌려지는 셈이다.
+        //
+        // ⚠ 남은 <b>초</b>로 담는다(절대 시각이 아니다). 씬마다 <c>Time.time</c> 의 원점이
+        //   다르므로 시각을 그대로 적으면 아무 뜻이 없는 숫자가 된다.
+        // ------------------------------------------------------------------
+
+        /// <summary>종별 남은 재생성 대기 시간(초)을 <b>두 목록에 짝지어</b> 담는다.</summary>
+        public void ExportRestockDelays(List<int> monIds, List<float> secondsRemaining)
+        {
+            if (monIds == null || secondsRemaining == null || spawnTable == null) return;
+
+            foreach (NeutralSpawnEntry e in spawnTable)
+            {
+                if (e.definition == null) continue;
+                if (!_nextRestockTime.TryGetValue(e.definition, out float at)) continue;
+
+                monIds.Add(e.definition.monId);
+                secondsRemaining.Add(Mathf.Max(0f, at - Time.time));
+            }
+        }
+
+        /// <summary>
+        /// 저장된 남은 대기 시간을 되돌린다. <see cref="Start"/> 가 이미 자기 주기를 잡아둔
+        /// 뒤에 불려도 되도록 <b>덮어쓴다</b>.
+        ///
+        /// ⚠ 남은 시간을 그 종의 주기로 <b>자른다</b> — 표의 <c>respawn_seconds</c> 를 줄이는
+        /// 개정이 있으면 옛 세이브의 값이 새 주기보다 길 수 있고, 그러면 표를 고쳤는데도
+        /// 옛 세이브에서만 한참 안 나오는 상태가 된다.
+        /// </summary>
+        public void ImportRestockDelays(IReadOnlyList<int> monIds, IReadOnlyList<float> secondsRemaining)
+        {
+            if (monIds == null || secondsRemaining == null || spawnTable == null) return;
+
+            int pairs = Mathf.Min(monIds.Count, secondsRemaining.Count);
+            for (int i = 0; i < pairs; i++)
+            {
+                if (!TryFindEntry(monIds[i], out NeutralSpawnEntry entry)) continue;
+
+                float wait = Mathf.Clamp(secondsRemaining[i], 0f, RestockSecondsFor(entry.definition));
+                _nextRestockTime[entry.definition] = Time.time + wait;
+            }
         }
 
         // ------------------------------------------------------------------

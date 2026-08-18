@@ -73,7 +73,10 @@ namespace LastSanctuary.UI
 
         /// <summary>탐험 배회 범위 버튼 아래 한 줄 설명. 버튼을 누를 때마다 그 범위의 설명으로 바뀐다.</summary>
         TMP_Text _roamHintText;
-        Image _hpFill, _retreatBarFill, _hpGhost;
+        Image _hpFill, _hpGhost;
+
+        /// <summary>후퇴 기준을 끌어서 고르는 슬라이더(0~100%). 배선은 <see cref="SliderWiring"/> 이 한다.</summary>
+        Slider _retreatSlider;
 
         // 초상화 — 캐릭터 성장 창(CharacterGrowthPanel)과 완전히 같은 구조·같은 규칙이다.
         // 액자(Portrait)는 항상 보이고, 그 안의 Sprite 레이어에만 그림을 얹는다.
@@ -271,7 +274,15 @@ namespace LastSanctuary.UI
                     ? (percent > 0 ? $"{percent}%" : "사용 안 함")
                     : "-";
 
-            if (_retreatBarFill != null) _retreatBarFill.fillAmount = percent / 100f;
+            if (_retreatSlider == null) return;
+
+            // ⚠ <b><see cref="Slider.SetValueWithoutNotify"/> 로 넣는다.</b> 그냥 <c>value</c> 에
+            //   대입하면 <c>onValueChanged</c> 가 되불려 <b>표시가 지침을 다시 쓴다</b> —
+            //   선택을 다른 캐릭터로 바꿀 때마다 이전 캐릭터의 값이 새 캐릭터에 덮어써진다.
+            _retreatSlider.SetValueWithoutNotify(percent);
+
+            // 선택이 없으면 끌 수 없게 한다 — 움직여도 아무 일이 없는 손잡이는 고장으로 보인다.
+            _retreatSlider.interactable = _tactics != null;
         }
 
         /// <summary>
@@ -365,20 +376,15 @@ namespace LastSanctuary.UI
             _summaryText = FindText("Col3/Summary/Text");
             _roamHintText = FindText("Col3/RoamHint");
             _retreatValueText = FindText("Col2/RetreatValue");
-            _retreatBarFill = FindImage("Col2/RetreatBar/Fill");
             _hpGhost = FindImage("Info/HpBack/HpGhost");
             _erosion.Bind(transform, "Info/ErosionBack");
 
             // 스프라이트가 비어 있으면 fillAmount 가 무시되어 막대 길이가 안 변한다 —
-            // UiFillBar 문서 참조.
-            UiFillBar.Prepare(_hpFill, _hpGhost, _retreatBarFill);
+            // UiFillBar 문서 참조. ⚠ <b>슬라이더의 Fill 은 여기 넣지 않는다</b> — 그쪽은
+            // fillAmount 가 아니라 <b>렉트 크기</b>로 줄어드는 것이라 Filled 로 바꾸면 안 된다.
+            UiFillBar.Prepare(_hpFill, _hpGhost);
 
-            // 후퇴 기준 막대 — 눌러서/끌어서 1% 단위로 고른다. 아래 ± 버튼(5% 단위)은 그대로 둔다:
-            // 막대는 대충 잡을 때, 버튼은 정확히 맞출 때 쓰라는 것.
-            var dragBar = transform.Find("Col2/RetreatBar")?.GetComponent<UiDragBar>();
-            if (dragBar != null)
-                dragBar.OnValueChanged += ratio =>
-                    Set(t => t.SetRetreatHpPercent(Mathf.RoundToInt(ratio * 100f)));
+            BindRetreatSlider();
 
             // 공격 유형 / 포지션
             //
@@ -469,6 +475,43 @@ namespace LastSanctuary.UI
 
             HookClose("Header/CloseButton");
             HookClose("Footer/CloseButton");
+        }
+
+        /// <summary>
+        /// 후퇴 기준 <b>드래그 슬라이더</b> (2026-08-18, 유저 지시:
+        /// <i>"HP 후퇴기준에도 음량 조절 처럼 코딩으로 드래그바 넣어줘"</i>).
+        ///
+        /// ★ 음량(<see cref="VolumeSlider"/>)과 <b>똑같은 방식</b>이다 — 유니티 <see cref="Slider"/> 의
+        /// <c>fillRect</c>/<c>handleRect</c>/<c>targetGraphic</c> 은 MCP 로 넣을 수 없는 오브젝트
+        /// 참조라, <b>구조는 MCP 로 만들고 참조는 코드가 이름으로 꽂는다</b>
+        /// (<see cref="SliderWiring"/>).
+        ///
+        /// ⚠ 예전에는 이 자리가 <see cref="UiDragBar"/>(참조가 필요 없는 최소 구현) + ± 버튼이었다.
+        /// 막대에 <b>손잡이가 없어</b> 끌 수 있다는 것이 화면에 안 보이던 것이 교체 이유다.
+        /// ± 버튼(<see cref="retreatStep"/>%)은 <b>그대로 남긴다</b> — 정확한 값을 맞출 때 쓴다.
+        /// </summary>
+        void BindRetreatSlider()
+        {
+            Transform node = transform.Find("Col2/RetreatSlider");
+            _retreatSlider = node != null ? node.GetComponent<Slider>() : null;
+            if (_retreatSlider == null)
+            {
+                Debug.LogWarning("[Tactics] 'Col2/RetreatSlider' 에서 Slider 를 찾지 못했습니다.", this);
+                return;
+            }
+
+            SliderWiring.Wire(_retreatSlider,
+                              node.Find("Fill Area/Fill") as RectTransform,
+                              node.Find("Handle Slide Area/Handle") as RectTransform);
+
+            _retreatSlider.minValue = 0f;
+            _retreatSlider.maxValue = 100f;
+            _retreatSlider.wholeNumbers = true;      // 후퇴 기준은 1% 단위다
+            _retreatSlider.direction = Slider.Direction.LeftToRight;
+
+            _retreatSlider.onValueChanged.RemoveAllListeners();
+            _retreatSlider.onValueChanged.AddListener(value =>
+                Set(t => t.SetRetreatHpPercent(Mathf.RoundToInt(value))));
         }
 
         /// <summary>지침을 바꾸는 공통 경로 — 선택이 없으면 아무 일도 하지 않는다.</summary>
