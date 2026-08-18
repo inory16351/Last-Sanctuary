@@ -11,14 +11,17 @@ namespace LastSanctuary.Wave
         [Min(0)] public int rangedCount;
         [Min(0)] public int bossCount;
 
-        [Tooltip("중간보스 마리 수. 표(`웨이브테이블.xlsx` Sheet2 의 `mid_boss_mon_num`)의 값이며 " +
-                 "5·15웨이브가 1이다.\n" +
-                 "★ 어느 중간보스가 나오는지는 이 값이 정하지 않는다 — " +
-                 "`웨이브 몬스터 테이블.xlsx` 의 `wave_mid_boss.spawn_percent`(0.5/0.5)가 정하고, " +
-                 "게임에서는 `MonsterSpawner.midBossSlots` 의 가중치가 그 역할을 한다.\n" +
-                 "웨이브 기획서 p4 의 \"5번째 웨이브 – 중간 보스 등장\" 이 23절부터 미구현으로 " +
-                 "남아 있던 항목이다(진행상황 54-5절에서 표에 컬럼이 신설됐다)")]
-        [Min(0)] public int midBossCount;
+        [Tooltip("★ <b>이 웨이브에 나올 보스의 id</b> (표 `웨이브테이블.xlsx` Sheet2 의 " +
+                 "`boss_monster_id`, 2026-08-18 신설). 0 이면 보스가 없다.\n\n" +
+                 "<b>왜 생겼나</b> — 유저 지시로 <b>중간보스를 없애고</b> 5웨이브 단탈리온 / " +
+                 "10웨이브 말파스로 바꾸면서, 보스가 <b>두 종류</b>가 되었다. 예전에는 " +
+                 "스포너의 `bossSlot` 이 보스 한 종류를 들고 있고 표는 「몇 마리」만 정했으므로 " +
+                 "<b>어느 보스인지</b>를 표현할 방법이 없었다.\n" +
+                 "중간보스가 쓰던 「가중치 추첨」을 물려받을 수도 있었지만 유저 지시는 추첨이 " +
+                 "아니라 <b>웨이브마다 정해진 보스</b>다.\n\n" +
+                 "지금 배정: 5·15 = 120001 단탈리온 · 10·20 = 120002 말파스 " +
+                 "(말파스 원화 시트의 \"등장 웨이브 : 5n번째\" 와 같은 규칙)")]
+        [Min(0)] public int bossMonsterId;
 
         [Tooltip("이 웨이브의 몬스터 능력치 배율(%, 정수). 표의 wave_mon_abil_per(0.6~2.63) × 100")]
         [Min(0)] public int statPercent;

@@ -7,8 +7,16 @@ namespace LastSanctuary.Units
     public enum MonsterTier
     {
         Normal = 0,     // 일반
-        MidBoss = 1,    // 중간 보스 (5웨이브)
-        MainBoss = 2,   // 메인 보스 (10웨이브)
+
+        /// <summary>
+        /// ⚠ <b>폐기 (2026-08-18)</b> — 유저 지시로 중간보스(혈인·공허의 속삭임)를 없앴다.
+        /// 값을 지우지 <b>않는</b> 것은 <see cref="MainBoss"/> 가 2 로 직렬화돼 있기 때문이다 —
+        /// 여기서 1 을 빼면 기존 에셋의 보스가 전부 <b>중간보스로 내려앉는다</b>.
+        /// 새로 쓰지 말 것.
+        /// </summary>
+        MidBoss = 1,
+
+        MainBoss = 2,   // 보스 (5웨이브마다 · 5·15 단탈리온 / 10·20 말파스)
     }
 
     /// <summary>
@@ -19,6 +27,14 @@ namespace LastSanctuary.Units
     public class MonsterDefinitionSO : ScriptableObject
     {
         [Header("식별")]
+        [Tooltip("★ 표의 <b>monster_id</b> (예: 120002 말파스). 2026-08-18 신설.\n\n" +
+                 "<b>왜 필요했나</b> — 웨이브 표가 `boss_monster_id` 로 \"이 웨이브엔 이 보스\" 를 " +
+                 "지정하게 되면서(중간보스 삭제·보스 2종), 스포너가 <b>id 로 정의를 찾아야</b> " +
+                 "한다. 예전에는 어디에도 id 가 없어서 `nameKey`(monster_name_120002) 문자열을 " +
+                 "파싱하는 수밖에 없었다 — 표의 값을 그대로 들고 있는 쪽이 정확하다.\n" +
+                 "Tools/sync_tables_to_assets.py 가 표에서 그대로 옮긴다 — 손으로 적지 말 것")]
+        public int monsterId;
+
         [Tooltip("스트링 키 (스트링 키 테이블.xlsx). 예: monster_name_100001\n" +
                  "비워두면 아래 displayName 리터럴을 쓴다(하위 호환)")]
         public string nameKey = "";

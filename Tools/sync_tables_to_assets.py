@@ -213,12 +213,22 @@ def sync_mental_errors():
 # ---------------------------------------------------------------------------
 # 2) 웨이브 몬스터 - 잡몹 2종 + 최종보스 갱신, 중간보스 2종 신규 생성
 # ---------------------------------------------------------------------------
-# 표의 monster_id → 기존 에셋 파일명. 중간보스는 아직 에셋이 없어서 새로 만든다(아래).
+# 표의 monster_id → 에셋 파일명. 파일이 없으면 <b>이 스크립트가 만든다</b>(create_monster_asset).
+#
+# ★ 2026-08-18 — 중간보스 2종(110001·110002)이 <b>빠졌다</b>. 유저 지시로 중간보스를 없애고
+#   보스를 「5웨이브마다 단탈리온/말파스 교대」로 바꿨다. 말파스(120002)가 새로 들어온다.
 MONSTER_ASSET_BY_ID = {
     100001: 'Monster_HellFang',
     100002: 'Monster_SoulArcher',
     120001: 'Monster_Dantalian',
+    120002: 'Monster_Malphas',
 }
+
+# 삭제된 중간보스 에셋 — 남아 있으면 스포너 슬롯에 다시 끌려 들어갈 수 있어서 지운다.
+REMOVED_MONSTER_ASSETS = (
+    'Monster_MidBoss_BloodMark',
+    'Monster_MidBoss_VoidWhisper',
+)
 
 # 중간보스 - 54-4절. tier=MidBoss(1).
 #
@@ -233,9 +243,27 @@ MONSTER_ASSET_BY_ID = {
 #   잡몹 이름(`Monster_MidBoss_HellFang`)을 그대로 썼는데, 그러면 하이라키·에셋 목록에서
 #   중간보스가 잡몹으로 보인다. 표에 영어 이름 컬럼이 아예 없어서 그랬던 것이라
 #   컬럼을 만들고(BloodMark · VoidWhisper) 그 값으로 개명했다.
-MID_BOSS = {
-    110001: dict(asset='Monster_MidBoss_BloodMark', name='혈인', inherit='Monster_HellFang'),
-    110002: dict(asset='Monster_MidBoss_VoidWhisper', name='공허의 속삭임', inherit='Monster_SoulArcher'),
+MID_BOSS = {}
+
+# 새로 만드는 몬스터의 <b>표에 없는</b> 값. {monster_id: {필드: 값}}
+#
+# ⚠ **표에 있는 것은 여기 적지 않는다** — 체력·공격·방어·콜라이더 등은 전부 `first_Stat`
+#   에서 온다. 여기 있는 것은 표에 <b>칸 자체가 없는</b> 항목뿐이다(사거리·인식범위·발판).
+#
+# ⚠ **외형(template)은 이 에셋에 넣을 수 없다** — ScriptableObject 는 씬 오브젝트를 참조할
+#   수 없다(진행상황 5절). 스포너 슬롯이 템플릿을 지정하므로 씬에서 MCP 로 연결한다.
+NEW_MONSTER_DEFAULTS = {
+    120002: dict(
+        # 원거리 보스라 인식·사거리를 단탈리온(근접 2.0)보다 길게 잡는다.
+        # 표의 Skill 시트에서 저주광선이 10타일까지 뻗으므로 평타 사거리를 그 안쪽에 둔다.
+        detectRange=12,
+        attackRange=7.0,
+        footprintTiles=1,
+        # 스킨이 없을 때만 쓰는 폴백(콜라이더 상자가 있으면 안 쓰인다).
+        bodyWidthTiles=2,
+        bodyHeightTiles=3,
+        spriteScale=0.75,
+    ),
 }
 
 # 크기 검산용 - 이 몬스터가 실제로 쓰는 스킨(원화). renderHeightTiles(표) 로 스케일을
@@ -245,8 +273,7 @@ SKIN_FOR_MONSTER = {
     100001: 'MonsterSkins/HellFang/Skin_HellFang',
     100002: 'MonsterSkins/SoulArcher/Skin_SoulArcher',
     120001: 'MonsterSkins/Dantalian/Skin_Dantalian',
-    110001: 'MonsterSkins/HellFang/Skin_HellFang',
-    110002: 'MonsterSkins/SoulArcher/Skin_SoulArcher',
+    120002: 'MonsterSkins/Malphas/Skin_Malphas',
 }
 
 
@@ -315,7 +342,8 @@ def boss_title_ids():
       실패해 조용히 빈 문자열이 되고, 인스펙터만 보면 "칭호가 있는데 왜 안 뜨지"가 된다.
     """
     ids = set()
-    for sheet in ('wave_top_boss', 'wave_mid_boss'):
+    # ★ 2026-08-18 — `wave_mid_boss` 시트가 사라졌다(중간보스 삭제). 최종보스 시트만 본다.
+    for sheet in ('wave_top_boss',):
         # ⚠ 위치가 아니라 <b>필드명</b>으로 읽는다 - 2026-08-13 에 영어 이름 컬럼을 지우면서
         #   뒤 컬럼이 한 칸씩 밀렸다(read_rows 주석 참조).
         for row in read_rows(XLSX_WAVE_MON, sheet):
@@ -359,22 +387,99 @@ def attack_stat_fields(r):
     }
 
 
+def top_boss_rows():
+    """`wave_top_boss` 시트를 id 로 색인. 공격 타입·이름·칭호가 여기 있다."""
+    return {int(num(row.get('monster_id'))): row
+            for row in read_rows(XLSX_WAVE_MON, 'wave_top_boss')}
+
+
+def create_monster_asset(path, mid, asset, r, top):
+    """
+    <b>에셋 파일이 아예 없을 때</b> 표 값으로 새로 만든다 (2026-08-18, 말파스).
+
+    예전에는 중간보스 전용 생성 코드가 따로 있었는데(잡몹 에셋에서 값을 물려받는 구조),
+    중간보스가 없어지면서 그 코드를 이 함수가 대체한다. <b>물려받지 않는다</b> —
+    표에 있는 값은 표에서, 표에 <b>칸이 없는</b> 값만 `NEW_MONSTER_DEFAULTS` 에서 가져온다.
+
+    만들기만 한다 — 그 다음 `patch_fields` 가 매번 표를 다시 덮으므로 여기서 적는 값은
+    <b>첫 생성 순간의 뼈대</b>일 뿐이다.
+    """
+    d = NEW_MONSTER_DEFAULTS.get(mid, {})
+    atk = attack_stat_fields(r)
+
+    body = HEADER.format(script_guid=SCRIPT_GUID_MONSTER, name=asset)
+    body += "  monsterId: %d\n" % mid
+    body += "  nameKey: monster_name_%d\n" % mid
+    body += "  displayName: %s\n" % asset
+    body += "  titleKey: %s\n" % (('boss_title_%d' % mid) if top.get('boss_title') else '')
+    body += "  tier: 2\n"                       # MonsterTier.MainBoss
+    body += "  template: {fileID: 0}\n"         # 스포너 슬롯이 지정한다 (위 ⚠ 참조)
+    body += "  hpStat: %d\n" % int(num(r[1]))
+    body += "  attackStat: %d\n" % atk['attackStat']
+    body += "  defenseStat: %d\n" % int(num(r[10]))
+    body += "  regenStat: %d\n" % int(num(r[11]))
+    for _f in NEW_STAT_FIELDS:
+        body += "  %s: %d\n" % (_f, atk[_f])
+    body += "  hpPercent: %d\n" % int(num(r[13], 100))
+    body += "  attackType: %d\n" % attack_type_value(top.get('atk_type'))
+    body += "  detectRange: %s\n" % d.get('detectRange', 10)
+    body += "  attackRange: %s\n" % d.get('attackRange', 2.0)
+    body += "  attacksPerSecond: %s\n" % aspd_from_stat(num(r[8]))
+    body += "  moveSpeedTiles: %s\n" % mspd_from_stat(num(r[9]))
+    body += "  footprintTiles: %s\n" % d.get('footprintTiles', 1)
+    body += "  bodyWidthTiles: %s\n" % d.get('bodyWidthTiles', 2)
+    body += "  bodyHeightTiles: %s\n" % d.get('bodyHeightTiles', 3)
+    body += "  spriteScale: %s\n" % d.get('spriteScale', 0.75)
+    body += "  renderHeightTiles: 0\n"
+    body += "  colliderWidthTiles: %s\n" % (num(r[15]) if len(r) > 15 else 0)
+    body += "  colliderHeightTiles: %s\n" % (num(r[14]) if len(r) > 14 else 0)
+    body += "  bossSkillIds: []\n"              # sync_boss_skills 가 표에서 채운다
+
+    with open(path, 'w', encoding='utf-8', newline='\n') as f:
+        f.write(body)
+    mp = path + '.meta'
+    if not os.path.exists(mp):
+        with open(mp, 'w', encoding='utf-8', newline='\n') as f:
+            f.write(ASSET_META.format(guid=guid_for('Data/Units/%s.asset' % asset)))
+    print('  %s 신규 생성 (id %d)' % (asset, mid))
+
+
+def remove_deleted_assets(folder):
+    """중간보스처럼 <b>없어진</b> 정의 에셋을 지운다. .meta 도 같이 지워야 한다."""
+    for asset in REMOVED_MONSTER_ASSETS:
+        for suffix in ('.asset', '.asset.meta'):
+            p = os.path.join(folder, asset + suffix)
+            if os.path.exists(p):
+                os.remove(p)
+                print('  삭제 %s%s' % (asset, suffix))
+
+
 def sync_monsters():
     print('[웨이브 몬스터]')
     stats = {int(r[0]): r for r in read_sheet(XLSX_WAVE_MON, 'first_Stat')}
+    tops = top_boss_rows()
     titled = boss_title_ids()
     folder = os.path.join(ASSETS, 'Data', 'Units')
     total = 0
 
-    # --- 기존 3종 갱신 ---
+    remove_deleted_assets(folder)
+
     for mid, asset in MONSTER_ASSET_BY_ID.items():
         r = stats.get(mid)
         if r is None:
             print('  ! 표에 id %d 가 없습니다' % mid)
             continue
+
+        path = os.path.join(folder, asset + '.asset')
+        if not os.path.exists(path):
+            create_monster_asset(path, mid, asset, r, tops.get(mid, {}))
+
         box_h = num(r[14]) if len(r) > 14 else 0     # collider_height_tiles
         box_w = num(r[15]) if len(r) > 15 else 0     # collider_width_tiles
         changes = {
+            # 표의 id 를 에셋에 적어둔다 (2026-08-18) — 웨이브 표의 boss_monster_id 로
+            # 스포너가 정의를 찾을 수 있어야 한다(MonsterDefinitionSO.monsterId).
+            'monsterId': mid,
             'hpStat': int(num(r[1])),
             'defenseStat': int(num(r[10])),
             'regenStat': int(num(r[11])),
@@ -401,10 +506,10 @@ def sync_monsters():
             changes['titleKey'] = 'boss_title_%d' % mid
 
         total += patch_fields(os.path.join(folder, asset + '.asset'), changes, asset,
-                              add_missing=('titleKey',) + NEW_STAT_FIELDS)
+                              add_missing=('titleKey', 'monsterId') + NEW_STAT_FIELDS)
         report_collider_fit(mid, asset, box_w, box_h)
 
-    # --- 중간보스 2종 신규 ---
+    # --- 중간보스 2종 신규 (2026-08-18 이후 MID_BOSS 는 비어 있어 돌지 않는다) ---
     for mid, spec in MID_BOSS.items():
         r = stats.get(mid)
         if r is None:
@@ -489,31 +594,44 @@ def sync_boss_skills():
     guid = script_guid(os.path.join('Combat', 'BossSkillSO.cs'))
 
     made = []
-    for row in read_sheet(XLSX_WAVE_MON, 'Skill'):
-        sid = int(num(row[0]))
+    # ★★ 2026-08-18 - <b>위치가 아니라 필드명으로 읽는다</b>(read_rows).
+    #
+    #   여기가 <b>조용히 3칸씩 밀려 있었다.</b> 2026-08-13 에 이 코드를 쓸 때 Skill 시트는
+    #   9칸(… value_03 · cool_time · skill_icon · skill_explain)이었고, 침식·시전시간·
+    #   범위모양을 <b>맨 뒤에</b> 붙이는 규약으로 row[9]/row[10]/row[11] 을 읽게 했다.
+    #   그 뒤 표가 <b>value_04·05·06 을 value_03 바로 뒤</b>로 넣고 침식을
+    #   `mentalerror_damage` 라는 자기 컬럼으로 옮기면서 위치가 전부 어긋났다:
+    #
+    #       coolTime   ← value_04       → 단탈리온 두 스킬 모두 <b>0</b>
+    #       value04    ← cool_time
+    #       rangeType  ← skill_explain  (문자열이 그대로 들어가 있었다)
+    #
+    #   `coolTime == 0` 이면 `BossSkillSO.IsUsable` 이 false 라 <b>스킬이 한 번도
+    #   발동하지 않는다.</b> 즉 단탈리온은 광역기를 쓰도록 배선돼 있었을 뿐 실제로는
+    #   평타만 때리고 있었다. read_rows 의 주석이 경고하던 바로 그 사고다.
+    for row in read_rows(XLSX_WAVE_MON, 'Skill'):
+        raw_id = row.get('skill_id')
+        if raw_id in (None, ''):
+            continue
+        sid = int(num(raw_id))
         name = 'BossSkill_%d' % sid
         rel = 'Resources/BossSkills/%s.asset' % name
 
         body = HEADER.format(script_guid=guid, name=name)
         body += '  skillId: %d\n' % sid
-        body += '  nameKey: %s\n' % (row[1] or '')
+        body += '  nameKey: %s\n' % (row.get('skill_name') or '')
         body += "  displayName: ''\n"          # 문구는 스트링 테이블이 정본이다
-        body += '  skillType: %s\n' % (row[2] or '')
-        body += '  explainKey: %s\n' % (row[8] or '')
-        body += '  value01: %s\n' % num(row[3])
-        body += '  value02: %s\n' % num(row[4])
-        body += '  value03: %s\n' % num(row[5])
-        # value_04(침식 수치, 2026-08-13) - 기존 9칸 뒤에 붙은 10번째 칸. 시스템(GameSystems)
-        # 이 아니라 이 스킬 데이터가 들고 있다(BossSkillSO.value04 주석 참조) - 스킬마다
-        # 침식량이 다르기 때문. 표에 컬럼이 없던 시절 에셋에는 0(자동 폴백)으로 채워진다.
-        body += '  value04: %s\n' % (num(row[9]) if len(row) > 9 else 0)
-        body += '  coolTime: %s\n' % num(row[6])
-        # cast_time(K) · range_type(L) - 2026-08-13 신설 컬럼.
+        body += '  skillType: %s\n' % (row.get('skill_type') or '')
+        body += '  explainKey: %s\n' % (row.get('skill_explain') or '')
+        for i in range(1, 7):
+            body += '  value%02d: %s\n' % (i, num(row.get('value_%02d' % i)))
+        # 침식은 이제 <b>자기 컬럼</b>이다 — value_04 를 침식으로 읽지 않는다.
+        body += '  erosionValue: %s\n' % num(row.get('mentalerror_damage'))
+        body += '  coolTime: %s\n' % num(row.get('cool_time'))
         #   cast_time  : 이 스킬의 연출 길이(초). 0 이면 BossSkillCaster 의 전역 기본값.
-        #                유저 지시로 "공허의 광선은 가시성을 위해 더 길게" 를 표에서 준다.
         #   range_type : 범위 모양. 비어 있으면 Line(직사각형, 조준 방향 자유각).
-        body += '  castSeconds: %s\n' % (num(row[10]) if len(row) > 10 else 0)
-        body += '  rangeType: %s\n' % ((row[11] or '') if len(row) > 11 else '')
+        body += '  castSeconds: %s\n' % num(row.get('cast_time'))
+        body += '  rangeType: %s\n' % (row.get('range_type') or '')
 
         path = os.path.join(folder, name + '.asset')
         with open(path, 'w', encoding='utf-8', newline='\n') as f:
@@ -524,11 +642,12 @@ def sync_boss_skills():
                 f.write(ASSET_META.format(guid=guid_for(rel)))
 
         made.append(sid)
-        print('  %s: %s · %s x %s 타일(%s) · 공격력 %s%% · 침식 +%s · 쿨 %s초 · 시전 %s초'
-              % (name, row[2], num(row[3]), num(row[4]),
-                 (row[11] if len(row) > 11 and row[11] else 'Line'), num(row[5]),
-                 num(row[9]) if len(row) > 9 else 0, num(row[6]),
-                 num(row[10]) if len(row) > 10 else '기본값'))
+        print('  %s: %s · v1~v6 %s/%s/%s/%s/%s/%s · 침식 +%s · 쿨 %s초 · 시전 %s초 · %s'
+              % (name, row.get('skill_type'),
+                 num(row.get('value_01')), num(row.get('value_02')), num(row.get('value_03')),
+                 num(row.get('value_04')), num(row.get('value_05')), num(row.get('value_06')),
+                 num(row.get('mentalerror_damage')), num(row.get('cool_time')),
+                 num(row.get('cast_time')), row.get('range_type') or 'Line'))
 
     # 최종보스 시트의 boss_skill_1~3 을 그 보스의 정의 에셋으로 옮긴다.
     # 표에 없는 몬스터(잡몹·중간보스)는 스킬 칸 자체가 없으므로 건드리지 않는다.
@@ -1018,29 +1137,38 @@ def sync_waves():
             re.search(r'reinforceCount: (\d+)', blk).group(1),
         )
 
-    rows = read_sheet(XLSX_WAVE, 'Sheet2')
+    # ★ 2026-08-18 - <b>위치가 아니라 이름으로 읽는다</b>(read_rows).
+    #   이날 `mid_boss_mon_num` 컬럼을 지우고 `boss_monster_id` 를 새로 만들었는데,
+    #   예전처럼 r[6]/r[7] 로 읽으면 <b>컬럼이 한 칸씩 밀려 조용히 엉뚱한 값</b>이 들어간다
+    #   (read_rows 의 주석이 적어둔 2026-08-13 사고와 같은 것이다).
+    rows = read_rows(XLSX_WAVE, 'Sheet2')
     out = ['  waves:']
     for r in rows:
-        wn = int(num(r[1]))
+        wn = int(num(r.get('wave_num')))
         ri, rc = keep.get(wn, ('0', '0'))
         out.append('  - waveNumber: %d' % wn)
-        out.append('    meleeCount: %d' % int(num(r[2])))
-        out.append('    rangedCount: %d' % int(num(r[3])))
-        out.append('    bossCount: %d' % int(num(r[4])))
-        out.append('    midBossCount: %d' % int(num(r[6])))
-        out.append('    statPercent: %d' % round(float(num(r[5])) * 100))
+        out.append('    meleeCount: %d' % int(num(r.get('melee_mon_num'))))
+        out.append('    rangedCount: %d' % int(num(r.get('ranged_mon_num'))))
+        out.append('    bossCount: %d' % int(num(r.get('boss_mon_num'))))
+        # boss_monster_id(2026-08-18 신설) - 그 웨이브에 나올 보스의 표 id.
+        # midBossCount 를 대체한다: 유저 지시로 중간보스가 없어지고 보스가 2종
+        # (단탈리온·말파스)이 되면서 "어느 보스인지" 를 표가 정해야 했다.
+        out.append('    bossMonsterId: %d' % int(num(r.get('boss_monster_id'))))
+        out.append('    statPercent: %d' % round(float(num(r.get('wave_mon_abil_per'))) * 100))
         out.append('    reinforceIntervalSeconds: %s' % ri)
         out.append('    reinforceCount: %s' % rc)
-        # spawn_group_size(H) - 2026-08-13 신설. 포탈 한 곳에서 한 번에 나오는 마리 수.
+        # spawn_group_size - 2026-08-13 신설. 포탈 한 곳에서 한 번에 나오는 마리 수.
         # 0/1 이면 예전처럼 한 마리씩 나온다(동작 불변).
-        out.append('    spawnGroupSize: %d' % int(num(r[7], 1)))
+        out.append('    spawnGroupSize: %d' % int(num(r.get('spawn_group_size'), 1)))
 
     head = text[:text.index('  waves:')]
     with open(path, 'w', encoding='utf-8', newline='\n') as f:
         f.write(head + '\n'.join(out) + '\n')
-    mids = [int(num(r[6])) for r in rows]
-    print('  웨이브 %d개 기록 · 중간보스가 나오는 웨이브: %s'
-          % (len(rows), [int(num(r[1])) for r in rows if int(num(r[6])) > 0] or '없음'))
+
+    boss_waves = ['%d(%d)' % (int(num(r.get('wave_num'))), int(num(r.get('boss_monster_id'))))
+                  for r in rows if int(num(r.get('boss_mon_num'))) > 0]
+    print('  웨이브 %d개 기록 · 보스가 나오는 웨이브(보스 id): %s'
+          % (len(rows), ' '.join(boss_waves) or '없음'))
     return len(rows)
 
 

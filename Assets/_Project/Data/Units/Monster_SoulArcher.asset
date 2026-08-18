@@ -39,3 +39,4 @@ MonoBehaviour:
   magicStat: 0
   cureStat: 0
   resistanceStat: 50
+  monsterId: 100002

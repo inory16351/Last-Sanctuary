@@ -148,9 +148,12 @@ namespace LastSanctuary.Map
 
             if (autoResizeBounds) SyncBoundsToMap();
 
-            // 다른 시스템이 쓸 통행 가능 맵 (벽 = false)
+            // 다른 시스템이 쓸 통행 가능 맵 (벽 = false, <b>벽 앞면에 덮인 칸도 false</b>).
+            // 판정 규칙은 런타임의 <see cref="IsCellBlocked"/> 와 반드시 같아야 한다 —
+            // 하나만 고치면 "생성 때는 길이 있는데 게임에서는 막혀 있다"가 된다.
             Walkable = new bool[w * h];
-            for (int i = 0; i < isWall.Length; i++) Walkable[i] = !isWall[i];
+            for (int i = 0; i < isWall.Length; i++)
+                Walkable[i] = !isWall[i] && !IsSkirt(isWall, w, h, i);
 
             Vector2Int cropped = config.CroppedAmount;
             string cropInfo = config.IsCropped
@@ -203,10 +206,43 @@ namespace LastSanctuary.Map
                 ? groundTilemap.GetCellCenterWorld(cell)
                 : new Vector3(cell.x + 0.5f, cell.y + 0.5f, 0f);
 
-        /// <summary>해당 셀이 장애물인지 (지형 장애물 타일 + 넥서스 등 구조물 점유 칸).</summary>
+        /// <summary>
+        /// 해당 셀이 장애물인지 (지형 장애물 타일 + <b>벽 앞면이 덮은 칸</b> +
+        /// 넥서스 등 구조물 점유 칸).
+        /// </summary>
         public bool IsCellBlocked(Vector3Int cell) =>
-            (obstacleTilemap != null && obstacleTilemap.HasTile(cell)) ||
+            (obstacleTilemap != null &&
+             (obstacleTilemap.HasTile(cell) || obstacleTilemap.HasTile(cell + Vector3Int.up))) ||
             _structureBlockedCells.Contains(cell);
+
+        /// <summary>
+        /// ★ <b>벽 앞면(치마)이 덮은 칸</b>인가 — 자기 칸엔 벽이 없는데 <b>바로 북쪽</b>에
+        /// 벽이 있는 칸이다 (2026-08-18, 유저 리포트: *"벽 이미지 입체감 있게 만드려고 한
+        /// 아래쪽 타일이 이동 불가 판정이 없어서 어색함"*).
+        ///
+        /// <b>왜 정확히 한 칸인가</b> — 21·22절에서 벽을 2칸 높이로 새로 그렸다.
+        /// <c>Wall_Outer</c> 스프라이트는 <b>20x40</b>(1x2 타일)에 피벗 <c>{0.5, 0.75}</c> 라,
+        /// 타일맵이 칸 중심에 피벗을 놓으면 그림이 위로 0.5칸·아래로 1.5칸 뻗는다:
+        /// <code>
+        ///   자기 칸(중심±0.5) 전부 + 바로 아래 칸(중심-1.5 ~ -0.5) 전부
+        /// </code>
+        /// 즉 아래 칸을 <b>정확히 하나, 빈틈없이(알파 100%)</b> 덮는다 — 실측했다.
+        /// 그 칸은 화면상 완전한 「벽의 정면」인데 이동 판정이 없어서 유닛이 벽을 뚫고
+        /// 걸어 들어가는 것처럼 보였다.
+        ///
+        /// <b>왜 북쪽 타일의 종류를 안 따지는가</b> — 20x20 짜리 <c>Wall_Inner_Fill</c> 은
+        /// 사방이 벽일 때만 깔린다(<see cref="PickWallTile"/>). 내 칸이 벽이 아니면 북쪽 칸은
+        /// 반드시 남쪽이 열린 <c>Wall_Outer</c>(20x40) 다 — 그래서 「북쪽에 벽 타일이 있다」와
+        /// 「내 칸이 벽 앞면에 덮였다」가 완전히 같은 조건이 된다.
+        ///
+        /// <b>왜 벽 타일을 깔지 않는가</b> — 이 칸에 장애물 타일을 넣으면 그 칸도 다시 자기
+        /// 아래를 덮는 20x40 벽이 되어 <b>남쪽으로 끝없이 번진다</b>. 그림은 그대로 두고
+        /// 판정만 막는 것이 맞다.
+        /// </summary>
+        public bool IsWallSkirt(Vector3Int cell) =>
+            obstacleTilemap != null &&
+            !obstacleTilemap.HasTile(cell) &&
+            obstacleTilemap.HasTile(cell + Vector3Int.up);
 
         /// <summary>
         /// 넥서스 등 구조물이 자기 발판 칸을 등록한다. 등록된 칸은 벽과 똑같이
@@ -839,6 +875,15 @@ namespace LastSanctuary.Map
             }
         }
 
+        /// <summary>
+        /// 통로를 원반 모양으로 판다.
+        ///
+        /// ★ <b>판 칸의 바로 위 칸도 같이 판다</b> (2026-08-18). 벽 앞면이 아래 칸을 통째로
+        /// 덮어 이동 불가가 되었기 때문이다(<see cref="IsWallSkirt"/>) — 그 규칙 아래에서는
+        /// 「위가 벽인 칸」이 곧 막힌 칸이라, 한 칸 높이로 판 가로 통로는 <b>전부 막힌
+        /// 통로</b>가 된다. 위로 한 줄 더 파면 원반 안쪽 칸들은 전부 위가 트여 살아남는다
+        /// (맨 윗줄만 치마가 되는데, 그 줄은 통행에 쓰이지 않아도 된다).
+        /// </summary>
         static void CarveDisc(bool[] mask, int w, int h, int cx, int cy, int r)
         {
             int r2 = r * r;
@@ -848,56 +893,95 @@ namespace LastSanctuary.Map
                 {
                     if (x < 0 || y < 0 || x >= w || y >= h) continue;
                     int dx = x - cx, dy = y - cy;
-                    if (dx * dx + dy * dy <= r2) mask[x + y * w] = false;
+                    if (dx * dx + dy * dy > r2) continue;
+
+                    mask[x + y * w] = false;
+                    if (y + 1 < h) mask[x + (y + 1) * w] = false;   // 치마 여유 한 줄
                 }
             }
         }
 
         /// <summary>
+        /// 생성 단계에서 쓰는 <see cref="IsWallSkirt"/> — 마스크 배열판이다.
+        /// 맵 <b>밖</b>은 벽으로 치지 않는다(그 자리엔 그릴 스프라이트가 없다) —
+        /// 타일 종류를 고르는 <c>WallAt</c> 이 맵 밖을 벽으로 보는 것과 <b>일부러 다르다.</b>
+        /// </summary>
+        static bool IsSkirt(bool[] isWall, int w, int h, int i)
+        {
+            int y = i / w;
+            return y + 1 < h && isWall[i + w];
+        }
+
+        /// <summary>
         /// 넥서스에서 BFS 로 도달 가능한 구역을 찾고, 나머지 빈칸은 벽으로 메운다.
         /// 결과적으로 통행 가능 영역이 항상 하나로 연결된다 → 플로우 필드가 안전해진다.
+        ///
+        /// ★ <b>2026-08-18 — 「벽 앞면에 덮인 칸」(치마)을 막힌 것으로 보고 돈다</b>
+        /// (<see cref="IsWallSkirt"/>). 그래서 <b>여러 번 돌아야 한다</b>:
+        /// 메우면 새 벽이 생기고, 새 벽은 <b>자기 아래 칸에 새 치마</b>를 만들어 그 칸이
+        /// 다시 막히기 때문이다. 더 이상 메울 것이 없을 때까지 반복한다.
+        ///
+        /// ⚠ <b>치마 칸은 절대 벽으로 메우지 않는다.</b> 메우면 그 칸이 다시 아래 칸을
+        /// 덮는 벽이 되어 <b>남쪽으로 끝없이 번진다</b>. 치마는 「벽이 아닌데 못 지나가는 칸」
+        /// 으로 남겨두는 것이 정본이다 — 바닥은 그대로 그려지고 그 위를 벽 정면이 덮는다.
         /// </summary>
         void SealUnreachable(bool[] mask, int w, int h)
         {
+            int start = (w / 2) + (h / 2) * w;
+
+            // 넥서스 자리가 막혔으면 강제로 뚫는다 (정상적으로는 발생하지 않음).
+            // 위 칸까지 뚫어야 넥서스 칸 자신이 치마가 되지 않는다.
+            mask[start] = false;
+            if (h / 2 + 1 < h) mask[start + w] = false;
+
             var reached = new bool[w * h];
             var queue = new Queue<int>();
+            int total = 0;
 
-            int start = (w / 2) + (h / 2) * w;
-            if (mask[start])
+            // 새로 메운 벽이 또 새 치마를 만든다 — 안정될 때까지 반복.
+            // 상한은 안전장치일 뿐이다(실측상 2~3회면 끝난다).
+            for (int pass = 0; pass < 8; pass++)
             {
-                // 넥서스 자리가 막혔으면 강제로 뚫는다 (정상적으로는 발생하지 않음)
-                mask[start] = false;
-            }
-            reached[start] = true;
-            queue.Enqueue(start);
+                System.Array.Clear(reached, 0, reached.Length);
+                queue.Clear();
 
-            while (queue.Count > 0)
-            {
-                int i = queue.Dequeue();
-                int x = i % w, y = i / w;
+                reached[start] = true;
+                queue.Enqueue(start);
 
-                // 4방향 — 대각 이동을 허용하지 않으므로 벽 사이로 새지 않는다.
-                TryVisit(x + 1, y); TryVisit(x - 1, y);
-                TryVisit(x, y + 1); TryVisit(x, y - 1);
-
-                void TryVisit(int nx, int ny)
+                while (queue.Count > 0)
                 {
-                    if (nx < 0 || ny < 0 || nx >= w || ny >= h) return;
-                    int ni = nx + ny * w;
-                    if (reached[ni] || mask[ni]) return;
-                    reached[ni] = true;
-                    queue.Enqueue(ni);
+                    int i = queue.Dequeue();
+                    int x = i % w, y = i / w;
+
+                    // 4방향 — 대각 이동을 허용하지 않으므로 벽 사이로 새지 않는다.
+                    TryVisit(x + 1, y); TryVisit(x - 1, y);
+                    TryVisit(x, y + 1); TryVisit(x, y - 1);
+
+                    void TryVisit(int nx, int ny)
+                    {
+                        if (nx < 0 || ny < 0 || nx >= w || ny >= h) return;
+                        int ni = nx + ny * w;
+                        if (reached[ni] || mask[ni] || IsSkirt(mask, w, h, ni)) return;
+                        reached[ni] = true;
+                        queue.Enqueue(ni);
+                    }
                 }
+
+                int sealedNow = 0;
+                for (int i = 0; i < mask.Length; i++)
+                {
+                    if (mask[i] || reached[i]) continue;
+                    if (IsSkirt(mask, w, h, i)) continue;   // ← 치마는 벽으로 만들지 않는다
+                    mask[i] = true;
+                    sealedNow++;
+                }
+
+                total += sealedNow;
+                if (sealedNow == 0) break;
             }
 
-            int sealed_ = 0;
-            for (int i = 0; i < mask.Length; i++)
-            {
-                if (!mask[i] && !reached[i]) { mask[i] = true; sealed_++; }
-            }
-
-            if (sealed_ > 0)
-                Debug.Log($"[MapGenerator] 고립 구역 {sealed_}칸을 벽으로 메웠습니다.");
+            if (total > 0)
+                Debug.Log($"[MapGenerator] 고립 구역 {total}칸을 벽으로 메웠습니다.");
         }
 
         // ------------------------------------------------------------------

@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8cfff604944a8cb4785987042ebd72c4, type: 3}
+  m_Name: BossSkill_130003
+  m_EditorClassIdentifier:
+  skillId: 130003
+  nameKey: skill_name_130003
+  displayName: ''
+  skillType: Binding_orb
+  explainKey: skill_explain_130003
+  value01: 1
+  value02: 4
+  value03: 130
+  value04: 30
+  value05: 15
+  value06: 3
+  erosionValue: 5
+  coolTime: 10
+  castSeconds: 1.5
+  rangeType: Circle

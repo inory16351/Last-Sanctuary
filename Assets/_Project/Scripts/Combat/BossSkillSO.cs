@@ -61,10 +61,25 @@ namespace LastSanctuary.Combat
         public float value04;
 
         [Tooltip("value_05 — 표의 다섯 번째 값 칸. <b>스킬 종류마다 뜻이 다르다</b>:\n" +
-                 "  · 할퀴기(2001) — 방어력 감소가 지속되는 <b>초</b>\n" +
-                 "  · 나머지        — 안 쓴다\n" +
+                 "  · 할퀴기(2001)   — 방어력 감소가 지속되는 <b>초</b>\n" +
+                 "  · 구속탄(130003) — 「허약」이 지속되는 <b>초</b>\n" +
+                 "  · 나머지          — 안 쓴다\n" +
                  "⚠ 칸 번호로 읽지 말고 아래 뜻 있는 프로퍼티(DefenseDownSeconds 등)를 쓸 것")]
         public float value05;
+
+        [Tooltip("value_06 — 표의 여섯 번째 값 칸 (2026-08-18 신설).\n" +
+                 "  · 구속탄(130003) — 「구속」이 지속되는 <b>초</b>\n" +
+                 "  · 나머지          — 안 쓴다")]
+        public float value06;
+
+        [Tooltip("★ mentalerror_damage — 이 스킬에 맞은 캐릭터가 즉시 얻는 <b>침식 수치</b>.\n\n" +
+                 "⚠ <b>예전에는 value_04 를 이 뜻으로 읽었다</b>(2026-08-13 에 그렇게 붙였다). " +
+                 "그 뒤 표에 value_04·05·06 이 <b>진짜 수치 칸</b>으로 채워지고 침식은 " +
+                 "`mentalerror_damage` 라는 <b>자기 컬럼</b>을 갖게 되었는데, 파이프라인이 " +
+                 "따라가지 못해 값이 3칸씩 밀려 있었다(2026-08-18 발견 — 그래서 " +
+                 "단탈리온 두 스킬의 coolTime 이 0 이 되어 <b>한 번도 발동하지 않았다</b>).\n" +
+                 "이제 이 칸이 침식의 유일한 출처다 — value_04 를 침식으로 읽지 말 것")]
+        public float erosionValue;
 
         [Tooltip("cool_time — 재사용 대기시간(초)")]
         public float coolTime = 10f;
@@ -116,13 +131,11 @@ namespace LastSanctuary.Combat
         /// <summary>
         /// 이 스킬에 맞으면 오르는 침식 수치. 음수는 0 으로 자른다.
         ///
-        /// ⚠ <b>단탈리온의 두 스킬만</b> 이 뜻이다. 카르시노스의 할퀴기는 같은 <c>value_04</c>
-        /// 칸을 <b>방어력 감소 %</b> 로 쓴다 — 종류를 보고 갈라야 값이 섞이지 않는다.
+        /// ★ 2026-08-18 — <b>종류로 갈라 읽던 것을 없앴다.</b> 예전에는 "단탈리온의 두 스킬만
+        /// <c>value_04</c> 가 침식" 이라 종류를 봐야 했는데, 표가 <c>mentalerror_damage</c>
+        /// 라는 <b>전용 칸</b>을 갖게 되면서 그럴 이유가 사라졌다 — 모든 스킬이 같은 칸을 쓴다.
         /// </summary>
-        public float ErosionValue =>
-            Type == BossSkillType.FallenTomb || Type == BossSkillType.VoidLaser
-                ? Mathf.Max(0f, value04)
-                : 0f;
+        public float ErosionValue => Mathf.Max(0f, erosionValue);
 
         // ──────────────────────────────────────────────────────────────────
         // 카르시노스 — 칸 번호가 아니라 <b>뜻</b>으로 읽는 프로퍼티 (2026-08-15)
@@ -147,6 +160,34 @@ namespace LastSanctuary.Combat
         /// </summary>
         public float KnockbackTiles =>
             Type == BossSkillType.RoarDeath ? Mathf.Max(0f, value02) : 0f;
+
+        // ──────────────────────────────────────────────────────────────────
+        // 말파스 — 구속탄 (2026-08-18)
+        //
+        // 스트링 테이블 `skill_type_desc_Binding_orb` 그대로:
+        //   "…{value_01} 반지름 타일 범위의 투사체를 날리고 맞은 적을 기준으로
+        //    {value_02} 반지름 타일 범위의 모든 적에게 {value_03}% 만큼 피해를 입히고
+        //    공격속도를 {value_04}% 만큼 감소시키는 '허약' 상태로 만든다.
+        //    허약 상태는 {value_05}초 만큼 지속되며, 허약 상태의 적이 해당 공격에 다시
+        //    피격 시 즉시 허약 상태를 해제하고 {value_06}초 만큼 이동과 공격이 불가능한
+        //    '구속' 상태로 만든다."
+        // ──────────────────────────────────────────────────────────────────
+
+        /// <summary>구속탄이 터지는 <b>반지름</b>(타일). 다른 스킬은 0.</summary>
+        public float BlastRadiusTiles =>
+            Type == BossSkillType.BindingOrb ? Mathf.Max(0.5f, value02) : 0f;
+
+        /// <summary>「허약」이 깎는 <b>공격속도 %</b>. 구속탄 전용.</summary>
+        public float WeakenAttackSpeedPercent =>
+            Type == BossSkillType.BindingOrb ? Mathf.Max(0f, value04) : 0f;
+
+        /// <summary>「허약」이 지속되는 초. 구속탄 전용.</summary>
+        public float WeakenSeconds =>
+            Type == BossSkillType.BindingOrb ? Mathf.Max(0f, value05) : 0f;
+
+        /// <summary>「구속」이 지속되는 초 — <b>허약 상태에서 또 맞았을 때만</b>. 구속탄 전용.</summary>
+        public float BindSeconds =>
+            Type == BossSkillType.BindingOrb ? Mathf.Max(0f, value06) : 0f;
 
         /// <summary>
         /// <b>원형 범위의 반지름</b>(타일)이 <c>value_01</c> 로 적혀 있는 스킬인가.

@@ -50,6 +50,32 @@ namespace LastSanctuary.Combat
         /// (value_02 타일). 붙어서 때리던 전열을 통째로 떼어내는 기술이다.
         /// </summary>
         RoarDeath,
+
+        // ──────────────────────────────────────────────────────────────
+        // 말파스 (웨이브 최종보스 120002) — 2026-08-18
+        //
+        // ⚠ 여기도 <b>값의 뜻이 다르다.</b> 스트링 테이블의 정의문이 근거다:
+        //   구속탄   value_01 = 투사체 <b>반지름</b> · value_02 = 폭발 <b>반지름</b>
+        //            value_04 = 공격속도 감소 % · value_05 = 「허약」 초 · value_06 = 「구속」 초
+        //   저주광선 value_01 = 가로 · value_02 = 세로   (단탈리온의 광선과 같은 뜻)
+        // ──────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// 구속탄 (130003) — <b>가장 가까운</b> 적을 향해 던지고, 맞은 자리를 중심으로
+        /// <c>value_02</c> 반지름 원형 피해. 맞은 적은 <b>「허약」</b>(공격속도 −value_04%,
+        /// value_05초)이 되고, <b>허약 상태에서 또 맞으면</b> 허약이 풀리는 대신
+        /// <b>「구속」</b>(value_06초 동안 이동·공격 불가)에 걸린다.
+        ///
+        /// ★ 원형이지만 <b>보스 중심이 아니다</b> — 맞은 적의 자리에서 터진다.
+        ///   그래서 <see cref="BossSkillCaster"/> 가 원형 분기를 두 갈래로 나눈다.
+        /// </summary>
+        BindingOrb,
+
+        /// <summary>
+        /// 저주광선 (130004) — <b>가장 먼</b> 적을 향해 10 x 2 타일.
+        /// 조준·모양이 단탈리온의 「공허의 광선」과 같고, <b>원거리</b> 공격력을 쓴다.
+        /// </summary>
+        CurseBeam,
     }
 
     public static class BossSkillTypes
@@ -69,6 +95,8 @@ namespace LastSanctuary.Combat
                 case "void_laser":  return BossSkillType.VoidLaser;
                 case "scratch":     return BossSkillType.Scratch;
                 case "roar_death":  return BossSkillType.RoarDeath;
+                case "binding_orb": return BossSkillType.BindingOrb;
+                case "curse_beam":  return BossSkillType.CurseBeam;
                 default:            return BossSkillType.None;
             }
         }

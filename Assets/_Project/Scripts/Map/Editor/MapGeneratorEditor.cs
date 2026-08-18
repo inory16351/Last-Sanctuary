@@ -45,6 +45,133 @@ namespace LastSanctuary.MapEditorTools
             EditorSceneManager.MarkSceneDirty(generator.gameObject.scene);
         }
 
+        /// <summary>
+        /// 시드를 바꾸지 않고 <b>지금 시드 그대로</b> 다시 만든다.
+        ///
+        /// 왜 따로 필요했나 (2026-08-18) — 벽 앞면이 덮은 칸을 이동 불가로 바꾸면서
+        /// (<see cref="MapGenerator.IsWallSkirt"/>) <b>통로 굴착·연결성 검사가 함께 바뀌었다.</b>
+        /// 이미 저장된 맵은 그 규칙 없이 만들어진 것이라 한 칸 높이 통로가 통째로 막혀 있을 수
+        /// 있다. 지형을 통째로 갈아엎지 않고 <b>같은 시드로</b> 다시 돌리는 길이 필요했다.
+        /// </summary>
+        [MenuItem("LastSanctuary/맵/현재 시드로 맵 다시 생성", priority = 200)]
+        static void RegenerateWithSameSeed()
+        {
+            if (!Resolve(out MapGenerator generator, out MapGenerationConfigSO config)) return;
+
+            generator.Generate(config.seed);
+            EditorUtility.SetDirty(generator);
+            EditorSceneManager.MarkSceneDirty(generator.gameObject.scene);
+        }
+
+        /// <summary>
+        /// <b>지금 씬에 깔려 있는 맵</b>에 벽 앞면(치마) 규칙을 적용하면 어떻게 되는지만
+        /// 보고한다 — <b>아무것도 바꾸지 않는다.</b> 다시 생성할지 판단하는 근거다.
+        ///
+        /// 찍는 것: 벽 칸 수 · 새로 막히는 칸 수 · 넥서스에서 못 가게 되는 칸 수.
+        /// 마지막 값이 크면 이 맵은 다시 생성해야 한다(한 칸 높이 통로가 끊긴 것이다).
+        /// </summary>
+        [MenuItem("LastSanctuary/맵/벽 앞면 이동불가 영향 점검 (변경 없음)", priority = 202)]
+        static void ReportSkirtImpact()
+        {
+            if (!Resolve(out MapGenerator generator, out MapGenerationConfigSO config)) return;
+
+            Vector2Int size = config.MapSize;
+            Vector2Int org = config.Origin;
+            int w = size.x, h = size.y;
+
+            Tilemap obstacles = generator.ObstacleTilemap;
+            if (obstacles == null)
+            {
+                Debug.LogError("[맵 점검] 장애물 타일맵이 연결되지 않았습니다.", generator);
+                return;
+            }
+
+            var isWall = new bool[w * h];
+            int walls = 0;
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                    if (obstacles.HasTile(new Vector3Int(x + org.x, y + org.y, 0)))
+                    {
+                        isWall[x + y * w] = true;
+                        walls++;
+                    }
+
+            bool Skirt(int i) => i / w + 1 < h && isWall[i + w];
+
+            int before = 0, after = 0;
+            for (int i = 0; i < isWall.Length; i++)
+            {
+                if (!isWall[i]) before++;
+                if (!isWall[i] && !Skirt(i)) after++;
+            }
+
+            // 넥서스에서 4방향 BFS — 규칙 적용 전/후로 각각 센다.
+            int start = (w / 2) + (h / 2) * w;
+            int reachBefore = Flood(isWall, w, h, start, false);
+            int reachAfter  = Flood(isWall, w, h, start, true);
+
+            Debug.Log($"[맵 점검] {w}x{h} · 벽 {walls}칸\n" +
+                      $"  통행 가능 : {before} → {after} " +
+                      $"({(before > 0 ? (before - after) * 100f / before : 0f):0.#}% 감소)\n" +
+                      $"  넥서스에서 도달 : {reachBefore} → {reachAfter} " +
+                      $"(고립되는 칸 {reachBefore - reachAfter})\n" +
+                      "  ※ 고립되는 칸이 많으면 「현재 시드로 맵 다시 생성」을 실행할 것 — " +
+                      "굴착·연결성 검사가 새 규칙을 반영해서 다시 돈다.", generator);
+        }
+
+        /// <summary>넥서스에서 4방향으로 퍼진 칸 수. <paramref name="useSkirt"/> 면 벽 앞면도 막힌 것으로 본다.</summary>
+        static int Flood(bool[] isWall, int w, int h, int start, bool useSkirt)
+        {
+            bool Blocked(int i) => isWall[i] || (useSkirt && i / w + 1 < h && isWall[i + w]);
+            if (Blocked(start)) return 0;
+
+            var seen = new bool[isWall.Length];
+            var queue = new System.Collections.Generic.Queue<int>();
+            seen[start] = true;
+            queue.Enqueue(start);
+            int n = 0;
+
+            while (queue.Count > 0)
+            {
+                int i = queue.Dequeue();
+                n++;
+                int x = i % w, y = i / w;
+
+                Visit(x + 1, y); Visit(x - 1, y); Visit(x, y + 1); Visit(x, y - 1);
+
+                void Visit(int nx, int ny)
+                {
+                    if (nx < 0 || ny < 0 || nx >= w || ny >= h) return;
+                    int ni = nx + ny * w;
+                    if (seen[ni] || Blocked(ni)) return;
+                    seen[ni] = true;
+                    queue.Enqueue(ni);
+                }
+            }
+            return n;
+        }
+
+        /// <summary>두 메뉴가 공유하는 씬 조회 — 없으면 이유를 찍고 false.</summary>
+        static bool Resolve(out MapGenerator generator, out MapGenerationConfigSO config)
+        {
+            generator = Object.FindFirstObjectByType<MapGenerator>();
+            config = null;
+
+            if (generator == null)
+            {
+                Debug.LogError("[MapGenerator] 씬에서 MapGenerator 를 찾지 못했습니다.");
+                return false;
+            }
+
+            config = generator.Config;
+            if (config == null)
+            {
+                Debug.LogError("[MapGenerator] Config 가 연결되지 않았습니다.", generator);
+                return false;
+            }
+            return true;
+        }
+
         public override void OnInspectorGUI()
         {
             DrawDefaultInspector();
