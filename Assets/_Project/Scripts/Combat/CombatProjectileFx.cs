@@ -325,6 +325,41 @@ namespace LastSanctuary.Combat
         }
 
         /// <summary>
+        /// <b>날아가는 탄환 한 발</b> — 보스 스킬이 자기 탄환을 따로 띄울 때 쓴다
+        /// (말파스 「구속탄」 2026-08-18).
+        ///
+        /// <b>왜 <see cref="HandleAttack"/> 을 못 쓰는가</b> — 그쪽은 <b>평타 이벤트</b>에
+        /// 붙어 있고 스킨의 <c>projectileFrames</c>(말파스의 검은 구체) 한 벌만 쓴다.
+        /// 구속탄은 <b>다른 그림</b>(초록 바이러스 구체)이고 발사 시점도 평타가 아니다.
+        ///
+        /// ⚠ <b>순수 연출이다</b> — 피해는 <see cref="BossSkillCaster"/> 가 발사와 <b>동시에</b>
+        /// 이미 넣었다(이 프로젝트의 보스 스킬은 전부 그렇다). 탄환이 도착해야 맞는 것이
+        /// 아니므로 <paramref name="seconds"/> 는 <b>보이는 시간</b>일 뿐이다.
+        ///
+        /// <paramref name="sizeTiles"/> 는 그림을 몇 타일 크기로 그릴지다(0 이면 원화 크기 그대로).
+        /// </summary>
+        public static void PlayTravel(Sprite[] frames, Vector3 from, Vector3 to,
+                                      float seconds, DamageableUnit anchor, float sizeTiles = 0f)
+        {
+            if (_instance == null || !HasFrames(frames)) return;
+
+            Sprite first = frames[0];
+            if (first == null) return;
+
+            Vector2 scale = Vector2.one;
+            if (sizeTiles > 0f)
+            {
+                Vector3 art = first.bounds.size;
+                float longest = Mathf.Max(art.x, art.y);
+                if (longest > 0.0001f) scale = Vector2.one * (sizeTiles / longest);
+            }
+
+            _instance.Spawn(from, to, Mathf.Max(0.05f, seconds), anchor, first, scale,
+                            frames: frames.Length > 1 ? frames : null,
+                            rotation: AimAt(to - from));
+        }
+
+        /// <summary>
         /// 이 공격자가 쓸 탄환. <b>스킨이 먼저다</b> — 스킨에 탄환 프레임이 들어있으면
         /// 그대로 쓰고, 없는 유닛만 아래의 진영·종류 폴백으로 넘어간다.
         ///

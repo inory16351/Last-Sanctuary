@@ -236,6 +236,44 @@ namespace LastSanctuary.Units
         // 표가 정본이고 `BossSkillCaster` 가 Resources 에서 찾아 붙인다(스킨·정신 이상과 같은 방식).
         // ------------------------------------------------------------------
 
+        [Header("일러스트 — 표의 illust (2026-08-18 신설)")]
+        [Tooltip("일러스트 이름 (표 `wave_top_boss.illust`). Resources/Illust 아래를 찾는다.\n\n" +
+                 "<b>왜 이제야 생겼나</b> — 클릭 초상화(UnitPortraitPanel)는 2026-08-15 에 " +
+                 "<b>중립 몬스터에만</b> 붙었다(86-4·5절). 웨이브 보스는 표에 `illust` 칸이 " +
+                 "있는데도 <b>읽는 코드가 없어</b> 눌러도 아무것도 안 떴다. 중립 쪽 " +
+                 "(NeutralMonsterDefinitionSO.Illust)과 <b>같은 규칙·같은 폴더</b>다.\n" +
+                 "Tools/sync_tables_to_assets.py 가 표에서 그대로 옮긴다 — 손으로 적지 말 것")]
+        public string illustName = "";
+
+        Sprite _illust;
+        bool _illustLoaded;
+
+        /// <summary>
+        /// 초상화 일러스트. <c>Resources/Illust/</c> 에서 이름으로 읽어 캐시한다.
+        ///
+        /// ⚠ 못 찾으면 경고를 한 번 남긴다. 조용히 null 이 되면 "표에 적었는데 왜 안 뜨지"가
+        /// 된다 — 히스톤 초상화가 정확히 그래서 인게임 모션으로 폴백됐다(84-8절 ②,
+        /// 원인은 .meta 의 <c>textureType</c> 이 Sprite 가 아니었던 것).
+        /// </summary>
+        public Sprite Illust
+        {
+            get
+            {
+                if (_illustLoaded) return _illust;
+                _illustLoaded = true;
+
+                string n = illustName != null ? illustName.Trim() : "";
+                if (n.Length == 0) return null;
+
+                _illust = Resources.Load<Sprite>("Illust/" + n);
+                if (_illust == null)
+                    Debug.LogWarning($"[몬스터] 일러스트 'Resources/Illust/{n}' 을 찾지 못했습니다. " +
+                                     $"({DisplayName}) — 파일 이름과 .meta 의 textureType(8=Sprite) 을 " +
+                                     "확인해주세요.", this);
+                return _illust;
+            }
+        }
+
         [Header("보스 스킬 — 표의 boss_skill_1~3")]
         [Tooltip("이 몬스터가 쓰는 보스 스킬의 id. Resources/BossSkills 의 BossSkillSO 를 " +
                  "이 번호로 찾는다. 순서가 곧 슬롯 번호이고, 스킨의 시전 모션 슬롯과 같다.\n" +

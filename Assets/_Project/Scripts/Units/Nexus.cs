@@ -35,6 +35,29 @@ namespace LastSanctuary.Units
         public override Faction Faction => Faction.Angel;
         public override UnitKind Kind => UnitKind.Nexus;
 
+        // ------------------------------------------------------------------
+        // 클릭 초상화 (2026-08-18, 유저 지시: "넥서스 클릭 가능하게 만들고 일러스트 넣어서
+        // ILLUST UI 에 적용")
+        //
+        // ⚠ <b>클릭 자체는 원래 됐다.</b> UnitSelector.PickAt 은 DamageableUnit 을 전수
+        //   검사하고 넥서스는 아군이라 안개 검사도 건너뛴다. 눌러도 아무 일이 없어 보였던
+        //   이유는 <see cref="Portrait"/> 가 베이스의 null 이라 UnitPortraitPanel 이
+        //   「일러스트 없음」만 띄웠기 때문이다 — <b>그림이 없었던 것이지 클릭이 안 된 게 아니다.</b>
+        // ------------------------------------------------------------------
+
+        /// <summary>초상화. 정의 에셋의 <c>illustName</c> 을 Resources/Illust 에서 읽는다.</summary>
+        public override Sprite Portrait => definition != null ? definition.Illust : null;
+
+        /// <summary>화면에 뜨는 이름 — 정의 에셋이 정한다(넥서스만 표가 없다).</summary>
+        public override string DisplayName =>
+            definition != null && !string.IsNullOrWhiteSpace(definition.displayName)
+                ? definition.displayName
+                : base.DisplayName;
+
+        /// <summary>칭호 — 비어 있으면 초상화에 칭호 줄이 안 뜬다.</summary>
+        public override string Title =>
+            definition != null && definition.title != null ? definition.title : string.Empty;
+
         /// <summary>스포너가 복제 직후 호출한다.</summary>
         public void Initialize(NexusDefinitionSO def, BalanceConfigSO balance)
         {

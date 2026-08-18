@@ -1,0 +1,99 @@
+using UnityEngine;
+using UnityEngine.Tilemaps;
+using LastSanctuary.Map;
+
+namespace LastSanctuary.Units
+{
+    /// <summary>
+    /// <b>넥서스 둘레에 「성역」을 깐다</b> (2026-08-18, 유저 지시).
+    ///
+    /// <i>"넥서스 주변도 중립 몬스터 청크 처럼 일정 범위의 청크 넣어서 생성(불규칙한 저그 점막처럼) ·
+    /// 청크 에셋은 볼트 리소스에 있어 · 청크 색이나 배열은 너가 알아서 적절하게 수정해줘
+    /// 좀 확실하게 다른 공간이랑 분리되어서 보이게"</i>
+    ///
+    /// ★★ <b>모양 만드는 코드를 새로 안 짰다</b>
+    /// ---------------------------------------
+    /// 지시가 <i>"중립 몬스터 청크 처럼"</i> 이므로, 카르시노스 서식지가 쓰는
+    /// <see cref="NeutralHabitat"/> 를 <b>그대로 붙여서</b> 쓴다 — 노이즈로 경계를 흔들고,
+    /// 셀룰러 오토마타로 다듬고, 중심과 이어진 덩어리만 남기는 그 레시피가 곧
+    /// "불규칙한 저그 점막" 이다. 같은 것을 두 벌 만들지 않는다.
+    ///
+    /// ⚠ 그 컴포넌트 이름이 <c>Neutral</c> 로 시작하지만 <b>중립 전용 코드가 한 줄도 없다</b>
+    ///   (타일맵과 좌표만 다룬다). 이름을 바꾸지 <b>않는</b> 것은 씬 YAML 이 클래스 이름으로
+    ///   컴포넌트를 찾기 때문이다 — 바꾸면 카르시노스 쪽 배선이 끊긴다.
+    ///
+    /// ★ <b>서식지와 다른 점 — 되돌리지 않는다</b>
+    /// 서식지는 개체가 죽으면 걷힌다. 성역은 <b>넥서스가 죽으면 게임이 끝나므로</b>
+    /// 되돌릴 이유가 없다. <see cref="NeutralHabitat"/> 의 <c>restoreOnDestroy</c> 는
+    /// 인스펙터 값이고 기본이 켜짐인데, 넥서스는 패배할 때까지 안 사라지니 실질적으로
+    /// 차이가 없다 — 그래서 그 값을 건드리지 않는다.
+    ///
+    /// ⚠ <b>플레이 모드에서만 그려진다.</b> 타일맵 변경은 플레이를 나가면 사라진다 —
+    ///   서식지와 같고, <b>그게 의도다</b>(씬 파일이 더러워지지 않는다).
+    /// </summary>
+    [RequireComponent(typeof(Nexus))]
+    [DisallowMultipleComponent]
+    public class NexusSanctuary : MonoBehaviour
+    {
+        [Header("범위")]
+        [Tooltip("성역 반지름(타일). 카르시노스 서식지가 14 다 — 넥서스는 맵 한가운데의 " +
+                 "거점이라 그보다 넓게 잡는다.\n" +
+                 "⚠ 너무 키우면 <b>맵의 상당 부분이 성역</b>이 되어 「다른 공간」이라는 인상이 " +
+                 "사라진다. 맵이 320타일이므로 20 이면 반경 6% 남짓이다")]
+        [Min(1f)] [SerializeField] float radiusTiles = 20f;
+
+        [Header("타일 묶음 (Resources/HabitatTiles/ 아래)")]
+        [Tooltip("바닥 타일 폴더 이름. Tools/gen_sanctuary_tiles.py 가 굽는다.\n" +
+                 "가장자리·데코는 이 이름에 Edge/Props 를 붙여 찾는다 — 서식지와 같은 규약")]
+        [SerializeField] string tileSetName = "Sanctuary";
+
+        [Header("씨앗")]
+        [Tooltip("★ 0 이면 <b>매 게임 다른 모양</b>이 나온다(실행할 때마다 새로 뽑는다).\n" +
+                 "0 이 아니면 그 값을 고정으로 써서 <b>항상 같은 모양</b>이 된다 — " +
+                 "모양을 눈으로 비교하며 값을 조정할 때 쓴다")]
+        [SerializeField] int fixedSeed;
+
+        [Header("디버그")]
+        [SerializeField] bool logSanctuary = true;
+
+        void Start()
+        {
+            var map = FindAnyObjectByType<MapGenerator>();
+            if (map == null) return;
+
+            // 바닥이 없으면 아무것도 안 그린다. 가장자리·데코는 없어도 된다
+            // (없으면 각각 바닥 타일로 대체 / 데코 생략 — NeutralHabitat.Paint 참조).
+            TileBase[] ground = Load(tileSetName, required: true);
+            if (ground == null || ground.Length == 0) return;
+
+            TileBase[] edge = Load(tileSetName + "Edge", required: false);
+            TileBase[] props = Load(tileSetName + "Props", required: false);
+
+            var habitat = GetComponent<NeutralHabitat>();
+            if (habitat == null) habitat = gameObject.AddComponent<NeutralHabitat>();
+
+            int seed = fixedSeed != 0 ? fixedSeed : Random.Range(int.MinValue, int.MaxValue);
+            Vector3Int center = map.WorldToCell(transform.position);
+
+            habitat.Paint(map, ground, edge, props, center, radiusTiles, seed);
+
+            if (logSanctuary)
+                Debug.Log($"[성역] 넥서스 둘레 {habitat.PaintedCells}칸 · 데코 {habitat.PropCells}개 " +
+                          $"(반지름 {radiusTiles}타일 · 바닥 {ground.Length}종 · " +
+                          $"가장자리 {(edge != null ? edge.Length : 0)}종 · " +
+                          $"데코 {(props != null ? props.Length : 0)}종 · 씨앗 {seed})", this);
+        }
+
+        /// <summary>타일 폴더 하나를 통째로 읽는다. 없으면 null.</summary>
+        TileBase[] Load(string folder, bool required)
+        {
+            if (string.IsNullOrWhiteSpace(folder)) return null;
+
+            TileBase[] tiles = Resources.LoadAll<TileBase>("HabitatTiles/" + folder);
+            if ((tiles == null || tiles.Length == 0) && required)
+                Debug.LogWarning($"[성역] 'Resources/HabitatTiles/{folder}' 에 타일이 없습니다 — " +
+                                 "Tools/gen_sanctuary_tiles.py 를 돌려주세요.", this);
+            return tiles;
+        }
+    }
+}

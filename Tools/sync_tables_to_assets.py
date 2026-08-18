@@ -222,6 +222,7 @@ MONSTER_ASSET_BY_ID = {
     100002: 'Monster_SoulArcher',
     120001: 'Monster_Dantalian',
     120002: 'Monster_Malphas',
+    120003: 'Monster_Kasinoma',
 }
 
 # 삭제된 중간보스 에셋 — 남아 있으면 스포너 슬롯에 다시 끌려 들어갈 수 있어서 지운다.
@@ -264,6 +265,18 @@ NEW_MONSTER_DEFAULTS = {
         bodyHeightTiles=3,
         spriteScale=0.75,
     ),
+    120003: dict(
+        # ★ 근접 보스 — 단탈리온과 같은 사거리(2.0)를 쓴다. 다만 <b>인식은 더 넓다</b>:
+        #    「이끌리는 혈취」가 지름 20타일 안의 적에게 돌진하는 기술이라, 인식이 10 이면
+        #    보스가 <b>자기 스킬 사거리의 절반도 못 보고</b> 서 있게 된다. 스킬의 반지름
+        #    (10타일)에 맞춰 12 로 둔다.
+        detectRange=12,
+        attackRange=2.0,
+        footprintTiles=1,
+        bodyWidthTiles=2,
+        bodyHeightTiles=3,
+        spriteScale=0.75,
+    ),
 }
 
 # 크기 검산용 - 이 몬스터가 실제로 쓰는 스킨(원화). renderHeightTiles(표) 로 스케일을
@@ -274,6 +287,7 @@ SKIN_FOR_MONSTER = {
     100002: 'MonsterSkins/SoulArcher/Skin_SoulArcher',
     120001: 'MonsterSkins/Dantalian/Skin_Dantalian',
     120002: 'MonsterSkins/Malphas/Skin_Malphas',
+    120003: 'MonsterSkins/Kasinoma/Skin_Kasinoma',
 }
 
 
@@ -505,8 +519,12 @@ def sync_monsters():
         if mid in titled:
             changes['titleKey'] = 'boss_title_%d' % mid
 
+        # ★ 일러스트 (2026-08-18) - `wave_top_boss.illust` 그대로. 잡몹은 그 시트에 행이
+        #   없어 빈 문자열이 되고, 그러면 클릭해도 초상화 창이 안 뜬다(중립과 같은 규칙).
+        changes['illustName'] = str(tops.get(mid, {}).get('illust') or '').strip()
+
         total += patch_fields(os.path.join(folder, asset + '.asset'), changes, asset,
-                              add_missing=('titleKey', 'monsterId') + NEW_STAT_FIELDS)
+                              add_missing=('titleKey', 'monsterId', 'illustName') + NEW_STAT_FIELDS)
         report_collider_fit(mid, asset, box_w, box_h)
 
     # --- 중간보스 2종 신규 (2026-08-18 이후 MID_BOSS 는 비어 있어 돌지 않는다) ---

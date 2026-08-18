@@ -149,6 +149,28 @@ namespace LastSanctuary.Combat
         [Tooltip("슬롯 1 의 범위 연출")]
         public Sprite[] skill2Fx;
 
+        [Header("보스 스킬 — 날아가는 탄환 (2026-08-18 신설)")]
+        [Tooltip("★ <b>스킬 전용 탄환</b>. 말파스 「구속탄」이 첫 사용자다.\n\n" +
+                 "<b>왜 projectileFrames 를 못 쓰나</b> — 그쪽은 <b>평타</b> 탄환이고 " +
+                 "말파스는 평타가 검은 구체·구속탄이 초록 구체로 그림 자체가 다르다. " +
+                 "슬롯을 나눠 두면 표에 스킬을 추가할 때 그림만 넣으면 된다.\n" +
+                 "비워두면 평타 탄환으로 떨어진다 — 탄환이 아예 없는 스킬은 그냥 비워둘 것")]
+        public Sprite[] skill1Projectile;
+
+        [Tooltip("슬롯 1 의 스킬 전용 탄환")]
+        public Sprite[] skill2Projectile;
+
+        /// <summary>슬롯의 스킬 전용 탄환. 없으면 null — 호출부가 평타 탄환으로 떨어진다.</summary>
+        public Sprite[] SkillProjectile(int slot)
+        {
+            switch (slot)
+            {
+                case 0: return HasFrames(skill1Projectile) ? skill1Projectile : null;
+                case 1: return HasFrames(skill2Projectile) ? skill2Projectile : null;
+                default: return null;
+            }
+        }
+
         /// <summary>슬롯의 시전 모션. 없으면 null — 그러면 평타 모션으로 대체된다.</summary>
         public Sprite[] SkillMotion(int slot, bool facingRight)
         {

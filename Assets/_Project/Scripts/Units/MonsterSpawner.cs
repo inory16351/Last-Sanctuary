@@ -57,15 +57,18 @@ namespace LastSanctuary.Units
         [Tooltip("웨이브 테이블 사용 시 원거리 담당")]
         [SerializeField] MonsterSpawnEntry rangedSlot;
 
-        [Tooltip("웨이브 테이블 사용 시 보스 담당")]
+        [Tooltip("웨이브 테이블에 <b>boss_monster_id 가 없거나</b>(0) 그 id 가 아래 Boss Slots 에 " +
+                 "없을 때 쓰는 <b>기본 보스</b>. 웨이브 표를 안 쓰는 예전 씬도 이 슬롯으로 돈다")]
         [SerializeField] MonsterSpawnEntry bossSlot;
 
-        [Tooltip("웨이브 테이블 사용 시 <b>중간보스</b> 담당. 여러 개를 넣으면 그중 하나가 뽑힌다.\n" +
-                 "★ `웨이브 몬스터 테이블.xlsx` 의 `wave_mid_boss.spawn_percent`(혈인 0.5 / " +
-                 "공허의 속삭임 0.5)에 대응한다 — 각 항목의 `count` 가 <b>추첨 가중치</b>로 쓰인다" +
-                 "(마리 수가 아니다. 마리 수는 웨이브 표의 midBossCount 가 정한다).\n" +
-                 "웨이브 기획서 p4 의 \"5번째 웨이브 – 중간 보스 등장\" 이 23절부터 미구현이었다")]
-        [SerializeField] MonsterSpawnEntry[] midBossSlots = System.Array.Empty<MonsterSpawnEntry>();
+        [Tooltip("★ <b>보스 명단</b> (2026-08-18 신설). 웨이브 표의 `boss_monster_id` 와 " +
+                 "각 항목 정의 에셋의 `monsterId` 를 맞춰 <b>그 웨이브에 정해진 보스</b>를 고른다.\n\n" +
+                 "<b>왜 바뀌었나</b> — 유저 지시로 <b>중간보스를 없애고</b> 5웨이브 단탈리온 / " +
+                 "10웨이브 말파스로 바꾸면서 보스가 여러 종류가 됐다. 예전 구조(bossSlot 하나 + " +
+                 "midBossSlots 가중치 추첨)로는 <b>어느 보스인지</b>를 표현할 수 없었다 — " +
+                 "그리고 지시는 추첨이 아니라 <b>웨이브마다 정해진 보스</b>다.\n\n" +
+                 "각 항목의 count 는 <b>쓰지 않는다</b>(마리 수는 웨이브 표의 boss_mon_num 이 정한다).")]
+        [SerializeField] MonsterSpawnEntry[] bossSlots = System.Array.Empty<MonsterSpawnEntry>();
 
         [Header("맵 참조")]
         [SerializeField] MapGenerator mapGenerator;
@@ -329,8 +332,7 @@ namespace LastSanctuary.Units
                 hpScale = atkScale = wave.statPercent;
                 AppendToQueue(queue, meleeSlot, wave.meleeCount);
                 AppendToQueue(queue, rangedSlot, wave.rangedCount);
-                AppendToQueue(queue, bossSlot, wave.bossCount);
-                AppendMidBosses(queue, wave.midBossCount, rng);
+                AppendBosses(queue, wave.bossCount, wave.bossMonsterId);
                 groupSize = Mathf.Max(1, wave.spawnGroupSize);
             }
             else
@@ -455,93 +457,81 @@ namespace LastSanctuary.Units
             MonsterUnit tpl = entry.template != null ? entry.template : entry.definition.template;
             for (int i = 0; i < count; i++) queue.Add((entry.definition, tpl));
         }
-
         /// <summary>
-        /// 중간보스를 <paramref name="count"/> 마리 대기열에 넣는다.
-        /// <b>어느 종류가 나오는지는 마리 수와 따로 정해진다</b> — 웨이브 표는 "몇 마리"만 정하고
-        /// (`midBossCount`), 종류는 <see cref="midBossSlots"/> 각 항목의 <c>count</c> 를
-        /// <b>추첨 가중치</b>로 써서 뽑는다. 이게 표의 `wave_mid_boss.spawn_percent`
-        /// (혈인 0.5 / 공허의 속삭임 0.5)에 대응하는 구조다.
+        /// 그 웨이브의 <b>보스</b>를 <paramref name="count"/> 마리 대기열에 넣는다.
         ///
-        /// <b>왜 count 를 가중치로 재해석하는가</b> — <see cref="MonsterSpawnEntry"/> 는
-        /// (정의·템플릿·수량) 3칸짜리 기존 자료형이고, PROTO 가 쓰는 공개 자료형이라
-        /// 필드를 늘리면 씬의 직렬화 값이 흔들린다(47-4-2절). 남는 칸을 쓰는 쪽이 안전하다.
-        /// 가중치가 전부 0 이면 균등 추첨으로 떨어진다.
+        /// ★ <b>어느 보스인지는 표가 정한다</b> (2026-08-18) — <paramref name="bossMonsterId"/> 는
+        /// 웨이브 표 <c>웨이브테이블.xlsx / Sheet2 / boss_monster_id</c> 그대로이고,
+        /// <see cref="bossSlots"/> 에서 <c>definition.monsterId</c> 가 같은 항목을 찾아 쓴다.
         ///
-        /// 마리 수가 2 이상이면 <b>매번 다시 뽑는다</b> — 같은 종류만 둘 나오는 것도 가능하다
-        /// (확률 0.5/0.5 의 정의가 그렇다).
+        /// <b>왜 추첨이 아닌가</b> — 없어진 중간보스는 <c>spawn_percent</c> 로 가중치 추첨을
+        /// 했지만, 유저 지시는 「5웨이브 단탈리온 · 10웨이브 말파스」로 <b>웨이브마다 정해진
+        /// 보스</b>다. 추첨 구조를 물려받으면 표를 봐도 무엇이 나올지 알 수 없다.
+        ///
+        /// 못 찾으면 <see cref="bossSlot"/>(기본 보스)로 떨어진다 — 표에 id 를 아직 안 적은
+        /// 웨이브나 웨이브 표를 안 쓰는 예전 씬에서 <b>보스가 통째로 사라지는 것</b>이
+        /// "잘못된 보스가 나온다" 보다 알아채기 어렵기 때문이다(경고 로그를 남긴다).
         /// </summary>
-        void AppendMidBosses(List<(MonsterDefinitionSO def, MonsterUnit template)> queue,
-                             int count, System.Random rng)
+        void AppendBosses(List<(MonsterDefinitionSO def, MonsterUnit template)> queue,
+                          int count, int bossMonsterId)
         {
-            if (count <= 0 || midBossSlots == null || midBossSlots.Length == 0) return;
+            if (count <= 0) return;
 
-            int totalWeight = 0;
-            for (int i = 0; i < midBossSlots.Length; i++)
-                if (midBossSlots[i].definition != null)
-                    totalWeight += Mathf.Max(0, midBossSlots[i].count);
-
-            for (int n = 0; n < count; n++)
+            MonsterSpawnEntry slot = ResolveBossSlot(bossMonsterId);
+            if (slot.definition == null)
             {
-                MonsterSpawnEntry picked = default;
-                bool found = false;
-
-                if (totalWeight > 0)
-                {
-                    int roll = rng.Next(totalWeight);
-                    for (int i = 0; i < midBossSlots.Length; i++)
-                    {
-                        if (midBossSlots[i].definition == null) continue;
-                        roll -= Mathf.Max(0, midBossSlots[i].count);
-                        if (roll >= 0) continue;
-                        picked = midBossSlots[i];
-                        found = true;
-                        break;
-                    }
-                }
-                else
-                {
-                    // 가중치를 아무도 안 넣었다 — 균등 추첨. "설정을 안 했으면 안 나온다" 보다
-                    // "일단 나온다" 가 낫다(표에 마리 수가 적혀 있다는 것이 곧 의도다).
-                    for (int tries = 0; tries < midBossSlots.Length; tries++)
-                    {
-                        int idx = rng.Next(midBossSlots.Length);
-                        if (midBossSlots[idx].definition == null) continue;
-                        picked = midBossSlots[idx];
-                        found = true;
-                        break;
-                    }
-                }
-
-                if (!found)
-                {
-                    Debug.LogWarning($"[MonsterSpawner] 웨이브 {waveNumber} 에 중간보스 {count}마리가 " +
-                                     "예정돼 있는데 Mid Boss Slots 에 정의가 없습니다.", this);
-                    return;
-                }
-
-                queue.Add((picked.definition, ResolveMidBossTemplate(picked)));
+                Debug.LogWarning($"[MonsterSpawner] 웨이브 {waveNumber} 에 보스 {count}마리가 " +
+                                 $"예정돼 있는데(id {bossMonsterId}) Boss Slots · Boss Slot 어디에도 " +
+                                 "정의가 없습니다.", this);
+                return;
             }
+
+            MonsterUnit tpl = ResolveBossTemplate(slot);
+            for (int i = 0; i < count; i++) queue.Add((slot.definition, tpl));
         }
 
         /// <summary>
-        /// 중간보스가 쓸 외형 템플릿. 슬롯 → 정의 → <b>같은 공격 타입의 잡몹 슬롯</b> 순으로 찾는다.
-        ///
-        /// <b>왜 잡몹 템플릿으로 폴백하는가</b> — 유저 확정(진행상황 54-4절): "중간 보스 인게임
-        /// 모션은 <b>임시로 일반 몬스터 스킨을 그대로 쓰는 것</b>이니 신경 쓰지 말고 냅둬".
-        /// 그리고 구조적으로도 이 폴백이 필요하다: 템플릿은 <b>씬 오브젝트 참조</b>라
-        /// ① ScriptableObject(정의 에셋)에 넣을 수 없고(5절) ② MCP 로 씬의 배열 항목에 넣을 수도
-        /// 없다(8절 4번). 폴백이 없으면 중간보스 전용 템플릿을 손으로 연결할 때까지
-        /// "템플릿이 없습니다" 에러만 나고 아무것도 안 나온다.
-        ///
-        /// 전용 템플릿이 생기면 인스펙터에서 슬롯의 Template 칸을 채우면 되고, 그때부터
-        /// 이 폴백은 자동으로 안 쓰인다.
+        /// 표의 보스 id → <see cref="bossSlots"/> 항목. 못 찾으면 <see cref="bossSlot"/>.
         /// </summary>
-        MonsterUnit ResolveMidBossTemplate(MonsterSpawnEntry entry)
+        MonsterSpawnEntry ResolveBossSlot(int bossMonsterId)
+        {
+            if (bossMonsterId > 0 && bossSlots != null)
+            {
+                for (int i = 0; i < bossSlots.Length; i++)
+                {
+                    MonsterDefinitionSO def = bossSlots[i].definition;
+                    if (def != null && def.monsterId == bossMonsterId) return bossSlots[i];
+                }
+
+                if (bossSlot.definition == null || bossSlot.definition.monsterId != bossMonsterId)
+                    Debug.LogWarning($"[MonsterSpawner] 웨이브 {waveNumber} 의 보스 id " +
+                                     $"{bossMonsterId} 가 Boss Slots 에 없습니다 — 기본 보스로 " +
+                                     "대신 내보냅니다.", this);
+            }
+
+            return bossSlot;
+        }
+
+        /// <summary>
+        /// 보스가 쓸 외형 템플릿. 슬롯 → 정의 → <b>기본 보스 슬롯</b> → 같은 공격 타입의
+        /// 잡몹 슬롯 순으로 찾는다.
+        ///
+        /// <b>왜 폴백이 필요한가</b> — 템플릿은 <b>씬 오브젝트 참조</b>라 ① 정의 에셋
+        /// (ScriptableObject)에 넣을 수 없고(5절) ② MCP 로 씬의 배열 항목에 넣을 수도 없다
+        /// (8절 4번). 폴백이 없으면 새 보스의 전용 템플릿을 손으로 연결할 때까지
+        /// "템플릿이 없습니다" 만 뜨고 아무것도 안 나온다.
+        ///
+        /// 전용 템플릿이 연결되면 이 폴백은 자동으로 안 쓰인다.
+        /// </summary>
+        MonsterUnit ResolveBossTemplate(MonsterSpawnEntry entry)
         {
             if (entry.template != null) return entry.template;
             if (entry.definition != null && entry.definition.template != null)
                 return entry.definition.template;
+
+            if (bossSlot.template != null) return bossSlot.template;
+            if (bossSlot.definition != null && bossSlot.definition.template != null)
+                return bossSlot.definition.template;
 
             bool ranged = entry.definition != null &&
                           entry.definition.attackType != TacticalAttackType.Melee;
@@ -617,7 +607,7 @@ namespace LastSanctuary.Units
             // 크기 보정 — <b>표의 콜라이더 상자(타일)</b>를 넘긴다(유저 확정 2026-08-13).
             // 애니메이터가 그 상자 안에 비율을 유지한 최대 크기로 그림을 맞추고, 콜라이더를
             // 다시 그 그림 크기로 맞춘다. 그래서 <b>같은 템플릿·같은 스킨을 쓰는 중간보스도
-            // 이 한 줄로 커진다</b>(중간보스는 잡몹 템플릿을 폴백으로 쓴다 — ResolveMidBossTemplate).
+            // 이 한 줄로 커진다</b>(전용 템플릿이 없는 보스는 폴백을 쓴다 — ResolveBossTemplate).
             var anim = unit.GetComponent<Combat.CharacterAnimator>();
             if (anim != null && def.HasColliderBox)
             {
@@ -689,8 +679,8 @@ namespace LastSanctuary.Units
             if (Match(rangedSlot, definitionName, out def, out template)) return true;
             if (Match(bossSlot, definitionName, out def, out template)) return true;
 
-            if (midBossSlots != null)
-                foreach (MonsterSpawnEntry e in midBossSlots)
+            if (bossSlots != null)
+                foreach (MonsterSpawnEntry e in bossSlots)
                     if (Match(e, definitionName, out def, out template)) return true;
 
             if (spawnTable != null)

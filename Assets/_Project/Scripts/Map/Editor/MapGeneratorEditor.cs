@@ -67,8 +67,15 @@ namespace LastSanctuary.MapEditorTools
         /// <b>지금 씬에 깔려 있는 맵</b>에 벽 앞면(치마) 규칙을 적용하면 어떻게 되는지만
         /// 보고한다 — <b>아무것도 바꾸지 않는다.</b> 다시 생성할지 판단하는 근거다.
         ///
-        /// 찍는 것: 벽 칸 수 · 새로 막히는 칸 수 · 넥서스에서 못 가게 되는 칸 수.
-        /// 마지막 값이 크면 이 맵은 다시 생성해야 한다(한 칸 높이 통로가 끊긴 것이다).
+        /// ★★ <b>봐야 할 것은 마지막 줄 하나뿐이다</b> — <c>못 가는 칸</c>.
+        ///
+        /// ⚠ 처음에는 「넥서스에서 도달 : A → B」의 <b>차이</b>를 「고립되는 칸」이라고 찍었는데,
+        ///   그 차이의 대부분은 <b>치마 칸 자신</b>이다(원래 못 가게 만든 칸이므로 줄어드는 것이
+        ///   정상이다). 그 숫자를 보고 "3,400칸이 끊겼다" 로 읽으면 멀쩡한 맵을 계속 다시 만들게
+        ///   된다 — 2026-08-18 에 실제로 그렇게 읽을 뻔했다.
+        ///
+        /// <b>진짜 판정은 「통행 가능(치마 적용) == 넥서스에서 도달(치마 적용)」</b> 이다.
+        /// 둘이 같으면 <b>갈 수 있는 칸이 하나도 안 끊겼다</b>는 뜻이다.
         /// </summary>
         [MenuItem("LastSanctuary/맵/벽 앞면 이동불가 영향 점검 (변경 없음)", priority = 202)]
         static void ReportSkirtImpact()
@@ -110,13 +117,18 @@ namespace LastSanctuary.MapEditorTools
             int reachBefore = Flood(isWall, w, h, start, false);
             int reachAfter  = Flood(isWall, w, h, start, true);
 
+            // ★ 이것이 진짜 「끊긴 칸」이다 — 갈 수 있어야 하는데(치마도 아닌데) 못 가는 칸.
+            int stranded = after - reachAfter;
+
             Debug.Log($"[맵 점검] {w}x{h} · 벽 {walls}칸\n" +
                       $"  통행 가능 : {before} → {after} " +
-                      $"({(before > 0 ? (before - after) * 100f / before : 0f):0.#}% 감소)\n" +
-                      $"  넥서스에서 도달 : {reachBefore} → {reachAfter} " +
-                      $"(고립되는 칸 {reachBefore - reachAfter})\n" +
-                      "  ※ 고립되는 칸이 많으면 「현재 시드로 맵 다시 생성」을 실행할 것 — " +
-                      "굴착·연결성 검사가 새 규칙을 반영해서 다시 돈다.", generator);
+                      $"(줄어든 {before - after}칸이 벽 앞면이다 — 정상)\n" +
+                      $"  넥서스에서 도달 : {reachBefore} → {reachAfter}\n" +
+                      $"  ★ 못 가는 칸 : {stranded}  " +
+                      (stranded == 0
+                          ? "→ 갈 수 있는 칸이 하나도 안 끊겼다. 다시 생성할 필요 없다."
+                          : "→ 한 칸 높이 통로가 끊겼다. 「현재 시드로 맵 다시 생성」을 실행할 것."),
+                      generator);
         }
 
         /// <summary>넥서스에서 4방향으로 퍼진 칸 수. <paramref name="useSkirt"/> 면 벽 앞면도 막힌 것으로 본다.</summary>

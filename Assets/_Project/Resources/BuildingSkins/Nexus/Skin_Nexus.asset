@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d7a96ef653d0bf34188351e36879cdce, type: 3}
+  m_Name: Skin_Nexus
+  m_EditorClassIdentifier:
+  displayName: 중앙 건물
+  framesPerSecond: 7
+  idleHigh:
+  - {fileID: 21300000, guid: 141d78692c134b635dbd866ba10cbf78, type: 3}
+  - {fileID: 21300000, guid: 4c3af9d4c460e922214038e65f50f44e, type: 3}
+  - {fileID: 21300000, guid: 233d7fa48997d33e17958c6c708386e8, type: 3}
+  - {fileID: 21300000, guid: d001d2e14c26ab9937e4c29c055c69de, type: 3}
+  - {fileID: 21300000, guid: dbc8191561ccfe9622be9c7e0800985e, type: 3}
+  - {fileID: 21300000, guid: 1842ceec78c92f7bb618e95817f9f50b, type: 3}
+  idleMid:
+  - {fileID: 21300000, guid: a6e911855b4efae0f93a3c2cceb63e63, type: 3}
+  - {fileID: 21300000, guid: 6e39558813b2f29a3382fdd13a3606cb, type: 3}
+  - {fileID: 21300000, guid: 82b958bcde4e30044734f784c93cd1c2, type: 3}
+  - {fileID: 21300000, guid: 2d5e921c99ea7aabf91ec8e8f97e3cf4, type: 3}
+  - {fileID: 21300000, guid: ea956b306775b65eb471ae3e2ee4d6f8, type: 3}
+  - {fileID: 21300000, guid: eca4967faa4ce91b2ad0bcc0a7f983fd, type: 3}
+  idleLow:
+  - {fileID: 21300000, guid: c1171ee1c1dcd1215cfb072aa86cf91c, type: 3}
+  - {fileID: 21300000, guid: 81968c236da707df081f8a5a3a63b708, type: 3}
+  - {fileID: 21300000, guid: ecdcd4b3c7d494d23d541edfc50c7caa, type: 3}
+  - {fileID: 21300000, guid: 6d76520c6790aaecae75fd51e2d86d27, type: 3}
+  - {fileID: 21300000, guid: 45f7777556c16496ab79ec2eca606015, type: 3}
+  - {fileID: 21300000, guid: 16003c4efe31e2cbf654e725b4b598a2, type: 3}
+  destroy:
+  - {fileID: 21300000, guid: 9f000869ae6650f5222de0c41175158a, type: 3}
+  - {fileID: 21300000, guid: 87d2fe4793ac139eb06c8f5fa8d792f0, type: 3}
+  - {fileID: 21300000, guid: 5e89aa5022d60d8df4d10435a73af945, type: 3}
+  - {fileID: 21300000, guid: 48de16bdf9fd0ac2abc0b12c0035a444, type: 3}
+  - {fileID: 21300000, guid: 385c3973abbdbd7f44cdc05a7ffa0062, type: 3}
+  - {fileID: 21300000, guid: 69f9fbbb1d62012d221833cf1955c34a, type: 3}
+  - {fileID: 21300000, guid: f5ab3c13cffd31feca5f9c5bac9e6b48, type: 3}
+  - {fileID: 21300000, guid: 05ecb79549143cccb6dc6c7ec9289250, type: 3}

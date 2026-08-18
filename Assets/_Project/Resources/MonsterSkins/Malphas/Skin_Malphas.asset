@@ -209,6 +209,15 @@ MonoBehaviour:
   - {fileID: 21300000, guid: 3b4095bb9775311ac700ade5dda5f8e3, type: 3}
   skill2Fx:
   - {fileID: 21300000, guid: aa8047782be7d899efc0e86ecfa88460, type: 3}
+  skill1Projectile:
+  - {fileID: 21300000, guid: 5ada80a93dd04f39fb038131cf20a666, type: 3}
+  - {fileID: 21300000, guid: 70eba386659839d900b6a660a45a6ccc, type: 3}
+  - {fileID: 21300000, guid: 6e1aa140a3bc15999bc73d887db2dc9d, type: 3}
+  - {fileID: 21300000, guid: f90f1c19b758969593e0a6af3c424221, type: 3}
+  - {fileID: 21300000, guid: 1a76c14115ae947087ae30a4abb595d0, type: 3}
+  - {fileID: 21300000, guid: a5cd52458a3968070b91546c2f681fb8, type: 3}
+  - {fileID: 21300000, guid: 057b4317b30ae51ea8584dc0dc09f829, type: 3}
+  skill2Projectile: []
   projectileFrames:
   - {fileID: 21300000, guid: 57409a86339ce2a6b310a4b0528fc5bc, type: 3}
   - {fileID: 21300000, guid: 8dde2e53a187dc22794ef6a5773ae3be, type: 3}

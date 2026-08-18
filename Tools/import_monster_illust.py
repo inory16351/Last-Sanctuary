@@ -55,6 +55,14 @@ ILLUSTS = [
     (os.path.join("neutrality nomal monster", "Tumorling_illust.png"),    "Tumorling_illust"),
     (os.path.join("neutrality nomal monster", "Tumor mole_illust.png"),   "TumorMole_illust"),
     (os.path.join("epic_boss", "Carcinos_ilust.png"),                     "Carcinos_illust"),
+    # ★ 웨이브 보스 3종 (2026-08-18) — 표 `wave_top_boss.illust` 와 이름이 같아야 한다.
+    #   중립과 <b>같은 폴더·같은 규칙</b>이다(MonsterDefinitionSO.Illust 신설).
+    (os.path.join("monster_cancer", "Dantalian_illust.png"),               "Dantalian_illust"),
+    (os.path.join("monster_cancer", "Malphas_illust.png"),                 "Malphas_illust"),
+    (os.path.join("monster_cancer", "Kasinoma_illust.png"),                "Kasinoma_illust"),
+    # ★ 넥서스 (2026-08-18) — 몬스터는 아니지만 <b>같은 UI·같은 폴더</b>를 쓴다
+    #   (NexusDefinitionSO.illustName). 이 스크립트가 「클릭 초상화용 그림 임포트」 담당이다.
+    (os.path.join("Nexus", "Nexus_illust.png"),                            "Nexus_illust"),
 ]
 
 #: 초상화용 임포트 설정. `Resources/Illust/illust_*.png.meta` 와 같은 값이다

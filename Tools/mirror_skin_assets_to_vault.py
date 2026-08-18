@@ -8,7 +8,8 @@
 볼트 `리소스/asset/` 은 <b>진영별로</b> 정리돼 있다:
 
     리소스/asset/char_asset/            아군 캐릭터 (Char_Asset_Elin · Bigior · …)
-    리소스/asset/monster_cancer_asset/  웨이브(암세포) 몬스터 (Dantalian · HellFang · SoulArcher)
+    리소스/asset/monster_cancer_asset/  웨이브(암세포) 몬스터 (Dantalian · HellFang · SoulArcher
+                                        · <b>Malphas · Kasinoma</b> 2026-08-18 추가)
     리소스/asset/Tower_Asset/           건물
 
 <b>중립 몬스터 자리가 없었다.</b> 그래서 이번에 만든 네 종(종양 거미·종양귀·종양 두더지·
@@ -35,29 +36,48 @@ import sys
 from vault_path import VAULT, PROJECT
 
 SRC_ROOT = os.path.join(PROJECT, "Assets", "_Project", "Art", "Char_Asset")
-DST_ROOT = os.path.join(VAULT, "리소스", "asset", "monster_neutral_asset")
+TILE_ROOT = os.path.join(PROJECT, "Assets", "_Project", "Art", "OrganicTilemap")
 
-#: 볼트로 복사할 종 (중립 몬스터 4종)
-SPECIES = ["TumorSpider", "Tumorling", "TumorMole", "Carcinos"]
+NEUTRAL_ROOT = os.path.join(VAULT, "리소스", "asset", "monster_neutral_asset")
+CANCER_ROOT = os.path.join(VAULT, "리소스", "asset", "monster_cancer_asset")
+TOWER_ROOT = os.path.join(VAULT, "리소스", "asset", "Tower_Asset")
 
-#: 종 폴더가 아닌 것들 — (유니티 쪽 폴더, 볼트 쪽 폴더 이름)
+#: 볼트로 복사할 종 — (종 이름, 볼트 진영 폴더)
+#:
+#: ★ 2026-08-18 — <b>웨이브 보스와 넥서스가 추가됐다.</b> 전에는 중립 4종만 다뤘는데,
+#:   말파스·카시노마·넥서스를 새로 자르면서 같은 문제가 생겼다: 볼트에는 <b>한 장짜리
+#:   기획 시트만</b> 있고 "몇 프레임으로 어떻게 잘랐는지" 가 유니티 안에만 있었다.
+SPECIES = [
+    ("TumorSpider", NEUTRAL_ROOT),
+    ("Tumorling",   NEUTRAL_ROOT),
+    ("TumorMole",   NEUTRAL_ROOT),
+    ("Carcinos",    NEUTRAL_ROOT),
+    ("Malphas",     CANCER_ROOT),
+    ("Kasinoma",    CANCER_ROOT),
+    ("Nexus",       os.path.join(TOWER_ROOT, "Nexus_asset")),
+]
+
+#: 종 폴더가 아닌 것들 — (유니티 쪽 폴더, 볼트 쪽 부모, 볼트 쪽 폴더 이름)
 EXTRA = [
-    (os.path.join(PROJECT, "Assets", "_Project", "Art", "OrganicTilemap", "CarcinosHabitat"),
-     "CarcinosHabitat_tiles"),
-    (os.path.join(PROJECT, "Assets", "_Project", "Art", "OrganicTilemap", "CarcinosHabitatEdge"),
-     "CarcinosHabitat_edge"),
-    (os.path.join(PROJECT, "Assets", "_Project", "Art", "OrganicTilemap", "CarcinosHabitatProps"),
-     "CarcinosHabitat_props"),
+    (os.path.join(TILE_ROOT, "CarcinosHabitat"),      NEUTRAL_ROOT, "CarcinosHabitat_tiles"),
+    (os.path.join(TILE_ROOT, "CarcinosHabitatEdge"),  NEUTRAL_ROOT, "CarcinosHabitat_edge"),
+    (os.path.join(TILE_ROOT, "CarcinosHabitatProps"), NEUTRAL_ROOT, "CarcinosHabitat_props"),
+    # ★ 성역(넥서스 둘레) 타일 — 원본은 유저가 준 참조 시트 한 장이고, 실제로 게임이 쓰는
+    #   20x20 타일은 gen_sanctuary_tiles.py 가 굽는다. 그 결과를 볼트에도 남긴다.
+    (os.path.join(TILE_ROOT, "Sanctuary"),            TOWER_ROOT, "Sanctuary_tiles"),
+    (os.path.join(TILE_ROOT, "SanctuaryEdge"),        TOWER_ROOT, "Sanctuary_edge"),
+    (os.path.join(TILE_ROOT, "SanctuaryProps"),       TOWER_ROOT, "Sanctuary_props"),
 ]
 
 
-def mirror(species):
+def mirror(species, dst_root):
     src = os.path.join(SRC_ROOT, "Char_Asset_" + species)
     if not os.path.isdir(src):
         print(f"  ⚠ {species}: 원본 폴더가 없습니다 — {src}")
         return 0
 
-    dst = os.path.join(DST_ROOT, "Char_Asset_" + species)
+    os.makedirs(dst_root, exist_ok=True)
+    dst = os.path.join(dst_root, "Char_Asset_" + species)
     if os.path.isdir(dst):
         shutil.rmtree(dst)
 
@@ -78,13 +98,14 @@ def mirror(species):
     return count
 
 
-def mirror_dir(src, out_name):
-    """종 폴더가 아닌 낱장 묶음(서식지 타일 등)을 통째로 복사한다."""
+def mirror_dir(src, dst_root, out_name):
+    """종 폴더가 아닌 낱장 묶음(서식지·성역 타일 등)을 통째로 복사한다."""
     if not os.path.isdir(src):
         print(f"  ⚠ {out_name}: 원본 폴더가 없습니다 — {src}")
         return 0
 
-    dst = os.path.join(DST_ROOT, out_name)
+    os.makedirs(dst_root, exist_ok=True)
+    dst = os.path.join(dst_root, out_name)
     if os.path.isdir(dst):
         shutil.rmtree(dst)
     os.makedirs(dst, exist_ok=True)
@@ -100,10 +121,10 @@ def mirror_dir(src, out_name):
 
 
 def main():
-    os.makedirs(DST_ROOT, exist_ok=True)
-    total = sum(mirror(s) for s in SPECIES)
-    total += sum(mirror_dir(src, name) for src, name in EXTRA)
-    print(f"\n{total}장 복사 → {DST_ROOT}")
+    total = sum(mirror(sp, root) for sp, root in SPECIES)
+    total += sum(mirror_dir(src, root, name) for src, root, name in EXTRA)
+    print()
+    print("%d장 복사 → 볼트 리소스/asset/" % total)
     return 0
 
 

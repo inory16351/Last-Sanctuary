@@ -694,6 +694,70 @@ namespace LastSanctuary.Combat
         /// <summary>지금 중립 몬스터를 건드리지 않는 상태인지 (탐험 유형 '탐색').</summary>
         public bool IsNeutralHostilitySuppressed => _neutralHostilitySuppressed;
 
+        // ------------------------------------------------------------------
+        // 「허약」 · 「구속」 — 말파스 구속탄이 거는 상태 (2026-08-18)
+        //
+        // ★ <b>왜 여기(컴포넌트)에 두고 서비스 장부에 안 두는가</b> — 부식(방어력 감소)은
+        //   <see cref="PassiveSkillService"/> 가 장부로 관리한다. 그건 <b>되돌려야 하는</b>
+        //   보정이라(걸 때 빼고 풀 때 더한다) 새면 영구히 깎이기 때문에 한 곳에 모은 것이다.
+        //   이 둘은 <b>시각(時刻) 하나</b>로 표현되는 상태라 되돌릴 것이 없다 — 만료 시각이
+        //   지나면 저절로 꺼지고, 유닛이 죽으면 컴포넌트째 사라진다. 장부에 넣으면
+        //   "죽은 유닛 정리" 코드만 늘어난다.
+        // ------------------------------------------------------------------
+
+        /// <summary>「허약」이 끝나는 시각. 0 이면 안 걸렸다.</summary>
+        float _weakenUntil;
+
+        /// <summary>「허약」 중 공격속도에 곱할 값(0~1).</summary>
+        float _weakenAttackSpeedMul = 1f;
+
+        /// <summary>「구속」이 끝나는 시각. 0 이면 안 걸렸다.</summary>
+        float _boundUntil;
+
+        /// <summary>
+        /// <b>「허약」</b> — 공격속도를 <paramref name="reducePercent"/> % 만큼 깎는다.
+        /// 같은 것이 또 걸리면 <b>지속시간만 새로 잡는다</b>(중첩하지 않는다) — 감소율을
+        /// 곱해 쌓으면 몇 발만 맞아도 공격이 사실상 멈춘다.
+        /// </summary>
+        public void ApplyWeaken(float reducePercent, float seconds)
+        {
+            if (seconds <= 0f) return;
+            _weakenAttackSpeedMul = Mathf.Clamp(1f - reducePercent / 100f, 0.05f, 1f);
+            _weakenUntil = Time.time + seconds;
+        }
+
+        /// <summary>지금 「허약」에 걸려 있는지 — 구속탄이 "또 맞았는지"를 이걸로 판정한다.</summary>
+        public bool IsWeakened => Time.time < _weakenUntil;
+
+        /// <summary>「허약」을 즉시 푼다 (구속으로 넘어갈 때).</summary>
+        public void ClearWeaken()
+        {
+            _weakenUntil = 0f;
+            _weakenAttackSpeedMul = 1f;
+        }
+
+        /// <summary>
+        /// <b>「구속」</b> — <paramref name="seconds"/> 초 동안 <b>이동도 공격도 못 한다.</b>
+        ///
+        /// ⚠ <see cref="SetCombatSuppressed"/> 와 <b>다르다</b>: 그쪽은 "싸우지 않는다" 일 뿐
+        /// 이동은 그대로다(후퇴가 그 위에서 돈다). 구속은 <see cref="Act"/> 자체를 건너뛴다.
+        /// 그래서 후퇴·집결 같은 상위 지시가 켜져 있어도 그 자리에 묶인다.
+        ///
+        /// 이미 걸려 있으면 <b>더 긴 쪽</b>을 남긴다 — 짧은 것이 덮어써서 일찍 풀리면
+        /// "구속이 안 걸렸다" 로 보인다.
+        /// </summary>
+        public void ApplyBind(float seconds)
+        {
+            if (seconds <= 0f) return;
+            _boundUntil = Mathf.Max(_boundUntil, Time.time + seconds);
+            _target = null;
+            _engaged = false;
+            _engagedWith = null;
+        }
+
+        /// <summary>지금 「구속」되어 있는지 (연출·UI 에서 쓸 수 있게 공개).</summary>
+        public bool IsBound => Time.time < _boundUntil;
+
         public TacticalAttackType AttackType => attackType;
 
         /// <summary>
@@ -778,6 +842,15 @@ namespace LastSanctuary.Combat
 
             // 벽 안에 갇혀 있으면 이동 판정이 전부 실패해 영구히 멈춘다. 먼저 빼낸다.
             if (EscapeIfEmbedded(dt)) return;
+
+            // ★ 「구속」(말파스 구속탄) — 이동도 공격도 안 한다(ApplyBind 주석 참조).
+            //   ⚠ <b>탈출 판정보다는 뒤</b>다: 구속된 채로 벽/구조물에 갇히면 구속이 풀려도
+            //     빠져나올 방법이 없어 영구히 얼어붙는다.
+            if (IsBound)
+            {
+                _state = CombatState.Idle;
+                return;
+            }
 
             AcquireTargetIfNeeded();
             DecideState();
@@ -1589,6 +1662,11 @@ namespace LastSanctuary.Combat
                 : (attacksPerSecond > 0f
                     ? attacksPerSecond
                     : (_self.Balance != null ? _self.Balance.attacksPerSecond : 1f));
+
+            // ★ 「허약」(말파스 구속탄) — 공격속도만 깎는다. 능력치 자체는 안 건드리므로
+            //   로스터·성장 창의 표시값은 그대로다(DefenseModifier 와 같은 원칙).
+            if (IsWeakened) aps *= _weakenAttackSpeedMul;
+
             if (aps <= 0f) return;
 
             _nextAttackTime = Time.time + 1f / aps;

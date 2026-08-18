@@ -115,6 +115,14 @@ namespace LastSanctuary.Units
         protected override int RegenStat => stats.regen;
 
         /// <summary>
+        /// 초상화 (표 <c>wave_top_boss.illust</c>). 클릭했을 때
+        /// <see cref="UI.UnitPortraitPanel"/> 이 띄운다 — 중립 몬스터
+        /// (<see cref="NeutralMonsterUnit.Portrait"/>)와 <b>같은 경로</b>다(2026-08-18).
+        /// 잡몹은 표의 <c>illust</c> 칸이 비어 있어 null 이고, 그러면 창이 안 뜬다.
+        /// </summary>
+        public override Sprite Portrait => definition != null ? definition.Illust : null;
+
+        /// <summary>
         /// 지금 쓰는 공격 능력치 종류. <b>공격 유형에 따라 달라진다</b> —
         /// 캐릭터(<see cref="CharacterUnit.AttackStatType"/>)와 <b>같은 규칙</b>이다.
         ///

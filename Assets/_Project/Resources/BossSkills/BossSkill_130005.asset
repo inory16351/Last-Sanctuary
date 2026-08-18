@@ -17,8 +17,8 @@ MonoBehaviour:
   displayName: ''
   skillType: Lure_blood
   explainKey: skill_explain_130005
-  value01: 5
-  value02: 200
+  value01: 20
+  value02: 300
   value03: 0
   value04: 0
   value05: 0

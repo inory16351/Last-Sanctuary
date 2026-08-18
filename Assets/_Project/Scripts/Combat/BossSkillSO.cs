@@ -125,8 +125,40 @@ namespace LastSanctuary.Combat
         /// <summary>범위 세로(타일) — 조준 방향과 직각인 두께.</summary>
         public float WidthTiles => Mathf.Max(1f, value02);
 
-        /// <summary>피해 배율(%). 표가 비어 있으면 평타(100%)로 떨어진다.</summary>
-        public int DamagePercent => value03 > 0f ? Mathf.RoundToInt(value03) : 100;
+        /// <summary>
+        /// 피해 배율(%). 표가 비어 있으면 평타(100%)로 떨어진다.
+        ///
+        /// ⚠ <b>「이끌리는 혈취」만 칸이 하나 앞이다</b>(<c>value_02</c>) — 정의문이
+        /// *"…{value_01} 지름 타일 범위 안에 적 1명에게 돌진하여 {value_02}% 의 데미지"* 라
+        /// 가로·세로 두 칸을 쓰지 않기 때문이다. 칸 번호가 아니라 <b>정의문</b>이 정본이다.
+        /// </summary>
+        public int DamagePercent
+        {
+            get
+            {
+                float raw = Type == BossSkillType.LureBlood ? value02 : value03;
+                return raw > 0f ? Mathf.RoundToInt(raw) : 100;
+            }
+        }
+
+        // ──────────────────────────────────────────────────────────────────
+        // 카시노마 (2026-08-18)
+        // ──────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// 「이끌리는 혈취」가 <b>적을 찾는 반지름</b>(타일). 정의문의 <c>value_01</c> 은
+        /// <b>지름</b>이라 반으로 나눈다 — 「죽음의 포효」가 반지름인 것과 반대다
+        /// (<see cref="CircleValueIsRadius"/> 주석 참조). 다른 스킬은 0.
+        /// </summary>
+        public float DashSeekRadiusTiles =>
+            Type == BossSkillType.LureBlood ? Mathf.Max(1f, value01) * 0.5f : 0f;
+
+        /// <summary>
+        /// 「죽음의 노래」의 <b>타격 횟수</b>. 1 미만이면 1 로 본다(한 번은 때려야 스킬이다).
+        /// 다른 스킬은 1.
+        /// </summary>
+        public int HitCount =>
+            Type == BossSkillType.DeathSong ? Mathf.Max(1, Mathf.RoundToInt(value04)) : 1;
 
         /// <summary>
         /// 이 스킬에 맞으면 오르는 침식 수치. 음수는 0 으로 자른다.

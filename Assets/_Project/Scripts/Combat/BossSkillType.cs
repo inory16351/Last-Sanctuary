@@ -76,6 +76,33 @@ namespace LastSanctuary.Combat
         /// 조준·모양이 단탈리온의 「공허의 광선」과 같고, <b>원거리</b> 공격력을 쓴다.
         /// </summary>
         CurseBeam,
+
+        // ──────────────────────────────────────────────────────────────
+        // 카시노마 (웨이브 보스 120003) — 2026-08-18
+        //
+        // ⚠ 여기는 <b>value_01·02 의 뜻이 또 다르다.</b> 스트링 테이블 정의문이 근거다:
+        //   이끌리는 혈취 value_01 = 탐색 <b>지름</b> 타일 · value_02 = <b>피해 %</b>
+        //                 (⚠ 다른 스킬은 value_03 이 피해다 — 여기만 한 칸 앞이다)
+        //   죽음의 노래   value_01 = 가로 · value_02 = 세로 · value_03 = 피해 %
+        //                 · value_04 = <b>타격 횟수</b>
+        // ──────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// 이끌리는 혈취 (130005) — <b>가장 가까운</b> 적에게 <b>직접 이동</b>해 붙은 뒤
+        /// 한 번 때린다. 원화 시트: *"20x20 타일 범위 내 타겟 1명에게 돌진 후 1회 피해
+        /// (근거리 공격의 3배)"*.
+        ///
+        /// ★ 이 프로젝트에서 <b>시전자를 움직이는 첫 스킬</b>이다 — 다른 보스 스킬은 전부
+        ///   제자리에서 범위만 낸다. 그래서 <see cref="BossSkillCaster"/> 에 이동 분기가 있다.
+        /// </summary>
+        LureBlood,
+
+        /// <summary>
+        /// 죽음의 노래 (130006) — <b>가장 가까운</b> 적을 향해 4 x 4 타일 상자를
+        /// <c>value_04</c> 번 <b>연달아</b> 때린다. 한 번에 다 넣지 않고 시전 시간에 걸쳐
+        /// 나눠 넣는다 — 원화가 6타 연격이고, 한 프레임에 몰면 회복·방어가 끼어들 틈이 없다.
+        /// </summary>
+        DeathSong,
     }
 
     public static class BossSkillTypes
@@ -97,6 +124,8 @@ namespace LastSanctuary.Combat
                 case "roar_death":  return BossSkillType.RoarDeath;
                 case "binding_orb": return BossSkillType.BindingOrb;
                 case "curse_beam":  return BossSkillType.CurseBeam;
+                case "lure_blood":  return BossSkillType.LureBlood;
+                case "death_song":  return BossSkillType.DeathSong;
                 default:            return BossSkillType.None;
             }
         }

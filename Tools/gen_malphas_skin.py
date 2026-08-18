@@ -119,6 +119,11 @@ def main():
     projectile = fx_frames("Projectile")         # 기본 원거리 투사체 (검은 구체)
     impact = fx_frames("Impact")                 # 레이저 임팩트
 
+    # ★ 2026-08-18 — 구속탄 <b>탄환</b>(초록 구체). 예전에는 뽑아만 두고 배선할 칸이
+    #   없어서 놀고 있었다(맨 위 주석 29줄). CharacterSkinSO.skill1Projectile 신설로 연결.
+    #   ⚠ 위 fx1(FxBindingOrb) 은 <b>터질 때</b>의 범위 폭발이고 이건 <b>날아가는</b> 탄환이다.
+    sk1_projectile = fx_frames("BindingOrb")
+
     if not (idle_r and walk_r and rng_r):
         raise SystemExit("⚠ 프레임이 없습니다 — 먼저 Tools/malphas_skin_build.py 를 돌리세요")
 
@@ -162,6 +167,8 @@ def main():
     body += sprite_list("skill2Left", sk2_l)
     body += sprite_list("skill1Fx", fx1)
     body += sprite_list("skill2Fx", fx2)
+    body += sprite_list("skill1Projectile", sk1_projectile)
+    body += sprite_list("skill2Projectile", [])
     body += sprite_list("projectileFrames", projectile)
     body += sprite_list("muzzleFlashFrames", [])
     body += sprite_list("impactFrames", impact)

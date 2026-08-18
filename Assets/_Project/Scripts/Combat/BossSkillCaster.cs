@@ -338,6 +338,12 @@ namespace LastSanctuary.Combat
             float length = area.x;
             float width = area.y;
 
+            // ── 특수 분기 — 「제자리에서 상자/원을 낸다」로 표현되지 않는 스킬들 ──
+            //    아래 두 갈래(원형·직사각형)는 전부 <b>시전자가 안 움직이고, 범위가
+            //    시전자 기준</b>이라는 전제 위에 있다. 그 전제를 깨는 것만 여기서 가른다.
+            if (skill.Type == BossSkillType.BindingOrb) return TryCastBindingOrb(slot, skill);
+            if (skill.Type == BossSkillType.LureBlood) return TryCastLureBlood(slot, skill);
+
             // ── 원형 범위 ───────────────────────────────────────────────
             // 방향이라는 개념이 없으므로 조준도 필요 없다 — 반지름 안이면 전부 맞는다.
             if (skill.Shape == BossSkillShape.Circle)
@@ -385,7 +391,171 @@ namespace LastSanctuary.Combat
 
             // 연출을 피해보다 먼저 띄운다 — 맞고 죽어 사라진 대상의 자리에도 범위가 보이게.
             PlayFx(slot, skill, center, dir, length, width, aim);
-            return ApplyDamage(slot, skill, length, width, "직선");
+            bool cast = ApplyDamage(slot, skill, length, width, "직선");
+
+            // ★ <b>연타 스킬</b>(카시노마 「죽음의 노래」 6타) — 나머지 타수를 시전 시간에
+            //   걸쳐 나눠 넣는다. 한 프레임에 다 몰면 회복·방어가 끼어들 틈이 없고,
+            //   원화(6타 연격)와도 안 맞는다.
+            if (cast && skill.HitCount > 1)
+                StartCoroutine(RepeatHits(slot, skill, center, dir, length, width));
+
+            return cast;
+        }
+
+        /// <summary>
+        /// 연타의 <b>2타부터</b>를 시전 시간에 걸쳐 넣는다. 상자는 <b>처음 잡은 자리에 고정</b>이다 —
+        /// 보스를 따라다니게 하면 도망친 적까지 6번 다 맞는다.
+        /// 매 타마다 <b>대상을 다시 모은다</b>(그 사이 들어온 적도 맞고, 죽은 적은 빠진다).
+        /// </summary>
+        System.Collections.IEnumerator RepeatHits(int slot, BossSkillSO skill, Vector3 center,
+                                                  Vector2 dir, float length, float width)
+        {
+            int remaining = skill.HitCount - 1;
+            float step = skill.CastSecondsOr(castSeconds) / skill.HitCount;
+            var half = new Vector2(length * 0.5f, width * 0.5f);
+
+            for (int i = 0; i < remaining; i++)
+            {
+                yield return new WaitForSeconds(step);
+                if (_self == null || !_self.IsAlive) yield break;
+
+                UnitRegistry.CollectEnemiesInOrientedRect(center, half, dir, _self.Faction, _scratch);
+                if (_scratch.Count == 0) continue;
+                ApplyDamage(slot, skill, length, width, $"연타 {i + 2}/{skill.HitCount}");
+            }
+        }
+
+        // ------------------------------------------------------------------
+        // 말파스 「구속탄」 — <b>터지는 자리가 시전자가 아니다</b> (2026-08-18)
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// 가장 가까운 적에게 탄환을 날리고, <b>그 적의 자리</b>를 중심으로 원형 폭발을 낸다.
+        ///
+        /// ★ 기존 <see cref="BossSkillShape.Circle"/> 분기를 못 쓴다 — 그쪽은 원의 중심이
+        ///   언제나 <b>시전자</b>다. 정의문은 *"맞은 적을 기준으로 {value_02} 반지름 타일
+        ///   범위의 모든 적에게"* 라 중심이 대상 쪽이다.
+        ///
+        /// ★ <b>탐색 거리는 표에 없다</b> — <c>value_01</c> 은 탄환 크기지 사거리가 아니다.
+        ///   그래서 이 유닛의 인식 범위(<see cref="UnitCombat.EffectiveDetectRange"/>)를 쓴다.
+        ///   "보스가 인식한 적에게 쏜다" 가 표에 없는 값을 지어내는 것보다 낫다.
+        /// </summary>
+        bool TryCastBindingOrb(int slot, BossSkillSO skill)
+        {
+            DamageableUnit aim = NearestWithin(SeekRangeTiles());
+            if (aim == null) return requireTarget ? false : true;
+
+            Vector3 burst = aim.transform.position;
+            float radius = skill.BlastRadiusTiles;
+            float diameter = radius * 2f;
+
+            UnitRegistry.CollectEnemiesInRadius(burst, radius, _self.Faction, _scratch);
+
+            // 탄환 → 폭발 순서로 보여준다. 피해는 아래에서 <b>즉시</b> 들어간다
+            // (이 프로젝트의 보스 스킬은 전부 시전과 동시에 판정한다 — PlayTravel 주석).
+            PlayProjectile(slot, skill, transform.position, burst,
+                           Mathf.Max(0.5f, skill.LengthTiles));
+            PlayFx(slot, skill, burst, Vector2.right, diameter, diameter, aim);
+            return ApplyDamage(slot, skill, diameter, diameter, "구속탄 폭발");
+        }
+
+        /// <summary>
+        /// 이 슬롯의 <b>스킬 전용 탄환</b>을 <paramref name="from"/> → <paramref name="to"/> 로
+        /// 흘려보낸다. 스킨에 그 칸이 비어 있으면 평타 탄환으로 떨어지고, 그것도 없으면
+        /// 조용히 넘어간다(피해는 이미 들어갔다 — <see cref="CombatProjectileFx.PlayTravel"/> 주석).
+        ///
+        /// 쓰는 곳이 둘이고 <b>뜻이 다르다</b>: 구속탄은 <b>날아가는 탄환</b>,
+        /// 이끌리는 혈취는 <b>돌진 잔상</b>. 그림만 다르고 「A 에서 B 로 흘러간다」는 같아서
+        /// 한 함수로 둔다.
+        /// </summary>
+        void PlayProjectile(int slot, BossSkillSO skill, Vector3 from, Vector3 to, float sizeTiles)
+        {
+            if (_animator == null) _animator = GetComponent<CharacterAnimator>();
+            CharacterSkinSO skin = _animator != null ? _animator.Skin : null;
+            if (skin == null) return;
+
+            Sprite[] frames = skin.SkillProjectile(slot);
+            if (frames == null || frames.Length == 0) frames = skin.projectileFrames;
+            if (frames == null || frames.Length == 0) return;
+
+            CombatProjectileFx.PlayTravel(frames, from, to,
+                                          skill.CastSecondsOr(castSeconds) * 0.5f, _self, sizeTiles);
+        }
+
+        // ------------------------------------------------------------------
+        // 카시노마 「이끌리는 혈취」 — <b>시전자가 움직인다</b> (2026-08-18)
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// 지름 <c>value_01</c> 타일 안에서 가장 가까운 적에게 <b>직접 이동</b>해 붙은 뒤
+        /// 한 번 때린다.
+        ///
+        /// ⚠ <b>벽을 뚫지 않는다.</b> 착지 지점이 막혀 있으면 대상 쪽으로 한 타일씩
+        /// 당겨가며 설 수 있는 가장 가까운 자리를 고른다 — 넉백(<see cref="Knockback"/>)이
+        /// 쓰는 규칙과 같다. 못 찾으면 <b>제자리에서 때린다</b>(시전은 성립시킨다 —
+        /// 여기까지 왔는데 취소하면 쿨타임이 헛돌아 스킬이 영영 안 나간다).
+        /// </summary>
+        bool TryCastLureBlood(int slot, BossSkillSO skill)
+        {
+            DamageableUnit aim = NearestWithin(skill.DashSeekRadiusTiles);
+            if (aim == null) return requireTarget ? false : true;
+
+            Vector3 from = transform.position;
+            DashTo(aim);
+
+            // ★ 돌진 <b>잔상</b>을 출발점 → 도착점으로 흘려보낸다(스킨의 skill1Projectile).
+            //   이동 자체는 한 프레임에 끝나므로(DashTo), 그 사이를 가려주는 것이 이 연출이다.
+            PlayProjectile(slot, skill, from, transform.position, 2f);
+
+            // 연출은 <b>출발점에서 도착점까지</b> 보여준다. 상자는 도착 자리에서 한 칸.
+            PlayFx(slot, skill, transform.position, AimDirection(aim.transform.position - from),
+                   1f, 1f, aim);
+
+            _scratch.Clear();
+            _scratch.Add(aim);                       // 정의문: "적 1명에게" — 광역이 아니다
+            return ApplyDamage(slot, skill, 1f, 1f, "돌진");
+        }
+
+        /// <summary>대상 바로 앞의 설 수 있는 칸으로 옮긴다. 못 찾으면 제자리에 둔다.</summary>
+        void DashTo(DamageableUnit target)
+        {
+            Vector3 to = target.transform.position;
+            Vector2 delta = (Vector2)(to - transform.position);
+            float dist = delta.magnitude;
+            if (dist < 0.01f) return;
+
+            Vector2 dir = delta / dist;
+            if (_map == null) _map = FindAnyObjectByType<Map.MapGenerator>();
+
+            // 대상에 겹치지 않게 한 칸 앞에서 멈춘다. 거기가 막혀 있으면 뒤로 물러나며 찾는다.
+            for (float d = Mathf.Max(0f, dist - 1f); d >= 0f; d -= 1f)
+            {
+                Vector3 spot = transform.position + (Vector3)(dir * d);
+                if (_map != null && !_map.IsCellPlaceable(_map.WorldToCell(spot))) continue;
+                transform.position = spot;
+                return;
+            }
+        }
+
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// 이 유닛이 적을 찾는 거리(타일). 표에 사거리 칸이 없는 스킬이 쓴다 —
+        /// 인식 범위가 있으면 그것, 없으면 12 타일(보스 표의 detect_range 기본값).
+        /// </summary>
+        float SeekRangeTiles()
+        {
+            if (_combat == null) _combat = GetComponent<UnitCombat>();
+            return _combat != null ? _combat.EffectiveDetectRange : 12f;
+        }
+
+        UnitCombat _combat;
+
+        /// <summary>반경 안에서 가장 가까운 적. 없으면 null.</summary>
+        DamageableUnit NearestWithin(float radiusTiles)
+        {
+            UnitRegistry.CollectEnemiesInRadius(transform.position, radiusTiles, _self.Faction, _scratch);
+            return NearestOf(_scratch);
         }
 
         /// <summary>
@@ -452,6 +622,29 @@ namespace LastSanctuary.Combat
 
             // ── 넉백 (죽음의 포효) ──────────────────────────────────────
             if (skill.KnockbackTiles > 0f) Knockback(target, skill.KnockbackTiles);
+
+            // ── 허약 → 구속 (구속탄) ────────────────────────────────────
+            // 정의문: "…'허약' 상태로 만든다. … 허약 상태의 적이 <b>해당 공격에 다시 피격</b> 시
+            //          즉시 허약 상태를 해제하고 {value_06}초 만큼 이동과 공격이 불가능한
+            //          '구속' 상태로 만든다."
+            // ⚠ <b>순서가 중요하다</b> — 먼저 "지금 허약인가"를 보고, 그 다음에 새로 건다.
+            //   반대로 하면 첫 발에서 바로 구속에 걸린다.
+            if (skill.WeakenSeconds > 0f)
+            {
+                var combat = target.GetComponent<UnitCombat>();
+                if (combat == null) return;
+
+                if (combat.IsWeakened && skill.BindSeconds > 0f)
+                {
+                    combat.ClearWeaken();
+                    combat.ApplyBind(skill.BindSeconds);
+                    UI.HudLog.Add($"{target.DisplayName} 구속!", UI.HudLogKind.Danger);
+                }
+                else
+                {
+                    combat.ApplyWeaken(skill.WeakenAttackSpeedPercent, skill.WeakenSeconds);
+                }
+            }
         }
 
         /// <summary>
@@ -522,8 +715,12 @@ namespace LastSanctuary.Combat
         {
             UnitRegistry.CollectEnemiesInRadius(transform.position, reachTiles, _self.Faction, _scratch);
 
+            // <b>가장 먼</b> 적을 노리는 스킬 — 뒤에서 안전하게 쏘던 원거리·치유를 잡는 기술이다.
+            // 단탈리온 「공허의 광선」과 말파스 「저주광선」이 같은 규칙이다(정의문 그대로).
+            bool wantFarthest = type == BossSkillType.VoidLaser || type == BossSkillType.CurseBeam;
+
             DamageableUnit best = null;
-            float bestSqr = type == BossSkillType.VoidLaser ? -1f : float.MaxValue;
+            float bestSqr = wantFarthest ? -1f : float.MaxValue;
 
             for (int i = 0; i < _scratch.Count; i++)
             {
@@ -532,7 +729,7 @@ namespace LastSanctuary.Combat
 
                 float sqr = ((Vector2)(u.transform.position - transform.position)).sqrMagnitude;
 
-                bool better = type == BossSkillType.VoidLaser ? sqr > bestSqr : sqr < bestSqr;
+                bool better = wantFarthest ? sqr > bestSqr : sqr < bestSqr;
                 if (!better) continue;
 
                 best = u;

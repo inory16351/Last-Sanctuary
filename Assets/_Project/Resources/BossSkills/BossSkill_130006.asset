@@ -17,13 +17,13 @@ MonoBehaviour:
   displayName: ''
   skillType: Death_song
   explainKey: skill_explain_130006
-  value01: 5
-  value02: 3
-  value03: 35
+  value01: 4
+  value02: 4
+  value03: 100
   value04: 6
   value05: 0
   value06: 0
   erosionValue: 2
   coolTime: 15
   castSeconds: 2
-  rangeType: Circle
+  rangeType: Line
