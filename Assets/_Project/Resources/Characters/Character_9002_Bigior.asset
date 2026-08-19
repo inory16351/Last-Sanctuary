@@ -16,6 +16,8 @@ MonoBehaviour:
   nameKey: 'character_name_9002'
   characterName: '비기오르'
   characterNameEn: 'Bigior'
+  titleKey: 'character_title_9002'
+  title: '무너지지 않는 방벽'
   illustName: 'illust_Bigior'
   skinAssetName: 'Skin_Bigior'
   stats:

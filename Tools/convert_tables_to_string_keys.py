@@ -33,6 +33,15 @@ import sys
 import datetime
 import openpyxl
 
+# ⚠ 콘솔이 cp949 라 경고 문구의 '—' 같은 글자에서 죽는다. 그런데 경고 출력은
+#   <b>저장보다 앞</b>이라(main 참조) 여기서 죽으면 <b>변환이 통째로 안 된 채 끝난다</b> —
+#   "변환 계획"만 찍히고 표는 그대로여서 성공한 것처럼 보인다(2026-08-19 실제로 겪었다).
+#   출력만 UTF-8 로 바꾼다(파일 내용과 무관).
+try:
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+except Exception:
+    pass
+
 from vault_path import TABLE_DIR   # ★ PC 마다 다른 볼트 위치를 찾아준다(2026-08-15)
 STRING_XLSX = os.path.join(TABLE_DIR, '스트링 키 테이블.xlsx')
 BACKUP_ROOT = os.path.join(TABLE_DIR, '_백업')
@@ -50,7 +59,11 @@ TARGETS = [
         ('skill_name', 'skill_name'), ('skill_explain', 'skill_explain')]),
     ('웨이브 몬스터 테이블.xlsx', 'Skill_Type', 'skill_type', [('desc', 'skill_type_desc')]),
 
-    ('캐릭터 테이블.xlsx', 'Character', 'character_id', [('character_name', 'character_name')]),
+    ('캐릭터 테이블.xlsx', 'Character', 'character_id', [
+        ('character_name', 'character_name'),
+        # 2026-08-19 신설 — 칭호. `character_title_EG` 는 영어 <b>문구</b>가 정본이라
+        # 키로 바꾸지 않는다(`boss_title_EG` · `character_name_EG` 와 같은 규칙, 위 doc 참조).
+        ('character_title', 'character_title')]),
     ('캐릭터 테이블.xlsx', 'Skill', 'skill_id', [
         ('skill_name', 'skill_name'), ('skill_explain', 'skill_explain')]),
     ('캐릭터 테이블.xlsx', 'Skill_Type', 'skill_type', [('desc', 'skill_type_desc')]),
@@ -192,10 +205,26 @@ def backup(filenames):
 
 
 def apply_with_excel(plans, remove_sheets):
-    """Excel 로 열어 셀 값만 바꾸고 저장한다 (주석·서식 보존)."""
+    """Excel 로 열어 셀 값만 바꾸고 저장한다 (주석·서식 보존).
+
+    ⚠ ★ <b>`DispatchEx` 를 쓴다 — `EnsureDispatch`/`Dispatch` 가 아니다</b> (2026-08-19).
+
+      `EnsureDispatch` 는 <b>유저가 엑셀을 켜 두면 실패한다</b>:
+        TypeError: This COM object can not automate the makepy process
+      이미 떠 있는 인스턴스에 붙으면서 makepy 캐시를 새로 구울 수 없기 때문이다.
+      (gen_py 캐시를 지워도 그대로다 — 원인이 캐시가 아니라 '떠 있는 인스턴스'다.)
+
+      더 위험한 건 그다음이다. 그냥 `Dispatch` 로 바꾸면 <b>유저가 열어 둔 그 엑셀에 붙고</b>,
+      이 함수 끝의 `app.Quit()` 이 <b>유저의 창을 닫아 버린다</b> — 저장 안 한 표가 있으면
+      그대로 날아간다.
+
+      `DispatchEx` 는 <b>항상 새 인스턴스를 띄운다.</b> 그래서 유저 창과 완전히 분리되고
+      `Quit()` 도 이 스크립트가 띄운 인스턴스만 닫는다. 이 프로젝트는 표를 열어 놓고
+      스크립트를 돌리는 일이 잦으므로 <b>COM 을 쓰는 모든 스크립트가 이 방식이어야 한다.</b>
+    """
     import win32com.client as win32
 
-    app = win32.gencache.EnsureDispatch('Excel.Application')
+    app = win32.DispatchEx('Excel.Application')
     app.Visible = False
     app.DisplayAlerts = False       # 시트를 지울 때 확인 창이 뜨지 않게
 

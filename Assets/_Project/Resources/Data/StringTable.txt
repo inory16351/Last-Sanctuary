@@ -4,6 +4,7 @@ string_key	kr	en
 event_dialogue_10001		
 ui_btn_open	열기	Open
 ui_btn_close	닫기	Close
+epic_boss_title_1007	얼금뱅이 소	The Thoroughbred Cow
 epic_boss_title_1005	끈적이는 보랏빛 포식자	The Sticky Purple Predator
 epic_boss_title_1004	검은 숲의 종양	The Tumor of the Black Forest
 boss_title_120001	끝없는 형상의 군주	The Lord Of Endless Forms
@@ -71,7 +72,9 @@ skill_type_desc_Blood_attack	엘린은 공격을 할때마다 현제 체력의 {
 skill_type_desc_Ecstasy	프레이야의 2초내에 직접 공격한 적이 사망할때 마다 프레이야의 공격속도와 이동속도가 {value_02}초 동안 {value_03}만큼 증가한다. 중첩가능하며 중첩될 때마다 지속시간이 0초로 초기화 된다. 이 값으로 상승한 공격속도 및 이동속도는 최대값을 초과할 수 있다.	
 skill_type_desc_Scratch	가장 가까운 적을 향해 카르시노스의 전방 {value_01}(가로) x {value_02}(세로) 범위의 적을 카르시노스의 근거리 공격력{value_03}%로 공격한다. 맞은 적은 방어력이{value_04}% 만큼 감소하며 지속시간은 {value_05}초 만큼 지속된다.	
 skill_type_desc_Roar_death	카르시노스를 중심으로 카르시노스 + {value_01} 반지름 타일 범위에 원형 피해를 준다. 피격 당한 적은 뒤로 [value_02} 타일 만큼 밀려나며 카르시노스의 근거리 공격력{value_03}% 만큼 피해를 입는다	
-skill_type_desc_Huge_threat	아니사킬을 중심으로 아니사킬 + {value_01} 반지름 타일 범위에 원형 피해를 {value_02}% 만큼 준다. 피격 당한 적은 '구속'상태에 걸리며, {value_03}초 만큼 이동과 공격이 불가능해진다(기절상태). 구속 상태는 부정적인 정신 이상 상태를 해제하는 효과로 해제 가능하다.	
+skill_type_desc_Deadly_venom	바리올라를 중심으로 바리올라 + {value_01} 지름 타일 범위에 있는 모든 적에게 '처형' 상태를 부여한다. 처형은 맞은 적의 방어력을 무시하고 즉시 {value_02}% 체력을 감소시킨다.	
+skill_type_desc_Creepy_scar	바리올라를 중심으로 바리올라 + {value_01} 지름 타일 범위에 가장 가까운 적 {value_02}명에게 침식 수치{value_03}을 증가 시킨다.	
+skill_type_desc_Huge_threat	아니사킬을 중심으로 아니사킬 + {value_01} 반지름 타일 범위에 원형 피해를 {value_02}% 만큼 준다. 피격 당한 적은 '구속'상태에 걸리며, {value_03}초 만큼 이동과 공격이 불가능해진다(기절상태). 구속 상태는 부정저인 정신 이상 상태를 해제하는 효과로 해제 가능하다.	
 skill_type_desc_Tail_strike	가장 가까운 적을 향해 아니사킬이 {value_01}(가로) x {value_02}(세로) 범위의 적을 근거리 공격력의 {value_03}% 로 공격한다	
 skill_type_desc_Lure_blood	가장 가까운 적을 향해 카시노마가 {value_01} 지름 타일 범위 안에 적 1명에게  돌진하여(직접 이동) {value_02}% 의 데미지를 입힌다	
 skill_type_desc_Death_song	가장 가까운 적을 향해 카시노마가 {value_01}(가로) x {value_02}(세로) 범위의 적을 {value_04}번(횟수) 만큼 카시노마의 근거리 공격력 {value_03}%로 공격한다	
@@ -116,11 +119,11 @@ skill_name_130005	이끌리는 혈취
 skill_name_130006	죽음의 노래	
 skill_explain_130005	피 냄새를 맡은 카시노마는 거리를 두는 법을 잊습니다	
 skill_explain_130006	여섯 번의 팔놀림이 끝나기 전에 노래는 멈추지 않습니다	
-mon_name_1005	아니사킬	Anisakil
-mon_name_1006	고르도네	Gordone
-skill_name_2003	치명적 꼬리 타격	Deadly Tail Strike
-skill_name_2004	거대한 위협 포효	Great Threat Roar
-skill_explain_2001	스친 자리마다 껍질이 한 겹씩 벗겨져 나갑니다	
-skill_explain_2002	그 울음을 들은 다리는 저절로 뒤로 물러섭니다	
-skill_explain_2003	지나간 뒤에야 무엇에 베였는지 알게 됩니다	
-skill_explain_2004	거대한 것이 몸을 세우면 다리가 먼저 굳습니다	
+character_title_9001	눈먼 파수꾼	The Blind Sentinel
+character_title_9002	무너지지 않는 방벽	The Unbreaking Bulwark
+character_title_9003	굶주린 사냥꾼	The Starving Hunter
+character_title_9004	역병을 걷는 의사	The Plague Walking Doctor
+character_title_9005	죽음을 딛는 복수자	The Avenger Beyond Death
+mon_name_1005		
+mon_name_1006		
+mon_name_1007		

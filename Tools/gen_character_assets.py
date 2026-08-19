@@ -308,6 +308,12 @@ for r in range(4, wc.max_row + 1):
     body += "  nameKey: %s\n" % yaml_str('character_name_%d' % cid)
     body += "  characterName: %s\n" % yaml_str(cname)
     body += "  characterNameEn: %s\n" % yaml_str(cname_en)
+    # ★ 칭호 (2026-08-19) — 이름과 같은 규칙이다: 키가 정본, 리터럴은 폴백.
+    #   표에 칭호가 비어 있으면 키도 비워 둔다 → 상세 카드의 칭호 칸이 빈칸으로 남는다
+    #   (유저 확정: "칭호 해금이 되지 않았을 때는 칭호칸 비워놔").
+    ctitle = text_of(char_cell(r, 'character_title'))
+    body += "  titleKey: %s\n" % yaml_str('character_title_%d' % cid if ctitle else '')
+    body += "  title: %s\n" % yaml_str(ctitle)
     body += "  illustName: %s\n" % yaml_str(illust)
     body += "  skinAssetName: %s\n" % yaml_str(SKIN_OVERRIDE.get(cid, ''))
     body += "  stats:\n"

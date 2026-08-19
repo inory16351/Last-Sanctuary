@@ -100,6 +100,11 @@ RULES = [
         # `character_name_EG` 는 2026-08-13 에 삭제됐다 — 위 ★ 주석 참조.
         # ⚠ 이 en 값은 `gen_character_assets.py` 가 <b>에셋 파일 이름</b>으로 쓴다
         #   (`Character_9001_Elin`). 스트링 키 테이블에서 지우면 guid 가 바뀌어 참조가 끊긴다.
+        #
+        # 2026-08-19 신설 — <b>칭호</b>. `wave_top_boss` 의 boss_title/boss_title_EG 와 같은 짜임이다
+        # (상세 카드 112절의 칭호 칸이 캐릭터에서만 비어 있었다).
+        ('character_title', 'character_title', 'kr'),
+        ('character_title_EG', 'character_title', 'en'),
     ]),
     ('캐릭터 테이블.xlsx', 'Skill', 'skill_id', [
         ('skill_name', 'skill_name', 'kr'),

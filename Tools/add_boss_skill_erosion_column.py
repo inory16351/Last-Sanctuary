@@ -63,7 +63,9 @@ def main():
     print('백업:', folder)
 
     import win32com.client as win32
-    app = win32.gencache.EnsureDispatch('Excel.Application')
+    # ⚠ DispatchEx — 유저가 엑셀을 켜 두면 EnsureDispatch 는 실패하고, 그냥 Dispatch 는
+    #   유저 창에 붙어 아래 app.Quit() 이 그 창을 닫아 버린다. DispatchEx 만 새 인스턴스다.
+    app = win32.DispatchEx('Excel.Application')
     app.Visible = False
     app.DisplayAlerts = False
     try:

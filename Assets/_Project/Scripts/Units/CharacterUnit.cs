@@ -57,6 +57,13 @@ namespace LastSanctuary.Units
         /// <summary>초상화 (캐릭터 테이블 <c>illust</c>). 클릭했을 때 <see cref="UI.UnitPortraitPanel"/> 이 띄운다.</summary>
         public override Sprite Portrait => definition != null ? definition.Illust : null;
 
+        /// <summary>
+        /// 칭호 (캐릭터 테이블 <c>character_title</c>, 2026-08-19 신설).
+        /// 정의가 없거나 표에 칭호가 안 적혀 있으면 <b>빈 문자열</b>이고, 상세 카드는 그 줄을
+        /// 비워 둔다 — 유저 확정: "칭호 해금이 되지 않았을 때는 칭호칸 비워놔".
+        /// </summary>
+        public override string Title => definition != null ? definition.Title : string.Empty;
+
         /// <summary>표시 이름. 정의가 있으면 테이블의 한글 이름, 없으면 오브젝트 이름.</summary>
         public override string DisplayName =>
             definition != null && !string.IsNullOrWhiteSpace(definition.DisplayName)

@@ -2517,3 +2517,50 @@ H 342° 로 맵(359°)과 17° · 카르시노스(309°)와 33° 떨어져 **이
 ### 씬반영요청 목록
 
 없음.
+
+---
+
+## UI-34. 캐릭터 칭호 컬럼 신설 — 5명 전원 (2026-08-19)
+
+> 상세는 `진행상황.md` **112-7절**.
+
+UI-33 이 "캐릭터에는 칭호 데이터가 없어 항상 빈칸"으로 남긴 것을 채웠다.
+
+| id | 이름 | 칭호 | 영어 칭호 |
+|---:|---|---|---|
+| 9001 | 엘린 | 눈먼 파수꾼 | The Blind Sentinel |
+| 9002 | 비기오르 | 무너지지 않는 방벽 | The Unbreaking Bulwark |
+| 9003 | 프레이야 | 굶주린 사냥꾼 | The Starving Hunter |
+| 9004 | 피올로 | 역병을 걷는 의사 | The Plague Walking Doctor |
+| 9005 | 히스톤 | 죽음을 딛는 복수자 | The Avenger Beyond Death |
+
+- 표에 `character_title` / `character_title_EG` 2컬럼을 **기존 7칸 뒤에** 붙였다
+  (`wave_top_boss` 의 칭호 2컬럼과 같은 짜임).
+- `CharacterDefinitionSO.titleKey`/`title`/`Title` 신설 + `CharacterUnit.Title` 재정의.
+  표가 비면 키도 비어 **칭호 칸이 그대로 빈칸**으로 남는다(유저 규칙 유지).
+- 문구를 바꾸려면 `Tools/add_character_title_column.py` 의 `TITLES` 한 곳만 고치면 된다.
+
+### ⚠ 겪은 함정 2개 (COM 스크립트 공통)
+
+1. `convert_tables_to_string_keys.py` 가 **경고 출력에서 죽으면 변환이 통째로 안 된다** —
+   경고 출력이 저장보다 앞이다. cp949 콘솔에서 `—` 한 글자에 죽었고, "변환 계획"만 찍혀
+   성공한 것처럼 보였다. `sys.stdout.reconfigure(utf-8)` 추가.
+2. **`EnsureDispatch` 는 유저가 엑셀을 켜 두면 실패**하고, `Dispatch` 로 바꾸면 **유저 창에
+   붙어 `app.Quit()` 이 그 창을 닫아 버린다**. `DispatchEx`(항상 새 인스턴스)로 세 스크립트를
+   고쳤다. ⚠ `link_string_keys.py` 는 아직 `EnsureDispatch` 다.
+
+### 소유권 (§2)
+
+**UI 소유** — `Scripts/Units/CharacterDefinitionSO.cs · CharacterUnit.cs`,
+`Resources/Characters/**` · `Resources/Data/StringTable.txt`.
+**⚠ PROTO 소유** — `Tools/gen_character_assets.py · gen_string_table.py ·
+convert_tables_to_string_keys.py · add_boss_skill_erosion_column.py`, 신규
+`Tools/add_character_title_column.py`. 기존 크로싱과 같은 종류.
+
+### 씬 변경 여부 — 없음
+
+### 검증
+
+재실행 멱등 · `.meta` 20개 guid 불변(내용 diff 0) · 패시브 에셋 15개 내용 무변경 ·
+캐릭터 에셋 5개는 `titleKey`/`title` 2줄만 추가 · recompile 에러 0·경고 0 ·
+작업 후 유저 Excel 창 생존 확인.

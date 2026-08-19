@@ -47,6 +47,30 @@ namespace LastSanctuary.Units
         /// </summary>
         public string DisplayName => Data.StringTable.Get(nameKey, characterName);
 
+        // ------------------------------------------------------------------
+        // 칭호 (2026-08-19) — 표의 character_title / character_title_EG
+        //
+        // 상세 카드(112절)에 칭호 칸을 만들어 뒀는데 <b>캐릭터에는 칭호 데이터가 아예
+        // 없어서</b> 항상 빈칸이었다(몬스터·넥서스만 표에 칭호가 있었다). 그 칸을 채운다.
+        // 구조는 몬스터 쪽(<c>MonsterDefinitionSO.Title</c>)과 완전히 같다 — 키가 정본,
+        // 리터럴은 폴백.
+        // ------------------------------------------------------------------
+
+        [Header("칭호 — Character 시트의 character_title")]
+        [Tooltip("스트링 키 (예: character_title_9001). ★ 화면에 뜨는 칭호의 정본은 이 키다.\n" +
+                 "⚠ 비워두면 칭호 칸이 <b>빈칸</b>으로 남는다 — 유저 확정: " +
+                 "\"칭호 해금이 되지 않았을 때는 칭호칸 비워놔\"")]
+        public string titleKey = "";
+
+        [Tooltip("⚠ titleKey 를 못 찾았을 때의 폴백. 문구는 스트링 키 테이블에서 고칠 것")]
+        public string title = "";
+
+        /// <summary>
+        /// 화면에 보여줄 칭호. 없으면 <b>빈 문자열</b>이고, 상세 카드는 그 줄을 비워 둔다
+        /// (<c>UnitPortraitPanel.Show</c>).
+        /// </summary>
+        public string Title => Data.StringTable.Get(titleKey, title);
+
         [Header("외형")]
         [Tooltip("illust — Resources/Illust/ 아래의 파일 이름 (확장자 없이). " +
                  "전술 지침 · 캐릭터 성장 창의 초상화에 쓰인다")]
