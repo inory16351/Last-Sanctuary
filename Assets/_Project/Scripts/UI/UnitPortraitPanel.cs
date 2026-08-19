@@ -37,11 +37,32 @@ namespace LastSanctuary.UI
         [Tooltip("일러스트가 없는 유닛의 그림 자리에 대신 띄울 한 줄")]
         [SerializeField] string noArtText = "일러스트 없음";
 
-        [Tooltip("{0} = 소속 이름. 이름 아래 칭호가 없을 때 대신 보여준다")]
-        [SerializeField] string factionFormat = "{0}";
+        [Tooltip("{0} = 강화 횟수. 캐릭터에게만 쓴다")]
+        [SerializeField] string levelFormat = "Lv.{0}";
+
+        [Tooltip("보스·몬스터 체력 줄. {0} = 백분율(정수)")]
+        [SerializeField] string hpFormat = "HP: {0}%";
+
+        [Tooltip("잠긴 스킬 줄. {0} = 스킬 이름 · {1} = 해금에 필요한 강화 횟수")]
+        [SerializeField] string lockedSkillFormat = "{0} <size=78%>(Lv.{1})</size>";
 
         [Header("색")]
         [SerializeField] Color titleColor = new Color(0.84f, 0.64f, 1f, 1f);
+
+        [Tooltip("잠긴 스킬의 <b>아이콘</b> 색 — 알파를 낮춰 '비활성' 으로 읽히게 한다")]
+        [SerializeField] Color lockedIconColor = new Color(1f, 1f, 1f, 0.25f);
+
+        [Tooltip("잠긴 스킬의 <b>글자</b> 색")]
+        [SerializeField] Color lockedTextColor = new Color(0.45f, 0.49f, 0.55f, 1f);
+
+        [Header("체력바 색 (보스·몬스터)")]
+        [SerializeField] Color barHigh = new Color(0.40f, 0.85f, 0.52f, 1f);
+        [SerializeField] Color barLow = new Color(0.92f, 0.38f, 0.38f, 1f);
+
+        [Header("갱신")]
+        [Tooltip("상태·체력처럼 <b>계속 변하는 칸</b>만 다시 그리는 주기(초). " +
+                 "이름·칭호·스킬 같은 정적인 칸은 선택이 바뀔 때만 그린다")]
+        [Min(0.05f)] [SerializeField] float volatileRefreshInterval = 0.2f;
 
         [Header("일러스트 채우기 (2026-08-17)")]
         [Tooltip("★ <b>캐릭터</b> 그림이 세로로 잘릴 때 남길 위치 (0=아래 · 0.5=가운데 · 1=위).\n" +
@@ -57,9 +78,32 @@ namespace LastSanctuary.UI
         TMP_Text _titleText;
         TMP_Text _noArtLabel;
 
+        // ── PPT 목업(2026-08-19)에서 새로 생긴 칸들 ───────────────────────────
+        //   캐릭터 : 칭호 / 이름 · 레벨 · 상태 / 스킬 3줄
+        //   보스   : 칭호 / 이름 · 상태 / 체력바 · HP %
+        TMP_Text _levelText;
+        TMP_Text _stateText;
+
+        /// <summary>스킬 3줄(캐릭터 전용). 슬롯 번호 = 패시브 슬롯 번호다.</summary>
+        Transform _skillsRoot;
+        readonly Transform[] _skillSlots = new Transform[SkillSlots];
+        readonly Image[] _skillIcons = new Image[SkillSlots];
+        readonly TMP_Text[] _skillLabels = new TMP_Text[SkillSlots];
+
+        /// <summary>체력 묶음(보스·몬스터 전용).</summary>
+        Transform _hpRoot;
+        Image _hpFill;
+        TMP_Text _hpText;
+
+        /// <summary>패시브 슬롯 수 — <c>CharacterPassives.Refresh</c> 와 같은 3 이다.</summary>
+        const int SkillSlots = 3;
+
         UnitSelector _selector;
         DamageableUnit _shown;
         bool _bound;
+
+        /// <summary>다음에 <see cref="RefreshVolatile"/> 을 돌릴 시각.</summary>
+        float _nextVolatileRefresh;
 
         /// <summary>
         /// 강화 서비스를 구독해 뒀는지. 서비스는 <c>GameSystems</c> 에 상주하지만
@@ -277,32 +321,172 @@ namespace LastSanctuary.UI
                 _noArtLabel.gameObject.SetActive(art == null);
             }
 
-            if (_nameText != null) _nameText.text = NameLineOf(unit);
+            // 이름은 <b>이름만</b> 적는다 — 레벨은 옆 칸(Level)이 따로 맡는다(2026-08-19 목업).
+            if (_nameText != null) _nameText.text = unit.DisplayName;
 
             if (_titleText != null)
             {
+                // ★ <b>칭호가 없으면 빈칸으로 둔다</b> (유저 확정 2026-08-19:
+                //   "칭호 해금이 되지 않았을 때는 칭호칸 비워놔").
+                //   예전에는 여기에 소속("아군"·"중립 몬스터")을 대신 적었는데, 그러면
+                //   <b>칭호를 얻은 것처럼 보인다.</b> 소속은 아래 상태 칸이 대신 알려준다.
                 string title = unit.Title;
-                // 칭호가 없으면 그 자리에 소속을 적는다 — 줄이 통째로 비면 카드가 어색하다.
-                _titleText.text = string.IsNullOrWhiteSpace(title)
-                    ? string.Format(factionFormat, FactionLabel(unit))
-                    : title;
-                _titleText.color = string.IsNullOrWhiteSpace(title) ? HudTheme.TextDim : titleColor;
+                _titleText.text = string.IsNullOrWhiteSpace(title) ? string.Empty : title;
+                _titleText.color = titleColor;
+            }
+
+            var character = unit as CharacterUnit;
+
+            // 레벨은 캐릭터에게만 있다 — 몬스터 줄에서는 칸 자체를 비운다.
+            if (_levelText != null)
+                _levelText.text = character != null
+                    ? string.Format(levelFormat, character.UpgradeCount)
+                    : string.Empty;
+
+            ShowSkills(character);
+            if (_hpRoot != null) _hpRoot.gameObject.SetActive(character == null);
+
+            RefreshVolatile();
+        }
+
+        // ------------------------------------------------------------------
+        // 스킬 3줄 — <b>확인용 표시</b>다 (유저 확정 2026-08-19)
+        //
+        // <i>"기능적으로 클릭했을 때 변동되는 UI가 아닌 말 그대로 어떤 스킬을 가지고 있는지
+        // 레벨이 몇인지를 확인할 수 있는 확인용 UI"</i> — 그래서 이 줄에는 <b>Button 이 없고</b>
+        // 눌러도 아무 일도 일어나지 않는다. 스킬 상세를 여는 창은 성장 창
+        // (<see cref="CharacterGrowthPanel"/> → <see cref="SkillDetailPanel"/>) 쪽 몫이다.
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// 캐릭터의 패시브 3종을 그린다. <b>잠긴 슬롯도 지우지 않고 흐리게 보여준다</b> —
+        /// "레벨 1일 때 스킬 2·3은 잠겨있으니까 비활성화된거처럼 표기" (유저 지시).
+        /// 무엇을 갖게 될지 미리 보이는 것이 이 카드의 목적이다.
+        ///
+        /// 캐릭터가 아니면 묶음을 통째로 끈다 — 그 자리는 체력바가 쓴다.
+        /// </summary>
+        void ShowSkills(CharacterUnit character)
+        {
+            if (_skillsRoot != null) _skillsRoot.gameObject.SetActive(character != null);
+            if (character == null) return;
+
+            CharacterDefinitionSO def = character.Definition;
+
+            for (int slot = 0; slot < SkillSlots; slot++)
+            {
+                Transform row = _skillSlots[slot];
+                if (row == null) continue;
+
+                PassiveSkillSO so = def != null ? def.PassiveAt(slot) : null;
+
+                // 표에 그 슬롯이 아예 없는 캐릭터 — 빈 줄을 남기지 않고 통째로 숨긴다.
+                if (so == null || !so.IsUsable) { row.gameObject.SetActive(false); continue; }
+                row.gameObject.SetActive(true);
+
+                bool unlocked = character.IsPassiveUnlocked(slot);
+
+                if (_skillLabels[slot] != null)
+                {
+                    _skillLabels[slot].text = unlocked
+                        ? so.DisplayName
+                        : string.Format(lockedSkillFormat, so.DisplayName,
+                                        PassiveUnlockConfig.RequiredUpgrades(slot));
+                    _skillLabels[slot].color = unlocked ? HudTheme.TextMain : lockedTextColor;
+                }
+
+                if (_skillIcons[slot] != null)
+                {
+                    Sprite icon = so.Icon;
+                    _skillIcons[slot].sprite = icon;
+                    // 아이콘이 없는 스킬은 흰 사각형이 남지 않게 알파로 지운다(그림 자리와 같은 규칙).
+                    _skillIcons[slot].color = icon == null
+                        ? new Color(1f, 1f, 1f, 0f)
+                        : (unlocked ? Color.white : lockedIconColor);
+                }
             }
         }
 
-        /// <summary>
-        /// 이름 줄. 캐릭터면 <b>레벨</b>을 같이 적는다 — 로스터와 같은 규칙이다
-        /// (유저 지시 2026-08-15: 강화 횟수를 Lv 로).
-        /// </summary>
-        static string NameLineOf(DamageableUnit unit)
+        // ------------------------------------------------------------------
+        // 계속 변하는 칸 — 상태 · 체력
+        //
+        // ⚠ <b>카드 전체를 다시 그리지 않는다.</b> 이름·칭호·스킬은 선택이 바뀔 때만 바뀌는
+        //   정적인 칸이라 <see cref="Show"/> 한 번으로 끝이고, 여기서는 <b>상태와 체력</b>만
+        //   주기적으로 손본다(U-D10 — 미니맵처럼 갱신 주기를 둔다).
+        // ------------------------------------------------------------------
+
+        void Update()
         {
-            if (unit is CharacterUnit c)
-            {
-                string lv = ColorUtility.ToHtmlStringRGB(HudTheme.TextAccent);
-                return $"{c.DisplayName} <size=78%><color=#{lv}>Lv.{c.UpgradeCount}</color></size>";
-            }
-            return unit.DisplayName;
+            if (_shown == null) return;
+            if (Time.unscaledTime < _nextVolatileRefresh) return;
+            _nextVolatileRefresh = Time.unscaledTime + volatileRefreshInterval;
+            RefreshVolatile();
         }
+
+        void RefreshVolatile()
+        {
+            if (_shown == null) return;
+
+            // 죽어서 사라진 유닛을 계속 붙잡고 있지 않는다.
+            if (!_shown.IsAlive) { Close(); return; }
+
+            if (_stateText != null) _stateText.text = StateTextOf(_shown);
+
+            if (_hpRoot == null || !_hpRoot.gameObject.activeSelf) return;
+
+            float ratio = Mathf.Clamp01(_shown.HpRatio);
+            if (_hpFill != null)
+            {
+                UiFillBar.Prepare(_hpFill);      // 스프라이트가 비면 fillAmount 가 무시된다(UiFillBar 참조)
+                _hpFill.fillAmount = ratio;
+                _hpFill.color = Color.Lerp(barLow, barHigh, ratio);
+            }
+            // 소수점을 올린다 — 1% 도 안 남았는데 "HP: 0%" 로 보이면 이미 죽은 것처럼 읽힌다.
+            if (_hpText != null)
+                _hpText.text = string.Format(hpFormat, Mathf.CeilToInt(ratio * 100f));
+        }
+
+        /// <summary>
+        /// 상태 칸. 목업의 "기절" 자리다.
+        ///
+        /// 캐릭터는 <b>로스터와 같은 규칙</b>을 쓴다(정신 이상 → 임무) — 같은 사실을 두 UI 가
+        /// 다르게 말하면 안 된다. 거기에 <b>구속</b>(말파스 구속탄·아니사킬 포효)을 얹는다:
+        /// 움직이지도 때리지도 못하는 상태라 임무보다 이쪽이 먼저 보여야 한다.
+        ///
+        /// 몬스터는 임무라는 개념이 없으므로 구속이 아니면 <b>소속</b>을 적는다 —
+        /// 칭호 칸이 비워지면서(위 <see cref="Show"/> 주석) 갈 곳을 잃은 정보가 여기로 온다.
+        /// </summary>
+        static string StateTextOf(DamageableUnit unit)
+        {
+            if (unit == null) return string.Empty;
+
+            var combat = unit.GetComponent<UnitCombat>();
+            if (combat != null && combat.IsBound) return "구속";
+
+            if (unit is CharacterUnit character)
+            {
+                CharacterErosion erosion = CharacterErosion.Of(character);
+                if (erosion != null && erosion.HasActive) return erosion.ActiveName;
+
+                var behavior = character.GetComponent<CharacterBehavior>();
+                return behavior != null ? DutyLabel(behavior.Duty) : string.Empty;
+            }
+
+            return FactionLabel(unit);
+        }
+
+        /// <summary>
+        /// ⚠ <b>로스터(<see cref="CharacterRosterPanel"/>)의 같은 표와 문구를 맞춰 둘 것.</b>
+        /// 같은 임무를 두 UI 가 다르게 부르면 어느 쪽이 맞는지 알 수 없다.
+        /// </summary>
+        static string DutyLabel(CharacterDuty duty) => duty switch
+        {
+            CharacterDuty.Expedition => "탐험",
+            CharacterDuty.Rally      => "집결",
+            CharacterDuty.Retreat    => "후퇴",
+            CharacterDuty.Flee       => "도망",
+            CharacterDuty.Build      => "건설",
+            _                        => "방어",
+        };
 
         static string FactionLabel(DamageableUnit unit)
         {
@@ -330,6 +514,25 @@ namespace LastSanctuary.UI
             _nameText = Find<TMP_Text>("Name");
             _titleText = Find<TMP_Text>("Title");
             _noArtLabel = Find<TMP_Text>("NoArt");
+
+            // ── 2026-08-19 목업에서 늘어난 칸들 ──────────────────────────────
+            //   ⚠ <b>없어도 죽지 않는다.</b> 이 패널은 씬이 예전 상태로 되돌아가는 사고를
+            //     두 번 겪은 프로젝트에 있으므로(28-3·28-4절), 새 칸은 전부 조용히 넘어가는
+            //     선택 항목으로 둔다 — 옛 씬에서는 예전 카드 그대로 뜬다.
+            _levelText = FindOptional<TMP_Text>("Level");
+            _stateText = FindOptional<TMP_Text>("State");
+
+            _skillsRoot = transform.Find("Skills");
+            for (int slot = 0; slot < SkillSlots; slot++)
+            {
+                _skillSlots[slot] = transform.Find($"Skills/Slot{slot}");
+                _skillIcons[slot] = FindOptional<Image>($"Skills/Slot{slot}/Icon");
+                _skillLabels[slot] = FindOptional<TMP_Text>($"Skills/Slot{slot}/Label");
+            }
+
+            _hpRoot = transform.Find("Hp");
+            _hpFill = FindOptional<Image>("Hp/HpBack/HpFill");
+            _hpText = FindOptional<TMP_Text>("Hp/HpText");
         }
 
         T Find<T>(string path) where T : Component
@@ -341,6 +544,13 @@ namespace LastSanctuary.UI
                 return null;
             }
             return t.GetComponent<T>();
+        }
+
+        /// <summary>있으면 쓰고 없으면 조용히 null — 새로 늘어난 칸에만 쓴다(위 주석 참조).</summary>
+        T FindOptional<T>(string path) where T : Component
+        {
+            Transform t = transform.Find(path);
+            return t != null ? t.GetComponent<T>() : null;
         }
     }
 }
