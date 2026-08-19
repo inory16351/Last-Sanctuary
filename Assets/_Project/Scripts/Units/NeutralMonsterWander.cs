@@ -51,8 +51,28 @@ namespace LastSanctuary.Units
         //   스포너(96회)만큼은 아니어도 넉넉히 잡아둔다.
         const int Attempts = 48;
 
+        // 위 추첨 중 <b>앞쪽 몇 번까지</b> 몸집 여유(HasBodyClearance)를 요구할지.
+        // 뒤쪽은 여유 없이 "갈 수만 있으면" 받는다 — 여유를 끝까지 요구하면 좁은 지형에 있는
+        // 개체가 매번 48번 다 실패해 <b>제자리에 굳는다</b>(이 파일이 이미 밟은 함정).
+        const int ClearanceAttempts = Attempts * 2 / 3;
+
+        // 목적지가 벽이었을 때 대신 쓸 빈 칸을 몇 칸 반경까지 찾을지.
+        // UnitCombat 의 갇힘 탈출(EmbedEscapeSearchRadius) 과 같은 값으로 맞췄다.
+        const int OpenSpotSearchRadius = 8;
+
+        // 복귀 목적지를 이만큼 연속으로 다시 고르고도 고리에 못 돌아왔으면 각도를 흔든다.
+        const int ReturnStallLimit = 2;
+
+        // 고리 밖 거리가 이만큼 줄었으면 "복귀에 진척이 있다" 로 본다(타일).
+        const float ReturnProgressEpsilon = 0.5f;
+
+        // 몸집 반경이 이 값 이하인 종은 벽 여유를 따지지 않는다 — 한 칸 안에 들어가는
+        // 몸집은 중심점 판정만으로 이미 벽 밖에 있다. UnitCombat.WallClearanceMinBody 와 같은 값.
+        const float BodyClearanceMinRadius = 0.6f;
+
         UnitCombat _combat;
         MapGenerator _map;
+        NeutralMonsterUnit _unit;
         DamageableUnit _nexus;
         System.Random _rng;
 
@@ -64,6 +84,15 @@ namespace LastSanctuary.Units
 
         /// <summary>추격 한계를 넘어 고리로 돌아가는 중 (<see cref="UpdateReturnState"/>).</summary>
         bool _returning;
+
+        /// <summary>
+        /// 복귀 목적지를 연속으로 몇 번 다시 골랐는지. <see cref="PickReturnDestination"/> 이
+        /// <b>같은 죽은 지점을 영원히 다시 고르는 것</b>을 끊는 근거다(그 함수 주석 참조).
+        /// </summary>
+        int _returnStalls;
+
+        /// <summary>직전에 잰 고리 밖 거리(타일). 복귀에 진척이 있는지 가리는 기준이다.</summary>
+        float _lastReturnOutside;
 
         void Awake() => EnsureReady();
 
@@ -83,6 +112,7 @@ namespace LastSanctuary.Units
             if (_rng != null) return;
 
             _combat = GetComponent<UnitCombat>();
+            _unit = GetComponent<NeutralMonsterUnit>();
             _map = FindAnyObjectByType<MapGenerator>();
             _rng = new System.Random(GetInstanceID());
             _destination = transform.position;
@@ -189,7 +219,10 @@ namespace LastSanctuary.Units
             {
                 bool back = Vector2.Distance(transform.position, _destination) <= arriveDistance;
                 if (back || _combat.DestinationUnreachable || Time.time >= _repickTime)
+                {
+                    _returnStalls++;
                     PickReturnDestination();
+                }
                 return;
             }
 
@@ -223,9 +256,16 @@ namespace LastSanctuary.Units
 
             if (_returning)
             {
+                // ★ 고리에 <b>실제로 가까워지고 있으면</b> 헛돎 카운터를 되돌린다 — 그래야
+                //   각도 흔들기가 "정말 못 돌아가는 경우" 에만 걸리고, 잘 걸어가는 중인 개체의
+                //   복귀 경로를 흔들지 않는다.
+                if (outside < _lastReturnOutside - ReturnProgressEpsilon) _returnStalls = 0;
+                _lastReturnOutside = outside;
+
                 // 고리 안으로 완전히 돌아왔을 때만 푼다 — 경계에서 켜졌다 꺼졌다 하지 않게.
                 if (outside > 0f) return;
                 _returning = false;
+                _returnStalls = 0;
                 _combat.SetRetreatFiring(false);
                 _repickTime = 0f;
                 return;
@@ -234,6 +274,8 @@ namespace LastSanctuary.Units
             if (outside <= pursuitTiles) return;
 
             _returning = true;
+            _returnStalls = 0;
+            _lastReturnOutside = outside;
             _combat.SetRetreatFiring(true);
             PickReturnDestination();
         }
@@ -267,19 +309,148 @@ namespace LastSanctuary.Units
         /// </summary>
         void PickReturnDestination()
         {
+            _repickTime = Time.time +
+                          Mathf.Lerp(repositionDelay.x, repositionDelay.y, (float)_rng.NextDouble());
+
             if (_habitatMode)
             {
-                _destination = _habitatCenter;
-                _repickTime = Time.time +
-                              Mathf.Lerp(repositionDelay.x, repositionDelay.y, (float)_rng.NextDouble());
+                // ⚠ 서식지 중앙은 <b>몸집 여유를 요구하지 않는다</b>(NearestOpenSpot 이 아니다) —
+                //   에픽 몸집은 반경 3.7타일이라 여유를 요구하면 벽이 하나만 가까워도 실패하고,
+                //   그러면 대기 지점이 서식지 중앙에서 최대 8칸까지 밀려난다. 정의문이
+                //   *"서식지의 중앙에서 대기"* 이므로 <b>중앙이 벽일 때만</b> 옮긴다.
+                _destination = NearestWalkable(_habitatCenter);
                 _combat.SetHome(_destination);
                 return;
             }
 
             Vector3 nexus = RingCenter();
-            _destination = ClampToRing(transform.position, nexus);
-            _repickTime = Time.time + Mathf.Lerp(repositionDelay.x, repositionDelay.y, (float)_rng.NextDouble());
+            Vector2 v = (Vector2)(transform.position - nexus);
+
+            // ★★ <b>같은 죽은 지점을 다시 고르지 않는다</b> (2026-08-19) — 위 주석의 「각도는
+            //   그대로」가 바로 이 함정의 원인이다. 각도를 그대로 쓰면 <b>다음 추첨도 똑같은
+            //   점</b>이 나오고, 그 점 앞에 벽이 있으면 개체는 벽에 붙은 채로 4~10초마다
+            //   같은 목적지를 다시 받으며 <b>영원히 그 자리에 있는다.</b> 아래 벽 회피가
+            //   대부분을 막아주지만, 그래도 못 돌아가는 경우가 남으므로 <b>두 번 헛돌면
+            //   각도를 흔든다</b> — 고리는 360도 전체가 목적지 자격이 있어서, 다른 각도에서는
+            //   막힌 이유 자체가 사라진다.
+            if (_returnStalls >= ReturnStallLimit)
+                v = Rotate(v, (float)((_rng.NextDouble() * 2.0 - 1.0) * System.Math.PI * 0.5));
+
+            _destination = NearestOpenSpot(ClampToRing(nexus + (Vector3)v, nexus));
             _combat.SetHome(_destination);
+        }
+
+        /// <summary>벡터를 원점 기준으로 <paramref name="radians"/> 만큼 돌린다.</summary>
+        static Vector2 Rotate(Vector2 v, float radians)
+        {
+            float c = Mathf.Cos(radians), s = Mathf.Sin(radians);
+            return new Vector2(v.x * c - v.y * s, v.x * s + v.y * c);
+        }
+
+        /// <summary>
+        /// ★★ <b>그 지점이 벽이면 근처의 갈 수 있는 칸으로 옮겨준다</b> (2026-08-19, 유저 리포트:
+        /// *"고르도네 두 마리가 벽에 낀다"*).
+        ///
+        /// <b>왜 필요했나 — 복귀 목적지에는 벽 판정이 아예 없었다.</b> 배회 추첨
+        /// (<see cref="PickDestination"/>)은 후보마다 <see cref="IsWalkable"/> 로 걸렀지만,
+        /// <see cref="PickReturnDestination"/> 은 <see cref="ClampToRing"/> 이 낸 <b>고리 경계
+        /// 한 점을 그대로</b> 목적지로 썼다. 그 점은 320x320 유기적 지형에서 자연히 벽일 수 있고,
+        /// 그러면 이렇게 굳는다:
+        /// <code>
+        ///   캐릭터가 고르도네를 반격 추격(retaliateChaseRange 8)으로 고리 밖까지 끌어낸다
+        ///   → _returning = true · SetRetreatFiring(true) → 이동 목적지가 <b>벽 안의 한 점</b>
+        ///   → A* 는 벽 근처까지만 데려다준다 → arriveDistance(1) 안에 못 들어간다
+        ///   → 고리 밖이므로 _returning 도 안 풀린다 → <b>벽에 붙어서 영구히 정지</b>
+        ///   → 같은 각도로 끌려나온 두 마리는 <b>같은 벽 지점</b>에 겹쳐서 선다
+        /// </code>
+        /// 즉 "벽에 낀다" 와 "두 마리가 겹쳐서 안 움직인다" 는 <b>한 원인의 두 얼굴</b>이었다.
+        ///
+        /// ★ 여유 있는 칸을 <b>먼저</b> 찾고(①), 없으면 갈 수만 있는 칸으로 떨어진다(②).
+        /// 둘 다 없으면 예전 값을 그대로 돌려준다 — 여기서 실패해도 <b>동작이 나빠지지는 않게</b>
+        /// 한다(<see cref="MapGenerator.TryFindPlaceableNear"/> 는 자기 칸이 이미 합격이면
+        /// 그 칸을 그대로 돌려주므로, 벽이 아닌 목적지는 한 칸도 안 움직인다).
+        /// </summary>
+        Vector3 NearestOpenSpot(Vector3 world)
+        {
+            if (_map == null) return world;
+
+            // ① 몸집 여유까지 있는 칸
+            if (_map.TryFindPlaceableNear(_map.WorldToCell(world), OpenSpotSearchRadius,
+                                          c => !HasBodyClearance(_map.CellCenterWorld(c)),
+                                          out Vector3Int open))
+                return _map.CellCenterWorld(open);
+
+            // ② 여유는 없어도 갈 수 있는 칸
+            return NearestWalkable(world);
+        }
+
+        /// <summary>
+        /// 그 지점이 벽이면 <b>가장 가까운 갈 수 있는 칸</b>으로만 옮긴다 — 몸집 여유는 따지지
+        /// 않는다. 원래 지점을 <b>최대한 지켜야 하는</b> 목적지(서식지 중앙)에 쓴다.
+        /// </summary>
+        Vector3 NearestWalkable(Vector3 world)
+        {
+            if (_map == null) return world;
+
+            return _map.TryFindPlaceableNear(_map.WorldToCell(world), OpenSpotSearchRadius,
+                                             null, out Vector3Int free)
+                ? _map.CellCenterWorld(free)
+                : world;
+        }
+
+        /// <summary>
+        /// 그 자리에 섰을 때 <b>몸통이 벽 그림 안에 들어가지 않는가</b>.
+        ///
+        /// 이동 충돌 판정은 <b>중심점 한 점</b>만 보므로(유닛에 <c>Collider2D</c> 가 없다),
+        /// 2.6 x 1.9 타일짜리 고르도네는 <b>벽 바로 아래 칸에 합법적으로 설 수 있다</b> —
+        /// 그런데 벽은 2칸 높이로 그려져 있어(21·22절) 그 자리에 서면 몸통이 벽에 파묻힌 것처럼
+        /// 보인다. 그래서 <b>목적지를 고르는 단계에서</b> 여유를 요구한다.
+        ///
+        /// ⚠ <b>하드 조건으로 쓰지 않는다</b> — <see cref="ClearanceAttempts"/> 만큼만 요구하고
+        ///   그 뒤에는 포기한다. 끝까지 요구하면 여유 있는 칸이 없는 지형에서 추첨이 전부
+        ///   실패해 <b>제자리에 굳는다</b>(이 파일이 이미 한 번 밟은 함정 — 위 <c>Attempts</c> 주석).
+        ///
+        /// 몸집이 한 칸 안에 들어가는 종(1001~1003 등 정적 스프라이트)은 언제나 참이다 —
+        /// 그 종의 배회는 한 프레임도 달라지지 않는다.
+        /// </summary>
+        bool HasBodyClearance(Vector3 worldPos)
+        {
+            if (_map == null) return true;
+
+            float r = _unit != null ? _unit.BodyRadiusTiles : 0f;
+            if (r <= BodyClearanceMinRadius) return true;
+
+            Vector3Int center = _map.WorldToCell(worldPos);
+            int span = Mathf.CeilToInt(r);
+
+            for (int dy = -span; dy <= span; dy++)
+            {
+                for (int dx = -span; dx <= span; dx++)
+                {
+                    if (dx == 0 && dy == 0) continue;
+
+                    var cell = new Vector3Int(center.x + dx, center.y + dy, 0);
+                    if (!_map.IsCellBlocked(cell)) continue;
+
+                    if (DistanceToCell(worldPos, _map.CellCenterWorld(cell)) < r) return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// 한 점에서 <b>칸(1x1 정사각형)의 가장 가까운 지점</b>까지의 거리(타일).
+        ///
+        /// ⚠ <b>칸 중심까지의 거리로 재면 안 된다.</b> 옆칸 중심은 1.0타일 떨어져 있지만
+        /// 그 칸의 <b>이쪽 테두리는 0.5타일</b>이다 — 중심으로 재면 몸집 0.95짜리 고르도네가
+        /// "벽에 안 닿았다" 는 답을 받아 <b>벽에 딱 붙은 칸을 계속 고르고</b>, 이 판정이 하는
+        /// 일이 없어진다. 실제로 겹치는지는 테두리로 갈린다.
+        /// </summary>
+        static float DistanceToCell(Vector3 point, Vector3 cellCenter)
+        {
+            float dx = Mathf.Max(0f, Mathf.Abs(point.x - cellCenter.x) - 0.5f);
+            float dy = Mathf.Max(0f, Mathf.Abs(point.y - cellCenter.y) - 0.5f);
+            return Mathf.Sqrt(dx * dx + dy * dy);
         }
 
         /// <summary>
@@ -335,6 +506,11 @@ namespace LastSanctuary.Units
                 candidate = ClampToRing(candidate, nexus);
 
                 if (!IsWalkable(candidate)) continue;
+
+                // ★ 앞쪽 추첨에서는 <b>몸집 여유</b>까지 요구한다 — 벽에 딱 붙은 칸을 스스로
+                //   목적지로 고르지 않게 하는 것이 "벽에 낀다" 의 예방쪽 절반이다.
+                //   뒤쪽 추첨은 이 조건을 버린다(HasBodyClearance 주석의 ⚠ 참조).
+                if (attempt < ClearanceAttempts && !HasBodyClearance(candidate)) continue;
 
                 _destination = candidate;
                 break;

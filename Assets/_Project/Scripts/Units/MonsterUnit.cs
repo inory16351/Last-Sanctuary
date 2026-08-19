@@ -76,8 +76,7 @@ namespace LastSanctuary.Units
         {
             get
             {
-                if (_animator == null) _animator = GetComponent<Combat.CharacterAnimator>();
-                if (_animator != null)
+                if (ResolveAnimator() != null)
                 {
                     Vector2 box = _animator.ColliderSizeTiles;
                     if (box.x > 0.01f && box.y > 0.01f)
@@ -98,12 +97,29 @@ namespace LastSanctuary.Units
         {
             get
             {
-                if (_animator == null) _animator = GetComponent<Combat.CharacterAnimator>();
-                return _animator != null ? _animator.ColliderSizeTiles : Vector2.zero;
+                return ResolveAnimator() != null ? _animator.ColliderSizeTiles : Vector2.zero;
             }
         }
 
         Combat.CharacterAnimator _animator;
+
+        /// <summary>
+        /// <see cref="_animator"/> 를 이미 찾아봤는지. <b>없다는 결과도 캐시해야 한다</b> —
+        /// 「null 이면 다시 찾는다」 는 형태는 <see cref="Combat.CharacterAnimator"/> 가 없는
+        /// 유닛에서 <c>GetComponent</c> 를 <b>매번 다시</b> 부른다. 예전에는 이 값을 타겟 하나당
+        /// 한 번만 읽어서 티가 안 났지만, <c>UnitCombat.Separation</c> 이 <b>주변 유닛 전체</b>의
+        /// 몸집을 매 프레임 읽게 된 뒤로는 유닛 수의 제곱만큼 돈다.
+        /// </summary>
+        bool _animatorResolved;
+
+        Combat.CharacterAnimator ResolveAnimator()
+        {
+            if (_animatorResolved) return _animator;
+
+            _animator = GetComponent<Combat.CharacterAnimator>();
+            _animatorResolved = true;
+            return _animator;
+        }
 
         public override int MaxHp =>
             Balance != null

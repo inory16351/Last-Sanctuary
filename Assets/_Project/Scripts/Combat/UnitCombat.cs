@@ -137,7 +137,11 @@ namespace LastSanctuary.Combat
         [SerializeField] bool requireLineOfSight = true;
 
         [Header("회피")]
-        [Tooltip("서로 겹치지 않게 밀어내는 반경(타일). 0 이면 겹침 허용")]
+        [Tooltip("서로 겹치지 않게 밀어내는 반경(타일). 0 이면 겹침 허용.\n\n" +
+                 "★ 이 값은 <b>최소치</b>다 — 실제 반경은 이 값과 <b>두 유닛의 몸집 합</b> 중 " +
+                 "큰 쪽이다(표의 collider_width/height_tiles → BodyRadiusTiles). 몸집이 큰 종은 " +
+                 "이 값만으로는 그림이 거의 완전히 겹친다(2.6x1.9 짜리 고르도네가 0.55타일에서 " +
+                 "멈추던 버그 — Separation 주석 참조)")]
         [Min(0f)] [SerializeField] float separationRadius = 0.55f;
         [Min(0f)] [SerializeField] float separationStrength = 1.4f;
 
@@ -340,6 +344,19 @@ namespace LastSanctuary.Combat
 
         // 갇힘 탈출 직선 판정의 표본 간격(타일). 한 칸보다 촘촘해야 칸을 건너뛰지 않는다.
         const float EmbedEscapeLosStepTiles = 0.25f;
+
+        // 두 유닛이 이 거리 안이면 "정확히 겹쳤다" 로 보고 밀어낼 방향을 정해준다
+        // (거리에서 방향을 뽑을 수 없는 구간 — Separation 주석 참조).
+        const float CoincidentEpsilon = 0.01f;
+
+        // 몸집 반경이 이 값을 넘는 유닛만 벽에서 몸만큼 떨어지려 한다(WallClearance).
+        // 한 칸(0.5) 안에 들어가는 유닛은 중심점 판정만으로 이미 벽 밖에 있다 —
+        // 캐릭터·잡몹의 이동을 한 프레임도 바꾸지 않기 위한 문턱이다.
+        const float WallClearanceMinBody = 0.6f;
+
+        // 제자리에서 겹침을 풀 때, 밀림이 이보다 약하면 아무것도 하지 않는다.
+        // 없으면 사거리 밖 이웃의 미세한 힘에 반응해 제자리에서 떤다.
+        const float UnstackDeadzone = 0.05f;
 
         public CombatState State => _state;
         public DamageableUnit Target => _target;
@@ -1627,7 +1644,45 @@ namespace LastSanctuary.Combat
                 case CombatState.Advance:
                     if (!immobile) AdvanceToObjective(dt);
                     break;
+
+                // ★ 제자리에 선 상태에서도 <b>겹침만은 푼다</b> — 아래 주석 참조.
+                case CombatState.Idle:
+                    if (!immobile) UnstackWhileIdle(dt);
+                    break;
             }
+        }
+
+        /// <summary>
+        /// 제자리에 선 채로 다른 유닛과 겹쳐 있으면 조금씩 밀려난다.
+        ///
+        /// ★★ <b>왜 필요한가</b> (2026-08-19, 유저 리포트: *"두 몬스터가 겹쳐져서 움직이지
+        /// 않는다"*) — 밀림(<see cref="Separation"/>)은 <see cref="Step"/> <b>안에만</b> 있어서
+        /// <b>움직이는 동안에만</b> 작동했다. 그런데 <see cref="CombatState.Idle"/> 은 이름 그대로
+        /// <b>아무 이동도 하지 않는</b> 상태다:
+        /// <code>
+        ///   두 마리가 각자 목적지에 도착 → 둘 다 Idle → 밀림이 아예 안 돈다
+        ///   → <b>겹친 채로 영구히 굳는다</b> (배회가 다음 목적지를 뽑는 4~10초 동안 계속)
+        ///   → 우연히 목적지가 서로 가까우면 그 상태가 계속 되풀이된다
+        /// </code>
+        ///
+        /// ★ <b>귀환 지점을 같이 옮기는 것이 핵심이다.</b> 안 옮기면 밀려난 거리만큼
+        /// <see cref="DecideState"/> 가 <see cref="CombatState.Chase"/> 로 되돌려 보내서
+        /// (귀환 판정이 0.3타일이다) <b>밀리고 돌아오고를 무한히 반복</b>한다 — 제자리에서
+        /// 덜덜 떠는 모습이 되고, 겹침은 그대로 남는다. Idle 은 "지금 자리가 내 자리" 라는
+        /// 뜻이므로 자리를 겹침이 풀린 쪽으로 함께 옮기는 것이 맞다.
+        /// 배회 레이어가 다음 추첨에서 귀환 지점을 다시 못 박으므로 값이 흘러가지도 않는다.
+        ///
+        /// ⚠ 이동은 반드시 <see cref="MoveWithCollision"/> 을 거친다 — 겹침을 푼다고 벽을
+        ///   뚫으면 이번에 같이 고치는 "벽에 낀다" 를 우리가 만드는 셈이다.
+        /// </summary>
+        void UnstackWhileIdle(float dt)
+        {
+            Vector2 push = Separation();
+            if (push.sqrMagnitude < UnstackDeadzone * UnstackDeadzone) return;
+
+            Vector3 before = transform.position;
+            MoveWithCollision((Vector3)(Vector2.ClampMagnitude(push, 1f) * CurrentSpeed() * dt));
+            _homePosition += transform.position - before;
         }
 
         // ------------------------------------------------------------------
@@ -1879,8 +1934,13 @@ namespace LastSanctuary.Combat
             //   없었다 — 몬스터 5마리가 붙으면 최대 5 × 1.4 = 7 이 되어 방향 벡터(길이 1)가
             //   완전히 묻힌다. 그러면 넥서스로 진군하는 무리에 <b>그대로 휩쓸려 같이 흘러간다.</b>
             //   상한을 걸면 겹침 방지는 그대로 되면서 진행 방향이 항상 주도권을 갖는다.
-            Vector2 push = Vector2.ClampMagnitude(Separation() * separationStrength,
-                                                  separationMaxInfluence);
+            //   ★ <b>벽에서 밀리는 힘도 같은 상한 아래에 넣는다</b>(2026-08-19,
+            //     <see cref="WallClearance"/>) — 두 힘을 따로 상한 걸면 합이 1 을 넘어
+            //     위 규칙("밀림은 가려던 방향을 이길 수 없다")이 깨진다.
+            float body = BodyRadiusOf(_self);
+            Vector2 push = Vector2.ClampMagnitude(
+                (Separation() + WallClearance(body)) * separationStrength,
+                separationMaxInfluence);
 
             Vector2 move = direction + push;
             if (move.sqrMagnitude > 0.0001f) move.Normalize();
@@ -1951,14 +2011,37 @@ namespace LastSanctuary.Combat
         bool IsBlocked(Vector3 worldPos) =>
             _mapGenerator != null && _mapGenerator.IsCellBlocked(_mapGenerator.WorldToCell(worldPos));
 
-        /// <summary>주변 유닛에서 밀어내는 힘. 겹쳐서 한 덩어리로 뭉치는 걸 막는다.</summary>
+        /// <summary>
+        /// 주변 유닛에서 밀어내는 힘. 겹쳐서 한 덩어리로 뭉치는 걸 막는다.
+        ///
+        /// ★★ <b>반경은 두 유닛의 몸집에서 나온다</b> (2026-08-19, 유저 리포트: *"고르도네 두
+        /// 마리가 겹쳐져서 움직이지 않는다"*). 예전에는 인스펙터의 <see cref="separationRadius"/>
+        /// 하나(0.55타일)를 <b>몸집과 무관하게</b> 썼다. 그 값은 중립이 전부 작은 정적
+        /// 스프라이트였던 시절의 값이라, 표에서 몸집을 받게 된 뒤로는 어긋난다:
+        /// <code>
+        ///   고르도네(1004) 콜라이더 2.6 x 1.9 → BodyRadiusTiles = min(2.6,1.9)/2 ≒ 0.95
+        ///   그런데 밀림은 0.55 타일에서 멈춘다 → 두 마리가 <b>그림상 거의 완전히 겹친다</b>
+        ///   에픽(11 x 7.5)은 차이가 더 크다 — 반경 3.7 짜리 둘이 0.55 에서 멈춘다
+        /// </code>
+        /// 그래서 <b>내 몸집 + 상대 몸집</b>(둘 중 몸집을 모르는 쪽은 0)과 인스펙터 값 중
+        /// <b>큰 쪽</b>을 쓴다. 몸집 판정은 <see cref="TargetRadius"/>(근접 유닛이 어디까지
+        /// 다가가는지)와 <b>같은 값</b>을 읽으므로, "붙어서 때리는 거리" 와 "밀어내는 거리" 가
+        /// 서로 싸우지 않는다.
+        ///
+        /// ⚠ 힘의 <b>상한</b>은 그대로다(<see cref="separationMaxInfluence"/>) — 반경만 넓혔고
+        ///   세기는 안 건드렸으므로 "밀림은 가려던 방향을 이길 수 없다" 는 규칙이 유지된다.
+        /// </summary>
         Vector2 Separation()
         {
+            // ⚠ <b>0 = 겹침 허용</b> 이라는 인스펙터의 뜻은 그대로 지킨다 — 몸집을 보게 됐다고
+            //   해서 이 스위치를 무력화하면, 일부러 끈 유닛(씬의 Tower_Template)이 조용히
+            //   다시 밀어내기 시작한다.
             if (separationRadius <= 0f) return Vector2.zero;
 
             Vector2 push = Vector2.zero;
             var all = UnitRegistry.All;
             Vector3 myPos = transform.position;
+            float myBody = BodyRadiusOf(_self);
 
             for (int i = 0; i < all.Count; i++)
             {
@@ -1966,14 +2049,119 @@ namespace LastSanctuary.Combat
                 if (other == null || other == _self || !other.IsAlive) continue;
                 if (other.Kind == UnitKind.Nexus || other.Kind == UnitKind.Tower) continue;
 
+                float want = Mathf.Max(separationRadius, myBody + BodyRadiusOf(other));
+                if (want <= 0f) continue;
+
                 Vector2 d = myPos - other.transform.position;
                 float sqr = d.sqrMagnitude;
-                if (sqr > separationRadius * separationRadius || sqr < 0.0001f) continue;
+                if (sqr > want * want) continue;
+
+                // ★ <b>정확히 겹친 경우</b> — 예전에는 여기서 <c>continue</c> 했다. 방향을 정할
+                //   수 없다는 이유였지만, 그러면 <b>완전히 겹친 두 마리는 영영 안 떨어진다</b>
+                //   (밀림이 0 이므로 서로를 밀어낼 근거가 사라진다). 겹침을 푸는 것이 이 함수의
+                //   목적이므로, 방향을 못 정할 때는 <b>정해준다</b> — instanceId 비교로 갈라서
+                //   두 유닛이 <b>반드시 서로 반대쪽</b>으로 밀리게 한다(같은 쪽으로 밀면 겹친
+                //   채로 함께 이동한다).
+                if (sqr < CoincidentEpsilon * CoincidentEpsilon)
+                {
+                    float sign = _self.GetInstanceID() > other.GetInstanceID() ? 1f : -1f;
+                    push += new Vector2(sign, 0f);
+                    continue;
+                }
 
                 // 가까울수록 강하게 밀어낸다
-                push += d.normalized * (1f - Mathf.Sqrt(sqr) / separationRadius);
+                push += d.normalized * (1f - Mathf.Sqrt(sqr) / want);
             }
             return push;
+        }
+
+        /// <summary>
+        /// 밀림 계산에 쓰는 <b>몸집 반경</b>(타일). 몸집을 모르는 유닛(캐릭터·정적 스프라이트
+        /// 중립)은 0 이다.
+        ///
+        /// <b><see cref="TargetRadius"/> 와 같은 값을 읽지만 기본값 0.4 를 씌우지 않는다.</b>
+        /// 그쪽은 "근접 유닛이 어디까지 다가가야 때릴 수 있는가" 라서 <b>모르면 0.4</b> 가
+        /// 안전한 답이지만, 여기서는 <b>모른다</b>와 <b>반경 0.4 다</b>를 구분해야 한다 —
+        /// 모르는 쪽에 0.4 를 씌우면 캐릭터끼리의 밀림 반경이 인스펙터 값(0.55)에서
+        /// 0.8 로 조용히 넓어져, 이번 수정과 무관한 캐릭터 진형이 같이 변한다.
+        /// </summary>
+        static float BodyRadiusOf(DamageableUnit unit)
+        {
+            if (unit is Units.MonsterUnit monster) return Mathf.Max(0f, monster.BodyRadiusTiles);
+            if (unit is Units.NeutralMonsterUnit neutral) return Mathf.Max(0f, neutral.BodyRadiusTiles);
+            return 0f;
+        }
+
+        /// <summary>
+        /// 근처 <b>막힌 칸</b>에서 밀어내는 힘 — 몸집이 큰 유닛이 <b>벽 그림 안에 파묻히는</b>
+        /// 것을 막는다 (2026-08-19, 유저 리포트: *"고르도네 두 마리가 벽에 낀다"*).
+        ///
+        /// <b>왜 필요한가</b> — 이동 충돌 판정(<see cref="IsBlocked"/>)은 <b>중심점 한 점</b>만
+        /// 본다. 유닛에 <c>Collider2D</c> 가 없으니 그게 정본이긴 하지만, 표에서 몸집을 받게 된
+        /// 뒤로는 그림과 판정이 갈라진다:
+        /// <code>
+        ///   고르도네 몸집 2.6 x 1.9 · 중심은 벽 바로 아래 칸 중심에 <b>합법적으로</b> 설 수 있다
+        ///   벽은 2칸 높이로 그려져 있고(21·22절) 그 아래 한 칸까지 그림이 덮는다(IsWallSkirt)
+        ///   → 중심이 규칙을 지켜도 <b>몸통 대부분이 벽 그림 뒤로 들어간다</b> = "벽에 끼었다"
+        /// </code>
+        ///
+        /// ★★ <b>막는 것이 아니라 미는 것</b>이다. "몸집만큼 떨어진 칸만 갈 수 있다" 는 하드
+        /// 판정으로 바꾸면 <b>몸집보다 좁은 통로가 통째로 막힌다</b> — 경로를 내는 A* 는
+        /// 중심 기준(1칸)이라, 자기가 걸을 수 없는 길을 스스로 계획하는 유닛이 생기고
+        /// 그건 지금 고치려는 것보다 <b>더 나쁜 끼임</b>이다. 밀림은
+        /// <see cref="separationMaxInfluence"/> 상한 아래에 있어 <b>가려던 방향을 절대 못 이기며</b>,
+        /// 통로 양쪽 벽에서 오는 힘은 서로 지워지므로 좁은 길도 그대로 지난다.
+        ///
+        /// ⚠ 몸집이 한 칸 안에 들어가는 유닛(<see cref="WallClearanceMinBody"/> 이하)은
+        ///   <b>계산 자체를 건너뛴다</b> — 캐릭터·잡몹의 이동은 한 프레임도 달라지지 않는다.
+        /// </summary>
+        Vector2 WallClearance(float bodyRadius)
+        {
+            if (_mapGenerator == null || bodyRadius <= WallClearanceMinBody) return Vector2.zero;
+
+            Vector3 pos = transform.position;
+            Vector3Int center = _mapGenerator.WorldToCell(pos);
+            int span = Mathf.CeilToInt(bodyRadius);
+
+            Vector2 push = Vector2.zero;
+            for (int dy = -span; dy <= span; dy++)
+            {
+                for (int dx = -span; dx <= span; dx++)
+                {
+                    if (dx == 0 && dy == 0) continue;   // 자기 칸은 EscapeIfEmbedded 의 몫이다
+
+                    var cell = new Vector3Int(center.x + dx, center.y + dy, 0);
+                    if (!_mapGenerator.IsCellBlocked(cell)) continue;
+
+                    Vector3 cellCenter = _mapGenerator.CellCenterWorld(cell);
+
+                    // ⚠ 거리는 <b>칸의 테두리</b>까지 잰다 — 칸 중심으로 재면 바로 옆칸 벽이
+                    //   1.0타일로 잡혀서(실제 테두리는 0.5타일) 몸집이 1 미만인 유닛에게는
+                    //   이 힘이 아예 안 걸린다. 미는 <b>방향</b>은 중심을 쓴다(테두리로 뽑으면
+                    //   벽에 딱 붙었을 때 0 벡터가 나와 방향을 정할 수 없다).
+                    float dist = DistanceToCell(pos, cellCenter);
+                    if (dist >= bodyRadius) continue;
+
+                    Vector2 away = (Vector2)(pos - cellCenter);
+                    if (away.sqrMagnitude < 0.0001f) continue;
+
+                    push += away.normalized * (1f - dist / bodyRadius);
+                }
+            }
+            return push;
+        }
+
+        /// <summary>
+        /// 한 점에서 <b>칸(1x1 정사각형)의 가장 가까운 지점</b>까지의 거리(타일).
+        /// <see cref="Units.NeutralMonsterWander"/> 의 같은 이름 함수와 같은 계산이다 — 두 곳
+        /// 모두 "몸통이 벽에 닿았는가" 를 묻고, 그 답은 칸 중심이 아니라 <b>테두리</b>로 갈린다
+        /// (바로 옆칸 중심은 1.0타일이지만 그 칸의 이쪽 테두리는 0.5타일이다).
+        /// </summary>
+        static float DistanceToCell(Vector3 point, Vector3 cellCenter)
+        {
+            float dx = Mathf.Max(0f, Mathf.Abs(point.x - cellCenter.x) - 0.5f);
+            float dy = Mathf.Max(0f, Mathf.Abs(point.y - cellCenter.y) - 0.5f);
+            return Mathf.Sqrt(dx * dx + dy * dy);
         }
 
         /// <summary>큰 유닛(넥서스 등)은 중심까지 갈 수 없으므로 반경을 더해준다.</summary>

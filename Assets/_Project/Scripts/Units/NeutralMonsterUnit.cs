@@ -114,7 +114,11 @@ namespace LastSanctuary.Units
         {
             get
             {
-                if (_animator == null) _animator = GetComponent<CharacterAnimator>();
+                if (!_animatorResolved)
+                {
+                    _animator = GetComponent<CharacterAnimator>();
+                    _animatorResolved = true;
+                }
                 if (_animator == null) return 0f;
 
                 Vector2 box = _animator.ColliderSizeTiles;
@@ -125,6 +129,16 @@ namespace LastSanctuary.Units
         }
 
         CharacterAnimator _animator;
+
+        /// <summary>
+        /// <see cref="_animator"/> 를 이미 찾아봤는지. <b>없다는 결과도 캐시해야 한다</b> —
+        /// 「null 이면 다시 찾는다」 는 형태는 <b>스킨이 없는 종</b>(1001~1003 은
+        /// <see cref="CharacterAnimator"/> 자체가 없다)에서 <c>GetComponent</c> 를 매번 다시
+        /// 부른다. 예전에는 이 속성을 타겟 하나당 한 번만 읽어서 티가 안 났지만,
+        /// <c>UnitCombat.Separation</c> 이 <b>주변 유닛 전체</b>의 몸집을 매 프레임 읽게 된
+        /// 뒤로는 유닛 수의 제곱만큼 <c>GetComponent</c> 가 돈다.
+        /// </summary>
+        bool _animatorResolved;
 
         /// <summary>처치 시 지급할 에너지를 이 범위에서 무작위로 뽑는다 (정의 테이블 min/max_energy).</summary>
         public int RollEnergyReward() =>
