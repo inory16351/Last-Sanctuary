@@ -704,16 +704,25 @@ namespace LastSanctuary.UI
                 // HP 바는 여기서 건드리지 않는다 — ApplyHp(즉시)+AnimateHpBars(매 프레임)가 반영한다.
                 // 폴링과 애니메이션이 같은 값을 이중으로 쓰면 순서에 따라 잠깐 어긋나 보일 수 있다.
 
-                // 현재 상태 — 정신 이상이 발동 중이면 그 이름을 임무보다 먼저 보여준다
-                // (유저 확정: "로스터의 현재 상태에 정신 이상 상태 표기"). 색까지 바꿔서
+                // 현재 상태 — 구속(기절 등)이 정신 이상보다 먼저다(둘 다 걸릴 일은 거의 없지만
+                // UnitPortraitPanel.StateTextOf 와 우선순위를 맞춘다), 정신 이상이 발동 중이면
+                // 그 이름을 임무보다 먼저 보여준다(유저 확정: "로스터의 현재 상태에 정신 이상 상태
+                // 표기" → 2026-08-19, 구속도 같은 자리에 같은 방식으로 표기). 색까지 바꿔서
                 // "지금 정상이 아니다"가 한눈에 보이게 한다.
                 if (row.Duty != null)
                 {
+                    UnitCombat combat = unit.GetComponent<UnitCombat>();
                     CharacterErosion erosion = CharacterErosion.Of(unit);
-                    bool deranged = erosion != null && erosion.HasActive;
+                    bool bound = combat != null && combat.IsBound;
+                    bool deranged = !bound && erosion != null && erosion.HasActive;
 
-                    row.Duty.text = deranged ? erosion.ActiveName : DutyTextOf(unit);
-                    row.Duty.color = deranged ? HudTheme.TextErosion : HudTheme.TextDim;
+                    if (bound) row.Duty.text = combat.BoundLabel;
+                    else if (deranged) row.Duty.text = erosion.ActiveName;
+                    else row.Duty.text = DutyTextOf(unit);
+
+                    row.Duty.color = bound ? HudTheme.TextDanger
+                                   : deranged ? HudTheme.TextErosion
+                                   : HudTheme.TextDim;
                 }
 
                 row.Erosion.Refresh(unit);

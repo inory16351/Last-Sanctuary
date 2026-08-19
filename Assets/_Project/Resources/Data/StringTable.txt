@@ -128,3 +128,4 @@ mon_name_1005
 mon_name_1006		
 mon_name_1007		
 status_name_2004	기절	
+status_name_130003	기절	

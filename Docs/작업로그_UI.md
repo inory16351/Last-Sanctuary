@@ -2621,3 +2621,26 @@ sync_tables_to_assets.py`, 신규 `Tools/add_boss_skill_status_name_column.py`.
 
 recompile 에러 0·경고 0 · 재실행 멱등 · `BossSkill_130003`(빈칸)/`BossSkill_2004`
 (`status_name_2004`) 확인 · 렌더로 기절 표시/평상시 빈칸 비교 확인.
+
+---
+
+## UI-37. 말파스도 "기절"로 통일 + 로스터 패널 구속 표기 (2026-08-19)
+
+> 상세는 `진행상황.md` **112-10절**.
+
+- 표: 말파스 구속탄(130003) `status_name`을 빈칸→**"기절"**로 변경. 발동 조건
+  차이(15초 내 2회 피격 vs 즉발)는 기존 스킬 데이터·전이 로직이 이미 처리하므로
+  코드 변경 없음.
+- `CharacterRosterPanel.RefreshValues()` — 구속(`UnitCombat.IsBound`/`BoundLabel`)을
+  정신 이상보다 먼저 확인해 로스터 "현재 상태" 칸에도 표시. 구속은
+  `HudTheme.TextDanger`, 정신 이상은 기존 `TextErosion`으로 색 구분.
+
+### 소유권 (§2)
+
+**UI 소유** — `Scripts/UI/CharacterRosterPanel.cs`, `Resources/BossSkills/BossSkill_130003.asset`,
+`Resources/Data/StringTable.txt`.
+**⚠ PROTO 소유** — 신규 `Tools/set_malphas_status_name.py`.
+
+### 검증
+
+recompile 에러 0·경고 0 · 파이프라인 재실행 후 diff가 의도한 파일로만 한정됨 확인.
