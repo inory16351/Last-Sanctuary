@@ -145,3 +145,14 @@ skill_type_desc_Pipe_strike	베일이 현재 반지름 {value_01}의 원형 범�
 skill_type_desc_Pipe_smoke	베일이 정면으로 부채꼴의 반지름이 {value_01}인 범위 내에 캐릭터가 있으면, 연기를 {value_02}초간 생성합니다. 연기를 맞은 캐릭터는 {value_03}의 데미지를 받고, {value_04}초 만큼 중독상태가 됩니다. 중독상태가 된 캐릭터는 매 초 최대체력의{value_05}%의 피해를 입습니다.	
 monster_name_120005	베일	Bale
 boss_title_120005	천사 사냥꾼	Angel Hunter
+character_name_9006	시그리드	Sigrid
+skill_explain_80016	고통스럽게 죽어간 시체를 탐닉하는 것이야말로 시그리드의 가장 큰 기쁨입니다.	
+skill_explain_80017	끔찍한 고통조차 기꺼이 받아들인다면 더는 괴롭지 않을 것입니다.	
+skill_explain_80018	황홀감에 젖어버린 시그리드는 스스로를 제어할 수 없습니다.	
+skill_name_80016	가학증	Sadism
+skill_name_80017	고통의 기쁨	Joy of Pain
+skill_name_80018	통제할 수 없는 쾌락	Uncontrollable Pleasure
+skill_type_desc_Joy_of_pain	가학증'이 발동할 때마다 시그리드의 공격속도가 {Value_01}% 만큼 {Value_02}초 동안 증가합니다. 해당 효과는 중첩될 수 없으며 지속시간만을 초기화 합니다.	
+skill_type_desc_Sadism	시그리드가 공격한 적이 {Value_01}초 안에 사망하면 {Value_02}%확률로 시그리드 중심으로 지름 {Value_03}범위의 아군의 현재 체력을 시그리드의 현재체력의{Value_04}% 만큼 회복시키고 시그리드는 현재 체력이 {Value_04}% 만큼 감소합니다.	
+skill_type_desc_Uncontrollable_pleasure	시그리드의 현재 체력이 최대체력의 {Value_01}% 보다 낮아지면 {Value_02}초 동안 시그리드가 어떠한 데미지도 받지 않습니다. 회복은 가능합니다. 해당 효과는 체력의 변화로 해제되지 않습니다.	
+character_title_9006	환희에 젖은 순교자	The Ecstatic Martyr

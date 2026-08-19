@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21498a0a43b4e824ea7e6db210ef2e29, type: 3}
+  m_Name: Skill_80016_Sadism
+  m_EditorClassIdentifier:
+  skillId: 80016
+  nameKey: 'skill_name_80016'
+  flavorKey: 'skill_explain_80016'
+  effectKey: 'skill_type_desc_Sadism'
+  skillName: '가학증'
+  skillType: 'Sadism'
+  value01: 2
+  value02: 20
+  value03: 5
+  value04: 10
+  coolTime: 0
+  iconName: 'icon_blood_spikes'
+  flavorText: '고통스럽게 죽어간 시체를 탐닉하는 것이야말로 시그리드의 가장 큰 기쁨입니다.'
+  effectTemplate: '시그리드가 공격한 적이 {Value_01}초 안에 사망하면 {Value_02}%확률로 시그리드 중심으로 지름 {Value_03}범위의 아군의 현재 체력을 시그리드의 현재체력의{Value_04}% 만큼 회복시키고 시그리드는 현재 체력이 {Value_04}% 만큼 감소합니다.'

@@ -21,7 +21,8 @@ MonoBehaviour:
   value01: 8
   value02: 6
   value03: 0
+  value04: 0
   coolTime: 0
-  iconName: 'icon_poison_skull'
+  iconName: 'icon_plague_cloud'
   flavorText: '역병의사의 숨결은 적들에게 공포를 선사합니다.'
   effectTemplate: '피올로에게 공격을 당한 적의 방어력이 {value_01} 만큼 감소한다. {value_02}초 만큼 지속된다. 중첩 불가능.'

@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21498a0a43b4e824ea7e6db210ef2e29, type: 3}
+  m_Name: Skill_80018_Uncontrollable_pleasure
+  m_EditorClassIdentifier:
+  skillId: 80018
+  nameKey: 'skill_name_80018'
+  flavorKey: 'skill_explain_80018'
+  effectKey: 'skill_type_desc_Uncontrollable_pleasure'
+  skillName: '통제할 수 없는 쾌락'
+  skillType: 'Uncontrollable_pleasure'
+  value01: 10
+  value02: 5
+  value03: 0
+  value04: 0
+  coolTime: 300
+  iconName: 'icon_void_orb'
+  flavorText: '황홀감에 젖어버린 시그리드는 스스로를 제어할 수 없습니다.'
+  effectTemplate: '시그리드의 현재 체력이 최대체력의 {Value_01}% 보다 낮아지면 {Value_02}초 동안 시그리드가 어떠한 데미지도 받지 않습니다. 회복은 가능합니다. 해당 효과는 체력의 변화로 해제되지 않습니다.'

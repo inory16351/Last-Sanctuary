@@ -1,7 +1,7 @@
 namespace LastSanctuary.Combat
 {
     /// <summary>
-    /// 패시브 스킬 15종의 <b>분기용 식별자</b>. 캐릭터 테이블 <c>Skill.skill_type</c> 문자열과 1:1 이다.
+    /// 패시브 스킬 18종의 <b>분기용 식별자</b>. 캐릭터 테이블 <c>Skill.skill_type</c> 문자열과 1:1 이다.
     ///
     /// <b>왜 enum 으로 한 번 더 옮기는가</b> — <c>PassiveSkillSO.skillType</c> 은 문자열이고
     /// (테이블의 enum 칸을 그대로 옮긴 것), 전투 로직에서 매 프레임 문자열을 비교하면
@@ -56,6 +56,27 @@ namespace LastSanctuary.Combat
         RageOn,
         /// <summary>복수자 — 부활할 때 반경 안 적에게 피해 + 아군 회복.</summary>
         Reaver,
+
+        // ── 시그리드 9006 (2026-08-20) ───────────────────────────────
+        /// <summary>
+        /// 가학증 — 때린 적이 value01 초 안에 죽으면 <b>value02% 확률로</b>
+        /// 지름 value03 안의 아군을 «시그리드 현재 체력의 value04%» 만큼 회복시키고
+        /// 시그리드는 그만큼 잃는다. 발동할 때마다 <see cref="JoyOfPain"/> 도 켠다.
+        /// </summary>
+        Sadism,
+
+        /// <summary>
+        /// 고통의 기쁨 — 「가학증」이 발동할 때마다 공격속도 +value01%, value02초.
+        /// 중첩되지 않고 <b>지속시간만 초기화</b>된다.
+        /// </summary>
+        JoyOfPain,
+
+        /// <summary>
+        /// 통제할 수 없는 쾌락 — 현재 체력이 최대 체력의 value01% 아래로 떨어지면
+        /// value02초 동안 <b>모든 피해를 무시</b>한다. 회복은 되고, 체력 변화로 안 풀린다.
+        /// 쿨타임이 있다(표의 cool_time).
+        /// </summary>
+        UncontrollablePleasure,
     }
 
     public static class PassiveSkillTypes
@@ -85,6 +106,11 @@ namespace LastSanctuary.Combat
                 case "vanguard":        return PassiveSkillType.Vanguard;
                 case "rage_on":         return PassiveSkillType.RageOn;
                 case "reaver":          return PassiveSkillType.Reaver;
+
+                // ── 시그리드 9006 (2026-08-20) ──
+                case "sadism":                  return PassiveSkillType.Sadism;
+                case "joy_of_pain":             return PassiveSkillType.JoyOfPain;
+                case "uncontrollable_pleasure": return PassiveSkillType.UncontrollablePleasure;
                 default:                return PassiveSkillType.None;
             }
         }

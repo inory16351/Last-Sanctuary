@@ -115,6 +115,16 @@ namespace LastSanctuary.Combat
         /// </summary>
         const float ImpactSeconds = 0.32f;
 
+        /// <summary>
+        /// 근접 평타 연출(<see cref="PlayMeleeTravel"/>)의 비행 시간 범위(초).
+        ///
+        /// 근접은 거리가 1~3타일이라 <see cref="Speed"/>(26타일/초)로 계산하면 0.04~0.12초 —
+        /// 4프레임 그림이 <b>한두 장만 보이고 사라진다.</b> 그래서 하한을 둔다.
+        /// 상한은 몸집이 큰 보스(라린길 11타일)가 멀리서 때릴 때 연출이 늘어지지 않게.
+        /// </summary>
+        const float MeleeTravelMinSeconds = 0.18f;
+        const float MeleeTravelMaxSeconds = 0.30f;
+
         static CombatProjectileFx _instance;
 
         Sprite _bolt;
@@ -235,8 +245,22 @@ namespace LastSanctuary.Combat
 
             var combat = attacker.GetComponent<UnitCombat>();
             if (combat == null) return;
+
+            // ★★ 근접 평타의 «날아가는» 연출 (2026-08-20 · 라린길 발톱 참격).
+            //    근접은 아래 원거리 경로를 타지 않으므로 여기서 갈라진다.
+            if (combat.AttackType == TacticalAttackType.Melee)
+            {
+                PlayMeleeTravel(attacker, target);
+                return;
+            }
+
             if (combat.AttackType != TacticalAttackType.Ranged &&
                 combat.AttackType != TacticalAttackType.Magic) return;
+
+            // ★★ 투사체를 쓰지 않는 유닛 (2026-08-19 · 엘린의 「쇠사슬 솟구침」).
+            //    <b>ArtFor 보다 먼저</b> 갈라져야 한다 — 그쪽은 스킨에 탄환이 없으면
+            //    진영 기본 탄환으로 떨어지므로, 뒤에서 걸러도 이미 늦다.
+            if (TryPlayGroundImpact(attacker, target, combat)) return;
 
             ProjectileArt art = ArtFor(attacker, combat);
             if (!art.IsValid) return;
@@ -274,6 +298,111 @@ namespace LastSanctuary.Combat
         }
 
         static bool HasFrames(Sprite[] frames) => frames != null && frames.Length > 0;
+
+        /// <summary>
+        /// ★★ <b>근접 평타의 날아가는 연출</b> (2026-08-20 · 라린길 발톱 참격).
+        ///
+        /// <b>왜 투사체 경로를 못 쓰는가</b> — <see cref="HandleAttack"/> 의 원거리 경로는
+        /// <see cref="CharacterSkinSO.projectileFrames"/> 를 읽고, 그 칸이 비면
+        /// <see cref="FallbackArt"/> 로 내려가 <b>진영 기본 탄환</b>(회색 화살)을 띄운다.
+        /// 근접 유닛에 그게 붙으면 화살을 쏘는 그림이 된다. 그래서 <b>전용 칸</b>
+        /// (<see cref="CharacterSkinSO.meleeTravelFrames"/>)을 읽고, 없으면 <b>아무것도
+        /// 하지 않는다</b> — 폴백이 없는 것이 요점이다.
+        ///
+        /// <b>비행 시간</b>은 거리로 정하지만 <see cref="MeleeTravelMaxSeconds"/> 로 자른다 —
+        /// 근접은 거리가 짧아 그대로 두면 한두 프레임에 끝나 보이지 않는다.
+        ///
+        /// ⚠ <b>순수 연출이다</b> — 근접 평타의 피해는 <see cref="UnitCombat"/> 이 이미
+        /// 즉시 넣었다. 이 클래스의 대원칙 그대로다.
+        /// </summary>
+        void PlayMeleeTravel(DamageableUnit attacker, DamageableUnit target)
+        {
+            var anim = attacker.GetComponent<CharacterAnimator>();
+            CharacterSkinSO skin = anim != null ? anim.Skin : null;
+            if (skin == null || !skin.HasMeleeTravel) return;
+
+            Sprite[] frames = skin.meleeTravelFrames;
+            Sprite first = frames[0];
+            if (first == null) return;
+
+            Vector3 from = CenterOf(attacker);
+            Vector3 to = CenterOf(target);
+            float dist = ((Vector2)(to - from)).magnitude;
+            if (dist < 0.01f) return;
+
+            // 몸 중심이 아니라 앞쪽(발톱이 뻗는 자리)에서 나가게 민다 — 라린길은 몸집이
+            // 11타일이라 중심에서 띄우면 연출이 자기 몸 안에서 시작한다.
+            from += MuzzleOffset(attacker, (to - from) / dist, dist);
+            dist = ((Vector2)(to - from)).magnitude;
+            if (dist < 0.01f) return;
+
+            Vector2 scale = Vector2.one;
+            if (skin.meleeTravelWidthTiles > 0f)
+                scale = Vector2.one * ScaleForWidthTiles(first, skin.meleeTravelWidthTiles);
+
+            float flight = Mathf.Clamp(dist / Speed, MeleeTravelMinSeconds, MeleeTravelMaxSeconds);
+            Spawn(from, to, flight, attacker, first, scale,
+                  frames: frames.Length > 1 ? frames : null,
+                  rotation: AimAt(to - from));
+        }
+
+        /// <summary>
+        /// ★★ <b>투사체 없는 원거리·마법</b> — 대상 <b>발밑</b>에 착탄 연출만 즉시 깐다
+        /// (유저 지시 2026-08-19: <i>"투사체 없이 적중대상 땅바닥에서 사슬이 올라오는 걸로"</i>).
+        /// 이 스킨이 그런 유닛이 아니면 <c>false</c> 를 돌려주고 평소 경로로 보낸다.
+        ///
+        /// <b>왜 발밑인가</b> — 다른 착탄 연출은 몸통 중심(<see cref="CenterOf"/>)에 놓는다.
+        /// 그건 「맞은 자리에 터지는」 그림이라 몸 위가 맞다. 땅에서 <b>솟아오르는</b> 그림은
+        /// 밑동이 지면에 박혀 있어야 하고, 이 프로젝트의 원화 피벗은 전부 발밑(0.5, 0)이라
+        /// <c>transform.position</c> 을 그대로 쓰면 된다.
+        ///
+        /// ⚠ <b>피해는 여기서 넣지 않는다</b> — 이 클래스의 대원칙 그대로 순수 연출이다.
+        /// 피해는 <see cref="UnitCombat"/> 이 발사와 동시에 이미 넣었다(히트 스캔).
+        /// </summary>
+        bool TryPlayGroundImpact(DamageableUnit attacker, DamageableUnit target, UnitCombat combat)
+        {
+            var anim = attacker.GetComponent<CharacterAnimator>();
+            CharacterSkinSO skin = anim != null ? anim.Skin : null;
+            if (skin == null || !skin.groundImpactOnly) return false;
+
+            Sprite[] impact = skin.ImpactFor(combat.AttackType);
+            if (!HasFrames(impact)) return true;   // 의도는 「탄환 없음」이라 기본 탄환으로 안 내려간다
+
+            Vector2 scale = skin.ImpactScaleFor(combat.MagicAreaTiles);
+            if (scale == Vector2.zero) scale = Vector2.one;
+
+            // 회전을 주지 않는다 — 바닥에서 솟는 그림이라 발사 방향으로 돌리면 눕는다.
+            Spawn(target.transform.position, target.transform.position, ImpactSeconds,
+                  target, impact[0], scale,
+                  frames: impact.Length > 1 ? impact : null, stationary: true);
+            return true;
+        }
+
+        /// <summary>
+        /// ★ <b>회복 연출</b> — 회복이 실제로 들어간 순간 <b>회복받은 쪽 발밑</b>에 한 번 깐다
+        /// (엘린 시트의 「회복 이펙트」 = 초록 십자가 7장 · <see cref="CharacterSkinSO.healFxFrames"/>).
+        ///
+        /// <b>왜 착탄 경로를 못 쓰나</b> — <see cref="HandleAttack"/> 는 원거리·마법에서만
+        /// 돌고 회복은 투사체가 없어 그 경로를 아예 타지 않는다. 그래서 회복에는 지금까지
+        /// <b>연출이 하나도 없었다.</b> 부르는 쪽은 <c>UnitCombat.PerformHeal</c> 하나다.
+        ///
+        /// ⚠ 순수 연출이다 — 회복량은 부르는 쪽이 이미 넣었다.
+        /// </summary>
+        public static void PlayHeal(DamageableUnit healer, DamageableUnit target)
+        {
+            if (_instance == null || healer == null || target == null) return;
+
+            var anim = healer.GetComponent<CharacterAnimator>();
+            Sprite[] frames = anim != null && anim.Skin != null ? anim.Skin.HealFx() : null;
+            if (!HasFrames(frames)) return;
+
+            Vector2 scale = anim.Skin.ImpactScaleFor(0f);
+            if (scale == Vector2.zero) scale = Vector2.one;
+
+            _instance.Spawn(target.transform.position, target.transform.position,
+                            ImpactSeconds, target, frames[0], scale,
+                            frames: frames.Length > 1 ? frames : null, stationary: true);
+        }
 
         /// <summary>
         /// <b>범위 연출 한 번</b> — 정해진 직사각형을 그림 한 장으로 덮어 그린다
@@ -377,7 +506,9 @@ namespace LastSanctuary.Combat
                 {
                     Frames = charAnim.Skin.projectileFrames,
                     Muzzle = charAnim.Skin.muzzleFlashFrames,
-                    Impact = charAnim.Skin.impactFrames,
+                    // ★ 마법이면 마법 전용 착탄 그림이 먼저다 (2026-08-19).
+                    Impact = charAnim.Skin.ImpactFor(combat != null ? combat.AttackType
+                                                                   : TacticalAttackType.Ranged),
                     Scale = charAnim.Skin.ProjectileScale,
                     ImpactScale = charAnim.Skin.ImpactScaleFor(areaTiles),
                 };

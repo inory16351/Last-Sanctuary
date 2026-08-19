@@ -82,6 +82,9 @@ ILLUSTS = [
     #   같아서 바로잡을 것이 없다.
     (os.path.join("monster_cancer", "Laryngeal_illust.png"),                "Laryngeal_illust"),
     (os.path.join("epic_boss", "Variola_illust.png"),                       "Variola_illust"),
+    # ★ 웨이브 보스 베일(120005) — 2026-08-20. 원본 이름이 표(wave_top_boss.illust =
+    #   `Bale_illust`)와 같아서 바로잡을 것이 없다.
+    (os.path.join("monster_cancer", "Bale_illust.png"),                      "Bale_illust"),
 ]
 
 #: 초상화용 임포트 설정. `Resources/Illust/illust_*.png.meta` 와 같은 값이다

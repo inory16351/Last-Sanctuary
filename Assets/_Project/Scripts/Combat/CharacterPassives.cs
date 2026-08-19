@@ -303,6 +303,7 @@ namespace LastSanctuary.Combat
             TickDefenseAura();
             TickBlazingWings(dt);
             TickRageDecay(dt);
+            TickUncontrollablePleasure();
             TickCooldownSkills();
         }
 
@@ -874,9 +875,115 @@ namespace LastSanctuary.Combat
                 _rage = Mathf.Min(RageMax, _rage + Mathf.Max(0f, rage.value01));
         }
 
-        /// <summary>이 캐릭터가 최근에 때린 적이 죽었다 (포식 · 희열).</summary>
-        public void OnRecentTargetKilled()
+        // ------------------------------------------------------------------
+        // ★★ 시그리드 9006 — 가학증 · 고통의 기쁨 · 통제할 수 없는 쾌락 (2026-08-20)
+        //
+        // 세 개가 <b>한 줄기</b>다: 적을 죽여 「가학증」이 터지면 그 자리에서
+        // 「고통의 기쁨」이 켜지고, 그러다 체력이 바닥나면 「통제할 수 없는 쾌락」이 지켜준다.
+        // 그래서 발동 지점도 한 곳(:func:`OnRecentTargetKilled`)에 모여 있다.
+        //
+        // ★ <b>왜 자기 체력을 「현재 체력」 기준으로 다루나</b> — 정의문이 그렇게 적혀 있다:
+        //   *"아군의 현재 체력을 시그리드의 현재체력의 {v4}% 만큼 회복시키고 시그리드는
+        //   현재 체력이 {v4}% 만큼 감소합니다."* 최대 체력이 아니라 <b>현재</b> 체력이라
+        //   연달아 터지면 회복량이 점점 줄어든다(체력이 줄기 때문에) — 그게 설계다.
+        // ------------------------------------------------------------------
+
+        /// <summary>「통제할 수 없는 쾌락」이 다시 발동할 수 있는 시각.</summary>
+        float _pleasureReadyAt;
+
+        /// <summary>
+        /// ★ <b>「통제할 수 없는 쾌락」</b> — 현재 체력이 최대의 value01% 아래로 내려가면
+        /// value02 초 동안 무적. 쿨타임(coolTime)이 지나야 다시 걸린다.
+        ///
+        /// <b>왜 매 프레임 보나</b> — 조건이 「낮아지면」이라 <b>어떤 경로로 깎였는지와
+        /// 무관</b>하다(평타 · 지속 피해 · 자기 스킬로 깎는 「가학증」까지). 피해 경로마다
+        /// 훅을 걸면 새 경로가 생길 때 조용히 빠진다 — 상태를 보는 쪽이 안전하다.
+        ///
+        /// ⚠ 이미 무적인 동안에는 다시 걸지 않는다 — 그러면 체력이 낮은 채로 무한 무적이 된다.
+        /// </summary>
+        void TickUncontrollablePleasure()
         {
+            PassiveSkillSO so = Find(PassiveSkillType.UncontrollablePleasure);
+            if (so == null || !_unit.IsAlive) return;
+            if (_unit.IsInvulnerable) return;
+            if (Time.time < _pleasureReadyAt) return;
+
+            int threshold = Mathf.RoundToInt(_unit.MaxHp * so.value01 * 0.01f);
+            if (_unit.CurrentHp > threshold) return;
+
+            float seconds = Mathf.Max(0.1f, so.value02);
+            _unit.GrantInvulnerability(seconds);
+            _pleasureReadyAt = Time.time + Mathf.Max(0f, so.coolTime);
+
+            // 형식은 다른 패시브와 같은 UI.HudLog.SkillLine 한 곳이 정한다.
+            UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName,
+                                              $"{seconds:0.#}초 무적"), UI.HudLogKind.Good);
+        }
+
+        /// <summary>
+        /// ★ <b>「가학증」</b> — 때린 적이 value01 초 안에 죽었을 때 value02% 확률로 터진다.
+        /// 터지면 지름 value03 안의 <b>아군</b>을 시그리드 현재 체력의 value04% 만큼 회복시키고
+        /// 시그리드는 그만큼 잃는다. 그리고 「고통의 기쁨」을 켠다.
+        ///
+        /// <paramref name="sinceHit"/> 는 «때린 뒤 죽기까지 걸린 시간(초)» 이다.
+        /// ⚠ 이 스킬만 <b>자기 value01</b> 로 창을 잰다 — 포식·희열은 서비스의 전역
+        /// <c>killCreditSeconds</c>(2초)를 쓴다. 지금은 두 값이 같지만, 표를 고쳤을 때
+        /// 스킬 정의문("{v1}초 안에")과 실제 동작이 어긋나지 않게 여기서 다시 본다.
+        ///
+        /// ⚠ 「지름」이다 — 반경이 아니다(정의문: "지름 {v3}범위"). 그래서 반으로 나눈다.
+        ///   로 아이아스(value01 = 반경)와 다르니 헷갈리지 말 것.
+        /// </summary>
+        void TrySadism(float sinceHit)
+        {
+            PassiveSkillSO so = Find(PassiveSkillType.Sadism);
+            if (so == null || !_unit.IsAlive) return;
+            if (sinceHit > Mathf.Max(0.01f, so.value01)) return;
+            if (Random.value * 100f >= so.value02) return;
+
+            // 회복·소모량은 <b>지금</b> 체력 기준 (위 ★ 주석).
+            int amount = Mathf.RoundToInt(_unit.CurrentHp * so.value04 * 0.01f);
+
+            int healed = 0;
+            if (amount > 0)
+            {
+                float radius = Mathf.Max(0f, so.value03) * 0.5f;   // ⚠ 지름 → 반경
+                float sqr = radius * radius;
+                Vector3 myPos = transform.position;
+
+                var all = UnitRegistry.All;
+                for (int i = 0; i < all.Count; i++)
+                {
+                    DamageableUnit u = all[i];
+                    if (u == null || !u.IsAlive) continue;
+                    if (u.Faction != _unit.Faction) continue;
+                    if (ReferenceEquals(u, _unit)) continue;      // 자기는 깎이는 쪽이다
+                    if (!u.AcceptsExternalHeal) continue;          // 「이기심」은 회복을 거부한다
+                    if (((Vector2)(u.transform.position - myPos)).sqrMagnitude > sqr) continue;
+                    u.Heal(amount);
+                    healed++;
+                }
+
+                // ⚠ 자기 체력은 <b>ApplyDamage 로 깎지 않는다</b> — 그러면 「통제할 수 없는
+                //   쾌락」의 무적이 이 소모까지 막아버려 스킬이 자기 대가를 안 치른다.
+                //   대가는 무적과 무관해야 하므로 체력을 직접 줄인다.
+                _unit.LoseHpToSelfCost(amount);
+            }
+
+            // ── 고통의 기쁨: 「가학증」이 발동할 때마다 (정의문) ──
+            PassiveSkillSO joy = Find(PassiveSkillType.JoyOfPain);
+            if (joy != null && _combat != null)
+                _combat.ApplyHaste(joy.value01, joy.value02);
+
+            UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName,
+                                              $"아군 {healed}명 +{amount} · 자신 −{amount}"),
+                          UI.HudLogKind.Good);
+        }
+
+        /// <summary>이 캐릭터가 최근에 때린 적이 죽었다 (포식 · 희열 · 가학증).</summary>
+        public void OnRecentTargetKilled(float sinceHit = 0f)
+        {
+            TrySadism(sinceHit);
+
             PassiveSkillSO glut = Find(PassiveSkillType.Gluttony);
             if (glut != null)
             {

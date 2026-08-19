@@ -21,7 +21,8 @@ MonoBehaviour:
   value01: 3
   value02: 100
   value03: 20
+  value04: 0
   coolTime: 0
-  iconName: 'icon_whirlwind'
+  iconName: 'icon_gold_tornado'
   flavorText: '그의 부활은 적들에겐 공포이지만 아군에겐 기적과도 같습니다.'
   effectTemplate: '히스톤이 부활 할때마다 반경 {value_01} 타일 범위의 원형 공간의 적들에게 공격력의 {value_02}% 만큼의 피해를 주고, 반경 {value_01} 타일 범위의 원형 공간의 아군 캐릭터들에게 최대체력의 {value_03}% 만큼의 회복을 준다.'

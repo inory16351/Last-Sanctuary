@@ -3,19 +3,31 @@ using UnityEngine;
 namespace LastSanctuary.Combat
 {
     /// <summary>
-    /// 스킨이 재생할 공격 계열 모션. <see cref="TacticalAttackType"/> 와 1:1 이 아니다 —
-    /// 마법은 원거리 모션을 같이 쓰기 때문에 스킨 쪽에는 세 종류만 있으면 된다.
+    /// 스킨이 재생할 공격 계열 모션.
+    ///
+    /// ★ <b>2026-08-19 부터 <see cref="Magic"/> 이 따로 있다.</b> 예전에는 셋뿐이었고
+    /// 마법이 <see cref="Ranged"/> 모션을 같이 썼다 — "둘 다 떨어져서 시전하는 동작"이라는
+    /// 이유였고, 그때는 <b>마법 전용 원화를 가진 캐릭터가 없었다.</b>
+    /// 엘린 모션 시트가 「원거리 공격 — 기도 후 쇠사슬 솟구침」과 「마법 공격 — 기도 후
+    /// 쇠사슬 마법」을 <b>다른 동작으로</b> 그려 오면서 그 전제가 깨졌다(같은 기도 자세가
+    /// 아니다: 5번 프레임이 65x62 vs 55x74 · 평균 화소차 26~66 — 실측).
+    ///
+    /// ⚠ <b>기존 스킨은 아무것도 안 바뀐다</b> — 마법 칸이 비어 있으면
+    /// <see cref="CharacterSkinSO.Attack"/> 가 예전처럼 원거리 모션으로 떨어진다.
     /// </summary>
     public enum SkinAttackMotion
     {
         /// <summary>붙어서 휘두르는 동작.</summary>
         Melee,
 
-        /// <summary>원거리·마법 — 던지거나 시전하는 동작.</summary>
+        /// <summary>원거리 — 던지거나 쏘는 동작.</summary>
         Ranged,
 
         /// <summary>회복 — 아군을 살리는 동작.</summary>
         Heal,
+
+        /// <summary>마법 — 시전하는 동작. 전용 원화가 없으면 <see cref="Ranged"/> 로 떨어진다.</summary>
+        Magic,
     }
 
     /// <summary>
@@ -65,12 +77,36 @@ namespace LastSanctuary.Combat
         public Sprite[] rangedRight;
         public Sprite[] rangedLeft;
 
+        [Header("마법 (Magic — 없으면 원거리 → 근접 공격 모션을 재사용한다)")]
+        [Tooltip("★ 2026-08-19 신설. 전술 공격 유형이 '마법' 인 캐릭터가 시전할 때 쓰는 모션.\n\n" +
+                 "<b>왜 원거리 칸과 나눴나</b> — 예전에는 마법이 원거리 모션을 같이 썼다. " +
+                 "그 전제는 <b>마법 전용 원화가 없었기 때문</b>이지 둘이 같은 동작이어서가 " +
+                 "아니다. 엘린 모션 시트가 「원거리 — 기도 후 쇠사슬 솟구침」과 " +
+                 "「마법 — 기도 후 쇠사슬 마법」을 <b>다른 동작으로</b> 그려 왔고 " +
+                 "(5번 프레임 65x62 vs 55x74 · 평균 화소차 26~66), 받을 칸이 없으면 " +
+                 "한쪽 원화를 버려야 했다.\n" +
+                 "⚠ 비워두면 <b>예전과 완전히 같다</b> — 원거리 모션으로 떨어진다")]
+        public Sprite[] magicRight;
+        public Sprite[] magicLeft;
+
         [Header("회복 (Heal — 없으면 원거리 → 근접 공격 모션을 재사용한다)")]
         [Tooltip("전술 지침을 '회복'으로 둔 캐릭터가 아군을 살릴 때 쓰는 모션. " +
                  "전용 원화가 있는 캐릭터가 아직 없어서 지금은 전부 공격 모션으로 대체된다 " +
                  "(유저 지시 2026-08-11: '없으면 공격 모션 사용')")]
         public Sprite[] healRight;
         public Sprite[] healLeft;
+
+        [Tooltip("★ 2026-08-19 신설. 회복이 <b>실제로 들어간 순간 맞는 쪽 발밑에</b> 깔리는 " +
+                 "연출(엘린 시트의 「회복 이펙트」 = 초록 십자가가 솟는 7장).\n\n" +
+                 "<b>왜 impactFrames 로 못 쓰나</b> — 그 칸은 <b>투사체가 닿는 순간</b>에만 " +
+                 "돌아가고(CombatProjectileFx.HandleAttack 이 원거리·마법에서만 부른다), " +
+                 "회복은 투사체가 없어서 그 경로를 아예 타지 않는다. 그래서 회복에는 " +
+                 "<b>연출이 하나도 없었다</b>(UnitCombat.PerformHeal 이 체력만 올렸다).\n" +
+                 "방향이 없어 한 벌만 둔다 — 바닥에 깔리는 그림이다")]
+        public Sprite[] healFxFrames;
+
+        /// <summary>회복 지면 연출. 없으면 null — 그러면 예전처럼 연출 없이 체력만 오른다.</summary>
+        public Sprite[] HealFx() => HasFrames(healFxFrames) ? healFxFrames : null;
 
         // ------------------------------------------------------------------
         // 부활 (2026-08-14 — 히스톤)
@@ -248,6 +284,77 @@ namespace LastSanctuary.Combat
                  "비워두면 착탄 연출이 없다")]
         public Sprite[] impactFrames;
 
+        [Tooltip("★ 2026-08-19 신설 — <b>마법</b> 공격의 착탄 연출. 비워두면 위 " +
+                 "impactFrames 를 그대로 쓴다(기존 스킨은 아무것도 안 바뀐다).\n\n" +
+                 "<b>왜 갈랐나</b> — 엘린 시트가 적중 이펙트를 <b>두 벌</b>로 그렸다: " +
+                 "원거리는 갈색 쇠사슬, 마법은 보라 쇠사슬. 한 칸으로는 한쪽을 버려야 한다")]
+        public Sprite[] magicImpactFrames;
+
+        /// <summary>
+        /// 이 공격 유형에 쓸 착탄 연출. 마법이면 전용 칸이 먼저고, 없으면 공용 칸.
+        /// </summary>
+        public Sprite[] ImpactFor(TacticalAttackType attackType) =>
+            attackType == TacticalAttackType.Magic && HasFrames(magicImpactFrames)
+                ? magicImpactFrames
+                : impactFrames;
+
+        // ------------------------------------------------------------------
+        // ★★ 투사체 없는 원거리·마법 (2026-08-19)
+        //
+        // 유저 지시: <i>"엘린의 마법/원거리 공격은 투사체 없이 적중대상 땅바닥에서 사슬이
+        // 올라오는 걸로 해줘. 온힛 판정이니까 상관없을듯"</i> — 맞다, 피해는 예전부터
+        // <b>발사 즉시 히트 스캔</b>이라 탄환은 순수 연출이다(<c>CombatProjectileFx</c> 맨 위).
+        //
+        // ⚠ <b><c>projectileFrames</c> 를 비우는 것만으로는 안 된다.</b> 비어 있으면
+        //   <c>CombatProjectileFx.ArtFor</c> 가 <c>FallbackArt</c> 로 내려가 <b>진영 기본
+        //   탄환</b>(회색 화살)을 띄운다 — "스킨에 탄환이 없는 유닛" 을 위한 폴백이라
+        //   "탄환이 없어야 하는 유닛" 과 구분이 안 된다. 그래서 <b>의도</b>를 적는 칸이 필요하다.
+        // ------------------------------------------------------------------
+
+        // ------------------------------------------------------------------
+        // ★★ 근접 공격에도 «날아가는» 연출 (2026-08-20)
+        //
+        // 유저 지시: <i>"라린길 돌진 이펙트를 투사체의 형태로 만들어서 날아가는 모습
+        // 연출할 수 있으면 그렇게 해봐"</i>
+        //
+        // 라린길 원화 시트의 「3. 근거리 공격 이펙트」는 <b>날아가는 그림</b>이다 —
+        // 첫 장이 발톱이 박힌 자리의 튄 피고, 뒤 세 장이 <b>초승달 참격이 앞으로 뻗는</b>
+        // 모양이다. 그런데 그동안 <b>배선할 칸이 없어서</b> 뽑아만 두고 버려 뒀다
+        // (115절: "「평타 이펙트」 칸이 없다").
+        //
+        // ⚠ <c>projectileFrames</c> 에 넣으면 안 된다 — 그 칸을 읽는
+        //   <see cref="CombatProjectileFx.HandleAttack"/> 은 <b>원거리·마법에서만</b> 돌고,
+        //   라린길은 표에서 <c>atk_type = Melee</c> 다. 공격 유형을 바꾸면 사거리·명중·치명
+        //   판정이 전부 달라지므로(전투 규칙이 유형으로 갈린다) <b>연출만</b> 얹을 칸이 필요하다.
+        //
+        // ★ 피해 판정은 아무것도 안 바뀐다 — 근접 평타는 예전처럼 즉시 히트 스캔이다.
+        //   이 그림은 «맞았다» 를 눈에 보이게만 한다.
+        // ------------------------------------------------------------------
+
+        [Header("근접 공격의 날아가는 연출 (2026-08-20)")]
+        [Tooltip("★ 근접 평타가 성사될 때 <b>공격자 → 대상</b> 으로 날아가는 그림. " +
+                 "라린길의 「근거리 공격 이펙트」(발톱 참격)가 첫 사용자다.\n\n" +
+                 "비워두면 아무 일도 없다(예전 동작 그대로). 원거리·마법 유형에서는 " +
+                 "이 칸을 <b>보지 않는다</b> — 그쪽은 projectileFrames 가 정본이다.\n" +
+                 "그림은 <b>+X(오른쪽)를 향한 한 벌</b>만 두면 코드가 방향으로 돌린다")]
+        public Sprite[] meleeTravelFrames;
+
+        [Tooltip("그 연출을 가로 몇 타일로 그릴지. 0 이면 원화 크기 그대로.\n" +
+                 "⚠ 근접은 거리가 짧으니 크게 잡으면 화면을 덮는다 — 1~2타일이 적당하다")]
+        [Min(0f)] public float meleeTravelWidthTiles;
+
+        /// <summary>근접 평타에 날아가는 연출이 있는지.</summary>
+        public bool HasMeleeTravel => HasFrames(meleeTravelFrames);
+
+        [Header("투사체를 쓰지 않는 원거리·마법 (2026-08-19)")]
+        [Tooltip("★ 켜면 <b>날아가는 탄환과 발사 섬광을 통째로 건너뛰고</b> 착탄 연출만 " +
+                 "대상 발밑에 바로 깐다. 엘린의 「쇠사슬 솟구침」이 첫 사용자다.\n\n" +
+                 "⚠ 이 칸이 필요한 이유 — projectileFrames 를 비우기만 하면 " +
+                 "CombatProjectileFx 가 <b>진영 기본 탄환</b>으로 떨어진다(스킨에 탄환이 " +
+                 "없는 유닛용 폴백). 「그림이 없다」와 「탄환이 없어야 한다」는 다른 뜻이다.\n" +
+                 "피해 판정은 아무것도 안 바뀐다 — 원래도 발사 즉시 히트 스캔이다")]
+        public bool groundImpactOnly;
+
         [Tooltip("⚠ 구식(픽셀 기준) — 원화 크기에 맞춰 손으로 고른 배율이다. " +
                  "아래 projectileWidthTiles 가 0 일 때만 폴백으로 쓰인다")]
         [Min(0.05f)] public float projectileScale = 0.55f;
@@ -345,7 +452,15 @@ namespace LastSanctuary.Combat
                 if (HasFrames(h)) return h;
             }
 
-            // 회복도 전용 모션이 없으면 원거리 동작으로 대체한다 (붙어서 휘두르는 동작이 아니다).
+            // ★ 마법 전용 모션 (2026-08-19). 비어 있으면 아래 원거리로 떨어진다 —
+            //   그것이 이 칸이 생기기 전의 동작이라 기존 스킨은 아무것도 안 바뀐다.
+            if (motion == SkinAttackMotion.Magic)
+            {
+                Sprite[] m = Pick(magicRight, magicLeft, facingRight);
+                if (HasFrames(m)) return m;
+            }
+
+            // 회복·마법도 전용 모션이 없으면 원거리 동작으로 대체한다 (붙어서 휘두르는 동작이 아니다).
             if (motion != SkinAttackMotion.Melee)
             {
                 Sprite[] r = Pick(rangedRight, rangedLeft, facingRight);

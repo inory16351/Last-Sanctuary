@@ -753,6 +753,37 @@ namespace LastSanctuary.Combat
         /// <summary>지금 「허약」에 걸려 있는지 — 구속탄이 "또 맞았는지"를 이걸로 판정한다.</summary>
         public bool IsWeakened => Time.time < _weakenUntil;
 
+        // ------------------------------------------------------------------
+        // ★ 「고통의 기쁨」(시그리드 80017) — 공격속도 상승 (2026-08-20)
+        //
+        // 정의문: <i>"'가학증'이 발동할 때마다 시그리드의 공격속도가 {v1}% 만큼 {v2}초 동안
+        // 증가합니다. 해당 효과는 중첩될 수 없으며 지속시간만을 초기화 합니다."</i>
+        //
+        // ★ <b>「허약」과 완전히 같은 짜임</b>이다 — 능력치를 건드리지 않고 <b>쓰는 자리에서
+        //   곱한다</b>. 그래서 로스터·성장 창의 표시 공속은 그대로다(그쪽 규칙을 그대로 따랐다).
+        //   중첩 금지 + 지속시간만 초기화도 「허약」과 같아서 코드 모양이 같다.
+        // ------------------------------------------------------------------
+
+        /// <summary>「고통의 기쁨」이 끝나는 시각. 0 이면 안 걸렸다.</summary>
+        float _hasteUntil;
+
+        /// <summary>「고통의 기쁨」 중 공격속도에 곱할 값(1 이상).</summary>
+        float _hasteAttackSpeedMul = 1f;
+
+        /// <summary>
+        /// <b>「고통의 기쁨」</b> — 공격속도를 <paramref name="increasePercent"/> % 만큼 올린다.
+        /// 또 발동하면 <b>지속시간만 새로 잡는다</b>(정의문: "중첩될 수 없으며 지속시간만을 초기화").
+        /// </summary>
+        public void ApplyHaste(float increasePercent, float seconds)
+        {
+            if (seconds <= 0f) return;
+            _hasteAttackSpeedMul = Mathf.Max(1f, 1f + increasePercent / 100f);
+            _hasteUntil = Time.time + seconds;
+        }
+
+        /// <summary>지금 「고통의 기쁨」이 켜져 있는지.</summary>
+        public bool IsHastened => Time.time < _hasteUntil;
+
         /// <summary>「허약」을 즉시 푼다 (구속으로 넘어갈 때).</summary>
         public void ClearWeaken()
         {
@@ -1756,6 +1787,10 @@ namespace LastSanctuary.Combat
             //   로스터·성장 창의 표시값은 그대로다(DefenseModifier 와 같은 원칙).
             if (IsWeakened) aps *= _weakenAttackSpeedMul;
 
+            // ★ 「고통의 기쁨」(시그리드) — 같은 자리에서 곱한다. 허약과 동시에 걸리면
+            //   둘 다 곱해진다(하나가 다른 하나를 지우지 않는다) — 서로 다른 원인이므로.
+            if (IsHastened) aps *= _hasteAttackSpeedMul;
+
             if (aps <= 0f) return;
 
             _nextAttackTime = Time.time + 1f / aps;
@@ -1834,6 +1869,12 @@ namespace LastSanctuary.Combat
             if (amount <= 0) return;
 
             _target.Heal(amount);
+
+            // ★ 회복 연출 (2026-08-19) — 회복이 <b>실제로 들어간 뒤</b>에만 깐다.
+            //   거절(이기심)·회복량 0 에서 빠져나간 위 두 갈래보다 아래에 있는 것이 요점이다:
+            //   시전만 하고 아무 일도 안 났는데 초록 십자가가 뜨면 회복된 것처럼 보인다.
+            //   스킨에 healFxFrames 가 없으면 아무것도 안 한다(예전 동작 그대로).
+            CombatProjectileFx.PlayHeal(_self, _target);
         }
 
         void AdvanceToObjective(float dt)

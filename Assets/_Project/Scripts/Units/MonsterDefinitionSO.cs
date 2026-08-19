@@ -322,18 +322,40 @@ namespace LastSanctuary.Units
         /// 아래 낮은 쪽 자르기(1 · 0)만 남긴다 — 그건 "0 이면 아예 안 때린다" 를 막는 것이라
         /// 성격이 다르다.
         /// </summary>
-        public StatBlock BuildStats(int hpPercentScale = 100, int attackPercentScale = 100)
+        public StatBlock BuildStats(int hpPercentScale = 100, int attackPercentScale = 100,
+                                   BalanceConfigSO balance = null)
         {
+            // ★★ 상한 (2026-08-19) — <b>공격 계열에만</b> 걸린다. 근거는
+            //   <see cref="BalanceConfigSO.monsterAttackStatMax"/> 위의 긴 주석이다:
+            //   몬스터 능력치는 웨이브 배율로 무한히 오르는데 캐릭터는 statMax 100 에서
+            //   멈추므로, 공격력이 계속 오르면 언젠가 어떤 캐릭터도 두 대를 못 버틴다.
+            //   체력은 상한 없이 계속 오른다 — 후반 난이도는 <b>체력과 마리 수</b>로 만든다
+            //   (유저 지시: "체력배율로만 플러스를 주고").
+            //
+            // ⚠ <paramref name="balance"/> 가 null 이면 <b>상한이 없다</b> — 96절과 똑같이
+            //   동작한다. 웨이브 표를 안 쓰는 옛 경로·테스트에서 조용히 값이 달라지지 않게
+            //   기본값을 「예전 동작」에 맞춘 것이다.
+            int hpMax     = balance != null ? balance.monsterHpStatMax : 0;
+            int attackMax = balance != null
+                ? balance.AttackStatMaxFor(tier == MonsterTier.MainBoss)
+                : 0;
+
             // ★ 웨이브 배율은 <b>지금 쓰는 공격 계열에만</b> 걸어도 되지만, 어느 칸을 쓸지는
             //   런타임의 <c>UnitCombat.AttackType</c> 이 정하므로 여기서는 알 수 없다 —
             //   <b>네 칸 모두에 같은 배율</b>을 건다. 쓰지 않는 칸은 0 이라 아무 영향이 없고,
             //   나중에 유형을 바꿔도 배율이 빠지지 않는다.
+            //
+            // ⚠ 자르는 순서: <b>배율 → 상한 → 낮은 쪽 바닥</b>. 바닥(1 · 0)을 마지막에 두는
+            //   이유는 상한을 0 으로 적어버린 경우에도 "0 이면 아예 안 때린다" 를 막기 위해서다.
             int Scaled(int raw, int lowFloor) =>
-                Mathf.Max(lowFloor, BalanceConfigSO.ScaleByPercent(raw, attackPercentScale));
+                Mathf.Max(lowFloor,
+                          BalanceConfigSO.CapStat(
+                              BalanceConfigSO.ScaleByPercent(raw, attackPercentScale), attackMax));
 
             return new StatBlock
             {
-                hp           = Mathf.Max(1, BalanceConfigSO.ScaleByPercent(hpStat, hpPercentScale)),
+                hp           = Mathf.Max(1, BalanceConfigSO.CapStat(
+                                   BalanceConfigSO.ScaleByPercent(hpStat, hpPercentScale), hpMax)),
                 attack       = Scaled(attackStat, 1),
                 rangedAttack = Scaled(rangedAttackStat, 0),
                 magic        = Scaled(magicStat, 0),

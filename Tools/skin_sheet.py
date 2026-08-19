@@ -1,0 +1,822 @@
+# -*- coding: utf-8 -*-
+"""모션 시트 → 프레임 PNG 분해 **공통 부품** (2026-08-19).
+
+★ 왜 생겼나
+-----------
+캐릭터·몬스터마다 분해 스크립트를 한 벌씩 만들다 보니(`malphas_skin_build.py` ·
+`laryngeal_skin_build.py` · `kasinoma_skin_build.py` …) **같은 규칙이 여섯 벌**로 갈렸다.
+엘린 시트에서 알아낸 세 가지(배경을 이어짐으로 판정 · 그림자를 아래 띠에서만 지움 ·
+갇힌 배경 되돌리기)는 **모든 시트에 해당하는 규칙**인데, 한 파일에만 있으면 다음 캐릭터에서
+같은 함정을 처음부터 다시 밟는다. 그래서 여기 한 벌만 둔다.
+
+캐릭터별 스크립트에 남는 것은 **그 시트의 실측 좌표와 판단**뿐이다
+(`elin_skin_build.py` · `sigrid_skin_build.py`).
+
+세 가지 함정 — 자세한 근거는 각 함수 주석에
+--------------------------------------------
+1. :func:`background_mask` — 배경은 «흰색과의 거리» 가 아니라 **테두리와 이어진 덩어리**다.
+   흰 두건·은빛 갑주가 배경과 같은 색(252~255)일 수 있고, 거리로 재면 그 부분이 사라진다.
+2. :func:`shadow_in_box` — 발밑 그림자는 **프레임 아래쪽 띠 안에서만** 지운다.
+   은발이 그림자와 채도·광도가 겹쳐서, 색만 보고 흘려 채우면 머리카락을 타고 번진다.
+3. :func:`enclosed_background` — 닫힌 선(휘두르는 원호)에 **갇힌 배경**은 되돌린다.
+   단 「면적이 크고 먹선에 둘러싸인」 것만 — 빛나는 이펙트의 밝은 속은 그림이다.
+
+⚠ scipy 는 쓰지 않는다 — 없는 PC 가 있다(113-7절). numpy 전파로 흘려 채운다.
+"""
+
+import hashlib
+import os
+
+import numpy as np
+from PIL import Image
+
+PROJECT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+PPU = 64
+
+# ──────────────────────────────────────────────────────────────────────────
+# ★ 스킨 에셋의 «값» 칸 — :data:`SKIN_SPEC_NAME` 파일로 원화 폴더에 함께 써 둔다.
+#
+# <b>왜 파일로 내보내나</b> (유저 지시 2026-08-19: *"하드코딩 하지 말고 스킨 에셋 만들어서
+# mcp 로 직접 넣어줘"*) — 스킨 에셋은 파이썬이 YAML 을 손으로 엮는 것이 아니라
+# **유니티가 직접** 만든다(`Assets/_Project/Scripts/Editor/CharacterSkinBuilder.cs` ·
+# MCP `execute_menu_item` 으로 실행). 그러면 guid 를 코드가 들고 있을 필요가 없다.
+#
+# 그런데 「재생 속도」·「투사체를 쓰지 않는다」 같은 값은 **원화만 봐서는 알 수 없다.**
+# 캐릭터마다 C# 에 적으면 그게 하드코딩이므로, <b>원화 폴더 옆에 데이터로</b> 둔다 —
+# 이 스크립트가 쓰고 유니티 빌더가 읽는다. 캐릭터가 늘어도 C# 은 안 바뀐다.
+# ──────────────────────────────────────────────────────────────────────────
+SKIN_SPEC_NAME = "_skin_spec.txt"
+
+#: 캐릭터별 값은 각 분해 스크립트가 자기 ``SKIN_SPEC`` 딕셔너리로 들고 있고,
+#: :func:`write_skin_spec` 가 이 이름의 파일로 내보낸다.
+
+#: ★ **배경으로 흘려갈 수 있는 최대 거리**(세 채널 차이의 합). 이 시트의 배경은 순백이
+#:   아니라 **254,254,254** 이고 ±2 노이즈가 있다(합 ≤ 6). 30 = 채널당 10 정도까지 허용.
+#:   ⚠ 올리면 회복 이펙트의 연한 후광을 타고 흐름이 안으로 들어간다.
+BG_TOL = 30
+
+#: 배경 흘려 채우기의 씨앗을 뿌릴 **안쪽 띠**(px). 시트를 감싼 테두리(검은 액자)가 있으면
+#: 맨 가장자리에는 배경이 없다 — :func:`background_mask` 의 ⚠⚠ 참조.
+SEED_INSET = 6
+
+#: 배경에 닿는 한 겹을 부드럽게 깎을 때의 상한 거리 — 이만큼 멀면 완전 불투명.
+ALPHA_HI = 180
+
+#: 그 한 겹의 최소 알파. 0 이면 경계 픽셀이 사라져 그림에 구멍이 난다.
+RING_MIN_ALPHA = 60
+
+# ──────────────────────────────────────────────────────────────────────────
+# ★★ 「갇힌 배경」 되돌리기 (:func:`enclosed_background`)
+#
+# 이어짐으로 배경을 정하면 **닫힌 선 안에 갇힌 배경**은 배경으로 안 잡힌다. 근거리
+# 5번 칸(사슬을 크게 휘두르는 원호)이 정확히 그 모양이라, 원호 **안쪽 78x80 = 3,323px
+# 이 흰 원판**으로 남았다(실제로 그렇게 나왔다).
+#
+# 그런데 두건·눈가리개·수도복의 흰색도 「갇힌 배경색」이다 — 그건 남아야 한다.
+# 실측으로 둘은 **두 값으로 깨끗하게 갈린다**:
+#
+#   | 갇힌 덩어리 | 면적 | 테두리 광도(하위 5%) | 정체 |
+#   |---|---|---|---|
+#   | 근거리 5번 원호 안 | 3,323 | **8** | 배경 (사슬·먹선에 둘러싸임) |
+#   | 근거리 5번 원호 위 | 469 | **53** | 배경 |
+#   | 회복 이펙트 십자 속 | 583·641 | **167~187** | **그림** (빛의 밝은 속) |
+#   | 두건·눈가리개·수도복 | 전부 ≤ 200 | — | **그림** |
+#
+# → 「면적이 크고 **먹선에 둘러싸인**」 것만 배경으로 되돌린다. 회복 이펙트의 밝은
+#   속은 테두리가 밝아서 걸리지 않고(그 흰색이 채워진 채로 나오는 게 맞다 — 눈으로 확인),
+#   캐릭터 흰색은 면적이 작아서 걸리지 않는다.
+# ──────────────────────────────────────────────────────────────────────────
+POCKET_MIN_AREA = 300
+POCKET_INK_RING_LUM = 120
+
+#: 라벨(작은 회색 숫자) 판정 — **회색조로만** 찾는다(102-3절·113-1절과 같은 이유).
+LABEL_LUM = 150
+LABEL_SAT = 40
+
+#: 라벨 덩어리를 가르는 최소 빈 열. 두 자리 숫자 안쪽 간격보다 크고 라벨 간격보다 작다.
+LABEL_GAP = 12
+
+#: 라벨 덩어리의 최대 폭(px). 실측으로 진짜 라벨은 8~14px 다.
+LABEL_MAX_W = 22
+
+#: 칸을 가르는 빈 열의 최소 두께(px). 근거리 줄의 가장 좁은 빈 열이 4px 다.
+CELL_GAP_MIN = 3
+
+#: 몸통 중심을 잴 때 「얇은 줄기」로 보고 버리는 두께 기준 — 그 열의 세로 두께가
+#: 가장 두꺼운 열의 이 비율 미만이면 사슬로 본다.
+BODY_STREAK_RATIO = 0.35
+
+#: 이펙트의 **밑동**으로 볼 아래쪽 비율 — 이만큼만 보고 가로 중심을 잡는다.
+FX_BASE_RATIO = 0.22
+
+# ──────────────────────────────────────────────────────────────────────────
+# 발밑 드롭 섀도 판정 (맨 위 ★★ 두 번째).
+#
+# ⚠ 이 세 값은 **함께** 그림자를 가둔다 — 하나만 넓혀도 은발로 흐름이 새어 나간다.
+#   · 띠(band)   : 프레임 아래쪽 몇 줄만 볼지        ← 머리·두건에 흐름이 닿지 못하게
+#   · 채도 상한  : 회색인 것만                        ← 금장식·홍조를 지키려고
+#   · 광도 대역  : 반투명 회색이 놓이는 구간만        ← 수도복 흰 밑단(250+)을 지키려고
+# ──────────────────────────────────────────────────────────────────────────
+SHADOW_BAND_PX = 14
+SHADOW_SAT_MAX = 12
+SHADOW_LUM_MIN = 110
+SHADOW_LUM_MAX = 235
+
+#: 그림자 흐름이 상자 좌우로 조금 더 볼 여백(px) — 타원이 발보다 넓다.
+SHADOW_SIDE_MARGIN = 6
+
+META = """fileFormatVersion: 2
+guid: {guid}
+TextureImporter:
+  internalIDToNameTable: []
+  externalObjects: {{}}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 0
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 1
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 9
+  spritePivot: {{x: 0.5, y: 0}}
+  spritePixelsToUnits: {ppu}
+  spriteBorder: {{x: 0, y: 0, z: 0, w: 0}}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites: []
+    outline: []
+    physicsShape: []
+    bones: []
+    spriteID: {sprite_id}
+    internalID: 0
+    vertices: []
+    indices:
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable: {{}}
+  mipmapLimitGroupName:
+  pSDRemoveMatte: 0
+  userData:
+  assetBundleName:
+  assetBundleVariant:
+"""
+
+FOLDER_META = ("fileFormatVersion: 2\nguid: {guid}\nfolderAsset: yes\n"
+               "DefaultImporter:\n  externalObjects: {{}}\n  userData: \n"
+               "  assetBundleName: \n  assetBundleVariant: \n")
+
+def guid_for(key):
+    """경로에서 결정적으로 뽑은 guid — 다시 돌려도 같은 값이라 참조가 안 끊긴다."""
+    return hashlib.md5(("LastSanctuary/" + key).encode("utf-8")).hexdigest()
+
+
+# ---------------------------------------------------------------------------
+# 시트 읽기 · 그림자 지우기
+# ---------------------------------------------------------------------------
+
+def modal_background(arr):
+    """가장 많이 나오는 색 = 배경. 이 시트는 순백(255)이 아니라 254 다."""
+    flat = arr.reshape(-1, 3)[::17]
+    colors, counts = np.unique(flat, axis=0, return_counts=True)
+    return colors[counts.argmax()].astype(int)
+
+
+def grow(seen, ok):
+    """네 방향 전파 한 걸음. scipy 는 쓰지 않는다 — 없는 PC 가 있다(113-7절)."""
+    g = seen.copy()
+    g[1:, :] |= seen[:-1, :]
+    g[:-1, :] |= seen[1:, :]
+    g[:, 1:] |= seen[:, :-1]
+    g[:, :-1] |= seen[:, 1:]
+    g &= ok
+    return g
+
+
+def flood(ok, seed):
+    seen = seed & ok
+    while True:
+        nxt = grow(seen, ok)
+        if np.array_equal(nxt, seen):
+            return seen
+        seen = nxt
+
+
+def background_mask(dist):
+    """
+    ★★ 배경 = **시트 테두리와 이어진** 「배경색에 가까운」 덩어리 (맨 위 ★★ 첫 번째).
+
+    거리만 보면 두건·눈가리개의 흰색(252~255)이 배경과 같은 색이라 통째로 사라진다.
+    이어짐을 따지면 그 흰색은 검은 외곽선에 갇혀 **바깥과 이어지지 않아** 살아남는다.
+    """
+    ok = dist <= BG_TOL
+    seed = np.zeros(ok.shape, dtype=bool)
+
+    # ⚠⚠ 맨 가장자리에만 씨앗을 뿌리면 **테두리가 있는 시트에서 배경이 0px 이 된다.**
+    #   베일 시트가 그랬다 — 시트 전체를 감싼 <b>검은 액자</b>가 있어서 맨 끝 줄에
+    #   배경색 픽셀이 하나도 없고, 흘려 채우기가 시작조차 못 해 **시트 전부가 그림**으로
+    #   잡혔다(1,572,864px = 전 화소). 그래서 <b>안쪽 띠에서도</b> 뿌린다.
+    #   (라린길 스크립트가 같은 문제에 ``SEED_INSET`` 을 쓴 것과 같은 처리다.)
+    for i in (0, SEED_INSET):
+        if i * 2 >= min(ok.shape):
+            continue
+        seed[i, :] = True
+        seed[-i - 1, :] = True
+        seed[:, i] = True
+        seed[:, -i - 1] = True
+
+    return flood(ok, seed)
+
+
+def enclosed_background(sheet, y0, y1, cx0, cx1):
+    """
+    ★★ 칸 하나 안의 **갇힌 배경** (맨 위 ``POCKET_*`` 주석의 표).
+
+    칸 단위로 도는 이유는 **속도**다 — 시트 전체에서 갇힌 덩어리를 세면 2,751개가 나와
+    한 덩어리씩 흘려 채우는 데 몇 분이 걸린다. 칸은 100x90 남짓이라 즉시 끝난다.
+    (배경 마스크 자체는 전역에서 구한 것을 그대로 쓴다 — 칸마다 다시 구하면 캐릭터가
+    칸 위·아래 경계에 닿는 줄에서 판정이 갈린다.)
+    """
+    sl = (slice(y0, y1 + 1), slice(cx0, cx1 + 1))
+    pockets = (sheet["dist"][sl] <= BG_TOL) & ~sheet["bg_mask"][sl]
+    lum = sheet["lum"][sl]
+    ones = np.ones_like(pockets)
+
+    out = np.zeros(sheet["mask"].shape, dtype=bool)
+    rest = pockets.copy()
+    while rest.any():
+        ys, xs = np.where(rest)
+        seed = np.zeros(pockets.shape, dtype=bool)
+        seed[ys[0], xs[0]] = True
+        comp = flood(pockets, seed)
+        rest &= ~comp
+
+        if int(comp.sum()) < POCKET_MIN_AREA:
+            continue
+        ring = grow(grow(comp, ones), ones) & ~comp
+        if not ring.any():
+            continue
+        if np.percentile(lum[ring], 5) < POCKET_INK_RING_LUM:
+            out[sl] |= comp
+    return out
+
+
+def shadow_in_box(sheet, box):
+    """
+    ★★ 프레임 하나의 **발밑 그림자** 픽셀 (맨 위 ★★ 두 번째).
+
+    상자의 **아래 :data:`SHADOW_BAND_PX` 줄** 안에서만 배경에서 흘려 채운다.
+    띠 밖으로 나갈 수 없으니 은발·두건까지 갈 길이 없다 — 첫 시도에서 시트 전체
+    38,917px 을 먹었던 그 사고를 기하로 막는다.
+    """
+    bx0, bx1, by0, by1 = box
+    h, w = sheet["dist"].shape
+    zy0 = max(by0, by1 - SHADOW_BAND_PX + 1)
+    zx0 = max(0, bx0 - SHADOW_SIDE_MARGIN)
+    zx1 = min(w - 1, bx1 + SHADOW_SIDE_MARGIN)
+
+    zone = np.zeros((h, w), dtype=bool)
+    zone[zy0:by1 + 1, zx0:zx1 + 1] = True
+
+    gray = ((sheet["sat"] <= SHADOW_SAT_MAX) &
+            (sheet["lum"] >= SHADOW_LUM_MIN) &
+            (sheet["lum"] <= SHADOW_LUM_MAX))
+    ok = zone & (gray | sheet["bg_mask"])
+    return flood(ok, zone & sheet["bg_mask"]) & ~sheet["bg_mask"]
+
+
+#: 구획 사각 테두리 판정 (:func:`erase_box_borders`) — 연회색 균일선.
+BORDER_SAT_MAX = 12
+BORDER_LUM_MIN = 150
+BORDER_LUM_MAX = 245
+
+#: 「긴 직선」으로 인정할 최소 길이 — 그 줄/열 길이에 대한 비율.
+BORDER_ROW_RATIO = 0.30
+BORDER_COL_RATIO = 0.20
+
+#: 검은 액자 판정 — 어두운 쪽은 그림과 헷갈리므로 훨씬 엄격하게 본다(위 ⚠⚠).
+BORDER_DARK_LUM_MAX = 90
+BORDER_DARK_RATIO = 0.90
+
+
+def erase_box_borders(arr, bg):
+    """
+    ★★ 구획을 감싼 **연회색 사각 테두리**를 배경색으로 칠한다.
+
+    <b>왜 배경 판정보다 먼저 해야 하나</b> — :func:`background_mask` 는 「시트 테두리와
+    이어진 것」만 배경으로 본다. 구획 상자가 있으면 **상자 안쪽이 통째로 갇혀서**
+    배경으로 안 잡힌다. 시그리드 시트에서 실제로 그렇게 됐다:
+    잉크가 **1,111,161 px**(시트의 72%)로 잡히고 프레임 경계 상자가 구획 전체가 됐다.
+    (엘린 시트에는 상자가 없어서 이 문제가 없었다.)
+
+    ⚠ 색만 보면 **은발**(채도 5~10 · 광도 200~235)도 걸린다. 그래서 **긴 직선인 것만**
+      지운다 — 그 줄/열에서 테두리색 픽셀이 폭·높이의 :data:`BORDER_ROW_RATIO` /
+      :data:`BORDER_COL_RATIO` 를 넘는 경우다. 머리카락은 그렇게 길게 이어지지 않는다.
+
+    ⚠ 지우는 것은 **그 줄/열의 테두리색 픽셀만**이다 — 줄 전체를 칠하면 상자를 지나가는
+      그림(지팡이·불길)에 한 픽셀 두께의 구멍이 난다.
+    """
+    a = arr.astype(np.int16)
+    sat = a.max(axis=2) - a.min(axis=2)
+    lum = a.mean(axis=2)
+
+    light = ((sat <= BORDER_SAT_MAX) &
+             (lum >= BORDER_LUM_MIN) & (lum <= BORDER_LUM_MAX))
+
+    # ⚠⚠ **검은 액자도 있다.** 베일 시트는 구획 상자가 연회색인데 <b>시트 전체를 감싼
+    #   테두리는 검정</b>이다. 연회색만 지우면 그 액자가 남아 배경 흘려 채우기가 시작조차
+    #   못 하고(씨앗이 전부 액자 위에 떨어진다) **시트 전부가 그림**으로 잡힌다.
+    #
+    # ⚠ 베일의 몸은 거의 검정이라 색만으로는 액자와 구분이 안 된다 — 그래서 어두운 쪽은
+    #   **더 엄격한 비율**(:data:`BORDER_DARK_RATIO`)로 「거의 한 줄 전체가 그 색」일 때만
+    #   지운다. 그림은 그렇게 한 줄을 가득 채우지 않는다.
+    dark = (sat <= BORDER_SAT_MAX) & (lum <= BORDER_DARK_LUM_MAX)
+
+    h, w = light.shape
+    rows = set(np.where(light.sum(axis=1) > w * BORDER_ROW_RATIO)[0].tolist())
+    cols = set(np.where(light.sum(axis=0) > h * BORDER_COL_RATIO)[0].tolist())
+    dark_rows = set(np.where(dark.sum(axis=1) > w * BORDER_DARK_RATIO)[0].tolist())
+    dark_cols = set(np.where(dark.sum(axis=0) > h * BORDER_DARK_RATIO)[0].tolist())
+
+    erased = 0
+    for y in sorted(rows | dark_rows):
+        sel = (light if y in rows else dark)[y, :]
+        erased += int(sel.sum())
+        arr[y, sel] = bg
+    for x in sorted(cols | dark_cols):
+        sel = (light if x in cols else dark)[:, x]
+        erased += int(sel.sum())
+        arr[sel, x] = bg
+
+    return arr, len(rows | dark_rows), len(cols | dark_cols), erased
+
+
+def load_sheet(path, box_borders=False):
+    """
+    시트를 읽어 파생 마스크를 함께 돌려준다.
+
+    <paramref name="box_borders"/> 를 켜면 구획 사각 테두리를 먼저 지운다
+    (:func:`erase_box_borders` — 상자가 있는 시트에서는 **반드시** 켜야 한다).
+    """
+    if not os.path.isfile(path):
+        raise SystemExit("⚠ 원본이 없습니다: " + path)
+
+    arr = np.asarray(Image.open(path).convert("RGB")).astype(np.uint8).copy()
+    bg = modal_background(arr)
+
+    if box_borders:
+        arr, nr, nc, ne = erase_box_borders(arr, bg)
+        print("  %s · 구획 테두리 제거: 가로 %d줄 · 세로 %d열 · %d px"
+              % (os.path.basename(path), nr, nc, ne))
+
+    a16 = arr.astype(np.int16)
+    dist = np.abs(a16 - bg).sum(axis=2)
+
+    bg_mask = background_mask(dist)
+    gray = ((a16.max(axis=2) - a16.min(axis=2)) < LABEL_SAT) & (a16.mean(axis=2) < LABEL_LUM)
+
+    print("  원본 %s · 배경 %s · 배경 %d px / 그림 %d px"
+          % (os.path.basename(path), tuple(int(v) for v in bg),
+             int(bg_mask.sum()), int((~bg_mask).sum())))
+
+    return {
+        "arr": arr, "bg": bg, "dist": dist, "gray": gray,
+        "lum": a16.mean(axis=2), "sat": a16.max(axis=2) - a16.min(axis=2),
+        "bg_mask": bg_mask,
+        # ★ 「그림」 마스크. 그림자를 지울 때마다 여기서 뺀다.
+        "mask": ~bg_mask,
+    }
+
+
+# ---------------------------------------------------------------------------
+# 칸 가르기
+# ---------------------------------------------------------------------------
+
+def runs(flags, min_len=1):
+    """True 가 이어지는 구간 목록."""
+    out, i, n = [], 0, len(flags)
+    while i < n:
+        if flags[i]:
+            j = i
+            while j < n and flags[j]:
+                j += 1
+            if j - i >= min_len:
+                out.append((i, j - 1))
+            i = j
+        else:
+            i += 1
+    return out
+
+
+def label_blobs(gray, x0, x1, ly0, ly1, gap=None, max_w=None):
+    """
+    프레임 번호 줄의 라벨 덩어리 목록 ``[(x0, x1), …]``.
+
+    ⚠ 라벨은 **회색조로만** 찾는다 — 채도가 있는 이펙트가 라벨 줄 높이까지 올라와 있으면
+    「흰색과의 거리」로만 찾을 때 이펙트가 라벨에 붙어 폭 50px 짜리 가짜 덩어리가 된다
+    (라린길 실측 · 102-3절). 그 필터는 :func:`load_sheet` 의 ``gray`` 가 이미 걸었다.
+    """
+    gap = LABEL_GAP if gap is None else gap
+    max_w = LABEL_MAX_W if max_w is None else max_w
+
+    lab = gray[ly0:ly1 + 1, x0:x1 + 1].any(axis=0)
+    xs = np.where(lab)[0]
+    if not len(xs):
+        return []
+
+    blobs = []
+    start = prev = xs[0]
+    for x in xs[1:]:
+        if x - prev > gap:
+            blobs.append((start, prev))
+            start = x
+        prev = x
+    blobs.append((start, prev))
+    return [(a + x0, b + x0) for a, b in blobs if b - a + 1 <= max_w]
+
+
+def label_count(gray, x0, x1, ly0, ly1, gap=None, max_w=None):
+    """프레임 번호가 몇 개인지. **검산 전용**이다."""
+    return len(label_blobs(gray, x0, x1, ly0, ly1, gap, max_w))
+
+
+def boxes_dominant(mask, cells, y0, y1, min_ink_ratio=0.12):
+    """
+    ★★ 칸마다 **한가운데를 물고 있는 덩어리**의 경계 상자. 옆 칸 조각을 버린다.
+
+    <b>왜 필요한가</b> — 칸 경계를 산술로 가르면(:func:`cells_by_span`) 간격이 완벽하지
+    않은 시트에서 **프레임마다 옆 칸의 망토·담뱃대 끝이 조금씩 딸려 들어온다.** 베일
+    시트가 그랬다: 모든 프레임에 이웃의 조각이 붙어 나왔다(실제로 눈으로 확인).
+    :func:`boxes_for` 는 칸 안의 <b>모든</b> 잉크를 감싸므로 그 조각까지 포함한다.
+
+    여기서는 칸 안을 <b>빈 열로 갈라</b> 덩어리를 나누고, **칸 한가운데를 물고 있는
+    덩어리**를 기준으로 삼아 좌우로 «간격이 좁은 동안만» 이어 붙인다.
+
+    ⚠ <b>크기로 고르면 안 된다.</b> 처음엔 「가장 잉크가 많은 덩어리」로 했는데, 옆 칸에서
+      들어온 <b>망토 조각이 본체의 25%</b> 나 돼서 안 걸러졌다(실측). 프레임의 본체는
+      언제나 자기 칸 <b>가운데</b>에 있고 조각은 <b>가장자리</b>에 있으므로, 자리로
+      가르면 크기와 무관하게 갈린다.
+
+    ⚠ <paramref name="min_ink_ratio"/> 는 이제 «이어 붙일 최대 간격»(칸 폭에 대한 비율)이다.
+      본체에 딸린 담뱃대·연기·튄 피는 바로 옆에 있어 함께 남고, 옆 칸 조각은 멀어서 빠진다.
+    """
+    out = []
+    for cx0, cx1 in cells:
+        sub = mask[y0:y1 + 1, cx0:cx1 + 1]
+        if not sub.any():
+            out.append(None)
+            continue
+
+        band = sub.any(axis=0)
+        groups = runs(band, 1)
+        if not groups:
+            out.append(None)
+            continue
+
+        # ★ 기준은 «가장 큰 것» 이 아니라 **칸 한가운데를 물고 있는 덩어리**다.
+        #   프레임의 본체는 자기 칸 가운데에 있고, 옆 칸에서 삐져 들어온 조각은
+        #   <b>칸 가장자리</b>에 있다. 크기로 고르면 조각이 꽤 클 때(본체의 25%) 못 거른다 —
+        #   자리로 고르면 크기와 무관하게 갈린다.
+        width = sub.shape[1]
+        mid = width // 2
+        anchor = next((k for k, (s, e) in enumerate(groups) if s <= mid <= e), None)
+        if anchor is None:
+            # 한가운데가 비었으면(연기만 있는 칸 등) 가장 가까운 덩어리를 기준으로 삼는다.
+            anchor = min(range(len(groups)),
+                         key=lambda k: min(abs(groups[k][0] - mid), abs(groups[k][1] - mid)))
+
+        # 기준 덩어리에서 좌우로, **간격이 좁은 동안만** 이어 붙인다 — 본체에 딸린
+        # 담뱃대·연기·튄 피는 바로 옆에 있고, 옆 칸 조각은 멀리 떨어져 있다.
+        near = max(4, int(width * min_ink_ratio))
+        lo = hi = anchor
+        while lo > 0 and groups[lo][0] - groups[lo - 1][1] <= near:
+            lo -= 1
+        while hi < len(groups) - 1 and groups[hi + 1][0] - groups[hi][1] <= near:
+            hi += 1
+        keep = groups[lo:hi + 1]
+
+        gx0 = cx0 + keep[0][0]
+        gx1 = cx0 + keep[-1][1]
+        col = mask[y0:y1 + 1, gx0:gx1 + 1]
+        ys = np.where(col.any(axis=1))[0]
+        out.append((gx0, gx1, y0 + int(ys.min()), y0 + int(ys.max())))
+    return out
+
+
+def cells_by_span(mask, y0, y1, x0, x1, count):
+    """
+    ★★ 칸 경계를 **그림이 차지한 폭을 균등 분할**해서 정한다 — 프레임 수를 아는 줄에 쓴다.
+
+    <b>왜 이게 가장 튼튼한가</b> — 베일 시트에서 앞의 세 방법이 다 실패했다(실측):
+
+      · ``cells_by_gaps``   프레임이 붙어 빈 열이 없다 (24칸 → 4~11칸)
+      · ``cells_by_labels`` 두 자리 라벨이 붙어 개수가 모자란다 (16칸 → 13~14개)
+      · ``cells_by_pitch``  <b>맨 앞 라벨이 「1」이 아닐 수 있다.</b> 원거리 줄에서 「1」을
+        놓쳐 간격이 한 칸씩 밀렸고, 프레임마다 옆 칸이 조금씩 잘려 들어왔다.
+
+    반면 «그림이 놓인 전체 폭 ÷ 장수» 는 라벨을 아예 안 본다. 실측으로 라벨에서 구한
+    간격과 **거의 같다**: 대기 82.4 ↔ 82.3 · 스킬1 62.1 ↔ 62.3 · 스킬2 61.4 ↔ 61.0.
+
+    ⚠ 전제는 «칸 간격이 일정하고, 맨 앞·맨 뒤 칸의 그림이 자기 칸을 채운다» 다.
+      이펙트가 줄 밖으로 뻗는 시트에서는 :paramref:`x1` 로 범위를 좁혀 줄 것.
+    ⚠ 개수를 반드시 넘겨야 한다 — 시트에 «(16프레임)» 처럼 적혀 있는 값이다.
+    """
+    if count < 1:
+        return []
+    band = mask[y0:y1 + 1, x0:x1 + 1].any(axis=0)
+    xs = np.where(band)[0]
+    if not len(xs):
+        return []
+
+    a = int(xs.min()) + x0
+    b = int(xs.max()) + x0
+    width = (b - a + 1) / float(count)
+    return [(int(round(a + i * width)), int(round(a + (i + 1) * width)) - 1)
+            for i in range(count)]
+
+
+def cells_by_pitch(gray, x0, x1, ly0, ly1, count, gap=None, max_w=None):
+    """
+    ★★ 칸 경계를 **일정한 간격**으로 정한다 — 프레임 수를 아는 줄에 쓴다.
+
+    <b>언제 이걸 쓰나</b> — 베일 시트처럼 ① 프레임이 서로 붙어 빈 열이 없고
+    (``cells_by_gaps`` 실패: 24칸이 4~11칸으로 붙는다) ② 라벨이 두 자리 숫자에서
+    붙거나 잘려 개수가 모자란 줄이다(``cells_by_labels`` 실패: 16칸이 13개로 잡힌다).
+
+    ★ 그런 시트도 **칸 간격은 일정**하다 — 라벨이 등간격으로 찍혀 있는 것이 그 증거다.
+      그래서 <b>맨 앞과 맨 뒤 라벨</b>만 믿고 나머지는 산술로 채운다. 가운데 라벨이
+      몇 개 붙어도 상관없다.
+
+    ⚠ 그래서 **개수를 반드시 넘겨야 한다** — 시트에 «(16프레임)» 처럼 적혀 있는 값이다.
+      개수를 틀리면 조용히 어긋난 칸이 나오므로, 부르는 쪽이 시트의 표기를 그대로 적을 것.
+    """
+    blobs = label_blobs(gray, x0, x1, ly0, ly1, gap, max_w)
+    if len(blobs) < 2 or count < 1:
+        return []
+
+    first = (blobs[0][0] + blobs[0][1]) / 2.0
+    last = (blobs[-1][0] + blobs[-1][1]) / 2.0
+    if count == 1:
+        return [(x0, x1)]
+
+    pitch = (last - first) / (count - 1)
+    centers = [first + i * pitch for i in range(count)]
+    edges = ([x0] +
+             [int(round((centers[i] + centers[i + 1]) / 2.0)) for i in range(count - 1)] +
+             [x1])
+    return [(edges[i], edges[i + 1]) for i in range(count)]
+
+
+def cells_by_labels(gray, x0, x1, ly0, ly1, gap=None, max_w=None):
+    """
+    ★ 칸 경계를 **라벨 중심의 중간점**으로 정한다 (말파스·라린길 방식 · 113-1절).
+
+    <b>언제 이걸 쓰나</b> — 프레임 사이에 빈 열이 없는 시트다. 시그리드 시트가 그렇다:
+    지팡이가 옆 칸까지 뻗어 있어 ``cells_by_gaps`` 로는 8칸이 5칸으로 붙는다(실측).
+    엘린 시트는 빈 열이 다 있어서 그쪽을 쓴다 — 빈 열이 있으면 그것이 더 정확하다.
+
+    ⚠ 첫 칸의 왼쪽 끝과 마지막 칸의 오른쪽 끝은 **패널 경계**로 둔다. 라벨 간격의 절반을
+      바깥으로 미는 방법도 있지만, 그러면 패널 밖(다른 단)까지 먹을 수 있다.
+    """
+    centers = [(a + b) // 2 for a, b in label_blobs(gray, x0, x1, ly0, ly1, gap, max_w)]
+    if len(centers) < 2:
+        return []
+    edges = [x0] + [(centers[i] + centers[i + 1]) // 2 for i in range(len(centers) - 1)] + [x1]
+    return [(edges[i], edges[i + 1]) for i in range(len(edges) - 1)]
+
+
+def cells_by_gaps(mask, y0, y1, x0, x1):
+    """
+    칸 경계 = **빈 열의 가운데**. 이 시트는 (프레임 수 + 1)개의 빈 열이 다 있다(맨 위).
+    """
+    band = mask[y0:y1 + 1, x0:x1 + 1].any(axis=0)
+    gaps = [(a + x0, b + x0) for a, b in runs(~band, CELL_GAP_MIN)]
+    mids = [(a + b) // 2 for a, b in gaps]
+    return [(mids[k], mids[k + 1]) for k in range(len(mids) - 1)]
+
+
+def boxes_for(mask, cells, y0, y1):
+    """각 칸 안의 그림 경계 상자. 그림이 없는 칸은 None."""
+    out = []
+    for cx0, cx1 in cells:
+        sub = mask[y0:y1 + 1, cx0:cx1 + 1]
+        if not sub.any():
+            out.append(None)
+            continue
+        ys = np.where(sub.any(axis=1))[0]
+        xs = np.where(sub.any(axis=0))[0]
+        out.append((cx0 + xs.min(), cx0 + xs.max(), y0 + ys.min(), y0 + ys.max()))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# 프레임 굽기
+# ---------------------------------------------------------------------------
+
+def alpha_for(opaque, dist):
+    """
+    알파 — **안쪽은 255, 배경에 닿는 한 겹만** 거리로 깎는다 (맨 위 ★★ 첫 번째).
+
+    거리 하나로 전부 정하면 배경색과 같은 흰 두건이 사라진다. 안쪽을 통째로 불투명하게
+    두고 경계 한 겹만 부드럽게 하면 원화의 안티에일리어싱이 살아나면서 흰색도 남는다.
+    기존 캐릭터 스프라이트도 부분 알파가 프레임당 100~1500px 뿐인 «거의 하드 알파» 다.
+    """
+    alpha = np.where(opaque, 255.0, 0.0)
+
+    # 투명에 닿는 불투명 한 겹 = 투명 마스크를 한 걸음 키운 뒤 불투명과 겹치는 부분.
+    edge = grow(~opaque, np.ones_like(opaque)) & opaque
+    soft = np.clip((dist - BG_TOL) * 255.0 / (ALPHA_HI - BG_TOL),
+                   RING_MIN_ALPHA, 255.0)
+    alpha[edge] = soft[edge]
+    return alpha.astype(np.uint8)
+
+
+def crop_rgba(sheet, box):
+    """상자를 RGBA 로 굽고 알파 경계까지 다시 죈다."""
+    bx0, bx1, by0, by1 = box
+    sl = (slice(by0, by1 + 1), slice(bx0, bx1 + 1))
+    rgb = sheet["arr"][sl]
+    alpha = alpha_for(sheet["mask"][sl], sheet["dist"][sl])
+    rgba = np.dstack([rgb, alpha]).astype(np.uint8)
+
+    solid = rgba[:, :, 3] > 0
+    if not solid.any():
+        return rgba
+    ys = np.where(solid.any(axis=1))[0]
+    xs = np.where(solid.any(axis=0))[0]
+    return rgba[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
+
+
+def column_thickness(rgba):
+    """열마다 «가장 위 픽셀 ~ 가장 아래 픽셀» 두께. 얇은 줄기(사슬)를 가려내는 재료."""
+    solid = rgba[:, :, 3] > 0
+    out = np.zeros(rgba.shape[1], dtype=int)
+    for i in range(rgba.shape[1]):
+        ys = np.where(solid[:, i])[0]
+        out[i] = (ys.max() - ys.min() + 1) if len(ys) else 0
+    return out
+
+
+def body_anchor(rgba):
+    """
+    이 프레임에서 **몸통의 가로 중심**(px). 캔버스 정렬 기준이다.
+
+    그림 전체 중심을 쓰면 사슬이 한쪽으로 뻗은 칸에서 몸통이 반대쪽으로 밀린다 —
+    피벗이 캔버스 가로 한가운데(0.5)라 그만큼 엘린이 옆으로 미끄러져 보인다(113-4절).
+    """
+    th = column_thickness(rgba)
+    if th.max() <= 0:
+        return rgba.shape[1] / 2.0
+    thick = np.where(th > th.max() * BODY_STREAK_RATIO)[0]
+    if not len(thick):
+        return rgba.shape[1] / 2.0
+    return (thick.min() + thick.max() + 1) / 2.0
+
+
+def base_anchor(rgba):
+    """이펙트의 **밑동** 가로 중심 — 땅에 박힌 구멍이 대상 발밑에 오게 한다."""
+    solid = rgba[:, :, 3] > 0
+    h = solid.shape[0]
+    band = solid[int(h * (1.0 - FX_BASE_RATIO)):]
+    xs = np.where(band.any(axis=0))[0]
+    if not len(xs):
+        return rgba.shape[1] / 2.0
+    return (xs.min() + xs.max() + 1) / 2.0
+
+
+def compose(frames, anchors):
+    """
+    한 묶음을 **같은 캔버스**에 얹는다 — 세로는 바닥(피벗 0.5, 0), 가로는 anchor.
+
+    캔버스 가로를 anchor 좌우로 **같게** 잡는 것이 핵심이다. 안 그러면 피벗(가로 0.5)이
+    몸통 중심에서 벗어나 프레임마다 조금씩 옆으로 튄다.
+    """
+    pad = max(max(anchors), max(f.shape[1] - a for f, a in zip(frames, anchors)))
+    w = int(np.ceil(pad * 2))
+    h = max(f.shape[0] for f in frames)
+    out = []
+    for rgba, anchor in zip(frames, anchors):
+        canvas = np.zeros((h, w, 4), dtype=np.uint8)
+        bh, bw = rgba.shape[0], rgba.shape[1]
+        ox = int(round(w / 2.0 - anchor))
+        ox = max(0, min(ox, w - bw))
+        canvas[h - bh:h, ox:ox + bw] = rgba
+        out.append(Image.fromarray(canvas, "RGBA"))
+    return out, w, h
+
+
+def write_png(img, folder, name, ppu=PPU):
+    os.makedirs(folder, exist_ok=True)
+    path = os.path.join(folder, name + ".png")
+    img.save(path)
+    rel = os.path.relpath(path, os.path.join(PROJECT, "Assets", "_Project")).replace("\\", "/")
+    g = guid_for(rel)
+    with open(path + ".meta", "w", encoding="utf-8", newline="\n") as f:
+        f.write(META.format(guid=g, ppu=ppu, sprite_id=g[:32]))
+
+
+def ensure_folder_meta(path):
+    mp = path.rstrip("\\/") + ".meta"
+    if os.path.exists(mp):
+        return
+    rel = os.path.relpath(path, os.path.join(PROJECT, "Assets", "_Project")).replace("\\", "/")
+    with open(mp, "w", encoding="utf-8", newline="\n") as f:
+        f.write(FOLDER_META.format(guid=guid_for(rel)))
+
+
+# ---------------------------------------------------------------------------
+# 몸통 · 이펙트
+# ---------------------------------------------------------------------------
+
+
+def write_skin_spec(dst_root, spec, made_by):
+    """
+    ★ 스킨 에셋의 «값» 칸을 원화 폴더에 **데이터로** 남긴다.
+
+    <b>왜 파일로 내보내나</b> (유저 지시 2026-08-19: *"하드코딩 하지 말고 스킨 에셋 만들어서
+    mcp 로 직접 넣어줘"*) — 스킨 에셋은 파이썬이 YAML 을 손으로 엮는 것이 아니라
+    **유니티가 직접** 만든다(``Assets/_Project/Scripts/Editor/CharacterSkinBuilder.cs`` ·
+    MCP ``execute_menu_item``). 그러면 guid 를 코드가 들고 있을 필요가 없다.
+
+    그런데 「재생 속도」·「투사체를 쓰지 않는다」 같은 값은 **원화만 봐서는 알 수 없다.**
+    캐릭터마다 C# 에 적으면 그게 하드코딩이므로 **원화 폴더 옆에 데이터로** 둔다 —
+    분해 스크립트가 쓰고 유니티 빌더가 읽는다. 캐릭터가 늘어도 C# 은 안 바뀐다.
+    """
+    path = os.path.join(dst_root, SKIN_SPEC_NAME)
+    lines = ["# %s 가 만든 파일 — 손으로 고치지 말 것." % made_by,
+             "# Editor/CharacterSkinBuilder.cs 가 읽어서 스킨 에셋에 적는다.",
+             "# 원화만 봐서는 알 수 없는 값만 여기 있다(폴더 구성은 폴더 이름이 정본).",
+             ""]
+    lines += ["%s=%s" % (k, v) for k, v in spec.items()]
+    with open(path, "w", encoding="utf-8", newline="\n") as f:
+        f.write("\n".join(lines) + "\n")
+    return len(spec)

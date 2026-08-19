@@ -44,10 +44,17 @@ namespace LastSanctuary.Units
                  "⚠ 이건 문구가 아니라 <b>분기용 식별자</b>다 — 스트링 키로 빼지 않는다")]
         public string skillType = "";
 
-        [Header("수치 — 효과 정의문의 {value_01~03} 에 채워진다")]
+        [Header("수치 — 효과 정의문의 {value_01~04} 에 채워진다")]
         public float value01;
         public float value02;
         public float value03;
+
+        [Tooltip("★ 2026-08-20 신설 — 표에 `value_04` 컬럼이 있는데 여기 받을 칸이 없어서 " +
+                 "그동안 <b>버려지고 있었다</b>. 시그리드 「가학증」이 첫 사용자다 " +
+                 "(아군 회복량 = 시그리드 현재 체력의 value04%).\n" +
+                 "⚠ 이 칸이 없던 동안 `gen_character_assets.py` 가 컬럼을 <b>번호로</b> 읽어 " +
+                 "쿨타임·아이콘이 한 칸씩 밀릴 상태였다 — 같이 고쳤다(그쪽 주석 참조)")]
+        public float value04;
 
         [Tooltip("쿨타임(초). 0 이면 상시 발동")]
         public float coolTime;

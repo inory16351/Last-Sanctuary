@@ -14,6 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier:
   statMin: 1
   statMax: 100
+  monsterHpStatMax: 0
+  monsterAttackStatMax: 60
+  bossAttackStatMax: 120
   initialStatMin: 1
   initialStatMax: 10
   hpBase: 40

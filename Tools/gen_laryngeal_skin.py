@@ -37,6 +37,29 @@
 다음:    python Tools/measure_skin_tiles.py  (contentSizeTiles 실측)
 """
 
+import sys as _sys
+
+# ⚠⚠ 이 스크립트는 폐기됐다 (2026-08-20)
+#
+# 스킨 에셋은 이제 **유니티가 직접** 만든다 —
+#   `Assets/_Project/Scripts/Editor/CharacterSkinBuilder.cs`
+#   (유니티 메뉴 **LastSanctuary/스킨/원화 폴더로 스킨 에셋 만들기** ·
+#    MCP `execute_menu_item` 으로도 부른다)
+# 유저 지시(2026-08-20): *"하드 코딩 최대한 자제하고 웬만한건 다 mcp로 직접 만들어줘"*.
+#
+# ★ 그냥 주석만 남기지 않고 **실행을 막는** 이유 — 이 파일은 옛 폴더 구성
+#   (`Char/Fx/Char_Fx_*.png` 한 폴더)의 guid 를 읽어 YAML 을 엮는다. 지금 원화는
+#   칸마다 폴더가 갈렸으므로(`MeleeTravelFx/` · `Skill1Fx/` · …) 그대로 돌리면
+#   **없는 파일을 찾다 죽거나, 최악의 경우 빈 참조로 스킨을 덮어쓴다.**
+#   기록으로는 남기고 실행만 막는다.
+_sys.exit(
+    "⚠ 폐기된 스크립트입니다 (2026-08-20).
+"
+    "  스킨 에셋은 유니티 메뉴 «LastSanctuary/스킨/원화 폴더로 스킨 에셋 만들기» 가 만듭니다.
+"
+    "  프레임은 `python Tools/laryngeal_skin_build.py` 로 먼저 뽑으세요."
+)
+
 import hashlib
 import os
 import sys

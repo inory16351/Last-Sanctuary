@@ -187,9 +187,12 @@ namespace LastSanctuary.Combat
             if (_lastHitBy.TryGetValue(dead, out var credit))
             {
                 _lastHitBy.Remove(dead);
+                float since = Time.time - credit.at;
                 if (credit.by != null && credit.by.Unit != null && credit.by.Unit.IsAlive &&
-                    Time.time - credit.at <= killCreditSeconds)
-                    credit.by.OnRecentTargetKilled();
+                    since <= killCreditSeconds)
+                    // ★ 「가학증」(시그리드)은 <b>자기 value01 초</b>로 창을 다시 재므로
+                    //   걸린 시간을 넘겨준다 — 포식·희열은 이 값을 쓰지 않는다.
+                    credit.by.OnRecentTargetKilled(since);
             }
 
             // 죽은 유닛에 걸려 있던 보정은 되돌릴 필요가 없다(사라지므로) — 장부만 비운다.

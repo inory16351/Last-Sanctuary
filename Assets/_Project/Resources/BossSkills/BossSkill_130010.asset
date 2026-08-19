@@ -16,7 +16,7 @@ MonoBehaviour:
   nameKey: skill_name_130010
   displayName: ''
   skillType: Pipe_smoke
-  explainKey: skill_explain_130008
+  explainKey: skill_explain_130010
   value01: 5
   value02: 1
   value03: 0

@@ -21,7 +21,8 @@ MonoBehaviour:
   value01: 1
   value02: 0.5
   value03: 3
+  value04: 0
   coolTime: 300
-  iconName: 'icon_lightning'
+  iconName: 'icon_revive_angel'
   flavorText: '죽음조차 히스톤의 복수를 막을 수는 없습니다.'
   effectTemplate: "히스톤에게 별개의 '분노' 수치 획득이 가능해진다.(0~100) 히스톤이 공격 할때 마다 {value_01} 만큼의 분노를 획득한다. 분노는 체력 재생 가능 상태 일때 초당 {value_02} 만큼 하락한다.(진군 중일때 제외) 분노가 100일 때 히스톤이 죽음에 이를 시 {value_03}초 만큼의 경직 시간 이후 부활한다."

@@ -21,7 +21,8 @@ MonoBehaviour:
   value01: 5
   value02: 0
   value03: 0
+  value04: 0
   coolTime: 0
-  iconName: 'icon_soul_devour'
+  iconName: 'icon_skull_pyre'
   flavorText: '프레이야는 분노와 함께 적들을 집어 삼킵니다.'
   effectTemplate: '프레이야가 2초내에 직접 공격한 적이 사망할 때마다 프레이야의 현재 체력이 최대체력의 {value_01}% 만큼 회복된다.'

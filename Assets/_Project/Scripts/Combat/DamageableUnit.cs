@@ -395,10 +395,83 @@ namespace LastSanctuary.Combat
         /// </summary>
         bool _silentHeal;
 
+        // ------------------------------------------------------------------
+        // ★★ 「통제할 수 없는 쾌락」(시그리드 80018) 의 무적 (2026-08-20)
+        //
+        // 정의문: <i>"시그리드의 현재 체력이 최대체력의 {v1}% 보다 낮아지면 {v2}초 동안
+        // 시그리드가 어떠한 데미지도 받지 않습니다. <b>회복은 가능합니다.</b> 해당 효과는
+        // <b>체력의 변화로 해제되지 않습니다.</b>"</i>
+        //
+        // ★ <b>왜 <see cref="ApplyDamage"/> 에 두는가</b> — 피해가 체력을 깎는 자리는 여기
+        //   <b>하나</b>다. <see cref="TakeDamageFrom"/> 도 · 지속 피해도 · 보스 스킬도 결국
+        //   이 함수를 부른다. 위쪽 경로마다 막으면 새로 생긴 피해 경로가 조용히 무적을 뚫는다.
+        //
+        // ★ 「회복은 가능」 은 저절로 성립한다 — <see cref="Heal"/> 은 이 함수를 안 거친다.
+        // ★ 「체력의 변화로 해제되지 않는다」 도 저절로 성립한다 — <b>시각 하나</b>로만
+        //   표현되는 상태라 체력을 보지 않는다(UnitCombat 의 「허약」·「구속」과 같은 규칙).
+        // ------------------------------------------------------------------
+
+        /// <summary>무적이 끝나는 시각. 0 이면 안 걸렸다.</summary>
+        float _invulnerableUntil;
+
+        /// <summary>지금 어떤 피해도 받지 않는지.</summary>
+        public bool IsInvulnerable => Time.time < _invulnerableUntil;
+
+        /// <summary>
+        /// <paramref name="seconds"/> 초 동안 <b>모든 피해를 무시</b>한다. 회복은 그대로 된다.
+        /// 이미 걸려 있으면 <b>더 긴 쪽</b>으로 둔다 — 짧은 것이 긴 것을 덮어 깎으면
+        /// "무적이 도중에 풀린다" 는 사고가 난다.
+        /// </summary>
+        public void GrantInvulnerability(float seconds)
+        {
+            if (seconds <= 0f) return;
+            _invulnerableUntil = Mathf.Max(_invulnerableUntil, Time.time + seconds);
+        }
+
+        /// <summary>
+        /// <b>자기 스킬의 대가</b>로 체력을 깎는다 — 「가학증」처럼 «내가 내는 값» 이다.
+        ///
+        /// ★ <see cref="ApplyDamage"/> 와 <b>두 가지가 다르다</b>:
+        /// <list type="number">
+        /// <item><b>무적을 무시한다.</b> 무적은 «남이 주는 피해» 를 막는 것이고, 대가는
+        ///       내가 내는 것이다. 무적 중에 대가만 사라지면 스킬이 공짜가 된다.</item>
+        /// <item><b>이걸로는 죽지 않는다</b> — 체력 1 에서 멈춘다. 「유혈 낭자」·「광란」이
+        ///       이미 같은 규칙을 손으로 지키고 있었다("정의문에 사망 처리가 없다").
+        ///       규칙을 한 곳에 두어 다음 스킬이 그 clamp 를 빠뜨리지 않게 한다.</item>
+        /// </list>
+        /// </summary>
+        public void LoseHpToSelfCost(int amount)
+        {
+            if (!IsAlive || amount <= 0) return;
+            int safe = Mathf.Min(amount, Mathf.Max(0, currentHp - 1));
+            if (safe <= 0) return;
+            ApplyDamageCore(safe);
+        }
+
         /// <summary>계산이 끝난 피해량(정수)을 직접 적용한다.</summary>
         public void ApplyDamage(int amount)
         {
             if (!IsAlive || amount <= 0) return;
+
+            // ★★ 무적 — 체력을 건드리지 않고 그대로 돌아간다 (위 주석).
+            //    ⚠ 숫자도 띄우지 않는다: "0" 이 뜨면 빗나간 것과 구분이 안 된다.
+            if (IsInvulnerable)
+            {
+                _pendingCritical = false;
+                return;
+            }
+
+            ApplyDamageCore(amount);
+        }
+
+        /// <summary>
+        /// ★ <b>체력이 실제로 깎이는 자리 — 여기 하나뿐이다.</b>
+        /// <see cref="ApplyDamage"/>(무적 판정을 거친다)와
+        /// <see cref="LoseHpToSelfCost"/>(무적을 무시한다)가 둘 다 이걸 부른다.
+        /// 사망 처리·연출 이벤트를 두 벌로 만들지 않으려고 갈라 뒀다.
+        /// </summary>
+        void ApplyDamageCore(int amount)
+        {
 
             MarkCombatAction();       // 피해를 입은 것도 전투 상태
             currentHp -= amount;

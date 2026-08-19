@@ -30,15 +30,37 @@ SCRIPT_GUID_CHAR = 'bacf4f16746e56b4da254173d578cf4e'    # CharacterDefinitionSO
 # (Tools/char_asset_preyja_build.py → Skin_Preyja).
 EXCLUDE_CHARACTER_IDS = set()
 
-# 인게임 외형 배정 — Resources/Skins/<이름>.asset 을 가리킨다.
-# 세 명 다 자기 원화가 임포트돼 있다(임시 배정이 아니다).
-SKIN_OVERRIDE = {
-    9001: 'Skin_Elin',             # 엘린 — 마법/치유형
-    9002: 'Skin_Bigior',           # 비기오르 — 중장갑 탱커
-    9003: 'Skin_Preyja',           # 프레이야 — 근접/원거리 창
-    9004: 'Skin_Piolo',            # 피올로 — 지원/치유 (표의 ingame_asset = Char_Asset_Piolo)
-    9005: 'Skin_Histon',           # 히스톤 — 근접 전용(Vanguard 로 전방·근거리 고정). 2026-08-14 신규
-}
+# ── 인게임 외형 배정 (Resources/Skins/<이름>.asset) ────────────────────────
+#
+# ★★ 2026-08-20 — <b>손으로 적던 표를 없앴다.</b> 유저 지시: *"하드 코딩 최대한 자제하고
+#   웬만한건 다 mcp로 직접 만들어줘"*.
+#
+# 예전에는 캐릭터 id → 스킨 이름을 여기 다섯 줄로 적어 뒀다. 그런데 다섯 줄이 전부
+# <b>같은 규칙</b>이었다: `Skin_<영어 이름>` (Elin→Skin_Elin · Bigior→Skin_Bigior · …).
+# 즉 표는 규칙의 <b>중복</b>이었고, 그래서 시그리드(9006)를 추가했을 때 이 줄을 안 고쳐
+# `skinAssetName` 이 <b>빈 문자열</b>로 나갔다 — 캐릭터가 외형 없이 생성될 상태였다.
+#
+# 이제 규칙으로 만든다: 영어 이름으로 `Skin_<En>` 을 짓고, <b>그 에셋이 실제로 있을 때만</b>
+# 적는다. 원화가 아직 없는 캐릭터가 없는 스킨을 가리켜 런타임 경고를 내지 않게 하려는 것이다.
+#
+# ⚠ `SKIN_OVERRIDE` 는 <b>예외용으로만</b> 남긴다 — 이름 규칙에서 벗어나는 인물이 생기면
+#   여기 한 줄을 적는다. 지금은 비어 있는 것이 정상이다.
+SKIN_OVERRIDE = {}
+
+
+def skin_asset_name(cid, name_en):
+    """
+    이 캐릭터가 쓸 스킨 에셋 이름. 규칙은 `Skin_<영어 이름>` 하나다(위 ★★).
+    에셋이 없으면 빈 문자열 — 없는 것을 가리키는 것보다 비는 편이 낫다
+    (`CharacterAnimator` 가 비면 무작위 스킨으로 떨어진다).
+    """
+    if cid in SKIN_OVERRIDE:
+        return SKIN_OVERRIDE[cid]
+    if not name_en:
+        return ''
+    guess = 'Skin_%s' % name_en
+    path = os.path.join(_PROJECT, 'Assets', '_Project', 'Resources', 'Skins', guess + '.asset')
+    return guess if os.path.isfile(path) else ''
 
 # 역할 고정 — 능력치 역산(CharacterRole)을 덮어쓸 인물만 적는다. 값은 RoleAttackPreset /
 # RolePositionPreset enum 의 정수다 (0=Auto · 공격 1=Melee 2=Ranged 3=Magic 4=Heal ·
@@ -202,17 +224,50 @@ for folder, key in ((OUT_SKILL, 'Resources/PassiveSkills'), (OUT_CHAR, 'Resource
 
 skill_guid_by_id = {}
 made = 0
+# ★★ Skill 시트도 <b>이름으로</b> 읽는다 (2026-08-20)
+#
+# 예전에는 컬럼 번호를 박아 뒀다(`ws.cell(r, 7)` = 쿨타임 …). 그런데 그 뒤 표에
+# **`value_04` 컬럼이 새로 생겼다** — 지금 시트는 10칸이다:
+#   1 skill_id · 2 skill_name · 3 skill_type · 4~7 value_01~04 · 8 cool_time ·
+#   9 skill_icon · 10 skill_explain
+#
+# ⚠⚠ 그래서 번호로 읽으면 **전부 한 칸씩 밀린다**: 쿨타임 칸이 `value_04` 를 읽고,
+#    아이콘 칸이 **숫자(쿨타임)** 를 읽고, 플레이버 칸이 **아이콘 이름**을 읽는다.
+#    다행히 그 컬럼이 생긴 뒤로 이 스크립트를 한 번도 안 돌려서 에셋은 아직 멀쩡했다 —
+#    <b>다음 실행이 전부 망가뜨릴 상태였다</b>(2026-08-20 에 발견해 고쳤다).
+#    `sync_tables_to_assets.py` 의 read_rows 주석이 적어둔 2026-08-13 사고와 같은 종류다.
+_SKILL_COL = {}
+for c in range(1, ws.max_column + 1):
+    v = ws.cell(2, c).value
+    if v:
+        _SKILL_COL[str(v).strip()] = c
+
+
+def skill_cell(row, field):
+    c = _SKILL_COL.get(field)
+    return ws.cell(row, c).value if c else None
+
+
+for _f in ('skill_id', 'skill_name', 'skill_type', 'cool_time', 'skill_icon', 'skill_explain'):
+    if _f not in _SKILL_COL:
+        raise SystemExit('캐릭터 테이블 Skill 시트에 %s 컬럼이 없습니다.' % _f)
+
 for r in range(4, ws.max_row + 1):
-    sid = ws.cell(r, 1).value
+    sid = skill_cell(r, 'skill_id')
     if not sid:
         continue
     sid = int(sid)
-    sname = text_of(ws.cell(r, 2).value)          # 셀은 이제 키다 — 문구로 되돌린다
-    stype = (ws.cell(r, 3).value or '').strip()
-    v1, v2, v3 = num(ws.cell(r, 4).value), num(ws.cell(r, 5).value), num(ws.cell(r, 6).value)
-    cool = num(ws.cell(r, 7).value)
-    icon = (ws.cell(r, 8).value or '').strip()
-    flavor = text_of(ws.cell(r, 9).value)
+    sname = text_of(skill_cell(r, 'skill_name'))   # 셀은 이제 키다 — 문구로 되돌린다
+    stype = (skill_cell(r, 'skill_type') or '').strip()
+    v1 = num(skill_cell(r, 'value_01'))
+    v2 = num(skill_cell(r, 'value_02'))
+    v3 = num(skill_cell(r, 'value_03'))
+    # ★ value_04 — 시그리드 「가학증」이 네 번째 값을 쓴다(아군 회복량 = 시그리드
+    #   현재 체력의 value_04%). 컬럼이 없는 옛 표에서는 0 이 된다.
+    v4 = num(skill_cell(r, 'value_04'))
+    cool = num(skill_cell(r, 'cool_time'))
+    icon = (skill_cell(r, 'skill_icon') or '').strip()
+    flavor = text_of(skill_cell(r, 'skill_explain'))
     effect = text_of(skill_types.get(stype, ''))
 
     asset_name = 'Skill_%d_%s' % (sid, stype.replace(' ', ''))
@@ -233,6 +288,7 @@ for r in range(4, ws.max_row + 1):
     body += "  value01: %s\n" % v1
     body += "  value02: %s\n" % v2
     body += "  value03: %s\n" % v3
+    body += "  value04: %s\n" % v4
     body += "  coolTime: %s\n" % cool
     body += "  iconName: %s\n" % yaml_str(icon)
     body += "  flavorText: %s\n" % yaml_str(flavor)
@@ -315,7 +371,7 @@ for r in range(4, wc.max_row + 1):
     body += "  titleKey: %s\n" % yaml_str('character_title_%d' % cid if ctitle else '')
     body += "  title: %s\n" % yaml_str(ctitle)
     body += "  illustName: %s\n" % yaml_str(illust)
-    body += "  skinAssetName: %s\n" % yaml_str(SKIN_OVERRIDE.get(cid, ''))
+    body += "  skinAssetName: %s\n" % yaml_str(skin_asset_name(cid, cname_en))
     body += "  stats:\n"
     body += "    hp: %d\n" % st.get('hp', 5)
     body += "    attack: %d\n" % st.get('melee_atk', 5)

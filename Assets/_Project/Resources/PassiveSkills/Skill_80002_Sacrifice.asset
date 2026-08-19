@@ -21,7 +21,8 @@ MonoBehaviour:
   value01: 40
   value02: 30
   value03: 0
+  value04: 0
   coolTime: 180
-  iconName: 'icon_blessing'
+  iconName: 'icon_ascension'
   flavorText: '엘린은 사랑하는 이들을 위해 자기 자신마저 버릴 수 있습니다.'
   effectTemplate: '엘린의 주변에 현재체력이 최대체력의{value_01}%만큼 감소한 상태의 동료가 존재한다면 즉시 엘린의 현재 체력이 {value_02}% 만큼 감소하고 대상의 체력을 최대체력의{value_02}%만큼 회복한다.'

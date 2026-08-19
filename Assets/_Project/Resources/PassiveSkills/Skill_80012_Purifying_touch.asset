@@ -21,7 +21,8 @@ MonoBehaviour:
   value01: 4
   value02: 20
   value03: 50
+  value04: 0
   coolTime: 120
-  iconName: 'icon_heal_cross'
+  iconName: 'icon_heal_plus'
   flavorText: '피올로의 손길은 천사들에겐 달콤한 휴식과도 같습니다.'
   effectTemplate: "정화의 손길이 활성화 된 동안 피올로가 공격한 적에게 '정화'를 한 개 부여한다. '정화'가 부여된 적을 공격할 시 공격한 캐릭터의  현재 체력이 최대 체력의 {value_01}% 만큼 회복되고, '정화'가 즉시 해제된다. '정화' 는 중첩 부여될 수 없다. 정화의 손길은 {value_02}초 동안 지속된다. 피올로의 현재 체력이 최대체력의 {value_03}% 가 되면 발동"

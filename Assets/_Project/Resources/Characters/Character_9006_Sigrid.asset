@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bacf4f16746e56b4da254173d578cf4e, type: 3}
+  m_Name: Character_9006_Sigrid
+  m_EditorClassIdentifier:
+  characterId: 9006
+  nameKey: 'character_name_9006'
+  characterName: '시그리드'
+  characterNameEn: 'Sigrid'
+  titleKey: 'character_title_9006'
+  title: '환희에 젖은 순교자'
+  illustName: 'illust_Sigrid'
+  skinAssetName: 'Skin_Sigrid'
+  stats:
+    hp: 6
+    attack: 6
+    defense: 2
+    regen: 4
+    rangedAttack: 8
+    magic: 5
+    cure: 2
+    accuracy: 4
+    critical: 4
+    attackSpeed: 6
+    moveSpeed: 7
+    resistance: 76
+  attackPreset: 0
+  positionPreset: 0
+  passives:
+  - {fileID: 11400000, guid: 5a1b30e449eec090895ad9ee8524a1f2, type: 2}
+  - {fileID: 11400000, guid: 6d4cbc9bca4dc8e4db7618a6c6e379bc, type: 2}
+  - {fileID: 11400000, guid: c6389c8aa9d619465781063812dce864, type: 2}
+  narrative: ''

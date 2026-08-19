@@ -21,7 +21,8 @@ MonoBehaviour:
   value01: 2
   value02: 5
   value03: 3
+  value04: 0
   coolTime: 0
-  iconName: 'icon_arcane_aura'
+  iconName: 'icon_heart_guard'
   flavorText: '그녀는 전투 중 종종 황홀경에 빠지곤 합니다.'
   effectTemplate: '프레이야의 2초내에 직접 공격한 적이 사망할때 마다 프레이야의 공격속도와 이동속도가 {value_02}초 동안 {value_03}만큼 증가한다. 중첩가능하며 중첩될 때마다 지속시간이 0초로 초기화 된다. 이 값으로 상승한 공격속도 및 이동속도는 최대값을 초과할 수 있다.'

@@ -77,10 +77,11 @@ from PIL import Image
 from vault_path import VAULT, PROJECT
 
 #: 몸통 모션 + 근접/아우성/히트 이펙트.
-SRC_MAIN = os.path.join(VAULT, "리소스", "Laryngeal_asset_02.png")
+# ⚠ 2026-08-20 — 원본이 `리소스/` 에서 `리소스/sprites/` 로 옮겨졌다(다른 시트와 함께 정리된 듯).
+SRC_MAIN = os.path.join(VAULT, "리소스", "sprites", "Laryngeal_asset_02.png")
 
 #: 「타오르는 숨결」 화염만 — 이 판본이 <b>5단계</b>다(맨 위 주석).
-SRC_FLAME = os.path.join(VAULT, "리소스", "Laryngeal_asset.png")
+SRC_FLAME = os.path.join(VAULT, "리소스", "sprites", "Laryngeal_asset.png")
 
 DST_ROOT = os.path.join(PROJECT, "Assets", "_Project", "Art", "Char_Asset",
                         "Char_Asset_Laryngeal", "Char")
@@ -152,7 +153,9 @@ BANDS = [
     ("Idle",          8, 1100,  52,  60,  64, 200),
     ("Move",          8, 1100, 253, 261, 265, 395),
     ("MeleeAttack",   8,  770, 455, 463, 468, 578),
-    ("Turn",        790, 1100, 455, 463, 468, 578),
+    # ⚠ 「방향 전환」은 스킨에 받을 칸이 없다(좌우 반전으로 방향을 바꾼다 · 69-6절) —
+    #   ``Unused_`` 로 두면 유니티 빌더가 조용히 건너뛴다.
+    ("Unused_Turn", 790, 1100, 455, 463, 468, 578),
     ("Skill1",        8, 1100, 630, 638, 639, 765),
     ("Skill2",        8, 1100, 820, 828, 832, 952),
 ]
@@ -162,7 +165,7 @@ FILE_PREFIX = {
     "Idle": "Char_Idle",
     "Move": "Char_Move",
     "MeleeAttack": "Char_MeleeAttack",
-    "Turn": "Char_Turn",
+    "Unused_Turn": "Char_Unused_Turn",
     "Skill1": "Char_Skill1",
     "Skill2": "Char_Skill2",
 }
@@ -183,20 +186,24 @@ SOURCE_FACES_LEFT = {"Move", "MeleeAttack"}
 # ──────────────────────────────────────────────────────────────────────────
 FX_CELLS = [
     # 근거리 공격 이펙트 — ⚠ 배선하지 않는다(스킨에 「평타 이펙트」 칸이 없다).
-    ("MeleeFx", "main", 104, 178, [(1140, 1205), (1206, 1315), (1325, 1440), (1441, 1508)]),
+    # ★★ 2026-08-20 — 이제 <b>배선한다</b>. 유저 지시: *"라린길 돌진 이펙트를 투사체의
+    #   형태로 만들어서 날아가는 모습 연출"*. 이 네 장이 시트의 「3. 근거리 공격 이펙트」이고
+    #   <b>초승달 참격이 앞으로 뻗는</b> 그림이다. `CharacterSkinSO.meleeTravelFrames` 칸을
+    #   새로 만들어 근접 평타에 실어 보낸다(그쪽 주석에 근거).
+    ("MeleeTravelFx", "main", 104, 178, [(1140, 1205), (1206, 1315), (1325, 1440), (1441, 1508)]),
 
     # ★ 아우성 — 고리가 <b>커지는</b> 세 단계. 원형 스킬(반지름 5)의 범위 연출이다.
-    ("Screech", "main", 277, 377, [(1128, 1193), (1194, 1286), (1287, 1385)]),
+    ("Skill1Fx", "main", 277, 377, [(1128, 1193), (1194, 1286), (1287, 1385)]),
 
     # 아우성이 파동으로 흩어지는 그림 — ⚠ 배선하지 않는다(원형 범위에 가로로 긴 그림을
     # 깔면 상자 비율이 통째로 눕는다 · ResolveArea 는 <b>첫 장</b>으로 비율을 잡는다).
-    ("ScreechWave", "main", 277, 377, [(1386, 1508)]),
-    ("ScreechWave", "main", 399, 456, [(1128, 1508)]),
+    ("Unused_ScreechWave", "main", 277, 377, [(1386, 1508)]),
+    ("Unused_ScreechWave", "main", 399, 456, [(1128, 1508)]),
 
     # 숨결이 닿은 자리의 폭발 — ⚠ 배선하지 않는다. 보스 스킬에는 「착탄」 칸이 없고
     # (`impactFrames` 는 투사체 전용인데 라린길은 근접이라 투사체를 안 쓴다),
     # 범위 연출(skill2Fx)에 이어 붙이면 <b>캔버스가 세로로 커져</b> 불길이 그만큼 얇아진다.
-    ("BreathHit", "main", 852, 975, [(1140, 1200), (1210, 1290), (1295, 1388), (1389, 1508)]),
+    ("Unused_BreathHit", "main", 852, 975, [(1140, 1200), (1210, 1290), (1295, 1388), (1389, 1508)]),
 ]
 
 #: ★ 「타오르는 숨결」 화염 — <b>첫 판본</b>의 다섯 줄. 한 줄이 곧 한 단계다.
@@ -720,8 +727,13 @@ def build_bodies(sheet):
 
 
 def build_fx(sheets):
-    """이펙트 묶음 — 묶음마다 캔버스를 따로 잡는다(가운데 정렬)."""
-    folder = os.path.join(DST_ROOT, "Fx")
+    """
+    이펙트 묶음 — 묶음마다 캔버스를 따로 잡는다(가운데 정렬).
+
+    ★ 2026-08-20 — 묶음마다 <b>자기 폴더</b>에 쓴다. 폴더 이름이 곧 스킨 칸이고
+      `Editor/CharacterSkinBuilder.cs` 가 그 이름으로 배선한다(하드코딩 없이).
+      예전에는 전부 `Fx/` 에 몰아넣고 파이썬이 YAML 로 배선했다.
+    """
     made = 0
     counter = {}
 
@@ -741,16 +753,19 @@ def build_fx(sheets):
             canvas = np.zeros((h, w, 4), dtype=np.uint8)
             bw, bh = bx1 - bx0 + 1, by1 - by0 + 1
             canvas[(h - bh) // 2:(h - bh) // 2 + bh, (w - bw) // 2:(w - bw) // 2 + bw] = rgba
+            folder = os.path.join(DST_ROOT, name)
             write_png(Image.fromarray(canvas, "RGBA"), folder,
-                      "Char_Fx_%s_%02d" % (name, n))
+                      "Char_%s_%02d" % (name, n))
             n += 1
             made += 1
 
         counter[name] = n
-        print("  Fx/%-12s %3d x %3d · %2d장" % (name, w, h, len(boxes)))
+        ensure_folder_meta(os.path.join(DST_ROOT, name))
+        print("  %-20s %3d x %3d · %2d장" % (name, w, h, len(boxes)))
 
-    made += build_flame(sheets["flame"], folder)
-    ensure_folder_meta(folder)
+    # 「타오르는 숨결」 화염 = 스킬 2 의 범위 연출.
+    made += build_flame(sheets["flame"], os.path.join(DST_ROOT, "Skill2Fx"))
+    ensure_folder_meta(os.path.join(DST_ROOT, "Skill2Fx"))
     return made
 
 
@@ -812,15 +827,62 @@ def build_flame(sheet, folder):
         ox = left
         oy = up - (p["axis"] - p["y0"])
         canvas[oy:oy + rgba.shape[0], ox:ox + rgba.shape[1]] = rgba
-        write_png(Image.fromarray(canvas, "RGBA"), folder, "Char_Fx_Flame_%02d" % i)
+        write_png(Image.fromarray(canvas, "RGBA"), folder, "Char_Skill2Fx_%02d" % i)
         made += 1
 
     print("  Fx/%-12s %3d x %3d · %2d장 (자라나는 숨결 · 입 기준 정렬)" % ("Flame", w, h, made))
     return made
 
 
+#: ★ 스킨 에셋의 «값» 칸 — 원화만 봐서는 알 수 없는 것.
+#:   유니티 빌더(`Editor/CharacterSkinBuilder.cs`)가 읽는다.
+SKIN_SPEC = {
+    "skinAssetName": "Skin_Laryngeal",
+    # ⚠ 라린길은 <b>웨이브 보스</b>라 캐릭터 스킨 폴더가 아니다 — 종마다 폴더 하나다
+    #   (`CharacterAnimator.PickRandomSkin` 이 폴더 안에서 무작위로 고르므로 한 폴더에
+    #    몰아넣으면 다른 몬스터가 라린길 외형으로 나온다).
+    "outputFolder": "Assets/_Project/Resources/MonsterSkins/Laryngeal",
+    "displayName": "라린길",
+    "framesPerSecond": "10",
+    "attackFramesPerSecond": "14",
+    # ★ 근접 평타의 날아가는 참격을 가로 몇 타일로 그릴지 (2026-08-20).
+    #   라린길 몸집이 11타일이라 1.6 이면 발톱 자국 정도로 보인다.
+    "meleeTravelWidthTiles": "1.6",
+}
+
+
+def write_spec():
+    """
+    ★ 2026-08-20 — 스킨 에셋을 파이썬이 YAML 로 엮지 않는다. 유저 지시
+    *"하드 코딩 최대한 자제하고 웬만한건 다 mcp로 직접 만들어줘"* 에 따라
+    <b>유니티가 직접</b> 만들고(`Editor/CharacterSkinBuilder.cs` · MCP 메뉴),
+    여기서는 원화만 봐서는 알 수 없는 값을 파일로 옆에 둔다.
+    """
+    from skin_sheet import SKIN_SPEC_NAME, write_skin_spec
+    n = write_skin_spec(DST_ROOT, SKIN_SPEC, "Tools/laryngeal_skin_build.py")
+    print("  스킨 설정 %s (%d줄) — 유니티 빌더가 읽는다" % (SKIN_SPEC_NAME, n))
+
+
+def clear_old_fx_folder():
+    """
+    ⚠ 예전 판이 이펙트를 전부 `Char/Fx/` 한 폴더에 몰아넣었다. 이제 칸마다 폴더가
+    따로 생기므로 그 폴더는 <b>남아 있으면 안 된다</b> — 유니티 빌더가 «칸 이름이
+    아닌 폴더» 라고 경고하고, 옛 프레임이 에셋 목록에 계속 뜬다.
+    """
+    import shutil
+    old = os.path.join(DST_ROOT, "Fx")
+    if os.path.isdir(old):
+        n = sum(1 for _ in os.scandir(old))
+        shutil.rmtree(old)
+        meta = old + ".meta"
+        if os.path.isfile(meta):
+            os.remove(meta)
+        print("  옛 Fx/ 폴더 삭제 (%d개 파일)" % n)
+
+
 def main():
     print("원본 두 장을 읽습니다")
+    clear_old_fx_folder()
     sheets = {
         "main": load_sheet(SRC_MAIN),
         "flame": load_sheet(SRC_FLAME),
@@ -832,10 +894,11 @@ def main():
     print("\n이펙트")
     made += build_fx(sheets)
 
+    write_spec()
     ensure_folder_meta(DST_ROOT)
     ensure_folder_meta(os.path.dirname(DST_ROOT))
     print("\n프레임 %d장 생성 → %s" % (made, DST_ROOT))
-    print("다음: python Tools/gen_laryngeal_skin.py")
+    print("다음: 유니티 메뉴 LastSanctuary/스킨/원화 폴더로 스킨 에셋 만들기")
     return 0
 
 

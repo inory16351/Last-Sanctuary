@@ -588,8 +588,11 @@ namespace LastSanctuary.Units
             unit.name = def.DisplayName;
             unit.gameObject.SetActive(true);
 
-            // ★ 상한 없음 (2026-08-18, 96-1절)
-            ConfigureSpawnedMonster(unit, def, def.BuildStats(hpScale, atkScale));
+            // ★ 체력은 상한 없이 오르고 <b>공격 계열만</b> 상한에 걸린다
+            //   (2026-08-19 · BalanceConfigSO.monsterAttackStatMax 위 주석).
+            //   96-1절이 뗀 것은 <c>statMax</c>(캐릭터 강화 상한)이고, 이건 몬스터 전용
+            //   상한이라 다른 값이다 — 같은 실수를 되풀이하는 것이 아니다.
+            ConfigureSpawnedMonster(unit, def, def.BuildStats(hpScale, atkScale, balance));
         }
 
         /// <summary>

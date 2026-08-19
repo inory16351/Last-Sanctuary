@@ -21,7 +21,8 @@ MonoBehaviour:
   value01: 3
   value02: 2
   value03: 0
+  value04: 0
   coolTime: 0
-  iconName: 'icon_flame_burst'
+  iconName: 'icon_feather_burst'
   flavorText: '비기오르의 의지가 불타오릅니다.'
   effectTemplate: '비기오르의 반경 {value_01} 내에 있는 적들은 초당 비기오르의 현재체력{value_02}% 만큼 데미지를 받는다. 데미지 계산 공식 적용'

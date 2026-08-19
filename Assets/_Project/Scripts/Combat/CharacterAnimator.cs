@@ -368,9 +368,15 @@ namespace LastSanctuary.Combat
 
         /// <summary>
         /// 지금 전술이 요구하는 공격 계열 모션.
-        /// <b>회복은 전용 모션을 먼저 찾는다</b> — 없으면 <see cref="CharacterSkinSO.Attack"/> 안에서
-        /// 원거리 → 근접으로 대체된다(유저 지시: 회복 원화가 없으면 공격 모션 사용).
-        /// 마법은 예전처럼 원거리 모션을 같이 쓴다 — 둘 다 떨어져서 시전하는 동작이다.
+        /// <b>회복·마법은 전용 모션을 먼저 찾는다</b> — 없으면
+        /// <see cref="CharacterSkinSO.Attack"/> 안에서 원거리 → 근접으로 대체된다
+        /// (유저 지시: 회복 원화가 없으면 공격 모션 사용).
+        ///
+        /// ★ <b>마법이 원거리와 갈라졌다</b> (2026-08-19) — 예전에는 여기서 마법도
+        /// <c>Ranged</c> 로 접었다. 엘린 시트가 마법 시전을 <b>다른 동작으로</b> 그려 오면서
+        /// 접을 수 없게 됐다(<see cref="SkinAttackMotion.Magic"/> 주석).
+        /// 전용 원화가 없는 스킨은 <c>Attack()</c> 안에서 그대로 원거리로 떨어지므로
+        /// <b>동작이 바뀌는 캐릭터는 엘린뿐</b>이다.
         /// </summary>
         SkinAttackMotion CurrentAttackMotion()
         {
@@ -379,6 +385,7 @@ namespace LastSanctuary.Combat
             {
                 case TacticalAttackType.Heal: return SkinAttackMotion.Heal;
                 case TacticalAttackType.Melee: return SkinAttackMotion.Melee;
+                case TacticalAttackType.Magic: return SkinAttackMotion.Magic;
                 default: return SkinAttackMotion.Ranged;
             }
         }

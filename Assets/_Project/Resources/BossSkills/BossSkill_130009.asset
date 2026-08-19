@@ -16,7 +16,7 @@ MonoBehaviour:
   nameKey: skill_name_130009
   displayName: ''
   skillType: Pipe_strike
-  explainKey: skill_explain_130007
+  explainKey: skill_explain_130009
   value01: 3
   value02: 1
   value03: 200
