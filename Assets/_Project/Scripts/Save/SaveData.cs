@@ -28,7 +28,27 @@ namespace LastSanctuary.Save
         /// </summary>
         public int version = CurrentVersion;
 
-        public const int CurrentVersion = 1;
+        /// <summary>
+        /// 2 로 올린 이유 — <see cref="mapSeed"/> 신설 (2026-08-19, 맵 랜덤 생성).
+        ///
+        /// ⚠ <b>판을 올려서 옛 세이브를 거부하는 것이 맞다.</b> 옛 파일에는 맵 씨앗이 없어서
+        /// 이어하기가 <b>다른 지형</b>을 만들고, 그 위에 저장된 좌표로 유닛을 되살린다 —
+        /// 캐릭터가 벽 안에 박히고 서식지가 엉뚱한 곳에 그려진다. 조용히 깨진 판으로
+        /// 복원하는 것보다 "형식이 다릅니다" 로 거부하는 편이 낫다
+        /// (<see cref="SaveService.Load"/> 가 이미 그렇게 처리한다).
+        /// </summary>
+        public const int CurrentVersion = 2;
+
+        /// <summary>
+        /// ★ 이 판의 <b>맵 씨앗</b> (2026-08-19 신설). 이어하기가 <b>같은 지형</b>을 다시
+        /// 만드는 근거다 — 이 값 하나로 320x320 맵 전체가 결정된다
+        /// (<see cref="LastSanctuary.Map.MapGenerator.Generate"/>).
+        ///
+        /// <b>왜 타일을 저장하지 않는가</b> — 서식지가 「중심 칸 + 반지름 + 씨앗」 셋만
+        /// 저장하는 것과 <b>같은 이유</b>다(<c>NeutralHabitat.Seed</c>). 타일 10만 칸을 적으면
+        /// 세이브가 수 MB가 되고, 생성 규칙을 고치는 순간 옛 파일과 어긋난다.
+        /// </summary>
+        public int mapSeed;
 
         /// <summary>사람이 읽을 수 있는 저장 시각. 로비의 "이어하기" 설명에 쓴다.</summary>
         public string savedAt = string.Empty;

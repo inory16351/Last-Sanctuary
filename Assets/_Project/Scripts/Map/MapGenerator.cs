@@ -48,6 +48,20 @@ namespace LastSanctuary.Map
         [Tooltip("체크하면 게임 시작 시 자동 생성. 끄면 에디터 버튼으로만 생성")]
         [SerializeField] bool generateOnAwake = false;
 
+        [Tooltip("★ 켜면 <b>판마다 다른 맵</b>이 나온다 (씨앗을 매번 새로 뽑는다).\n" +
+                 "끄면 config 의 고정 seed 를 써서 언제나 같은 맵이 나온다 — 지형 자체를 " +
+                 "비교해야 하는 디버깅에는 끄는 편이 낫다.\n\n" +
+                 "⚠ <b>이어하기는 이 값과 무관하게 저장된 씨앗을 쓴다</b> — 안 그러면 불러올 때마다 " +
+                 "지형이 바뀌어 캐릭터가 벽에 박힌다(ResolveStartupSeed 주석).")]
+        [SerializeField] bool randomizeSeedOnAwake = true;
+
+        /// <summary>
+        /// 지금 깔려 있는 지형을 만든 씨앗. <b>저장이 이 값을 적어야</b> 이어하기가 같은 맵을
+        /// 다시 만든다(<see cref="LastSanctuary.Save.SaveData.mapSeed"/>).
+        /// 한 번도 생성하지 않았으면 0 이다.
+        /// </summary>
+        public int ActiveSeed { get; private set; }
+
         // 생성 결과 — 다른 시스템(플로우 필드, 스폰 배치)이 참조한다.
         public MapGenerationConfigSO Config => config;
         public bool[] Walkable { get; private set; }
@@ -65,7 +79,40 @@ namespace LastSanctuary.Map
 
         void Awake()
         {
-            if (generateOnAwake) Generate(config != null ? config.seed : 0);
+            if (generateOnAwake) Generate(ResolveStartupSeed());
+        }
+
+        /// <summary>
+        /// 이번 판에 쓸 씨앗을 정한다 — <b>이어하기 &gt; 무작위 &gt; 고정</b> 순.
+        ///
+        /// ★★ <b>왜 여기서 저장을 들여다보는가(밀지 않고 당기는가)</b> — 이 결정은 반드시
+        /// <see cref="Awake"/> 안에서 끝나야 한다. 맵을 읽는 쪽이 전부 <c>Start</c> 에서 도는데
+        /// (<c>FogOfWarService.Build</c> · <c>FlowFieldService</c> · <c>NexusSanctuary</c> ·
+        /// 스포너 셋), 유니티는 <b>모든 Awake 가 모든 Start 보다 먼저</b> 돈다는 것만 보장하고
+        /// 오브젝트 사이의 Awake 순서는 보장하지 않는다. 그래서 "누군가 씨앗을 넣어 준 뒤에
+        /// 생성한다" 는 구조를 만들 수가 없다 — <b>스스로 물어보는 것</b>이 유일하게 확실하다.
+        ///
+        /// ⚠ <b>복원 시점에 맵을 다시 만드는 방법은 못 쓴다.</b> <c>GameSnapshot</c> 의 복원은
+        /// <c>Start</c> 다음 프레임인데, 그때는 이미 안개가 만들어졌고 스포너가 초기 개체를
+        /// 뿌렸고 <b>서식지가 칠해져 있다</b>. 거기서 지형을 갈아치우면 그 전부가 어긋난다.
+        ///
+        /// ⚠ <see cref="SaveService.PendingLoad"/> 는 <c>GameSnapshot</c> 이 <b>복원할 때</b>
+        /// 비우므로(그쪽 <c>RestoreNextFrame</c>), Awake 에서 읽는 것은 안전하다.
+        ///
+        /// ⚠ 무작위 씨앗을 <b>양수로만</b> 뽑는다 — <c>new System.Random(int.MinValue)</c> 는
+        /// 런타임 구현에 따라 예외를 던진다(내부에서 절댓값을 취한다). 20억 가지면 충분하다.
+        /// </summary>
+        int ResolveStartupSeed()
+        {
+            // ① 이어하기 — 저장된 지형을 그대로 되살린다.
+            Save.SaveData pending = Save.SaveService.PendingLoad;
+            if (pending != null) return pending.mapSeed;
+
+            // ② 새 판 — 매번 다른 지형.
+            if (randomizeSeedOnAwake) return Random.Range(1, int.MaxValue);
+
+            // ③ 고정 — 지형을 비교해야 할 때.
+            return config != null ? config.seed : 0;
         }
 
         // ------------------------------------------------------------------
@@ -76,6 +123,9 @@ namespace LastSanctuary.Map
         public void Generate(int seed)
         {
             if (!Validate()) return;
+
+            // 저장이 읽어갈 값 — 지금 깔린 지형이 어느 씨앗에서 나왔는지.
+            ActiveSeed = seed;
 
             MapSize = config.MapSize;
             Origin  = config.Origin;

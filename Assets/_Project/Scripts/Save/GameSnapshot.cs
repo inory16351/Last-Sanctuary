@@ -188,8 +188,25 @@ namespace LastSanctuary.Save
             CaptureNeutrals(data);
             CaptureSubjugation(data);
             CaptureFog(data);
+            CaptureMap(data);
 
             return data;
+        }
+
+        /// <summary>
+        /// ★ 이 판의 <b>지형 씨앗</b>을 적는다 (2026-08-19, 맵 랜덤 생성).
+        ///
+        /// 이 한 칸이 없으면 이어하기가 <b>다른 지형</b>을 만들고 그 위에 저장된 좌표로
+        /// 유닛을 되살린다 — 캐릭터가 벽에 박히고 서식지가 엉뚱한 곳에 그려진다.
+        /// 그래서 <see cref="SaveData.CurrentVersion"/> 도 같이 올렸다(옛 파일은 거부된다).
+        ///
+        /// ⚠ 0 이면 <b>런타임 생성을 안 하는 설정</b>(씬에 구운 맵을 그대로 쓰는 예전 방식)이다 —
+        ///   그때는 이어하기도 그 구운 맵을 쓰므로 0 을 그대로 적는 것이 맞다.
+        /// </summary>
+        void CaptureMap(SaveData data)
+        {
+            var map = FindAnyObjectByType<Map.MapGenerator>();
+            if (map != null) data.mapSeed = map.ActiveSeed;
         }
 
         void CaptureCharacters(SaveData data)
