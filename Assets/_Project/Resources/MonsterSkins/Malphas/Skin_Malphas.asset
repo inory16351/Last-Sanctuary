@@ -209,6 +209,13 @@ MonoBehaviour:
   - {fileID: 21300000, guid: 3b4095bb9775311ac700ade5dda5f8e3, type: 3}
   skill2Fx:
   - {fileID: 21300000, guid: aa8047782be7d899efc0e86ecfa88460, type: 3}
+  - {fileID: 21300000, guid: 6a59c1b697e8982d6569dfd3fedb9553, type: 3}
+  - {fileID: 21300000, guid: b1e2d87883cd1894c1a0822509430986, type: 3}
+  - {fileID: 21300000, guid: 462a990edd402d95f5257b30885c2486, type: 3}
+  - {fileID: 21300000, guid: 2c623a6e91f963f7567449f4ecc3e261, type: 3}
+  - {fileID: 21300000, guid: 4fd2a931515ba7d392611ee761ec25a3, type: 3}
+  - {fileID: 21300000, guid: 45f2b45d0e5d6e3fd57b4d46f2c739c6, type: 3}
+  - {fileID: 21300000, guid: 6a99990dcf4e1469516f804d47cfed63, type: 3}
   skill1Projectile:
   - {fileID: 21300000, guid: 5ada80a93dd04f39fb038131cf20a666, type: 3}
   - {fileID: 21300000, guid: 70eba386659839d900b6a660a45a6ccc, type: 3}
@@ -236,7 +243,7 @@ MonoBehaviour:
   projectileScale: 0.55
   impactScale: {x: 1, y: 1}
   contentSizeTiles: {x: 1.172, y: 1.297}
-  projectileSizeTiles: {x: 0.734, y: 0.672}
+  projectileSizeTiles: {x: 0.75, y: 0.672}
   impactSizeTiles: {x: 0.703, y: 0.688}
   projectileWidthTiles: 0
   impactWidthTiles: 0

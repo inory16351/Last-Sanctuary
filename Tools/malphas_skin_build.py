@@ -31,6 +31,55 @@
 원본을 ``Right`` 로 보고 ``Left`` 를 좌우 반전으로 만든다.
 ⚠ 카르시노스는 반대다(원본이 왼쪽) — 새 원화마다 확인할 것.
 
+────────────────────────────────────────────────────────────────────────────
+2026-08-19 개정 — 유저 리포트 3건 (진행상황 113절)
+────────────────────────────────────────────────────────────────────────────
+
+**① "이동중에 다음 모션 덜 짤려서 다리 섞여 나온다"** → :func:`snap_cells_to_gaps`
+
+라벨 중점만으로 자르면 경계가 **그림 한가운데**에 떨어진다. 실제로 이동 행의 칸
+경계는 733/734 였는데 프레임 사이의 빈 열은 741~751 이라, 모든 칸이 **옆 프레임의
+다리 끝을 8px 씩 물고** 있었다(칸 폭 105px 인데 몸통은 75px — 나머지가 남의 다리다).
+그 조각이 알파 경계를 넓혀 몸통이 캔버스 한가운데에서 왼쪽으로 밀리기까지 했다.
+
+고친 방식은 카시노마가 쓰던 것과 같다 — **라벨로 칸 수를 세고, 경계는 그 근처에서
+잉크가 완전히 비는 열로 옮긴다.** ⚠ **빈 열이 없으면 옮기지 않는다.** 저주광선 행처럼
+그림이 실제로 이어져 있는 줄까지 억지로 자르면 빔이 토막 난다 — 라벨 중점은 그런
+줄에서는 여전히 유일한 근거다.
+
+**② "원거리 공격 시 말파스가 작아진다"** → :data:`SCALE_REFERENCE_MOTION`
+
+원인은 원화다. 이 시트는 **행마다 그린 크기가 다르다** — 대기 83px · 이동 76px ·
+원거리 68px · 근접 62px · 스킬1 59px · 스킬2 55px · 피격 53px. 그런데 게임의 크기
+기준(`CharacterSkinSO.contentSizeTiles`)은 **대기 원화 하나만** 재고(61·66절), 그
+배율이 모든 모션에 그대로 곱해진다. 그래서 원거리 공격에 들어가는 순간 몸이 18%
+작아졌다 — 코드가 아니라 **원화가 작았던 것**이다.
+
+그래서 여기서 **모션마다 대기 크기에 맞춰 리샘플**한다. 배율은 그 모션 프레임들의
+**세로 중앙값**으로 잰다(한두 장이 팔을 뻗어 커져도 흔들리지 않는다). ⚠ 대기가 기준인
+이유는 `measure_skin_tiles.py` 가 대기만 재기 때문이다 — 기준을 바꾸려면 그쪽도 같이
+바꿔야 한다.
+
+**③ "레이저를 통짜 한 장 말고 하나하나 잘라서 점진적으로 발사되게"** → :func:`build_beam`
+
+예전에는 저주광선 묶음을 **통짜 한 장**으로 뽑았다(맨 아래 ``FX_STRIPS`` 주석의 옛
+설명). 칸으로 자르면 53px 짜리 토막 여덟 개가 나와 레이저처럼 안 보였기 때문인데,
+그건 **자른 조각을 그대로 쓴다**는 전제에서만 맞는 말이었다.
+
+시트를 다시 읽으면 이 줄은 **한 발이 자라나는 여덟 단계**다: 앞 칸들은 총구에서
+커지는 섬광이고, 어느 칸부터 빔이 오른쪽으로 뻗어 마지막 칸의 착탄 폭발로 끝난다.
+그래서 조각을 그대로 쓰지 않고 **여덟 장을 같은 캔버스에 왼쪽(총구) 기준으로 얹는다**:
+
+    01~04  총구 섬광만 (점점 커진다)
+    05~08  총구 + 빔 — 오른쪽으로 점점 길어지고 마지막에 착탄 폭발
+
+`CombatProjectileFx.PlayArea` 는 **프레임을 수명 전체에 고르게 펼치고** 캔버스를 스킬
+상자(10 x 2 타일)에 늘려 깐다. 캔버스가 여덟 장 모두 같으므로 상자 안에서 빔이
+**자라나는 것처럼** 보인다. ⚠ 캔버스 크기가 장마다 다르면 배율이 첫 장 기준이라
+(그 함수는 `frames[0].bounds` 로 배율을 잡는다) 빔이 길어지는 게 아니라 뚱뚱해진다.
+
+**④ 이동 중 방향**은 원화가 아니라 코드다 — `CharacterAnimator.UpdateFacing` 에서 고쳤다.
+
 사용법:  python Tools/malphas_skin_build.py
 다음:    python Tools/gen_malphas_skin.py
 """
@@ -85,6 +134,34 @@ LABEL_MAX_W = 34
 #: ⚠ 높이 비율이 아니라 <b>잉크 픽셀 수</b>로 잰다 — 저주광선 마지막 칸은 빔 착탄이
 #:   위아래로 퍼져서 <b>높이는 본체만큼 크다.</b> 높이로 재면 안 걸러진다(실제로 그랬다).
 MIN_BODY_AREA_RATIO = 0.35
+
+#: 칸 경계를 **빈 열**로 옮길 때 살펴보는 범위 — 칸 폭(pitch)의 이 비율만큼 좌우로 본다.
+#:
+#: 0.45 면 이웃 라벨의 중점까지는 절대 못 넘어간다(중점끼리의 거리가 곧 pitch 다).
+#: 너무 좁게 잡으면(0.1) 이동 행의 진짜 빈 열 741~751 을 놓쳐 예전처럼 다리가 섞이고,
+#: 너무 넓게 잡으면 두 칸 건너의 빈 열로 도망가 프레임이 통째로 밀린다.
+GAP_SEARCH_RATIO = 0.45
+
+#: 칸 <b>경계를 뚫고 지나가는 얇은 줄기</b>를 몸통 프레임에서 걷어낼 때의 두께 기준 —
+#: 그 칸에서 가장 두꺼운 열의 이 비율보다 얇으면 "지나가는 줄기"로 본다.
+#:
+#: ★ 저주광선 시전 행(스킬2 둘째 줄 14~16번)이 이 경우다. 원화가 <b>레이저 한 줄을 세 칸에
+#: 걸쳐</b> 그려놨다 — 프레임 사이에 빈 열이 없어 :func:`snap_cells_to_gaps` 도 손을 못 댄다.
+#: 그대로 두면 ① 캔버스가 158px 로 부풀어 몸통이 가운데에서 밀리고 ② `skill2Fx` 가 그리는
+#: <b>진짜 빔과 겹쳐</b> 레이저가 두 줄로 보인다.
+#:
+#: ⚠ **칸 경계에 잉크가 닿아 있을 때만** 걷어낸다. 경계가 빈 열에 떨어진 칸(이동·대기 등
+#: 대부분)은 그림이 그 안에서 끝난 것이므로 촉수 끝을 잘라내면 안 된다.
+EDGE_STREAK_RATIO = 0.35
+
+#: 크기를 맞출 **기준 모션**. 게임의 몸집 계산이 대기 원화만 재기 때문이다
+#: (`CharacterSkinSO.contentSizeTiles` · `Tools/measure_skin_tiles.py`).
+SCALE_REFERENCE_MOTION = "Idle"
+
+#: 리샘플할 때 원본에서 더 떼어 오는 여백(px). 잘린 면에서 LANCZOS 가 가장자리 픽셀을
+#: 복제하며 생기는 얇은 띠를 없앤다. ⚠ **칸 밖으로는 절대 안 나간다**(옆 프레임을 물면
+#: ① 번 문제가 되살아난다) — 칸 안의 여백은 어차피 배경이라 새로 들어오는 잉크가 없다.
+RESAMPLE_MARGIN = 4
 
 # ──────────────────────────────────────────────────────────────────────────
 # 시트 배치표 — **실측값이다.** (세로 잉크 밴드 + 라벨 행 탐지로 재고 눈으로 확인함)
@@ -143,19 +220,21 @@ NO_FACING = {"FxBindingOrb"}
 FX_LABEL_Y = 944
 FX_ROW = (957, 1006)
 
-#: (이름, x 범위, 기대 프레임 수, 통짜로 뽑을지)
+#: (이름, x 범위, 기대 프레임 수, 뽑는 방식)
 #:
-#: ★ <b>저주광선만 「통짜」다.</b> 이 묶음은 여덟 칸으로 <b>나눌 수 없다</b> — 빔이 왼쪽
-#:   기점에서 자라나는 그림이라 뒤 프레임이 앞 프레임을 통째로 덮는다. 칸으로 자르면
-#:   길이 53px 짜리 토막 여덟 개가 나와 <b>레이저처럼 보이지 않는다</b>(실제로 그렇게 나왔다).
-#:   범위 연출(`CombatProjectileFx.PlayArea`)은 어차피 그림 <b>한 장</b>을 표의 가로 x 세로
-#:   상자에 맞춰 늘려 까는 물건이라, 가장 긴 빔 한 장이 정확히 필요한 것이다
-#:   (단탈리온의 skill2Fx 도 한 장이다).
+#: 방식은 세 가지다:
+#:   ``"cut"``   칸마다 따로 뽑는다 — 조각들이 서로 떨어져 있는 보통의 묶음.
+#:   ``"beam"``  ★ <b>자라나는 한 발</b>로 엮는다 (:func:`build_beam`).
+#:
+#: ⚠ <b>저주광선을 예전에는 「통짜 한 장」으로 뽑았다</b>(2026-08-18). 칸으로 자르면
+#:   53px 짜리 토막 여덟 개가 나와 레이저로 안 보였기 때문인데, 그건 <b>조각을 그대로
+#:   쓴다</b>는 전제에서만 맞는 말이었다. 조각을 <b>같은 캔버스에 총구 기준으로 누적해
+#:   얹으면</b> 여덟 장이 그대로 "점점 뻗는 빔"이 된다 — 맨 위 주석 ③ 참조.
 FX_STRIPS = [
-    ("Projectile", (12, 402), 8, False),      # 기본 원거리 투사체 (검은 구체)
-    ("BindingOrb", (408, 766), 7, False),     # 구속탄 투사체 (초록 구체 · 시트에 05번이 없다)
-    ("CurseBeam", (772, 1230), 1, True),      # 저주광선 (레이저) — 통짜 한 장
-    ("Impact", (1234, 1533), 4, False),       # 레이저 임팩트
+    ("Projectile", (12, 402), 8, "cut"),      # 기본 원거리 투사체 (검은 구체)
+    ("BindingOrb", (408, 766), 7, "cut"),     # 구속탄 투사체 (초록 구체 · 시트에 05번이 없다)
+    ("CurseBeam", (772, 1230), 8, "beam"),    # 저주광선 (레이저) — 자라나는 여덟 단계
+    ("Impact", (1234, 1533), 4, "cut"),       # 레이저 임팩트
 ]
 
 META = """fileFormatVersion: 2
@@ -329,6 +408,183 @@ def split_by_centers(centers, x0, x1):
     return out
 
 
+def snap_cells_to_gaps(mask, cells, y0, y1):
+    """
+    라벨 중점으로 잡은 칸 경계를 **잉크가 완전히 비는 열**로 옮긴다.
+
+    라벨은 "프레임이 몇 개인지"의 유일한 근거지만(맨 위 주석), **어디서 잘라야 하는지**의
+    근거는 아니다. 라벨이 그림 중심과 조금씩 어긋나 있어서 중점으로 자르면 경계가
+    옆 프레임의 다리 위에 떨어진다 — 유저 리포트 ①.
+
+    규칙:
+      · 칸 사이 경계는 ±pitch x :data:`GAP_SEARCH_RATIO` 안에서 **빈 열 구간**을 찾아
+        그 <b>한가운데</b>로 옮긴다. 여러 개면 원래 경계에 가장 가까운 것.
+      · ⚠ **빈 열이 하나도 없으면 그대로 둔다.** 그림이 실제로 이어진 줄(저주광선)까지
+        억지로 자르면 연출이 토막 난다.
+      · 양 끝은 <b>잉크가 이어지는 동안 바깥으로 넓힌다</b> — 라벨 중점 방식이 마지막
+        칸을 반 칸으로 잘라 프레임 끝이 날아가던 것(이동 행 8번이 10px 잘렸다)을 막는다.
+        빈 열을 만나면 멈추므로 옆 묶음을 삼키지 않는다.
+    """
+    if len(cells) < 1:
+        return cells
+
+    x0, x1 = cells[0][0], cells[-1][1]
+    ink = mask[y0:y1 + 1, x0:x1 + 1].sum(axis=0)      # 0 이면 그 열은 완전히 비어 있다
+
+    def empty(x):
+        return 0 <= x - x0 < len(ink) and ink[x - x0] == 0
+
+    pitch = max(1, (x1 - x0 + 1) // max(1, len(cells)))
+    win = max(2, int(round(pitch * GAP_SEARCH_RATIO)))
+
+    cuts = []
+    for i in range(len(cells) - 1):
+        border = cells[i][1]
+        best = None
+        lo, hi = max(x0, border - win), min(x1, border + win)
+
+        x = lo
+        while x <= hi:
+            if not empty(x):
+                x += 1
+                continue
+            run = x
+            while x + 1 <= hi and empty(x + 1):
+                x += 1
+            mid = (run + x) // 2
+            if best is None or abs(mid - border) < abs(best - border):
+                best = mid
+            x += 1
+
+        cuts.append(best if best is not None else border)
+
+    # 양 끝 — 잉크가 이어지는 만큼만 넓힌다.
+    left = cells[0][0]
+    while left > x0 and not empty(left):
+        left -= 1
+    right = cells[-1][1]
+    while right < x1 and not empty(right):
+        right += 1
+
+    out, start = [], left
+    for c in cuts:
+        out.append((start, c))
+        start = c + 1
+    out.append((start, right))
+    return out
+
+
+def trim_edge_streaks(mask, box, cell, y0, y1):
+    """
+    칸 경계를 **뚫고 지나가는 얇은 줄기**를 상자에서 걷어낸다 (:data:`EDGE_STREAK_RATIO`).
+
+    판단 근거는 두 가지를 <b>둘 다</b> 만족할 때뿐이다:
+      ① 잉크가 칸의 <b>맨 끝 열까지 닿아 있다</b> — 그림이 이 칸에서 끝나지 않았다는 뜻.
+      ② 그 끝에서 안쪽으로 이어지는 열들이 <b>얇다</b> — 몸통이 아니라 지나가는 줄기다.
+
+    두 번째만 보면 촉수 끝·지팡이 구슬처럼 원래 얇은 그림까지 잘린다. 첫 번째만 보면
+    경계가 몸통 한가운데에 떨어진 칸을 통째로 지운다.
+    """
+    bx0, bx1, by0, by1 = box
+
+    heights = np.zeros(bx1 - bx0 + 1, dtype=int)
+    for i in range(bx1 - bx0 + 1):
+        ys = np.where(mask[y0:y1 + 1, bx0 + i])[0]
+        heights[i] = (ys.max() - ys.min() + 1) if len(ys) else 0
+
+    thick = heights.max() * EDGE_STREAK_RATIO
+    left, right = 0, len(heights) - 1
+
+    if bx0 <= cell[0]:
+        while left < right and 0 < heights[left] <= thick:
+            left += 1
+    if bx1 >= cell[1]:
+        while right > left and 0 < heights[right] <= thick:
+            right -= 1
+
+    if left == 0 and right == len(heights) - 1:
+        return box
+
+    nx0, nx1 = bx0 + left, bx0 + right
+    sub = mask[y0:y1 + 1, nx0:nx1 + 1]
+    if not sub.any():
+        return box                       # 다 지워질 판이면 손대지 않는다
+    ys = np.where(sub.any(axis=1))[0]
+    return nx0, nx1, y0 + ys.min(), y0 + ys.max()
+
+
+def body_anchor(rgba):
+    """
+    이 프레임에서 <b>몸통의 가로 중심</b>(프레임 왼쪽 끝 기준 px). 캔버스 정렬 기준이다.
+
+    ★ <b>왜 그림 전체의 중심이 아닌가</b> — 시전 프레임에는 몸통 말고도 <b>날아가는 구슬
+    (구속탄)·뻗어 나가는 레이저</b>가 같이 그려져 있다. 그림 전체를 가운데에 맞추면
+    그 부속이 나타나는 프레임에서 <b>몸통이 반대쪽으로 밀린다</b> — 재생 중에 보스가
+    옆으로 훌쩍 뛰는 것처럼 보이는 것의 정체가 이것이다.
+
+    몸통은 <b>세로로 두꺼운 열</b>이고 부속은 얇다(:data:`EDGE_STREAK_RATIO`). 그래서
+    두꺼운 열만 모아 그 한가운데를 잡는다. 부속이 없는 프레임에서는 그림 전체 중심과
+    같은 값이 나오므로 예전 동작과 어긋나지 않는다.
+    """
+    solid = rgba[:, :, 3] > 0
+    heights = np.zeros(rgba.shape[1], dtype=int)
+    for i in range(rgba.shape[1]):
+        ys = np.where(solid[:, i])[0]
+        heights[i] = (ys.max() - ys.min() + 1) if len(ys) else 0
+
+    if heights.max() <= 0:
+        return rgba.shape[1] / 2.0
+
+    thick = np.where(heights > heights.max() * EDGE_STREAK_RATIO)[0]
+    if not len(thick):
+        return rgba.shape[1] / 2.0
+    return (thick.min() + thick.max() + 1) / 2.0
+
+
+def median_height(items):
+    """
+    모아둔 프레임들의 세로 <b>중앙값</b>(px). 크기 정규화의 기준이다.
+
+    평균이 아니라 중앙값인 이유: 한 모션 안에서도 팔을 뻗거나 촉수가 튀는 프레임이
+    한두 장 섞여 있다. 평균을 쓰면 그 한 장이 모션 전체의 배율을 끌고 간다.
+    """
+    hs = sorted(b[3] - b[2] + 1 for b, _cell, _y0, _y1 in items)
+    return hs[len(hs) // 2] if hs else 0
+
+
+def render_frame(arr, bg, box, cell, y0, y1, factor):
+    """
+    프레임 한 장을 RGBA 로 굽는다. <paramref name="factor"/> 가 1 이 아니면 **먼저 원본
+    RGB 를 리샘플한 뒤** 알파를 만든다 — 순서가 중요하다.
+
+    RGBA 를 리샘플하면 알파 0 인 픽셀의 <b>색</b>(여기서는 흰 배경)이 가장자리로 번져
+    촉수 둘레에 흰 테두리가 생긴다. 배경이 균일한 흰색이므로 <b>RGB 를 먼저 늘리고
+    그 다음에 배경과의 거리로 알파를 만들면</b> 번짐이 원리적으로 없다.
+    """
+    bx0, bx1, by0, by1 = box
+    ax0 = max(cell[0], bx0 - RESAMPLE_MARGIN)
+    ax1 = min(cell[1], bx1 + RESAMPLE_MARGIN)
+    ay0 = max(y0, by0 - RESAMPLE_MARGIN)
+    ay1 = min(y1, by1 + RESAMPLE_MARGIN)
+
+    block = arr[ay0:ay1 + 1, ax0:ax1 + 1].astype(np.uint8)
+    if abs(factor - 1.0) > 0.002:
+        img = Image.fromarray(block, "RGB")
+        img = img.resize((max(1, int(round(img.width * factor))),
+                          max(1, int(round(img.height * factor)))), Image.LANCZOS)
+        block = np.asarray(img).astype(np.uint8)
+
+    rgba = to_rgba(block, bg)
+
+    # 여백(RESAMPLE_MARGIN)과 리샘플이 남긴 반투명 띠를 다시 잘라낸다.
+    solid = rgba[:, :, 3] > 0
+    if not solid.any():
+        return rgba
+    ys = np.where(solid.any(axis=1))[0]
+    xs = np.where(solid.any(axis=0))[0]
+    return rgba[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
+
+
 def to_rgba(rgb_block, bg):
     """배경(흰색)과의 거리로 알파를 만든다. 가장자리만 부드럽게."""
     dist = np.abs(rgb_block.astype(int) - bg).sum(axis=2)
@@ -389,49 +645,93 @@ def main():
     # ── 1) 모션 행 ────────────────────────────────────────────────────
     #    같은 모션의 여러 줄을 <b>한 캔버스 크기</b>로 맞춰야 재생 중에 안 튄다 —
     #    그래서 먼저 전부 모아 상자를 재고, 그 다음에 쓴다.
+    #    상자와 함께 <b>그 상자가 속한 칸</b>도 들고 다닌다 — 리샘플할 때 여백을
+    #    칸 밖으로 넘기지 않으려면 필요하다(:func:`render_frame`).
     collected = {}
     for motion, x0, x1, ly, y0, y1, limit in BANDS:
         centers = label_centers(dark, x0, x1, ly)
         if limit and len(centers) > limit:
             centers = centers[:limit]      # 남는 것은 항상 오른쪽 끝의 연출이다
-        cells = split_by_centers(centers, x0, x1)
-        boxes = [b for b in boxes_for(mask, cells, y0, y1) if b is not None]
-        collected.setdefault(motion, []).extend(boxes)
-        print("  %-13s y %4d~%-4d · 라벨 %2d개 → 프레임 %2d장"
-              % (motion, y0, y1, len(centers), len(boxes)))
+        rough = split_by_centers(centers, x0, x1)
+        cells = snap_cells_to_gaps(mask, rough, y0, y1)
+        moved = sum(1 for a, b in zip(rough, cells) if a != b)
+        boxes = boxes_for(mask, cells, y0, y1)
+
+        # 칸을 뚫고 지나가는 얇은 줄기(저주광선)를 걷어낸다.
+        trimmed = 0
+        found = []
+        for b, c in zip(boxes, cells):
+            if b is None:
+                continue
+            t = trim_edge_streaks(mask, b, c, y0, y1)
+            if t != b:
+                trimmed += 1
+            found.append((t, c, y0, y1))
+
+        collected.setdefault(motion, []).extend(found)
+        print("  %-13s y %4d~%-4d · 라벨 %2d개 → 프레임 %2d장 (경계 %d칸 보정%s)"
+              % (motion, y0, y1, len(centers), len(found), moved,
+                 "" if trimmed == 0 else " · 지나가는 줄기 %d칸 제거" % trimmed))
+
+    # ★ 본체가 없는 칸을 버린다 (MIN_BODY_AREA_RATIO 주석 참조).
+    #   이펙트 묶음은 원래 본체가 없으므로 거르지 않는다.
+    for motion in list(collected):
+        items = collected[motion]
+        if not items or motion in NO_FACING:
+            continue
+        areas = [int(mask[b[2]:b[3] + 1, b[0]:b[1] + 1].sum()) for b, _c, _a, _z in items]
+        biggest = max(areas) if areas else 0
+        kept = [it for it, a in zip(items, areas) if a >= biggest * MIN_BODY_AREA_RATIO]
+        if len(kept) != len(items):
+            print("  %-13s 본체 없는 칸 %d장 버림 (투사체만 남은 프레임)"
+                  % (motion, len(items) - len(kept)))
+            collected[motion] = kept
+
+    # ★ 모션마다 그린 크기가 다르다 → 대기 크기에 맞춰 리샘플한다 (유저 리포트 ②).
+    #   기준은 프레임 <b>세로의 중앙값</b> — 한두 장이 팔을 뻗어도 흔들리지 않는다.
+    reference = median_height(collected.get(SCALE_REFERENCE_MOTION, []))
+    if reference <= 0:
+        print("  ⚠ 기준 모션(%s)이 비어 있어 크기 정규화를 건너뜁니다" % SCALE_REFERENCE_MOTION)
 
     made = 0
-    for motion, boxes in collected.items():
-        if not boxes:
+    for motion, items in collected.items():
+        if not items:
             print("  ⚠ %s: 프레임을 못 찾았습니다" % motion)
             continue
 
-        # ★ 본체가 없는 칸을 버린다 (MIN_BODY_HEIGHT_RATIO 주석 참조).
-        #   이펙트 묶음은 원래 본체가 없으므로 거르지 않는다.
-        if motion not in NO_FACING:
-            areas = [int(mask[b[2]:b[3] + 1, b[0]:b[1] + 1].sum()) for b in boxes]
-            biggest = max(areas)
-            kept = [b for b, a in zip(boxes, areas)
-                    if a >= biggest * MIN_BODY_AREA_RATIO]
-            if len(kept) != len(boxes):
-                print("  %-13s 본체 없는 칸 %d장 버림 (투사체만 남은 프레임)"
-                      % (motion, len(boxes) - len(kept)))
-                boxes = kept
+        # 이펙트(FxBindingOrb)는 몸통이 아니라 <b>범위 연출</b>이라 몸집 기준이 없다 — 손대지 않는다.
+        own = median_height(items)
+        factor = (reference / own) if (reference > 0 and own > 0
+                                       and motion not in NO_FACING) else 1.0
 
-        w = max(b[1] - b[0] + 1 for b in boxes)
-        h = max(b[3] - b[2] + 1 for b in boxes)
+        frames = [render_frame(arr, bg, b, c, fy0, fy1, factor)
+                  for b, c, fy0, fy1 in items]
+
+        # ★ 가로 정렬은 <b>몸통 중심</b> 기준이다 (:func:`body_anchor`) — 구슬·레이저가
+        #   나타나는 프레임에서 몸통이 옆으로 밀리지 않게. 캔버스는 그 기준점의 좌·우로
+        #   가장 멀리 뻗은 만큼을 합친 크기라 어느 프레임도 잘리지 않는다.
+        #   ⚠ 좌·우 여백을 <b>같게</b> 준다. 스프라이트 피벗이 (0.5, 0) = 캔버스 가로
+        #     한가운데라, 여백이 한쪽만 넓으면 <b>몸통이 피벗에서 비켜난다</b> —
+        #     대기 → 원거리로 넘어가는 순간 보스가 옆으로 미끄러진다(구슬이 오른쪽에만
+        #     그려져 있어 실제로 10px 어긋나 있었다). 남는 쪽은 투명 여백일 뿐이다.
+        anchors = [body_anchor(f) for f in frames]
+        pad = max(max(anchors),
+                  max(f.shape[1] - a for f, a in zip(frames, anchors)))
+        w = int(np.ceil(pad * 2))
+        h = max(f.shape[0] for f in frames)
+        pad_left = w / 2.0
 
         folder = os.path.join(DST_ROOT, motion)
         prefix = FILE_PREFIX.get(motion, "Char_" + motion)
 
-        for i, (bx0, bx1, by0, by1) in enumerate(boxes):
-            rgba = to_rgba(arr[by0:by1 + 1, bx0:bx1 + 1], bg)
-
-            # ★ 가로는 <b>그림 중심</b>, 세로는 <b>바닥</b>을 캔버스에 맞춘다.
-            #   피벗이 (0.5, 0) = 발밑이라 바닥을 맞춰야 모션 전환에서 위아래로 안 튄다.
+        for i, rgba in enumerate(frames):
+            # 세로는 <b>바닥</b>을 맞춘다 — 피벗이 (0.5, 0) = 발밑이라 바닥을 맞춰야
+            # 모션 전환에서 위아래로 안 튄다.
             canvas = np.zeros((h, w, 4), dtype=np.uint8)
-            bw, bh = bx1 - bx0 + 1, by1 - by0 + 1
-            ox, oy = (w - bw) // 2, h - bh
+            bh, bw = rgba.shape[0], rgba.shape[1]
+            ox = int(round(pad_left - anchors[i]))
+            ox = max(0, min(ox, w - bw))
+            oy = h - bh
             canvas[oy:oy + bh, ox:ox + bw] = rgba
 
             right = Image.fromarray(canvas, "RGBA")        # 원본이 오른쪽으로 쏜다
@@ -445,8 +745,9 @@ def main():
                 made += 2
 
         ensure_folder_meta(folder)
-        print("  %-13s %3d x %3d · %2d장%s"
-              % (motion, w, h, len(boxes), "" if motion in NO_FACING else " (+좌우 반전)"))
+        print("  %-13s %3d x %3d · %2d장 · 크기 x%.3f (세로 %d → %d)%s"
+              % (motion, w, h, len(frames), factor, own, int(round(own * factor)),
+                 "" if motion in NO_FACING else " (+좌우 반전)"))
 
     # ── 2) 투사체 / 이펙트 줄 ────────────────────────────────────────
     made += build_fx(arr, mask, dark, bg)
@@ -468,11 +769,14 @@ def build_fx(arr, mask, dark, bg):
     folder = os.path.join(DST_ROOT, "Fx")
     made = 0
 
-    for name, (x0, x1), count, whole in FX_STRIPS:
-        if whole:
-            cells = [(x0, x1)]
-        else:
-            cells = split_by_centers(label_centers(dark, x0, x1, FX_LABEL_Y), x0, x1)
+    for name, (x0, x1), count, mode in FX_STRIPS:
+        rough = split_by_centers(label_centers(dark, x0, x1, FX_LABEL_Y), x0, x1)
+        cells = snap_cells_to_gaps(mask, rough, y0, y1)
+
+        if mode == "beam":
+            made += build_beam(arr, mask, bg, cells, y0, y1, folder, name, count)
+            continue
+
         boxes = [b for b in boxes_for(mask, cells, y0, y1) if b is not None]
 
         if not boxes:
@@ -495,6 +799,74 @@ def build_fx(arr, mask, dark, bg):
         print("  Fx/%-11s %3d x %3d · %2d장 (방향 없음)%s" % (name, w, h, len(boxes), note))
 
     ensure_folder_meta(folder)
+    return made
+
+
+def build_beam(arr, mask, bg, cells, y0, y1, folder, name, count):
+    """
+    ★ <b>자라나는 한 발</b>로 엮는다 (유저 리포트 ③ — 맨 위 주석).
+
+    시트의 이 줄은 조각 여덟 개가 아니라 <b>한 발의 여덟 단계</b>다. 앞쪽 칸들은
+    총구에서 커지는 섬광이고, 어느 칸부터 빔이 오른쪽으로 뻗어 마지막 칸의 착탄
+    폭발로 끝난다. 그래서 조각을 따로 저장하지 않고 <b>여덟 장을 같은 캔버스에
+    총구(왼쪽) 기준으로</b> 얹는다.
+
+    <b>총구가 어느 칸인지를 세로 두께로 찾는다</b> — 섬광은 칸이 갈수록 커지다가
+    빔만 지나가는 칸에서 <b>뚝 얇아진다.</b> 그 직전 칸이 총구다. 픽셀 좌표를
+    적어두지 않으므로 원화를 다시 그려도 따라간다.
+
+    ⚠ 여덟 장의 <b>캔버스가 모두 같아야</b> 한다. `CombatProjectileFx.PlayArea` 는
+      배율을 <b>첫 장</b>으로 잡아 스킬 상자에 맞추기 때문에, 장마다 캔버스가 다르면
+      빔이 길어지는 대신 뚱뚱해진다.
+    """
+    heights = []
+    for cx0, cx1 in cells:
+        sub = mask[y0:y1 + 1, cx0:cx1 + 1]
+        ys = np.where(sub.any(axis=1))[0]
+        heights.append(int(ys.max() - ys.min() + 1) if len(ys) else 0)
+
+    # 두께가 <b>처음 줄어드는</b> 칸 직전이 총구다. 끝까지 안 줄면 첫 칸이 총구.
+    muzzle = 0
+    for i in range(1, len(heights)):
+        if heights[i] < heights[i - 1]:
+            muzzle = i - 1
+            break
+
+    beam = boxes_for(mask, [(cells[muzzle][0], cells[-1][1])], y0, y1)[0]
+    if beam is None:
+        print("  ⚠ Fx/%s: 빔을 못 찾았습니다" % name)
+        return 0
+
+    bx0, bx1, by0, by1 = beam
+    w, h = bx1 - bx0 + 1, by1 - by0 + 1
+
+    made = 0
+    for i, (cx0, cx1) in enumerate(cells):
+        canvas = np.zeros((h, w, 4), dtype=np.uint8)
+
+        if i < muzzle:
+            # 충전 단계 — 그 칸의 섬광만 총구 자리에 얹는다.
+            # ⚠ 세로는 <b>원본 그대로</b> 둔다: 시트의 모든 단계가 같은 중심선 위에
+            #   그려져 있어서, 캔버스 한가운데로 맞추면 오히려 빔과 어긋난다.
+            piece = boxes_for(mask, [(cx0, cx1)], y0, y1)[0]
+            if piece is None:
+                continue
+            px0, px1, py0, py1 = piece
+            rgba = to_rgba(arr[py0:py1 + 1, px0:px1 + 1], bg)
+            oy = min(max(0, py0 - by0), h - rgba.shape[0])
+            canvas[oy:oy + rgba.shape[0], 0:rgba.shape[1]] = rgba
+        else:
+            # 발사 단계 — 총구부터 이 칸의 끝까지. 뒤로 갈수록 길어진다.
+            cut = min(cx1, bx1)
+            rgba = to_rgba(arr[by0:by1 + 1, bx0:cut + 1], bg)
+            canvas[:, 0:rgba.shape[1]] = rgba
+
+        write_png(Image.fromarray(canvas, "RGBA"), folder, "Char_Fx_%s_%02d" % (name, i))
+        made += 1
+
+    note = "" if made == count else "  ⚠ 기대 %d장" % count
+    print("  Fx/%-11s %3d x %3d · %2d장 (자라나는 빔 · 총구 %d번째 칸)%s"
+          % (name, w, h, made, muzzle + 1, note))
     return made
 
 

@@ -48,6 +48,23 @@ namespace LastSanctuary.Combat
                  "예전처럼 프레임 단위로 즉시 전환한다")]
         [Min(0f)] [SerializeField] float moveMotionHoldSeconds = 0.2f;
 
+        [Tooltip("★ <b>바라보는 방향을 정할 때 진행 방향을 이 시간(초)만큼 평균낸다</b> " +
+                 "(2026-08-19 신설).\n" +
+                 "유저 리포트: \"이동할때 바라보는 방향 좀 더 정확하게\".\n" +
+                 "원인은 <b>한 프레임 이동량 하나로 방향을 정했다</b>는 것이다 — 그 값에는 " +
+                 "실제 진행 말고도 유닛끼리 밀어내는 힘(separation)·경로 재계산·발판 보정이 " +
+                 "다 섞여 있어서, 특히 <b>위아래로 걸을 때</b> 좌우 부호가 프레임마다 뒤집혔다. " +
+                 "최근 이동을 평균내면 그 잡음이 사라지고 <b>실제로 가고 있는 쪽</b>이 남는다.\n" +
+                 "0 이면 예전처럼 한 프레임 값을 그대로 쓴다. 너무 키우면(0.5+) 방향을 바꾼 뒤 " +
+                 "한참 뒤에 돌아본다")]
+        [Min(0f)] [SerializeField] float facingSmoothSeconds = 0.15f;
+
+        [Tooltip("★ <b>좌우 성분이 진행 방향의 이 비율은 돼야 방향을 바꾼다</b> (2026-08-19 신설).\n" +
+                 "0.35 는 <b>수직에서 약 20도</b> 기울어야 돌아본다는 뜻이다. 거의 위아래로만 " +
+                 "가는 동안에는 마지막 방향을 그대로 들고 있으므로 좌우가 덜덜 떨리지 않는다.\n" +
+                 "0 이면 아주 작은 좌우 성분에도 즉시 돌아본다(예전 동작)")]
+        [Range(0f, 0.9f)] [SerializeField] float facingTurnRatio = 0.35f;
+
         [Header("디버그")]
         [Tooltip("어떤 스킨이 뽑혔는지 콘솔에 남긴다")]
         [SerializeField] bool logSkinChoice = false;
@@ -74,6 +91,12 @@ namespace LastSanctuary.Combat
         bool _facingRight = true;
         Vector3 _lastPosition;
         float _attackUntil;
+
+        /// <summary>
+        /// 다듬은 진행 방향(초당 이동량). <see cref="facingSmoothSeconds"/> 참조 —
+        /// 한 프레임 이동량에 섞인 밀림·경로 재계산 잡음을 걸러낸 "실제로 가는 쪽"이다.
+        /// </summary>
+        Vector2 _heading;
 
         /// <summary>이 시각까지는 걷기 모션을 유지한다 — <see cref="moveMotionHoldSeconds"/> 참조.</summary>
         float _walkUntil;
@@ -111,6 +134,8 @@ namespace LastSanctuary.Combat
             // 제자리에서 걷는 것처럼 보인다.
             _walkUntil = 0f;
             _lastPosition = transform.position;
+            // 이전 생애의 진행 방향이 남아 있으면 소환되자마자 엉뚱한 쪽을 본다.
+            _heading = Vector2.zero;
             if (_combat != null) _combat.OnAttackPerformed += HandleAttackPerformed;
         }
 
@@ -259,6 +284,15 @@ namespace LastSanctuary.Combat
             Vector2 delta = transform.position - _lastPosition;
             _lastPosition = transform.position;
 
+            // ★ 방향 판정용 <b>진행 방향</b>을 여기서 다듬는다 (facingSmoothSeconds 참조).
+            //   프레임률이 흔들려도 결과가 같도록 <b>이동량이 아니라 속도</b>(초당)를 평균낸다 —
+            //   같은 속도로 걸어도 프레임률이 두 배면 프레임당 이동량은 절반이기 때문이다.
+            float dt = Time.deltaTime;
+            Vector2 velocity = dt > 0f ? delta / dt : Vector2.zero;
+            _heading = facingSmoothSeconds > 0f
+                ? Vector2.Lerp(_heading, velocity, Mathf.Clamp01(dt / facingSmoothSeconds))
+                : velocity;
+
             UpdateFacing(delta);
 
             Sprite[] wanted = ResolveFrames(delta.magnitude, out float fps);
@@ -363,6 +397,22 @@ namespace LastSanctuary.Combat
         ///
         /// 좌우 성분이 거의 없을 때는 마지막 방향을 유지한다 — 위아래로만 움직일 때
         /// 좌우가 덜덜 떨리는 것을 막는다(<see cref="UnitCombat.FaceMovement"/> 와 같은 규칙).
+        ///
+        /// ★ <b>2026-08-19 — 이동 방향을 「한 프레임 이동량」에서 「다듬은 진행 방향」으로</b>
+        /// (유저 지시: *"이동할때 바라보는 방향 좀 더 정확하게 설정"*).
+        ///
+        /// 한 프레임 이동량에는 실제 진행 말고도 <b>유닛끼리 밀어내는 힘</b>·경로 재계산·
+        /// 발판 보정이 전부 섞여 있다. 그래서 위아래로 걷는 동안 좌우 부호가 프레임마다
+        /// 뒤집혀 <b>몸이 덜덜 떨렸고</b>, 대각선으로 갈 때는 잡음이 큰 쪽을 따라가 진행
+        /// 방향과 다른 쪽을 보기도 했다. 이제 두 가지로 거른다:
+        ///   ① <see cref="_heading"/> — 최근 <see cref="facingSmoothSeconds"/> 동안의 평균 속도
+        ///   ② <see cref="facingTurnRatio"/> — 좌우 성분이 진행 방향의 이 비율은 돼야 돌아본다
+        /// ②가 곧 <b>이력(hysteresis)</b>이기도 하다: 방향을 되돌릴 때 0 을 지나는 구간에서
+        /// 좌우가 번갈아 뒤집히지 않고 마지막 방향을 들고 있는다.
+        ///
+        /// ⚠ <b>걷기 모션이 나오는 동안에는 이동 방향을 계속 본다</b>(<see cref="_walkUntil"/>).
+        /// 한 프레임 이동량만 보면 걷는 그림이 나오는 중인데 판정은 "멈춤"이 되어, 옆에 적이
+        /// 있을 때 <b>걸어가면서 뒤를 돌아보는</b> 그림이 됐다.
         /// </summary>
         void UpdateFacing(Vector2 delta)
         {
@@ -373,21 +423,36 @@ namespace LastSanctuary.Combat
             // 쓰러진 동안에도 방향을 고정한다 — 죽은 캐릭터가 적을 따라 홱홱 도는 건 이상하다.
             if (InReviveMotion) return;
 
-            float dx;
-
             DamageableUnit target = _combat != null ? _combat.Target : null;
-            bool attacking = Time.time < _attackUntil && target != null && target.IsAlive;
+            bool alive = target != null && target.IsAlive;
 
-            if (attacking)
-                dx = target.transform.position.x - transform.position.x;
-            else if (delta.sqrMagnitude > moveThreshold * moveThreshold)
-                dx = delta.x;
-            else if (target != null && target.IsAlive)
-                // 멈춰 서 있고 공격 모션도 아니면 적을 마주 본다 — 대치 중에 등을 보이면 어색하다.
-                dx = target.transform.position.x - transform.position.x;
-            else
+            // 때리는 순간만 타겟(= 투사체가 날아갈 방향)을 본다.
+            if (Time.time < _attackUntil && alive)
+            {
+                FaceTowards(target.transform.position.x - transform.position.x);
                 return;
+            }
 
+            // 이동 중 — 다듬은 진행 방향을 쓴다.
+            if (Time.time < _walkUntil || delta.sqrMagnitude > moveThreshold * moveThreshold)
+            {
+                float speed = _heading.magnitude;
+                if (speed > 0.0001f)
+                {
+                    if (Mathf.Abs(_heading.x) > speed * facingTurnRatio)
+                        FaceTowards(_heading.x);
+                    // 거의 위아래로만 가는 중이면 마지막 방향을 그대로 유지한다.
+                    return;
+                }
+            }
+
+            // 멈춰 서 있고 공격 모션도 아니면 적을 마주 본다 — 대치 중에 등을 보이면 어색하다.
+            if (alive) FaceTowards(target.transform.position.x - transform.position.x);
+        }
+
+        /// <summary>좌우 성분이 뜻을 가질 만큼 클 때만 방향을 바꾼다.</summary>
+        void FaceTowards(float dx)
+        {
             if (Mathf.Abs(dx) < 0.001f) return;
             _facingRight = dx > 0f;
         }
