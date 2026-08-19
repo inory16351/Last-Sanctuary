@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8cfff604944a8cb4785987042ebd72c4, type: 3}
+  m_Name: BossSkill_130008
+  m_EditorClassIdentifier:
+  skillId: 130008
+  nameKey: skill_name_130008
+  displayName: ''
+  skillType: Burning_breath
+  explainKey: skill_explain_130008
+  value01: 3
+  value02: 3
+  value03: 150
+  value04: 10
+  value05: 0
+  value06: 0
+  erosionValue: 10
+  coolTime: 25
+  castSeconds: 2.5
+  rangeType: Line
+  statusNameKey: 

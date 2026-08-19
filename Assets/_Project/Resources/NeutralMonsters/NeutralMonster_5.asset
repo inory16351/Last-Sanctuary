@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 18e202102e9bc194dbbe06c73ec9a070, type: 3}
   m_Name: NeutralMonster_5
   m_EditorClassIdentifier:
-  monId: 1005
-  nameKey: mon_name_1005
+  monId: 1102
+  nameKey: mon_name_1102
   displayName: NeutralMonster_5
   template: {fileID: 0}
   minEnergy: 400
@@ -41,7 +41,7 @@ MonoBehaviour:
   illustName: Anisakil_illust
   skinAssetName: Anisakil
   habitatTileAsset: 
-  titleKey: epic_boss_title_1005
+  titleKey: epic_boss_title_1102
   rangedAttackStat: 0
   magicStat: 0
   cureStat: 0

@@ -4,9 +4,9 @@ string_key	kr	en
 event_dialogue_10001		
 ui_btn_open	열기	Open
 ui_btn_close	닫기	Close
-epic_boss_title_1007	얼금뱅이 소	The Thoroughbred Cow
-epic_boss_title_1005	끈적이는 보랏빛 포식자	The Sticky Purple Predator
-epic_boss_title_1004	검은 숲의 종양	The Tumor of the Black Forest
+epic_boss_title_1103	얼금뱅이 소	The Thoroughbred Cow
+epic_boss_title_1102	끈적이는 보랏빛 포식자	The Sticky Purple Predator
+epic_boss_title_1101	검은 숲의 종양	The Tumor of the Black Forest
 boss_title_120001	끝없는 형상의 군주	The Lord Of Endless Forms
 boss_title_120002	구속의 공작	The Imprisoning Duke
 character_name_9001	엘린	Elin
@@ -72,7 +72,7 @@ skill_type_desc_Blood_attack	엘린은 공격을 할때마다 현제 체력의 {
 skill_type_desc_Ecstasy	프레이야의 2초내에 직접 공격한 적이 사망할때 마다 프레이야의 공격속도와 이동속도가 {value_02}초 동안 {value_03}만큼 증가한다. 중첩가능하며 중첩될 때마다 지속시간이 0초로 초기화 된다. 이 값으로 상승한 공격속도 및 이동속도는 최대값을 초과할 수 있다.	
 skill_type_desc_Scratch	가장 가까운 적을 향해 카르시노스의 전방 {value_01}(가로) x {value_02}(세로) 범위의 적을 카르시노스의 근거리 공격력{value_03}%로 공격한다. 맞은 적은 방어력이{value_04}% 만큼 감소하며 지속시간은 {value_05}초 만큼 지속된다.	
 skill_type_desc_Roar_death	카르시노스를 중심으로 카르시노스 + {value_01} 반지름 타일 범위에 원형 피해를 준다. 피격 당한 적은 뒤로 [value_02} 타일 만큼 밀려나며 카르시노스의 근거리 공격력{value_03}% 만큼 피해를 입는다	
-skill_type_desc_Deadly_venom	바리올라를 중심으로 바리올라 + {value_01} 지름 타일 범위에 있는 모든 적에게 '처형' 상태를 부여한다. 처형은 맞은 적의 방어력을 무시하고 즉시 {value_02}% 체력을 감소시킨다.	
+skill_type_desc_Deadly_venom	바리올라를 중심으로 바리올라 + {value_01} 지름 타일 범위에 있는 모든 적의 현재 체력이 최대체력의 {value_02}% 감소한다.	
 skill_type_desc_Creepy_scar	바리올라를 중심으로 바리올라 + {value_01} 지름 타일 범위에 가장 가까운 적 {value_02}명에게 침식 수치{value_03}을 증가 시킨다.	
 skill_type_desc_Huge_threat	아니사킬을 중심으로 아니사킬 + {value_01} 반지름 타일 범위에 원형 피해를 {value_02}% 만큼 준다. 피격 당한 적은 '구속'상태에 걸리며, {value_03}초 만큼 이동과 공격이 불가능해진다(기절상태). 구속 상태는 부정저인 정신 이상 상태를 해제하는 효과로 해제 가능하다.	
 skill_type_desc_Tail_strike	가장 가까운 적을 향해 아니사킬이 {value_01}(가로) x {value_02}(세로) 범위의 적을 근거리 공격력의 {value_03}% 로 공격한다	
@@ -107,7 +107,7 @@ skill_explain_80015	그의 부활은 적들에겐 공포이지만 아군에겐 �
 skill_type_desc_Vanguard	히스톤의 포지션은 전방 / 공격 유형은 근거리로 고정된다. 히스톤의 근거리 공격은 예외적으로 크리티컬 공격이 가능하다.	
 skill_type_desc_Rage_on	히스톤에게 별개의 '분노' 수치 획득이 가능해진다.(0~100) 히스톤이 공격 할때 마다 {value_01} 만큼의 분노를 획득한다. 분노는 체력 재생 가능 상태 일때 초당 {value_02} 만큼 하락한다.(진군 중일때 제외) 분노가 100일 때 히스톤이 죽음에 이를 시 {value_03}초 만큼의 경직 시간 이후 부활한다.	
 skill_type_desc_Reaver	히스톤이 부활 할때마다 반경 {value_01} 타일 범위의 원형 공간의 적들에게 공격력의 {value_02}% 만큼의 피해를 주고, 반경 {value_01} 타일 범위의 원형 공간의 아군 캐릭터들에게 최대체력의 {value_03}% 만큼의 회복을 준다.	
-mon_name_1004	카르시노스	Carcinos
+mon_name_1101	카르시노스	Carcinos
 monster_name_120002	말파스	Malphas
 skill_name_130003	구속탄	
 skill_name_130004	저주광선	
@@ -124,8 +124,16 @@ character_title_9002	무너지지 않는 방벽	The Unbreaking Bulwark
 character_title_9003	굶주린 사냥꾼	The Starving Hunter
 character_title_9004	역병을 걷는 의사	The Plague Walking Doctor
 character_title_9005	죽음을 딛는 복수자	The Avenger Beyond Death
-mon_name_1005		
-mon_name_1006		
-mon_name_1007		
+mon_name_1102	아니사킬	Anisakil
+mon_name_1004	고르도네	Gordonae
+mon_name_1103	바리올라	Variola
 status_name_2004	기절	
 status_name_130003	기절	
+skill_name_130007	아우성	
+skill_name_130008	타오르는 숨결	
+skill_explain_130007	라린길의 괴성은 듣는 자의 정신을 뒤흔듭니다	
+skill_explain_130008	라린길의 불은 모든 것을 불태웁니다	
+skill_type_desc_Screaming	라린길이 + {value_01} 반지름 범위의 내 모든 적에게 {value_02}의 데미지를 입히고 침식수치를 증가시킨다.	
+skill_type_desc_Burning_breath	라린길이 가장 가까운 적을 대상으로 지정하여 + {value_01}(가로)x{value_02}(세로) 범위의 적에게 라린길의 근거리 공격력의 {value_03}%의 데미지로 공격한다. 추가로 적 전체 체력의 {value_04}%의 데미지를 준다.	
+monster_name_120004	라린길	Laryngeal
+boss_title_120004	불타는 입	Mouth of flame

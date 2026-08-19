@@ -1,0 +1,56 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 18e202102e9bc194dbbe06c73ec9a070, type: 3}
+  m_Name: NeutralMonster_7
+  m_EditorClassIdentifier:
+  monId: 1103
+  nameKey: mon_name_1103
+  displayName: NeutralMonster_7
+  template: {fileID: 0}
+  minEnergy: 400
+  maxEnergy: 600
+  attackStat: 25
+  hpStat: 45
+  defenseStat: 10
+  regenStat: 10
+  detectRange: 6
+  attackRange: 1.2
+  attacksPerSecond: 0.822
+  moveSpeedTiles: 2.321
+  leashRangeTiles: 6
+  spawnRangeMinTiles: 200
+  spawnRangeMaxTiles: 320
+  maxAlive: 1
+  respawnSeconds: 600
+  attackType: 0
+  groupMaking: 0
+  groupMember: 0
+  packRetaliate: 0
+  epic: 1
+  colliderHeightTiles: 7.5
+  colliderWidthTiles: 11
+  illustName: Variola_illust
+  skinAssetName: Variola
+  habitatTileAsset: 
+  titleKey: epic_boss_title_1103
+  rangedAttackStat: 0
+  magicStat: 0
+  cureStat: 0
+  accuracyStat: 50
+  criticalStat: 0
+  resistanceStat: 50
+  habitatRadiusTiles: 14
+  habitatChaseTiles: 8
+  habitatIdleSlackTiles: 1
+  skillIds:
+  - 2005
+  - 2006

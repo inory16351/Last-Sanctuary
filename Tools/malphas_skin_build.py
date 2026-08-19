@@ -31,6 +31,10 @@
 원본을 ``Right`` 로 보고 ``Left`` 를 좌우 반전으로 만든다.
 ⚠ 카르시노스는 반대다(원본이 왼쪽) — 새 원화마다 확인할 것.
 
+⚠⚠ **한 시트 안에서도 행마다 방향이 다르다** (2026-08-19). 이동 행만 **왼쪽을 보는
+그림**이라 위 규칙을 그대로 적용했더니 왼쪽으로 걸을 때 오른쪽 모션이 나왔다 —
+:data:`SOURCE_FACES_LEFT` 참조. **행마다 확인할 것.**
+
 ────────────────────────────────────────────────────────────────────────────
 2026-08-19 개정 — 유저 리포트 3건 (진행상황 113절)
 ────────────────────────────────────────────────────────────────────────────
@@ -210,6 +214,20 @@ FILE_PREFIX = {
 #: 방향(좌/우) 두 벌을 만들지 않는 모션. 이펙트·투사체는 조준 각도만큼 통째로
 #: 회전시켜 깔리므로(`CombatProjectileFx`) 방향별 원화를 넣으면 두 번 돌아간다.
 NO_FACING = {"FxBindingOrb"}
+
+#: ★★ <b>원본이 왼쪽을 보고 있는 모션</b> (2026-08-19 · 유저 리포트:
+#: *"말파스가 왼쪽을 가고있는데 오른쪽으로 움직이는 모션을 취하고있어"*).
+#:
+#: 맨 위 「방향」 절은 이 시트 전체가 오른쪽을 본다고 적어 뒀는데, **이동 행만 반대다.**
+#: 근거는 그림 자체다 — 이동 프레임은 <b>몸이 왼쪽으로 기울고 촉수가 오른쪽으로 흘러</b>
+#: 뒤로 끌린다. 즉 <b>왼쪽으로 가는 그림</b>이다. 반면 원거리·스킬1·스킬2·근접은 구체·
+#: 레이저·촉수 채찍이 전부 <b>오른쪽</b>으로 나가므로 오른쪽을 본다.
+#:
+#: 대기는 좌우 대칭이라 어느 쪽으로 넣어도 같고, 피격은 스킨에 배선돼 있지 않다.
+#:
+#: ⚠ <b>새 원화를 받으면 행마다 확인할 것.</b> 한 시트 안에서도 방향이 갈린다는 사실이
+#:   여기서 처음 확인됐다 — 카시노마는 시트 전체가 왼쪽이었다(102-3절).
+SOURCE_FACES_LEFT = {"Move"}
 
 # ──────────────────────────────────────────────────────────────────────────
 # 맨 아래 「투사체 / 이펙트」 줄 — 네 묶음이 가로로 나란히 있다.
@@ -734,20 +752,27 @@ def main():
             oy = h - bh
             canvas[oy:oy + bh, ox:ox + bw] = rgba
 
-            right = Image.fromarray(canvas, "RGBA")        # 원본이 오른쪽으로 쏜다
+            drawn = Image.fromarray(canvas, "RGBA")
             if motion in NO_FACING:
-                write_png(right, folder, "%s_%02d" % (prefix, i))
+                write_png(drawn, folder, "%s_%02d" % (prefix, i))
                 made += 1
             else:
+                # 원본이 어느 쪽을 보는지에 따라 어느 벌이 원본인지가 갈린다
+                # (:data:`SOURCE_FACES_LEFT` — 이동 행만 왼쪽을 본다).
+                flipped = drawn.transpose(Image.FLIP_LEFT_RIGHT)
+                left, right = ((drawn, flipped) if motion in SOURCE_FACES_LEFT
+                               else (flipped, drawn))
                 write_png(right, folder, "%s_Right_%02d" % (prefix, i))
-                write_png(right.transpose(Image.FLIP_LEFT_RIGHT), folder,
-                          "%s_Left_%02d" % (prefix, i))
+                write_png(left, folder, "%s_Left_%02d" % (prefix, i))
                 made += 2
 
         ensure_folder_meta(folder)
+        facing = ("" if motion in NO_FACING
+                  else " (원본 ←)" if motion in SOURCE_FACES_LEFT
+                  else " (원본 →)")
         print("  %-13s %3d x %3d · %2d장 · 크기 x%.3f (세로 %d → %d)%s"
               % (motion, w, h, len(frames), factor, own, int(round(own * factor)),
-                 "" if motion in NO_FACING else " (+좌우 반전)"))
+                 facing))
 
     # ── 2) 투사체 / 이펙트 줄 ────────────────────────────────────────
     made += build_fx(arr, mask, dark, bg)

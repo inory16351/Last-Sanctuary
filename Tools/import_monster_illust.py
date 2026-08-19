@@ -72,8 +72,16 @@ ILLUSTS = [
     #
     # ⚠ 아니사킬만 <b>.webp</b> 다(나머지는 전부 png). Pillow 가 읽어 png 로 저장하므로
     #   따로 변환할 것은 없다 — 다만 <b>원본 확장자를 그대로 적어야</b> 파일을 찾는다.
-    (os.path.join("neutrality nomal monster", "Anasakil_illust.webp"),      "Anisakil_illust"),
+    # ⚠ 2026-08-19 — 원본이 `neutrality nomal monster/Anasakil_illust.webp` 에서
+    #   `epic_boss/Anisakil_illust.png` 로 옮겨졌다(다른 에픽들과 같은 폴더로 정리된 듯).
+    #   옛 경로는 이제 파일이 없다 — 새 경로로 갈아끼운다.
+    (os.path.join("epic_boss", "Anisakil_illust.png"),                     "Anisakil_illust"),
     (os.path.join("neutrality nomal monster", "Gordone_illust.png"),        "Gordonae_illust"),
+    # ★ 웨이브 보스 라린길(120004) · 중립 에픽 바리올라(1103) — 2026-08-19.
+    #   둘 다 원본 이름이 이미 표(wave_top_boss.illust · neutrality_mon.mon_illust)와
+    #   같아서 바로잡을 것이 없다.
+    (os.path.join("monster_cancer", "Laryngeal_illust.png"),                "Laryngeal_illust"),
+    (os.path.join("epic_boss", "Variola_illust.png"),                       "Variola_illust"),
 ]
 
 #: 초상화용 임포트 설정. `Resources/Illust/illust_*.png.meta` 와 같은 값이다

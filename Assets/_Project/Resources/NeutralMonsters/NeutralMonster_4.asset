@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 18e202102e9bc194dbbe06c73ec9a070, type: 3}
   m_Name: NeutralMonster_4
   m_EditorClassIdentifier:
-  monId: 1004
-  nameKey: mon_name_1004
+  monId: 1101
+  nameKey: mon_name_1101
   displayName: 카르시노스
   template: {fileID: 0}
   minEnergy: 400
@@ -49,7 +49,7 @@ MonoBehaviour:
   colliderWidthTiles: 11
   illustName: Carcinos_illust
   skinAssetName: Carcinos
-  titleKey: epic_boss_title_1004
+  titleKey: epic_boss_title_1101
   habitatTileAsset: CarcinosHabitat
   skillIds:
   - 2001

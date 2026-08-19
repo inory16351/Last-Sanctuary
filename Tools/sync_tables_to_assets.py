@@ -223,6 +223,7 @@ MONSTER_ASSET_BY_ID = {
     120001: 'Monster_Dantalian',
     120002: 'Monster_Malphas',
     120003: 'Monster_Kasinoma',
+    120004: 'Monster_Laryngeal',   # ★ 라린길 신규 (2026-08-19) — 표만 있고 원화(스킨)는 아직 없다
 }
 
 # 삭제된 중간보스 에셋 — 남아 있으면 스포너 슬롯에 다시 끌려 들어갈 수 있어서 지운다.
@@ -835,13 +836,28 @@ def write_int_list(path, key, values, label):
 # ⚠ `first_Stat` 시트가 능력치의 정본이고, `neutrality_mon` 은 식별·등장범위·보상·개체수를
 #   맡는다. 두 시트 모두 <b>필드명으로</b> 읽는다(read_rows) - 컬럼이 늘거나 줄어도 안 깨진다.
 # ---------------------------------------------------------------------------
+# ★★ 2026-08-19 — 에픽몬스터 id 를 1000번대에서 1100번대로 옮긴 표 개정 반영
+#   (커밋 "중립몹 ID 수정": "에픽몬스터 ID를 1000번대에서 1100번대로 수정").
+#
+# 에셋 <b>파일 이름은 그대로 두고</b>(하이라키·Resources 경로가 바뀌면 참조가 끊긴다),
+# 그 파일이 표의 <b>어느 id</b>를 지금 나타내는지만 다시 잇는다 — 크리처와 파일의 관계는
+# 안 바뀌었다(카르시노스 = NeutralMonster_4, 아니사킬 = NeutralMonster_5, 고르도네 =
+# NeutralMonster_6, 셋 다 그대로), <b>표의 번호만</b> 카르시노스 1004→1101, 아니사킬
+# 1005→1102 로 올라갔고 고르도네는 1006→1004 로 "일반" 구간에 내려왔다.
+#
+# ⚠ 예전에는 <b>파일이 존재하면</b> 다시 안 만든다는 이유로 아래 sync_neutral_monsters()가
+#   monId·nameKey 를 patch 하지 않았다 — 그래서 표의 id 가 바뀌어도 에셋 안의 낡은 id·
+#   nameKey(예: mon_name_1005)가 그대로 남아 StringTable 조회가 실패하고 화면에 에셋
+#   파일명(예: "NeutralMonster_5")이 그대로 떴다. 지금부터는 changes 에 monId·nameKey 도
+#   넣어 이런 재넘버링이 다시 있어도 스크립트 한 번으로 따라간다.
 NEUTRAL_ASSET_BY_ID = {
     1001: 'NeutralMonster_1',
     1002: 'NeutralMonster_2',
     1003: 'NeutralMonster_3',
-    1004: 'NeutralMonster_4',      # ★ 에픽 보스 (2026-08-15 신설)
-    1005: 'NeutralMonster_5',      # ★ 에픽 보스 아니사킬 (2026-08-19 신설)
-    1006: 'NeutralMonster_6',      # ★ 원거리 일반 고르도네 (2026-08-19 신설)
+    1004: 'NeutralMonster_6',      # 고르도네 — 1006 에서 "일반" 구간 1004 로 내려옴
+    1101: 'NeutralMonster_4',      # 카르시노스 — 1004 에서 "에픽" 구간 1101 로 올라감
+    1102: 'NeutralMonster_5',      # 아니사킬 — 1005 에서 "에픽" 구간 1102 로 올라감
+    1103: 'NeutralMonster_7',      # ★ 바리올라 신규 (2026-08-19)
 }
 
 # 표의 atk_type 문자열 → TacticalAttackType 의 <b>정수값</b>(YAML 은 enum 을 정수로 쓴다).
@@ -948,6 +964,13 @@ def sync_neutral_monsters():
         is_epic = str(row.get('mon_type') or '').strip().lower() == 'epic'
 
         changes = {
+            # ★ 2026-08-19 — id·이름 키도 매번 따라간다(위 NEUTRAL_ASSET_BY_ID 주석 참조).
+            #   예전에는 이 둘이 <b>생성될 때만</b> 적히고 그 뒤로는 손대지 않아서, 표에서
+            #   id 가 바뀌면(에픽 1000번대 → 1100번대) 에셋 안에는 존재하지 않는 키
+            #   (`mon_name_1005`)가 남아 StringTable 조회가 실패하고 화면에 에셋 파일명이
+            #   그대로 떴다("NeutralMonster_5"). 표가 정본이므로 매번 다시 쓴다.
+            'monId': mid,
+            'nameKey': str(row.get('mon_name') or 'mon_name_%d' % mid).strip(),
             'spawnRangeMinTiles': num(row.get('spawn_range_min'), legacy),
             'spawnRangeMaxTiles': num(row.get('spawn_range_max'), 0),
             'minEnergy': int(num(row.get('min_energy'))),

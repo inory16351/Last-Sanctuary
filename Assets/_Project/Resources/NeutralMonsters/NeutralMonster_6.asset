@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 18e202102e9bc194dbbe06c73ec9a070, type: 3}
   m_Name: NeutralMonster_6
   m_EditorClassIdentifier:
-  monId: 1006
-  nameKey: mon_name_1006
+  monId: 1004
+  nameKey: mon_name_1004
   displayName: NeutralMonster_6
   template: {fileID: 0}
   minEnergy: 26
