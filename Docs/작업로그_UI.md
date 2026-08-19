@@ -2564,3 +2564,26 @@ convert_tables_to_string_keys.py · add_boss_skill_erosion_column.py`, 신규
 재실행 멱등 · `.meta` 20개 guid 불변(내용 diff 0) · 패시브 에셋 15개 내용 무변경 ·
 캐릭터 에셋 5개는 `titleKey`/`title` 2줄만 추가 · recompile 에러 0·경고 0 ·
 작업 후 유저 Excel 창 생존 확인.
+
+---
+
+## UI-35. 상세 카드 상태 칸 — 평상시엔 빈칸으로 (2026-08-19)
+
+> 상세는 `진행상황.md` **112-8절**.
+
+유저 피드백: "레벨 옆 방어 / 보스 이름 옆 웨이브몬스터 없애줘. 테이블 컬럼도 있으면 제거."
+
+- **표 컬럼부터 확인** — 캐릭터/웨이브 몬스터 테이블 전체 시트를 훑었지만
+  `state`/`상태`/`duty` 컬럼은 없었다. `StateTextOf` 는 표를 읽은 적이 없다
+  (`CharacterBehavior.Duty` 는 런타임 값, `Faction` 은 코드 고정값) — 지울 컬럼이 없다.
+- `UnitPortraitPanel.StateTextOf` 에서 `DutyLabel`(캐릭터 임무)·`FactionLabel`(몬스터 소속)
+  폴백을 제거. **구속·정신 이상만** 채우고 나머지는 빈칸.
+
+### 소유권 (§2)
+
+**UI 소유** — `Scripts/UI/UnitPortraitPanel.cs`. 씬 변경 없음.
+
+### 검증
+
+recompile 에러 0·경고 0 · 렌더 비교로 히스톤/카시노마 평상시 빈칸 확인,
+구속 상태 렌더로 기능 유지 확인 · 두 테이블에 관련 컬럼 없음을 재확인.

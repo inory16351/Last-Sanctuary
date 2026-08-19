@@ -448,12 +448,21 @@ namespace LastSanctuary.UI
         /// <summary>
         /// 상태 칸. 목업의 "기절" 자리다.
         ///
-        /// 캐릭터는 <b>로스터와 같은 규칙</b>을 쓴다(정신 이상 → 임무) — 같은 사실을 두 UI 가
-        /// 다르게 말하면 안 된다. 거기에 <b>구속</b>(말파스 구속탄·아니사킬 포효)을 얹는다:
-        /// 움직이지도 때리지도 못하는 상태라 임무보다 이쪽이 먼저 보여야 한다.
+        /// ★ <b>평상시엔 빈칸이다</b>(유저 확정 2026-08-19: "레벨 옆에 방어라고 뜨는거
+        /// 없애줘 보스도 마찬가지로 이름 옆에 웨이브몬스터라고 뜨는 글씨 없애줘").
         ///
-        /// 몬스터는 임무라는 개념이 없으므로 구속이 아니면 <b>소속</b>을 적는다 —
-        /// 칭호 칸이 비워지면서(위 <see cref="Show"/> 주석) 갈 곳을 잃은 정보가 여기로 온다.
+        /// 예전에는 여기에 <b>임무</b>(캐릭터: 탐험·방어…)나 <b>소속</b>(몬스터: 웨이브
+        /// 몬스터·아군…)을 항상 채워 넣었는데, 둘 다 <b>거의 항상 같은 값</b>이라
+        /// (캐릭터는 대부분 시간에 "방어", 몬스터는 항상 "웨이브 몬스터") 매번 같은 글자가
+        /// 떠서 정보가 아니라 잡음이었다. <b>구속·정신 이상처럼 실제로 "지금 이상하다"고
+        /// 알려줄 값이 있을 때만</b> 채우고, 없으면 빈칸으로 둔다 — 원래 상세 카드 4칸
+        /// (칭호·이름·레벨·상태 / 칭호·이름·상태·체력) 요청에서 "상태"가 뜻한 것이
+        /// 바로 이 <b>이상 상태</b>였다.
+        ///
+        /// ⚠ 이 값은 <b>어느 테이블 컬럼에서도 오지 않는다</b> — <c>CharacterBehavior.Duty</c>
+        /// 는 씬의 행동 스크립트가 매 프레임 계산하는 런타임 상태이고, <c>Faction</c> 은
+        /// 유닛 종류마다 코드가 고정해 두는 값이다. 그래서 이 변경에 맞춰 지울 표 컬럼이
+        /// 없다(확인 완료).
         /// </summary>
         static string StateTextOf(DamageableUnit unit)
         {
@@ -466,34 +475,9 @@ namespace LastSanctuary.UI
             {
                 CharacterErosion erosion = CharacterErosion.Of(character);
                 if (erosion != null && erosion.HasActive) return erosion.ActiveName;
-
-                var behavior = character.GetComponent<CharacterBehavior>();
-                return behavior != null ? DutyLabel(behavior.Duty) : string.Empty;
             }
 
-            return FactionLabel(unit);
-        }
-
-        /// <summary>
-        /// ⚠ <b>로스터(<see cref="CharacterRosterPanel"/>)의 같은 표와 문구를 맞춰 둘 것.</b>
-        /// 같은 임무를 두 UI 가 다르게 부르면 어느 쪽이 맞는지 알 수 없다.
-        /// </summary>
-        static string DutyLabel(CharacterDuty duty) => duty switch
-        {
-            CharacterDuty.Expedition => "탐험",
-            CharacterDuty.Rally      => "집결",
-            CharacterDuty.Retreat    => "후퇴",
-            CharacterDuty.Flee       => "도망",
-            CharacterDuty.Build      => "건설",
-            _                        => "방어",
-        };
-
-        static string FactionLabel(DamageableUnit unit)
-        {
-            if (unit.Faction == Faction.Neutral) return "중립 몬스터";
-            if (unit.Faction == Faction.Angel)
-                return unit.Kind == UnitKind.Nexus ? "중앙 건물" : "아군";
-            return "웨이브 몬스터";
+            return string.Empty;
         }
 
         // ------------------------------------------------------------------
