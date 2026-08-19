@@ -19,7 +19,7 @@ MonoBehaviour:
   minEnergy: 400
   maxEnergy: 600
   attackStat: 28
-  hpStat: 40
+  hpStat: 30
   defenseStat: 10
   regenStat: 8
   detectRange: 6
@@ -40,7 +40,7 @@ MonoBehaviour:
   colliderWidthTiles: 11
   illustName: Anisakil_illust
   skinAssetName: Anisakil
-  habitatTileAsset: AnisakilHabitat
+  habitatTileAsset: 
   titleKey: epic_boss_title_1005
   rangedAttackStat: 0
   magicStat: 0

@@ -19,13 +19,13 @@ MonoBehaviour:
   minEnergy: 26
   maxEnergy: 44
   attackStat: 0
-  hpStat: 10
-  defenseStat: 3
-  regenStat: 1
+  hpStat: 15
+  defenseStat: 5
+  regenStat: 4
   detectRange: 6
   attackRange: 1.2
-  attacksPerSecond: 0.822
-  moveSpeedTiles: 2.25
+  attacksPerSecond: 0.873
+  moveSpeedTiles: 2.321
   leashRangeTiles: 6
   spawnRangeMinTiles: 100
   spawnRangeMaxTiles: 199
@@ -45,5 +45,5 @@ MonoBehaviour:
   magicStat: 0
   cureStat: 0
   accuracyStat: 55
-  criticalStat: 3
+  criticalStat: 10
   resistanceStat: 50
