@@ -683,6 +683,22 @@ namespace LastSanctuary.Combat
                 var combat = target.GetComponent<UnitCombat>();
                 if (combat != null) Bind(combat, target, skill.BindSeconds, skill.StatusName);
             }
+
+            // ── 최대 체력 비례 추가 피해 (라린길 「타오르는 숨결」) ──────
+            // 정의문: "…추가로 <b>적 전체 체력</b>의 {value_04}%의 데미지를 준다."
+            //
+            // ★ <b>방어력을 거치지 않는다</b> — 근거가 공격력이 아니라 <b>맞는 쪽의 체력</b>이라
+            //   `BalanceConfigSO.Damage(공격력, 방어력)` 에 넣을 자리가 없다. 그래서 계산이
+            //   끝난 값을 넣는 `ApplyDamage(int)` 를 직접 부른다.
+            //
+            // ⚠ <b>최대 체력</b>이지 남은 체력이 아니다. 남은 체력의 %로 하면 절대 안 죽는다.
+            // ⚠ 반올림이 아니라 <b>올림</b>이다 — 최대 체력이 작은 유닛에서 0 이 되면
+            //   "체력 비례"라는 말 자체가 무너진다(1은 반드시 들어간다).
+            if (skill.MaxHpPercentDamage > 0f)
+            {
+                int extra = Mathf.CeilToInt(target.MaxHp * skill.MaxHpPercentDamage / 100f);
+                if (extra > 0) target.ApplyDamage(extra);
+            }
         }
 
         /// <summary>

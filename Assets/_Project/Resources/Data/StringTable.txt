@@ -137,3 +137,11 @@ skill_type_desc_Screaming	라린길이 + {value_01} 반지름 범위의 내 모�
 skill_type_desc_Burning_breath	라린길이 가장 가까운 적을 대상으로 지정하여 + {value_01}(가로)x{value_02}(세로) 범위의 적에게 라린길의 근거리 공격력의 {value_03}%의 데미지로 공격한다. 추가로 적 전체 체력의 {value_04}%의 데미지를 준다.	
 monster_name_120004	라린길	Laryngeal
 boss_title_120004	불타는 입	Mouth of flame
+skill_name_130009	담뱃대 강타	
+skill_name_130010	담배 연기	
+skill_explain_130009	베일은 담뱃대로 수 많은 천사들을 사냥했습니다	
+skill_explain_130010	베일의 숨결은 죽음 그 자체입니다	
+skill_type_desc_Pipe_strike	베일이 현재 반지름 {value_01}의 원형 범위 내에서 현재 공격 중인 대상 {value_02}명에게 {value_03}%의 데미지를 주고 대상을 {value_04}타일 만큼 밀쳐냅니다. 캐릭터는 자신이 바라보는 반대 방향으로 밀려납니다.	
+skill_type_desc_Pipe_smoke	베일이 정면으로 부채꼴의 반지름이 {value_01}인 범위 내에 캐릭터가 있으면, 연기를 {value_02}초간 생성합니다. 연기를 맞은 캐릭터는 {value_03}의 데미지를 받고, {value_04}초 만큼 중독상태가 됩니다. 중독상태가 된 캐릭터는 매 초 최대체력의{value_05}%의 피해를 입습니다.	
+monster_name_120005	베일	Bale
+boss_title_120005	천사 사냥꾼	Angel Hunter

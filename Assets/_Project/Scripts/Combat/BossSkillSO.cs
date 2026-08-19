@@ -156,16 +156,41 @@ namespace LastSanctuary.Combat
         ///                            {value_02}% 만큼 준다"
         /// </code>
         /// </summary>
+        /// ★ 2026-08-19 — <b>「아우성」(130007)만 폴백이 없다.</b> 그 스킬은 표의 피해 칸이
+        /// <b>0 인 것이 뜻</b>이다(피해 없이 침식만 올린다 — <see cref="BossSkillType.Screaming"/>).
+        /// 폴백이 돌면 침식용 기술이 평타 한 대를 그대로 얹는 다른 기술이 되어 버린다.
         public int DamagePercent
         {
             get
             {
                 bool damageInValue02 = Type == BossSkillType.LureBlood
-                                    || Type == BossSkillType.HugeThreat;
+                                    || Type == BossSkillType.HugeThreat
+                                    || Type == BossSkillType.Screaming;
                 float raw = damageInValue02 ? value02 : value03;
+                if (Type == BossSkillType.Screaming) return Mathf.Max(0, Mathf.RoundToInt(raw));
                 return raw > 0f ? Mathf.RoundToInt(raw) : 100;
             }
         }
+
+        // ──────────────────────────────────────────────────────────────────
+        // 라린길 — 타오르는 숨결 (2026-08-19)
+        //
+        // 스트링 테이블 `skill_type_desc_Burning_breath` 그대로:
+        //   "라린길이 가장 가까운 적을 대상으로 지정하여 + {value_01}(가로)x{value_02}(세로)
+        //    범위의 적에게 라린길의 근거리 공격력의 {value_03}%의 데미지로 공격한다.
+        //    <b>추가로 적 전체 체력의 {value_04}%의 데미지를 준다.</b>"
+        // ──────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// 맞은 적의 <b>최대 체력</b>에서 곧바로 깎는 비율(%). 숨결 전용 — 다른 스킬은 0.
+        ///
+        /// ★ <b>방어력을 거치지 않는다.</b> 이 프로젝트의 다른 모든 피해는
+        /// <c>BalanceConfigSO.Damage(공격력, 방어력)</c> 를 지나는데, 정의문이 *"적 전체
+        /// 체력의 %"* 라고 못박고 있어 그 계산에 넣을 자리가 없다 — 공격력이 아니라
+        /// <b>맞는 쪽의 체력</b>이 근거인 값이기 때문이다.
+        /// </summary>
+        public float MaxHpPercentDamage =>
+            Type == BossSkillType.BurningBreath ? Mathf.Max(0f, value04) : 0f;
 
         // ──────────────────────────────────────────────────────────────────
         // 카시노마 (2026-08-18)
@@ -274,8 +299,11 @@ namespace LastSanctuary.Combat
         /// ★ 2026-08-19 — 아니사킬 「거대한 위협 포효」도 정의문이
         /// *"아니사킬 + {value_01} 반지름 타일 범위"* 라 같은 쪽이다. 지금은 <b>반지름 쪽이
         /// 둘</b>이고 지름 쪽이 단탈리온 계열이다.
+        /// ★ 2026-08-19 — 라린길 「아우성」도 정의문이 *"라린길이 + {value_01} 반지름 범위"*
+        /// 라 같은 쪽이다. 이제 <b>반지름 쪽이 셋</b>이고 지름 쪽이 단탈리온 계열이다.
         public bool CircleValueIsRadius =>
-            Type == BossSkillType.RoarDeath || Type == BossSkillType.HugeThreat;
+            Type == BossSkillType.RoarDeath || Type == BossSkillType.HugeThreat
+            || Type == BossSkillType.Screaming;
 
         /// <summary>이 에셋이 쓸 만한지 — 종류를 못 알아보면 시전하지 않는다.</summary>
         public bool IsUsable => Type != BossSkillType.None && coolTime > 0f;

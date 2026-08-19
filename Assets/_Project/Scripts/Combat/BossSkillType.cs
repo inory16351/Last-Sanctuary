@@ -140,6 +140,42 @@ namespace LastSanctuary.Combat
         ///   적용된다: 같은 상태에 해제 규칙이 두 벌 있으면 안 된다.
         /// </summary>
         HugeThreat,
+
+        // ──────────────────────────────────────────────────────────────
+        // 라린길 (웨이브 최종보스 120004) — 2026-08-19
+        //
+        // ⚠ <b>여기도 칸의 뜻이 다르다.</b> 스트링 테이블 정의문이 근거다:
+        //   아우성        value_01 = <b>반지름</b> 타일 · value_02 = <b>피해 %</b>
+        //                 (⚠ 피해가 value_02 다 — 「이끌리는 혈취」·「거대한 위협 포효」와 같은 자리)
+        //   타오르는 숨결 value_01 = 가로 · value_02 = 세로 · value_03 = 피해 %
+        //                 · value_04 = <b>대상 최대 체력의 %</b> 만큼 추가 피해
+        // ──────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// 아우성 (130007) — 자기 중심 <b>원형</b>(반지름 <c>value_01</c>). 맞은 적에게
+        /// <c>value_02</c>% 피해를 주고 <b>침식</b>을 올린다.
+        ///
+        /// ★ <b>지금 표의 <c>value_02</c> 는 0 이다</b> — 피해가 없고 <b>침식만</b> 올리는
+        /// 기술이라는 뜻이다. 침식량(<c>mentalerror_damage</c> 15)은 이 게임의 모든 보스
+        /// 스킬 중 가장 크다. 정의문도 *"…{value_02}의 데미지를 입히고 침식수치를
+        /// 증가시킨다"* 라 피해 칸이 비어 있는 것이 <b>표가 말하는 것</b>이다.
+        ///
+        /// ⚠ 그래서 <see cref="BossSkillSO.DamagePercent"/> 의 "비면 100%" 폴백을 이
+        /// 종류에만 <b>끈다</b> — 폴백이 돌면 침식용 기술이 평타 한 대를 그대로 얹는
+        /// <b>전혀 다른 기술</b>이 된다. 표에 값이 들어오면 그때부터 그 값이 그대로 쓰인다.
+        /// </summary>
+        Screaming,
+
+        /// <summary>
+        /// 타오르는 숨결 (130008) — <b>가장 가까운</b> 적을 향해 <c>value_01</c> x
+        /// <c>value_02</c> 타일 상자에 근거리 공격력의 <c>value_03</c>%.
+        ///
+        /// ★ <b>추가로 대상 최대 체력의 <c>value_04</c>%</b> 를 더 깎는다 — 이 프로젝트에서
+        /// <b>방어력을 거치지 않는 피해</b>가 나오는 첫 기술이다. 정의문:
+        /// *"…추가로 적 전체 체력의 {value_04}%의 데미지를 준다."*
+        /// 방어력이 아무리 높아도 반드시 아픈, 최종보스다운 확정 피해다.
+        /// </summary>
+        BurningBreath,
     }
 
     public static class BossSkillTypes
@@ -165,6 +201,8 @@ namespace LastSanctuary.Combat
                 case "death_song":  return BossSkillType.DeathSong;
                 case "tail_strike": return BossSkillType.TailStrike;
                 case "huge_threat": return BossSkillType.HugeThreat;
+                case "screaming":   return BossSkillType.Screaming;
+                case "burning_breath": return BossSkillType.BurningBreath;
                 default:            return BossSkillType.None;
             }
         }

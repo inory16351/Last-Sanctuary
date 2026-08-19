@@ -188,7 +188,7 @@ MonoBehaviour:
     meleeCount: 18
     rangedCount: 18
     bossCount: 1
-    bossMonsterId: 120002
+    bossMonsterId: 120004
     statPercent: 1850
     reinforceIntervalSeconds: 0
     reinforceCount: 0

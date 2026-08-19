@@ -61,6 +61,11 @@ SPECIES = [
     #     "표 기준이 맞으니까 표 기준으로 일러스트나 스킨 에셋 이름을 바꿔").
     ("Anisakil",    NEUTRAL_ROOT),
     ("Gordonae",    NEUTRAL_ROOT),
+    # ★ 2026-08-19 — 라린길(웨이브 최종보스 120004 · 20웨이브). 원화가 <b>두 장</b>이라
+    #   ("Laryngeal_asset.png" · "_02") 볼트만 봐서는 <b>어느 판본을 어떻게 썼는지</b>
+    #   알 수 없다 — 몸통은 `_02`, 숨결 이펙트만 첫 판본이다
+    #   (`Tools/laryngeal_skin_build.py` 맨 위). 잘라낸 결과를 남겨 두면 그 판단이 보인다.
+    ("Laryngeal",   CANCER_ROOT),
 ]
 
 #: 종 폴더가 아닌 것들 — (유니티 쪽 폴더, 볼트 쪽 부모, 볼트 쪽 폴더 이름)
