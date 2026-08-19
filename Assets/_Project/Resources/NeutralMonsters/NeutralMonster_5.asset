@@ -40,7 +40,7 @@ MonoBehaviour:
   colliderWidthTiles: 11
   illustName: Anisakil_illust
   skinAssetName: Anisakil
-  habitatTileAsset: 
+  habitatTileAsset: AnisakilHabitat
   titleKey: epic_boss_title_1102
   rangedAttackStat: 0
   magicStat: 0

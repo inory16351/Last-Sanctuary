@@ -709,6 +709,26 @@ namespace LastSanctuary.Units
         {
             if (mapGenerator == null) return;
 
+            // ★★ <b>에픽인데 타일 이름이 비어 있으면 알린다</b> (2026-08-19, 유저 리포트:
+            //   *"아니사킬의 서식지가 생성되지 않는다"*).
+            //
+            //   ⚠ <b>이 버그는 콘솔에 흔적을 하나도 안 남겼다.</b> 표(`habitat_design`)에
+            //   아니사킬 줄이 없어서 `habitatTileAsset` 이 빈 칸이었는데, 그러면
+            //   <see cref="NeutralMonsterDefinitionSO.HabitatTileResourcePath"/> 가 <c>""</c> 를
+            //   돌려주고 <see cref="LoadHabitatTiles"/> 는 <b>첫 줄에서</b> null 로 빠진다 —
+            //   경고를 찍는 코드는 그 아래에 있어서 <b>도달하지 못한다.</b> 그래서 아래
+            //   <c>ground == null</c> 가 조용히 return 하고, <b>눈으로만</b> 발견된다.
+            //
+            //   빈 칸 자체는 <b>일반 종에게는 정상</b>이다(서식지가 없는 종이 대부분이다).
+            //   그래서 "빈 칸이면 경고" 가 아니라 <b>에픽인데 빈 칸이면 경고</b>다 —
+            //   에픽의 정의가 "서식지를 갖는 보스형" 이므로 그때만 모순이 된다.
+            if (def.epic && def.HabitatTileResourcePath.Length == 0)
+                Debug.LogWarning(
+                    $"[NeutralMonsterSpawner] {def.DisplayName}({def.monId}) 는 에픽인데 " +
+                    "서식지 타일 이름이 비어 있어 서식지를 그리지 않습니다. 표 " +
+                    "(`임시용 중립 몬스터.xlsx` habitat_design 시트)에 이 id 의 " +
+                    "habitat_tile_asset 을 적고 sync_tables_to_assets.py 를 돌려주세요.", unit);
+
             // 바닥이 없으면 서식지 자체를 안 그린다. 가장자리·데코는 없어도 된다
             // (없으면 각각 바닥 타일로 대체 / 데코 생략 — NeutralHabitat.Paint 참조).
             var ground = LoadHabitatTiles(def.HabitatTileResourcePath, def, unit, required: true);
