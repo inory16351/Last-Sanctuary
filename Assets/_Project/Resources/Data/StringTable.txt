@@ -127,3 +127,4 @@ character_title_9005	죽음을 딛는 복수자	The Avenger Beyond Death
 mon_name_1005		
 mon_name_1006		
 mon_name_1007		
+status_name_2004	기절	

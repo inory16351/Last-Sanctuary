@@ -715,6 +715,13 @@ namespace LastSanctuary.Combat
         float _boundUntil;
 
         /// <summary>
+        /// 「구속」의 화면 표시 이름. 보스마다 다른 이름(예: 기절)을 쓸 수 있어서
+        /// (<see cref="BossSkillSO.StatusName"/>, 2026-08-19) 상수가 아니라 인스턴스 값이다.
+        /// 기본값 "구속" — 이름을 안 넘기는 옛 호출부·비어 있는 스킬은 그대로 이걸 쓴다.
+        /// </summary>
+        string _boundLabel = "구속";
+
+        /// <summary>
         /// <b>「허약」</b> — 공격속도를 <paramref name="reducePercent"/> % 만큼 깎는다.
         /// 같은 것이 또 걸리면 <b>지속시간만 새로 잡는다</b>(중첩하지 않는다) — 감소율을
         /// 곱해 쌓으면 몇 발만 맞아도 공격이 사실상 멈춘다.
@@ -745,11 +752,18 @@ namespace LastSanctuary.Combat
         ///
         /// 이미 걸려 있으면 <b>더 긴 쪽</b>을 남긴다 — 짧은 것이 덮어써서 일찍 풀리면
         /// "구속이 안 걸렸다" 로 보인다.
+        ///
+        /// <paramref name="label"/> 은 상세 카드(<see cref="UI.UnitPortraitPanel"/>)가 보여줄
+        /// 이름이다(2026-08-19, <see cref="BossSkillSO.StatusName"/>). 비우면(또는 안 넘기면)
+        /// <b>"구속"</b>으로 떨어진다 — <b>매번 넣은 값으로 갈아 끼운다</b>(지속시간과 달리
+        /// "더 긴 쪽"을 비교하지 않는다). 지금 화면에 뭐라고 뜰지는 <b>가장 최근에 건 스킬</b>이
+        /// 정하는 것이 자연스럽다.
         /// </summary>
-        public void ApplyBind(float seconds)
+        public void ApplyBind(float seconds, string label = null)
         {
             if (seconds <= 0f) return;
             _boundUntil = Mathf.Max(_boundUntil, Time.time + seconds);
+            _boundLabel = string.IsNullOrEmpty(label) ? "구속" : label;
             _target = null;
             _engaged = false;
             _engagedWith = null;
@@ -757,6 +771,13 @@ namespace LastSanctuary.Combat
 
         /// <summary>지금 「구속」되어 있는지 (연출·UI 에서 쓸 수 있게 공개).</summary>
         public bool IsBound => Time.time < _boundUntil;
+
+        /// <summary>
+        /// 지금 걸린 「구속」의 화면 표시 이름("구속"·"기절" 등). <see cref="IsBound"/> 가
+        /// false 여도 마지막 값을 들고 있을 수 있으니, 호출부는 반드시 <see cref="IsBound"/>
+        /// 를 먼저 확인할 것(<see cref="UI.UnitPortraitPanel"/> 참조).
+        /// </summary>
+        public string BoundLabel => _boundLabel;
 
         /// <summary>
         /// 구속을 <b>즉시</b> 푼다 — 피올로의 「정신 안정」이 쓴다.

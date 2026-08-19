@@ -99,6 +99,25 @@ namespace LastSanctuary.Combat
                  "표에서 이 칸만 바꾸면 코드 수정 없이 모양이 바뀐다")]
         public string rangeType = "";
 
+        [Header("「구속」 표시 이름 (2026-08-19 신설)")]
+        [Tooltip("status_name — 이 스킬이 거는 「구속」(이동·공격 불가)의 화면 표시 이름. " +
+                 "스트링 키 (예: status_name_2004).\n" +
+                 "★ 왜 필요한가 — 같은 게임 메커니즘(UnitCombat.ApplyBind)을 보스마다 " +
+                 "다른 이름으로 부르고 싶을 때만 채운다. 아니사킬의 「거대한 위협 포효」는 " +
+                 "정의문 자체가 '...이동과 공격이 불가능해진다(<b>기절상태</b>)' 라고 못박아 " +
+                 "뒀으므로 \"기절\"을 넣었다. 말파스의 「구속탄」은 자기 정의문이 이미 " +
+                 "\"구속\"이라고 부르므로 <b>비워 뒀다</b> — 비면 UnitCombat 의 기본값" +
+                 "(\"구속\")을 그대로 쓴다.\n" +
+                 "⚠ 「허약」(구속 전 단계)의 이름은 이 칸이 아니다 — 지금은 항상 \"허약\"으로" +
+                 " 고정돼 있다. 필요해지면 같은 방식으로 칸을 하나 더 만들 것")]
+        public string statusNameKey = "";
+
+        /// <summary>
+        /// 「구속」의 화면 표시 이름. 표에 값이 없으면 <b>빈 문자열</b> — 이때
+        /// <see cref="UnitCombat.ApplyBind"/> 가 자기 기본값("구속")으로 떨어진다.
+        /// </summary>
+        public string StatusName => Data.StringTable.Get(statusNameKey, string.Empty);
+
         /// <summary>분기용 식별자. 문자열 비교는 여기서 한 번만 한다.</summary>
         public BossSkillType Type => BossSkillTypes.Parse(skillType);
 

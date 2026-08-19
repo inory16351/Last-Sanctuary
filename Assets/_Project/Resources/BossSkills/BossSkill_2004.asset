@@ -26,3 +26,4 @@ MonoBehaviour:
   coolTime: 20
   castSeconds: 2
   rangeType: Circle
+  statusNameKey: status_name_2004

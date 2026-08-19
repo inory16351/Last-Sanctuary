@@ -89,6 +89,9 @@ RULES = [
     ('웨이브 몬스터 테이블.xlsx', 'Skill', 'skill_id', [
         ('skill_name', 'skill_name', 'kr'),
         ('skill_explain', 'skill_explain', 'kr'),
+        # 2026-08-19 신설 — 이 스킬이 거는 「구속」의 화면 표시 이름(예: 기절). 비어 있는
+        # 스킬은 코드 기본값("구속")을 그대로 쓴다. `BossSkillSO.statusNameKey` 가 읽는다.
+        ('status_name', 'status_name', 'kr'),
     ]),
     ('웨이브 몬스터 테이블.xlsx', 'Skill_Type', 'skill_type', [
         ('desc', 'skill_type_desc', 'kr'),
@@ -120,6 +123,12 @@ RULES = [
         # 칭호 — 2026-08-15 에 표에 생긴 칸. 웨이브 보스의 boss_title 과 같은 역할이다
         # (지금은 비어 있어 키가 만들어지지 않는다 — 값을 적으면 그때 생긴다).
         ('mon_title', 'mon_title', 'kr'),
+    ]),
+    # 2026-08-19 신설 — 에픽 중립 보스(카르시노스·아니사킬 등)의 스킬이 거는 「구속」의
+    # 화면 표시 이름. 위 웨이브 쪽과 같은 컬럼·같은 뜻이다(아니사킬의 「거대한 위협
+    # 포효」가 "기절"을 쓴다 — 정의문 자체가 그렇게 부른다).
+    ('임시용 중립 몬스터.xlsx', 'Skill', 'skill_id', [
+        ('status_name', 'status_name', 'kr'),
     ]),
 
     # ── 정신 이상 ──────────────────────────────────────────────────────────

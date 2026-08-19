@@ -26,3 +26,4 @@ MonoBehaviour:
   coolTime: 20
   castSeconds: 2.5
   rangeType: Circle
+  statusNameKey: 

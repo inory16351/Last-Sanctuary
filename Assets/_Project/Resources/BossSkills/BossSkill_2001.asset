@@ -26,3 +26,4 @@ MonoBehaviour:
   coolTime: 10
   castSeconds: 1.2
   rangeType: Line
+  statusNameKey: 

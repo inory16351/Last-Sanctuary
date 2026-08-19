@@ -463,13 +463,20 @@ namespace LastSanctuary.UI
         /// 는 씬의 행동 스크립트가 매 프레임 계산하는 런타임 상태이고, <c>Faction</c> 은
         /// 유닛 종류마다 코드가 고정해 두는 값이다. 그래서 이 변경에 맞춰 지울 표 컬럼이
         /// 없다(확인 완료).
+        ///
+        /// ★ 구속의 이름은 <b>스킬마다 다를 수 있다</b>(2026-08-19 신설,
+        /// <see cref="BossSkillSO.StatusName"/>) — 아니사킬 「거대한 위협 포효」에 맞으면
+        /// "기절", 말파스 「구속탄」에 맞으면 "구속" 이 뜬다. <see cref="UnitCombat.BoundLabel"/>
+        /// 이 그 스킬이 마지막으로 건 이름을 들고 있으므로 여기서 하드코딩하지 않는다.
+        /// 캐릭터가 실제로 맞는 순간 <see cref="UnitCombat.ApplyBind"/> 가 바로 갈아 끼우므로,
+        /// 0.2초 주기 갱신(<see cref="volatileRefreshInterval"/>) 안에 화면에도 즉시 반영된다.
         /// </summary>
         static string StateTextOf(DamageableUnit unit)
         {
             if (unit == null) return string.Empty;
 
             var combat = unit.GetComponent<UnitCombat>();
-            if (combat != null && combat.IsBound) return "구속";
+            if (combat != null && combat.IsBound) return combat.BoundLabel;
 
             if (unit is CharacterUnit character)
             {

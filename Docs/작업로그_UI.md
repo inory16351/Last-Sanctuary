@@ -2587,3 +2587,37 @@ convert_tables_to_string_keys.py · add_boss_skill_erosion_column.py`, 신규
 
 recompile 에러 0·경고 0 · 렌더 비교로 히스톤/카시노마 평상시 빈칸 확인,
 구속 상태 렌더로 기능 유지 확인 · 두 테이블에 관련 컬럼 없음을 재확인.
+
+---
+
+## UI-36. 구속(기절) 상태의 화면 표시 이름을 스킬 데이터로 (2026-08-19)
+
+> 상세는 `진행상황.md` **112-9절**.
+
+112-8절이 지운 것은 평상시 필러(임무·소속)였다. 이번엔 「구속」의 이름 자체가
+하드코딩("구속" 리터럴)이던 것을 스킬 데이터 컬럼으로 내렸다 — 아니사킬의 「거대한
+위협 포효」는 정의문이 스스로 "기절"이라 부르는데 화면에는 항상 "구속"만 뜨고 있었다.
+
+- 표 2곳에 `status_name` 컬럼 신설(기존 컬럼 뒤에 그냥 붙임): 웨이브 몬스터 테이블
+  (130003 구속탄 — 비움, 기본값 유지) · 임시용 중립 몬스터(2004 거대한 위협 포효 — "기절").
+- `BossSkillSO.StatusName` → `BossSkillCaster.Bind()` → `UnitCombat.ApplyBind(seconds, label)`
+  → `BoundLabel` → `UnitPortraitPanel.StateTextOf`. 0.2초 주기 갱신이 이미 있어서
+  "바로바로 바뀌게"는 별도 이벤트 없이 자동으로 성립한다.
+- 레이아웃: `Level` 374→366(폭 40), `State` 422→408(폭 58) — **기존 오브젝트 재사용**,
+  새로 만든 것 없음.
+
+### 소유권 (§2)
+
+**UI 소유** — `Scripts/Combat/BossSkillSO.cs · BossSkillCaster.cs · UnitCombat.cs`,
+`Scripts/UI/UnitPortraitPanel.cs`, `Resources/BossSkills/**`, `Resources/Data/StringTable.txt`,
+`Assets/Scenes/Proto_01.unity`.
+**⚠ PROTO 소유** — `Tools/gen_string_table.py · convert_tables_to_string_keys.py ·
+sync_tables_to_assets.py`, 신규 `Tools/add_boss_skill_status_name_column.py`.
+
+⚠ 파이프라인 재실행으로 다른 세션이 표에만 넣어둔 고르도네 스킬(2005·2006) 등도 같이
+에셋으로 반영됐다 — 표가 정본이라는 원칙의 자연스러운 결과.
+
+### 검증
+
+recompile 에러 0·경고 0 · 재실행 멱등 · `BossSkill_130003`(빈칸)/`BossSkill_2004`
+(`status_name_2004`) 확인 · 렌더로 기절 표시/평상시 빈칸 비교 확인.

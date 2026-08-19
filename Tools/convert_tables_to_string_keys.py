@@ -56,7 +56,9 @@ TARGETS = [
     ('웨이브 몬스터 테이블.xlsx', 'wave_top_boss', 'monster_id', [
         ('monster_name', 'monster_name'), ('boss_title', 'boss_title')]),
     ('웨이브 몬스터 테이블.xlsx', 'Skill', 'skill_id', [
-        ('skill_name', 'skill_name'), ('skill_explain', 'skill_explain')]),
+        ('skill_name', 'skill_name'), ('skill_explain', 'skill_explain'),
+        # 2026-08-19 신설 — 「구속」의 화면 표시 이름(예: 기절).
+        ('status_name', 'status_name')]),
     ('웨이브 몬스터 테이블.xlsx', 'Skill_Type', 'skill_type', [('desc', 'skill_type_desc')]),
 
     ('캐릭터 테이블.xlsx', 'Character', 'character_id', [
@@ -70,6 +72,9 @@ TARGETS = [
 
     ('임시용 중립 몬스터.xlsx', 'neutrality_mon', 'mon_id', [
         ('mon_name', 'mon_name'), ('mon_title', 'mon_title')]),
+    # 2026-08-19 신설 — 에픽 중립 보스 스킬의 「구속」 표시 이름(위 웨이브 쪽과 같은 뜻).
+    ('임시용 중립 몬스터.xlsx', 'Skill', 'skill_id', [
+        ('status_name', 'status_name')]),
 
     ('정신 이상 테이블.xlsx', 'mental_error', 'mental_error_id', [
         ('Korean_explain', 'mental_error_name')]),

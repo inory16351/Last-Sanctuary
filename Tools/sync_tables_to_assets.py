@@ -650,6 +650,8 @@ def sync_boss_skills():
         #   range_type : 범위 모양. 비어 있으면 Line(직사각형, 조준 방향 자유각).
         body += '  castSeconds: %s\n' % num(row.get('cast_time'))
         body += '  rangeType: %s\n' % (row.get('range_type') or '')
+        # 「구속」 표시 이름 (2026-08-19) — 비어 있으면 UnitCombat 의 기본값("구속")을 쓴다.
+        body += '  statusNameKey: %s\n' % (row.get('status_name') or '')
 
         path = os.path.join(folder, name + '.asset')
         with open(path, 'w', encoding='utf-8', newline='\n') as f:
@@ -743,6 +745,8 @@ def sync_neutral_skills():
         body += '  coolTime: %s\n' % num(row.get('cool_time'))
         body += '  castSeconds: %s\n' % num(row.get('cast_time'))
         body += '  rangeType: %s\n' % (row.get('range_type') or '')
+        # 「구속」 표시 이름 (2026-08-19) — 아니사킬 「거대한 위협 포효」는 "기절"을 쓴다.
+        body += '  statusNameKey: %s\n' % (row.get('status_name') or '')
 
         path = os.path.join(folder, name + '.asset')
         with open(path, 'w', encoding='utf-8', newline='\n') as f:

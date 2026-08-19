@@ -662,7 +662,7 @@ namespace LastSanctuary.Combat
                     if (combat.IsWeakened && skill.BindSeconds > 0f)
                     {
                         combat.ClearWeaken();
-                        Bind(combat, target, skill.BindSeconds);
+                        Bind(combat, target, skill.BindSeconds, skill.StatusName);
                     }
                     else
                     {
@@ -681,15 +681,22 @@ namespace LastSanctuary.Combat
             if (skill.Type == BossSkillType.HugeThreat && skill.BindSeconds > 0f)
             {
                 var combat = target.GetComponent<UnitCombat>();
-                if (combat != null) Bind(combat, target, skill.BindSeconds);
+                if (combat != null) Bind(combat, target, skill.BindSeconds, skill.StatusName);
             }
         }
 
-        /// <summary>구속을 걸고 로그를 남긴다 — 거는 자리가 둘이라 문구를 한 곳에 모았다.</summary>
-        static void Bind(UnitCombat combat, DamageableUnit target, float seconds)
+        /// <summary>
+        /// 구속을 걸고 로그를 남긴다 — 거는 자리가 둘이라 문구를 한 곳에 모았다.
+        ///
+        /// <paramref name="label"/> 은 이 스킬이 부르는 이름(<see cref="BossSkillSO.StatusName"/>,
+        /// 2026-08-19) — 비어 있으면 <see cref="UnitCombat.ApplyBind"/> 안에서 "구속"으로
+        /// 떨어진다. 로그도 상세 카드와 같은 이름을 쓰도록 여기서 한 번만 정한다.
+        /// </summary>
+        static void Bind(UnitCombat combat, DamageableUnit target, float seconds, string label)
         {
-            combat.ApplyBind(seconds);
-            UI.HudLog.Add($"{target.DisplayName} 구속!", UI.HudLogKind.Danger);
+            combat.ApplyBind(seconds, label);
+            string shown = string.IsNullOrEmpty(label) ? "구속" : label;
+            UI.HudLog.Add($"{target.DisplayName} {shown}!", UI.HudLogKind.Danger);
         }
 
         /// <summary>
