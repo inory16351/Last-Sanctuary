@@ -906,13 +906,28 @@ def skin_species(raw):
         s = s[:-len('_asset')]
     return s
 
-# 에픽(1004)의 서식지 값 — ⚠ <b>표에 없는 값이다.</b> 유저 지시가 "타일 계산 값들은
-# 에딧에서 수정할 수 있도록" 이라 인스펙터에서 조정하는 값이고, 여기서는 <b>처음 한 번</b>
-# 씨앗값만 넣는다. 이미 값이 들어 있는 에셋은 덮어쓰지 않는다(아래 seed_only 참조).
-EPIC_HABITAT_SEED = {
+# 에픽의 서식지 <b>범위</b> 값(반경·추격거리·유휴여유) — 2026-08-19 부터 `habitat_design`
+# 시트의 컬럼이다(유저 지시: "아니사킬 청크값" → 118-1절에서 남긴 미결 항목).
+#
+# ⚠ <b>여전히 「처음 한 번」만 심는다</b> — 표가 정본이 된 것은 <b>씨앗값의 출처</b>일 뿐이고,
+#   유저 지시("타일 계산 값들은 에딧에서 수정할 수 있도록")는 안 바뀐다. 에셋에 이미 그
+#   필드가 있으면(=한 번이라도 태어난 뒤) 표를 다시 돌려도 <b>절대 덮어쓰지 않는다</b>
+#   (아래 seed_only 참조) — 매직 넘버가 하드코딩 상수에서 표 컬럼으로 옮겨간 것뿐,
+#   에디터에서 조정한 값을 지키는 규칙은 그대로다.
+#
+# 표에 아직 이 종의 범위 값이 없으면(컬럼 신설 전에 만들어진 미래의 에픽 등) 이 기본값으로
+# 떨어진다 — 카르시노스·아니사킬이 지금까지 쓰던 값과 같다.
+EPIC_HABITAT_SEED_FALLBACK = {
     'habitatRadiusTiles': 14,
     'habitatChaseTiles': 8,
     'habitatIdleSlackTiles': 1,
+}
+
+#: `habitat_design` 컬럼명 → 에셋 필드명.
+HABITAT_RANGE_FIELDS = {
+    'habitat_radius_tiles': 'habitatRadiusTiles',
+    'habitat_chase_tiles': 'habitatChaseTiles',
+    'habitat_idle_slack_tiles': 'habitatIdleSlackTiles',
 }
 
 
@@ -929,15 +944,27 @@ def sync_neutral_monsters():
     if not stats:
         print('  ! first_Stat 시트가 없습니다 - 능력치는 기존 값을 유지합니다')
 
-    # 서식지 바닥 타일 — <b>별도 시트</b>(habitat_design)에 있다. 종당 한 줄이고
-    # 지금은 에픽만 채워져 있다. 빈 종은 값이 '' 라 게임이 아무것도 안 그린다.
+    # 서식지 바닥 타일 + 범위 값 — <b>별도 시트</b>(habitat_design)에 있다. 종당 한 줄이고
+    # 지금은 에픽만 채워져 있다. 빈 종은 타일 값이 '' 라 게임이 아무것도 안 그린다.
+    #
+    # ⚠ 범위 값(반경·추격거리·유휴여유)은 <b>씨앗으로만</b> 쓴다 — 위 HABITAT_RANGE_FIELDS
+    #   주석 참조. 표에 그 종 줄 자체가 없거나 칸이 비면 EPIC_HABITAT_SEED_FALLBACK 로 뗀다.
     habitat = {}
+    habitat_range = {}
     if 'habitat_design' in sheets:
         for r in read_rows(XLSX_NEUTRAL, 'habitat_design'):
             mid = r.get('mon_id')
             if mid in (None, ''):
                 continue
-            habitat[int(num(mid))] = str(r.get('habitat_tile_asset') or '').strip()
+            mid = int(num(mid))
+            habitat[mid] = str(r.get('habitat_tile_asset') or '').strip()
+
+            seed = dict(EPIC_HABITAT_SEED_FALLBACK)
+            for col, field in HABITAT_RANGE_FIELDS.items():
+                v = r.get(col)
+                if v not in (None, ''):
+                    seed[field] = num(v)
+            habitat_range[mid] = seed
 
     # ★ 2026-08-15 부터 중립 정의는 <b>Resources</b> 에 산다 — 스포너가 폴더를 통째로 읽어
     #   자동 등록하기 때문이다(씬 슬롯을 손으로 만들 필요가 없어졌다).
@@ -1055,12 +1082,13 @@ def sync_neutral_monsters():
         if not os.path.exists(path):
             create_neutral_asset(path, asset, mid, row)
 
-        # 서식지 값은 <b>에디터에서 조정</b>하는 값이라 매번 덮어쓰지 않는다.
-        # 아직 줄이 없을 때(= 처음 만들어질 때)만 씨앗값을 심는다.
+        # 서식지 범위 값은 <b>에디터에서 조정</b>하는 값이라 매번 덮어쓰지 않는다.
+        # 아직 필드 자체가 없을 때(= 처음 만들어질 때)만 표(또는 폴백)의 씨앗값을 심는다.
         if is_epic:
             with open(path, encoding='utf-8') as f:
                 cur = f.read()
-            for k, v in EPIC_HABITAT_SEED.items():
+            seed = habitat_range.get(mid, EPIC_HABITAT_SEED_FALLBACK)
+            for k, v in seed.items():
                 if not re.search(r'^\s*%s:' % re.escape(k), cur, re.M):
                     changes[k] = v
 
