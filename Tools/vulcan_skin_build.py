@@ -239,8 +239,8 @@ SPEC = Spec(
         Row("Projectile",       "fx",  70, 127, FX0, FX1, C, 4),
         Row("MuzzleFlash",      "fx", 129, 200, FX0, FX1, C, 5),
         # ★ 시트가 「원거리 / 마법 타격」을 <b>한 줄</b>로 준다 — 같은 그림을 두 칸에 넣는다.
-        Row("Impact",           "fx", 230, 325, FX0, FX1, C, 5),
-        Row("ImpactMagic",      "fx", 230, 325, FX0, FX1, C, 5),
+        Row("Impact",           "fx", 227, 325, FX0, FX1, C, 5),
+        Row("ImpactMagic",      "fx", 227, 325, FX0, FX1, C, 5),
         # ⚠ 이 두 줄은 <b>덩어리로도 못 센다</b> — 불덩이의 «꼬리» 가 다음 칸까지 뻗어
         #   덩어리가 서로 붙는다(실측: 5개가 4개·2개로). 발이 없어 `feet` 도 못 쓴다.
         #   그래서 경계를 눈으로 재서 박았다.
@@ -261,7 +261,7 @@ SPEC = Spec(
                   "Unused_MeteorFall", "Unused_HealFxAlt"),
     scale_reference="IdleLeft",
     # ★ 정규화 안 함 — 맨 위 ⚠ 참조(시트가 「2x / 1x」 견본으로 같은 크기임을 밝힌다).
-    scale_metric=None,
+    scale_metric="min",
     # ★ 옆 칸 조각을 확실히 끊는다 — 프레임이 닿아 있어 기본값(0.12)으로는 붙는다.
     dominant_join=0.05,
 )

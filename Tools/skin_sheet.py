@@ -1113,6 +1113,49 @@ def resample_rgba(rgba, factor, resample=None):
     return out[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
 
 
+def feather_edges(rgba, top=0, bottom=0, left=0, right=0):
+    """
+    프레임의 <b>지정한 변</b>에서 알파를 0 으로 <b>서서히 떨어뜨린다</b> (2026-08-21 신설).
+
+    ★★ <b>왜 필요한가</b> — 유저 리포트: *"쉴드 이미지 또 잘렸네 이펙트 확실히 구분해서
+    잘라"*. 카이론의 보호막 구체 여섯 장은 시트에서 <b>위·아래 줄이 맞닿아</b> 있다
+    (실측: 한 열의 잉크가 y892~1024 로 <b>끊기지 않는다</b> — 구체 두 개가 딱 붙어 있다).
+    즉 <b>어디를 잘라도 잘린다.</b> 가장 옅은 허리(y956~960)에서 갈라도 옅은 후광이
+    <b>변에 28px 남고</b>, 그 자리가 «칼로 자른 직선» 으로 보인다.
+
+    그래서 «어디서 자를까» 를 더 찾는 대신 <b>자른 자리를 부드럽게 만든다</b>.
+    직선으로 끊긴 후광은 눈에 띄지만 <b>서서히 사라지는 후광은 원래 그런 것처럼 보인다.</b>
+
+    ⚠ <b>알파만</b> 건드린다 — RGB 는 그대로다(:func:`sharpen_rgba` 와 같은 규칙).
+    ⚠ 폭은 <b>그 변에서 몇 px 을</b> 이라는 뜻이고, 0 이면 그 변은 손대지 않는다.
+    """
+    if top <= 0 and bottom <= 0 and left <= 0 and right <= 0:
+        return rgba
+    out = rgba.copy()
+    a = out[:, :, 3].astype(np.float32)
+    h, w = a.shape
+
+    def ramp(n):
+        # 0 → 1 로 오르는 부드러운 곡선(끝이 0 이라 «완전히 사라진다»)
+        return (np.arange(1, n + 1, dtype=np.float32) / (n + 1.0)) ** 1.5
+
+    if top > 0:
+        n = min(top, h)
+        a[:n, :] *= ramp(n)[:, None]
+    if bottom > 0:
+        n = min(bottom, h)
+        a[h - n:, :] *= ramp(n)[::-1][:, None]
+    if left > 0:
+        n = min(left, w)
+        a[:, :n] *= ramp(n)[None, :]
+    if right > 0:
+        n = min(right, w)
+        a[:, w - n:] *= ramp(n)[::-1][None, :]
+
+    out[:, :, 3] = np.clip(a, 0, 255).astype(np.uint8)
+    return out
+
+
 def sharpen_rgba(rgba, amount=0.9, radius=1.0, threshold=2):
     """
     RGBA 프레임의 <b>RGB 만</b> 언샵 마스크로 조인다 (2026-08-20 신설).

@@ -47,7 +47,7 @@ from skin_sheet import (
     cells_by_feet,
     boxes_for, boxes_dominant, crop_rgba, body_anchor, base_anchor, compose,
     write_png, ensure_folder_meta, clear_frames, shadow_in_box, enclosed_background,
-    resample_rgba, head_pixels, body_extent,
+    resample_rgba, head_pixels, body_extent, feather_edges,
 )
 
 
@@ -56,7 +56,7 @@ class Row(object):
 
     def __init__(self, name, kind, y0, y1, x0, x1, cells, expect,
                  src="01", take=None, skip=0, keep=None, folder=None, side=None, start=0,
-                 scale=True, dominant=True):
+                 scale=True, dominant=True, feather=None):
         self.name = name
         self.kind = kind            # "body" | "fx"
         self.y0, self.y1 = y0, y1
@@ -77,6 +77,11 @@ class Row(object):
         self.start = start
         self.scale = scale
         self.dominant = dominant
+        #: ★★ 자른 자리를 <b>서서히 사라지게</b> 할 변과 폭 — ``(위, 아래, 좌, 우)`` px.
+        #:
+        #:   맞닿은 두 줄을 가를 때 쓴다(:func:`skin_sheet.feather_edges` 의 긴 주석).
+        #:   ⚠ 몸통 줄에는 쓰지 말 것 — 발이나 머리가 흐려진다. 이펙트 전용이다.
+        self.feather = feather
 
 
 class Spec(object):
@@ -97,7 +102,7 @@ class Spec(object):
         self.original_side = original_side or {}
         self.default_side = default_side
         self.scale_reference = scale_reference
-        self.scale_metric = scale_metric    # "head" | "height" | None
+        self.scale_metric = scale_metric    # "head" | "height" | "min" | None
         self.dominant_join = dominant_join
         self.pocket = pocket                # (min_area, ring_lum)
         #: ★ 굽는 해상도 — :data:`supersample` 배로 키우고 ppu 도 같은 배로 올린다.
@@ -189,45 +194,112 @@ def report_body_size(spec, cut_rows):
     return sizes
 
 
-def measure_scale(spec, collected):
-    """모션마다 «대기 대비 배율».
-
-    ★ 기준이 <b>둘</b>이다 — 시트마다 맞는 쪽이 다르다:
-
-    * ``head`` : 머리 <b>면적</b>. 지팡이·활·낫이 상자를 늘려 키를 못 믿는 캐릭터용
-      (:func:`skin_sheet.head_pixels` 의 긴 주석).
-    * ``height``: 상자 <b>높이</b>. 든 것이 없어 «상자가 곧 몸» 인 유닛용(골렘).
-      옆을 보고 웅크린 이동 원화에서 머리 판정이 무너지는 경우가 여기 해당한다.
+def _median_head(frames):
+    """이 줄의 머리 면적(중앙값). 잴 수 없으면 0.
 
     ⚠ **중앙값**을 쓴다. 평균을 쓰면 «안개로 흩어지는 마지막 두 장» 같은 프레임이
       줄 전체를 부풀린다(아루 회복 줄에서 실제로 x1.227 이 나왔다).
     """
+    got = [head_pixels(f) for f in frames]
+    got = [v for v in got if v > 60]
+    return float(np.median(got)) if got else 0.0
+
+
+def _median_height(frames):
+    """이 줄의 상자 높이(중앙값)."""
+    return float(np.median([f.shape[0] for f in frames]))
+
+
+def measure_scale(spec, collected):
+    """모션마다 «대기 대비 배율».
+
+    ★ 기준이 <b>셋</b>이다 — 시트마다 맞는 쪽이 다르다:
+
+    * ``head``  : 머리 <b>면적</b>. 지팡이·활·낫이 상자를 늘려 키를 못 믿는 캐릭터용
+      (:func:`skin_sheet.head_pixels` 의 긴 주석).
+    * ``height``: 상자 <b>높이</b>. 든 것이 없어 «상자가 곧 몸» 인 유닛용(골렘).
+    * ``min``   : ★★ <b>위 둘 중 작은 쪽</b> (2026-08-21 신설 · 캐릭터의 기본값).
+
+    ★★ <b>왜 «작은 쪽» 인가</b> (2026-08-21) — 두 기준은 <b>각각 한쪽으로만 틀린다</b>:
+
+    * ``height`` 는 <b>웅크린 자세를 크기 오류로 읽는다</b> — 달리는 원화는 몸을 기울여
+      키가 20~30% 줄어드는 것이 <b>연출</b>인데, 그것을 «작아졌다» 로 보고 <b>부풀린다</b>
+      (아루 이동: 상자 x1.485 vs 머리 x1.279).
+    * ``head`` 는 <b>밝고 저채도인 다른 부위</b>가 판정 창에 들어오면 부풀린다 —
+      아르세니아는 대기에서 <b>흰 날개가 접혀</b> 상단 45% 에 들어오는데 마법 줄은
+      날개를 <b>펼쳐</b> 창 밖으로 나간다. 그래서 기준(대기)만 커져 배율이 뛴다
+      (마법: 머리 x1.371 vs 상자 x1.188).
+
+    ★★ 그래서 ``min`` 은 <b>단순한 최솟값이 아니다</b>. 규칙은 한 줄이다:
+
+        <b>상자 높이는 «키우는 것» 만 막는다 — «줄이는» 근거는 되지 않는다.</b>
+
+            f = min(머리, 상자)   상자 배율이 1 이상일 때
+            f = 머리              그렇지 않을 때
+
+    <b>왜 그렇게 갈랐나</b> — 상자 높이는 <b>양쪽으로</b> 틀린다:
+
+    * 웅크린 자세면 <b>위로</b> 틀린다(위 참조) → 그때는 머리를 넘지 못하게 <b>깎는 역할</b>이
+      맞다.
+    * ⚠ 그런데 <b>이펙트가 프레임을 키우면 아래로</b> 틀린다 — 카이론 「스킬 1」은 몸이
+      <b>황금 구체 안</b>에 들어가 상자가 대기보다 크다. 그러면 상자 배율이 <b>x0.930</b> 이
+      되어 «몸을 7% 줄여라» 는 뜻이 되는데, 머리로 재면 <b>x1.144</b>(키워야 한다)다.
+      그대로 최솟값을 쓰면 <b>고치려던 것과 반대로</b> 스킬 중에 몸이 작아진다.
+
+    그래서 «1 미만인 상자 배율» 은 <b>믿지 않는다</b>. 정말로 줄여야 하는 줄(변신·강림처럼
+    원화가 일부러 큰 줄)은 <b>머리도 같이 1 미만</b>으로 나오므로 머리만으로 잡힌다
+    (아루 「강림」 머리 x0.855) — 그런 줄은 대개 :data:`Row.scale` 을 ``False`` 로 빼는 것이
+    더 낫다(아르세니아 「천사 강림」).
+
+    ⚠ 값이 어긋나는 줄은 <b>둘 다 찍는다</b> — 사람이 보고 판단할 재료다.
+    """
     if spec.scale_metric is None:
         return {}
 
-    vals = {}
+    head, tall = {}, {}
     for name, frames in collected.items():
-        if spec.scale_metric == "height":
-            vals[name] = float(np.median([f.shape[0] for f in frames]))
-        else:
-            got = [head_pixels(f) for f in frames]
-            got = [v for v in got if v > 60]
-            if got:
-                vals[name] = float(np.median(got))
+        head[name] = _median_head(frames)
+        tall[name] = _median_height(frames)
 
-    ref = vals.get(spec.scale_reference)
-    if not ref:
+    use_head = spec.scale_metric in ("head", "min")
+    use_tall = spec.scale_metric in ("height", "min")
+
+    ref_head = head.get(spec.scale_reference, 0.0)
+    ref_tall = tall.get(spec.scale_reference, 0.0)
+    if not (use_head and ref_head > 0.0) and not (use_tall and ref_tall > 0.0):
         print("  ⚠ 기준 모션(%s)을 못 재 크기 정규화를 건너뜁니다" % spec.scale_reference)
         return {}
 
+    label = {"head": "머리 면적", "height": "상자 높이", "min": "머리·상자 중 작은 쪽"}
+    print("  [크기 정규화] %s → 대기 기준 배율" % label[spec.scale_metric])
+
     factors = {}
-    label = "상자 높이" if spec.scale_metric == "height" else "머리 면적"
-    print("  [크기 정규화] %s → 대기 기준 배율" % label)
-    for name, v in sorted(vals.items()):
-        f = (ref / v) if spec.scale_metric == "height" else (ref / v) ** 0.5
+    for name in sorted(collected):
+        fh = ft = None
+        if use_head and ref_head > 0.0 and head[name] > 0.0:
+            fh = (ref_head / head[name]) ** 0.5      # 면적이므로 제곱근
+        if use_tall and ref_tall > 0.0 and tall[name] > 0.0:
+            ft = ref_tall / tall[name]
+
+        if fh is None and ft is None:
+            continue
+        if spec.scale_metric == "head":
+            f = fh if fh is not None else ft
+        elif spec.scale_metric == "height":
+            f = ft if ft is not None else fh
+        elif fh is None:
+            f = ft
+        elif ft is None or ft < 1.0:
+            # ⚠ 1 미만인 상자 배율은 «이펙트가 프레임을 키운 것» 이라 믿지 않는다(위 ★★).
+            f = fh
+        else:
+            f = min(fh, ft)
         factors[name] = f
+        note = ""
+        if fh is not None and ft is not None and abs(fh - ft) > 0.05:
+            note = "  (머리 x%.3f · 상자 x%.3f — 어긋난다)" % (fh, ft)
         flag = "" if SCALE_MIN <= f <= SCALE_MAX else "  ← ⚠ 범위 밖"
-        print("    %-18s %6.1f  →  x%.3f%s" % (name, v, f, flag))
+        print("    %-18s →  x%.3f%s%s" % (name, f, note, flag))
 
     bad = {k: round(v, 3) for k, v in factors.items() if not (SCALE_MIN <= v <= SCALE_MAX)}
     if bad:
@@ -383,6 +455,10 @@ def bake(spec, cut_rows, factors):
         if spec.sharpen > 0:
             from skin_sheet import sharpen_rgba
             frames = [sharpen_rgba(f, amount=spec.sharpen) for f in frames]
+        if row.feather:
+            # ★ 배율을 먹인 <b>뒤에</b> 흐린다 — 먼저 하면 확대가 흐림을 늘린다.
+            t, b, l, r = (list(row.feather) + [0, 0, 0, 0])[:4]
+            frames = [feather_edges(f, top=t, bottom=b, left=l, right=r) for f in frames]
 
         anchor = body_anchor if row.kind == "body" else base_anchor
         images, w, h = compose(frames, [anchor(f) for f in frames])
