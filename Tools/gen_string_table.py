@@ -112,6 +112,10 @@ RULES = [
     ('캐릭터 테이블.xlsx', 'Skill', 'skill_id', [
         ('skill_name', 'skill_name', 'kr'),
         ('skill_explain', 'skill_explain', 'kr'),
+        # 2026-08-20 신설 — 「상세 설명」. <b>수치를 적지 않는</b> 중간 문구
+        # (플레이버보다 구체적이고 정의문보다 헐렁하다 · 유저 지시
+        #  *"밸류 타입보단 덜 상세하게"*).
+        ('skill_detail', 'skill_detail', 'kr'),
     ]),
     ('캐릭터 테이블.xlsx', 'Skill_Type', 'skill_type', [
         ('desc', 'skill_type_desc', 'kr'),

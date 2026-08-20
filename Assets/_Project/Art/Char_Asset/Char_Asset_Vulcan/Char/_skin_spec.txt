@@ -9,4 +9,3 @@ attackFramesPerSecond=14
 groundImpactOnly=0
 projectileWidthTiles=1.0
 impactWidthTiles=1.6
-meleeTravelWidthTiles=1.2

@@ -15,6 +15,7 @@ MonoBehaviour:
   skillId: 80026
   nameKey: 'skill_name_80026'
   flavorKey: 'skill_explain_80026'
+  detailKey: 'skill_detail_80026'
   effectKey: 'skill_type_desc_Celestial_shield'
   skillName: '천상의 방패'
   skillType: 'Celestial_shield'
@@ -26,5 +27,6 @@ MonoBehaviour:
   value06: 0
   coolTime: 30
   iconName: 'icon_taunt_guard'
-  flavorText: ''
+  flavorText: '그가 방패를 들면 적들의 눈에는 그 외의 것이 보이지 않습니다.'
+  detailText: '정신을 집중한 뒤 주변의 적을 도발하고, 도발이 끝나면 그 적들을 한꺼번에 때립니다.'
   effectTemplate: '카이론이 {value_01}초 동안 정신집중을 합니다. 정신집중이 끝나면 지름값{value_02} 범위 내의 적을 {value_03}초 동안 도발합니다. 도발 시간이 끝나면 {value_02} 범위 내의 적에게 근거리 공격력의 {value_04}%의 데미지를 줍니다.'

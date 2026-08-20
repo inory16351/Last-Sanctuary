@@ -63,6 +63,7 @@ namespace LastSanctuary.Combat
         /// <summary>다른 지침을 통째로 덮어쓰고 즉시 반영한다.</summary>
         public void SetOrder(TacticalOrder newOrder)
         {
+            if (TacticsLocked) return;            // 골렘 — 전술 전면 잠금
             order.CopyFrom(newOrder);
             ForceAllLocks();
             Apply();
@@ -85,6 +86,31 @@ namespace LastSanctuary.Combat
 
         /// <summary>공격 유형·포지션이 패시브로 잠겨 있는가. <see cref="CharacterPassives"/> 가 켠다.</summary>
         public bool RoleLocked { get; private set; }
+
+        // ------------------------------------------------------------------
+        // ★★ 전술 <b>전면</b> 잠금 — 아루의 골렘 (2026-08-20)
+        //
+        // 「강림」(80024) 정의문: <b>"골렘은 … 전술을 수정할 수도 없습니다."</b>
+        //
+        // ⚠ <b>`RoleLocked` 로는 부족했다</b>(유저 리포트: *"골렘 강화/전술 변경 가능한 버그"*).
+        //   그쪽은 <b>공격 유형·포지션 두 칸만</b> 막는다 — 정의문이 「선봉장」에 대해
+        //   그 두 칸만 말하기 때문이다. 그래서 골렘도 <b>교전 대상·탐험 유형·웨이브 반응·
+        //   배회 범위·후퇴 행동·집결 지시</b>는 그대로 바꿀 수 있었다.
+        //
+        // ★ 그래서 «전부 막는» 잠금을 따로 뒀다. 두 잠금을 <b>합치지 않은 이유</b>는
+        //   뜻이 다르기 때문이다 — 「선봉장」은 «두 칸을 한 값으로 못박는» 것이고
+        //   골렘은 «사람이 손댈 수 있는 유닛이 아니다» 다. 합치면 나중에 한쪽을 고칠 때
+        //   다른 쪽이 조용히 따라 움직인다.
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// 전술을 <b>하나도</b> 바꿀 수 없는가 (아루의 골렘). 위 ★★ 주석 참조.
+        /// UI 는 이 값을 보고 창 자체를 열지 않는다.
+        /// </summary>
+        public bool TacticsLocked { get; private set; }
+
+        /// <summary>전술 전면 잠금을 건다. <see cref="AruGolem"/> 가 소환 직후 부른다.</summary>
+        public void SetTacticsLock(bool locked) => TacticsLocked = locked;
 
         /// <summary>
         /// 역할 잠금을 걸거나 푼다. 거는 순간 <b>잠긴 값으로 즉시 스냅</b>한다 —
@@ -197,6 +223,7 @@ namespace LastSanctuary.Combat
 
         public void SetAttackType(TacticalAttackType v)
         {
+            if (TacticsLocked) return;            // 골렘 — 전술 전면 잠금
             // ★ 금지된 유형은 받지 않는다 (위 ★★). UI 도 버튼을 잠그지만 여기서도 막는다 —
             //   «막는 곳을 한 군데만 두면 다른 경로로 새어 들어온다» 는 이 파일의 규칙이다.
             if (BannedAttackType.HasValue && v == BannedAttackType.Value) return;
@@ -208,6 +235,7 @@ namespace LastSanctuary.Combat
 
         public void SetPosition(TacticalPosition v)
         {
+            if (TacticsLocked) return;            // 골렘 — 전술 전면 잠금
             if (RoleLocked) return;               // 「선봉장」 — 전방 고정
             if (order.position == v) return;
             order.position = v;
@@ -217,24 +245,28 @@ namespace LastSanctuary.Combat
 
         public void SetTargetPriority(TacticalTargetPriority v)
         {
+            if (TacticsLocked) return;            // 골렘 — 전술 전면 잠금
             if (order.targetPriority == v) return;
             order.targetPriority = v; Apply();
         }
 
         public void SetAttackReaction(TacticalAttackReaction v)
         {
+            if (TacticsLocked) return;            // 골렘 — 전술 전면 잠금
             if (order.attackReaction == v) return;
             order.attackReaction = v; Apply();
         }
 
         public void SetExpeditionType(TacticalExpeditionType v)
         {
+            if (TacticsLocked) return;            // 골렘 — 전술 전면 잠금
             if (order.expeditionType == v) return;
             order.expeditionType = v; Apply();
         }
 
         public void SetWaveReaction(TacticalWaveReaction v)
         {
+            if (TacticsLocked) return;            // 골렘 — 전술 전면 잠금
             if (order.waveReaction == v) return;
             order.waveReaction = v; Apply();
         }
@@ -258,6 +290,7 @@ namespace LastSanctuary.Combat
         /// </summary>
         public void SetRoamRange(TacticalRoamRange v)
         {
+            if (TacticsLocked) return;            // 골렘 — 전술 전면 잠금
             ApplyRoamRangeLocal(v);
 
             SquadService squads = SquadService.Instance;
@@ -290,6 +323,7 @@ namespace LastSanctuary.Combat
         /// </summary>
         public void SetRetreatAction(TacticalRetreatAction v)
         {
+            if (TacticsLocked) return;            // 골렘 — 전술 전면 잠금
             if (v == TacticalRetreatAction.FallBackWithAlly && !order.CanFallBackWithAlly) return;
             if (order.retreatAction == v) return;
             order.retreatAction = v; Apply();
@@ -297,6 +331,7 @@ namespace LastSanctuary.Combat
 
         public void SetRetreatHpPercent(int percent)
         {
+            if (TacticsLocked) return;            // 골렘 — 전술 전면 잠금
             if (RetreatHpLocked) return;          // 「가학증」 — 후퇴 기준 고정
             percent = Mathf.Clamp(percent, 0, 100);
             if (order.retreatHpPercent == percent) return;
@@ -313,6 +348,7 @@ namespace LastSanctuary.Combat
         /// </summary>
         public void ResetToDefault()
         {
+            if (TacticsLocked) return;            // 골렘 — 전술 전면 잠금
             order.ResetToDefault();
             ForceAllLocks();
             Apply();

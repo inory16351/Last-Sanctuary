@@ -52,6 +52,20 @@ namespace LastSanctuary.UI
 
         void Start()
         {
+            // ★★ 기능이 꺼져 있으면 <b>버튼 자체를 숨긴다</b> (2026-08-20 · 유저 지시
+            //   *"타워랑 건설 기능 삭제"* → «플레이에서만 제거»).
+            //
+            //   ⚠ «비활성(interactable = false)» 으로 두면 <b>회색 버튼이 남는다</b> —
+            //     유저에게는 «고장난 기능» 으로 보인다. 지시는 «없애» 였으므로 감춘다.
+            //   ★ 판단은 <see cref="BuildService.FeatureEnabled"/> 로 한다 —
+            //     «서비스가 아직 안 깨어났다»(Instance == null) 와 구별해야 한다.
+            //     구별하지 않으면 초기화 순서에 따라 버튼이 깜빡인다.
+            if (!BuildService.FeatureEnabled)
+            {
+                gameObject.SetActive(false);
+                return;
+            }
+
             _service = BuildService.Instance;
             if (_service == null)
                 Debug.LogWarning("[BuildButton] BuildService 를 찾지 못했습니다. " +

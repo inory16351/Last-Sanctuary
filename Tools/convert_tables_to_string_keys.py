@@ -67,7 +67,10 @@ TARGETS = [
         # 키로 바꾸지 않는다(`boss_title_EG` · `character_name_EG` 와 같은 규칙, 위 doc 참조).
         ('character_title', 'character_title')]),
     ('캐릭터 테이블.xlsx', 'Skill', 'skill_id', [
-        ('skill_name', 'skill_name'), ('skill_explain', 'skill_explain')]),
+        ('skill_name', 'skill_name'), ('skill_explain', 'skill_explain'),
+        # 2026-08-20 신설 — 「상세 설명」. 플레이버(`skill_explain`)와 정의문
+        # (`Skill_Type.desc`) 사이의 중간 문구다(table_update_20260820_skill_detail.py 참조).
+        ('skill_detail', 'skill_detail')]),
     ('캐릭터 테이블.xlsx', 'Skill_Type', 'skill_type', [('desc', 'skill_type_desc')]),
 
     ('임시용 중립 몬스터.xlsx', 'neutrality_mon', 'mon_id', [

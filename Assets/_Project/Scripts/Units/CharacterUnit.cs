@@ -446,8 +446,33 @@ namespace LastSanctuary.Units
 
             Debug.Log($"[Character] {name} 사망", this);
 
+            // ★★ <b>사망 모션이 있으면 그것을 보여주고 나서 치운다</b> (2026-08-20).
+            //
+            //   유저 지시: *"사망 모션 넣지 않기(스프라이트에 있더라도 <b>단, 골렘은 예외</b>)"*.
+            //   그래서 판정을 «누구인가» 가 아니라 <b>«원화에 사망 줄이 있는가»</b> 로 뒀다 —
+            //   분해 스크립트가 캐릭터의 사망 줄을 굽지 않으므로(골렘만 굽는다) 그 규칙이
+            //   <b>자동으로</b> 성립한다. 새 캐릭터가 늘어도 여기를 고칠 일이 없고,
+            //   기획이 «이 캐릭터도 사망 모션» 이라고 하면 <b>원화를 굽는 것만으로</b> 켜진다.
+            //
+            //   ⚠ 모션이 도는 동안 <b>싸우지 못하게 막는다</b>. 체력이 0 이라 대부분의 코드는
+            //     `IsAlive` 로 알아서 걸리지만, 이동·표적 유지처럼 «지금 상태» 를 들고 있는
+            //     쪽은 한 프레임 더 움직일 수 있다. 소환 구간이 쓰는 통로를 그대로 쓴다
+            //     (<see cref="Combat.SummonDelay"/> — 이름과 달리 «잠시 굳히기» 가 전부다).
+            //   ⚠ 파괴를 늦추므로 이 몸은 잠깐 <c>UnitRegistry</c> 에 남는다. 위 「분노」
+            //     주석과 <b>같은 성질</b>이고, 그쪽처럼 «없어졌나» 를 묻는 곳이 문제가 되지는
+            //     않는다 — 이 경로는 <b>반드시</b> 파괴로 끝나기 때문이다(부활과 다르다).
+            var anim = GetComponent<Combat.CharacterAnimator>();
+            float deathClip = anim != null ? anim.PlayDeathMotion() : 0f;
+            if (deathClip > 0f)
+            {
+                var freeze = gameObject.GetComponent<Combat.SummonDelay>();
+                if (freeze == null) freeze = gameObject.AddComponent<Combat.SummonDelay>();
+                freeze.Begin(deathClip);
+                Destroy(gameObject, deathClip);
+                return;
+            }
+
             // 남겨두면 시체가 넥서스 주변에 쌓여 "전투가 멈춘 것처럼" 보인다.
-            // 사망 연출이 필요해지면 여기서 애니메이션 후 파괴로 바꾼다.
             Destroy(gameObject);
         }
 

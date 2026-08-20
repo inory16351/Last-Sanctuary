@@ -15,6 +15,7 @@ MonoBehaviour:
   skillId: 80005
   nameKey: 'skill_name_80005'
   flavorKey: 'skill_explain_80005'
+  detailKey: 'skill_detail_80005'
   effectKey: 'skill_type_desc_Blazing_wings'
   skillName: '타오르는 날개'
   skillType: 'Blazing_wings'
@@ -27,4 +28,5 @@ MonoBehaviour:
   coolTime: 0
   iconName: 'icon_feather_burst'
   flavorText: '비기오르의 의지가 불타오릅니다.'
+  detailText: '주변의 적이 매초 불타는 피해를 입습니다. 피해는 자신의 현재 체력에 비례합니다.'
   effectTemplate: '비기오르의 반경 {value_01} 내에 있는 적들은 초당 비기오르의 현재체력{value_02}% 만큼 데미지를 받는다. 데미지 계산 공식 적용'

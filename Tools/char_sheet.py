@@ -14,7 +14,8 @@
 | 칸 | 뜻 |
 |---|---|
 | ``cells`` | 칸 가르기 방법 — ``("labels", ly0, ly1)`` · ``("gaps",)`` · ``("bounds", [...])`` ·
-  ``("clusters",)`` (덩어리 + 뒷정리) · ``("span",)`` (폭 ÷ 장수) |
+  ``("clusters",)`` (덩어리 + 뒷정리) · ``("span",)`` (폭 ÷ 장수) ·
+  ``("feet",)`` (<b>발밑만 본다</b> — 이펙트가 몸통과 겹친 시트용 · 2026-08-20 신설) |
 | ``expect`` | 칸이 몇 개로 잡혀야 하는가. **어긋나면 죽는다**(조용히 틀린 프레임을 굽는 것보다 낫다) |
 | ``take`` | 그중 앞에서 몇 칸만 구울 것인가 — «한 줄에 모션과 이펙트가 섞인» 시트용 |
 | ``skip`` | 앞에서 몇 칸을 버릴 것인가 — 같은 줄의 <b>뒤쪽</b>만 쓸 때 |
@@ -43,6 +44,7 @@ from PIL import Image
 from skin_sheet import (
     SKIN_SPEC_NAME, write_skin_spec,
     load_sheet, cells_by_labels, cells_by_gaps, cells_by_clusters, cells_by_span,
+    cells_by_feet,
     boxes_for, boxes_dominant, crop_rgba, body_anchor, base_anchor, compose,
     write_png, ensure_folder_meta, clear_frames, shadow_in_box, enclosed_background,
     resample_rgba, head_pixels, body_extent,
@@ -273,6 +275,18 @@ def cells_of(sheet, row):
     if kind == "span":
         # ★ «그림이 놓인 폭 ÷ 장수». 라벨을 아예 안 본다 — 간격이 고른 줄에서 가장 튼튼하다.
         return cells_by_span(sheet["mask"], row.y0, row.y1, row.x0, row.x1, row.expect)
+    if kind == "feet":
+        # ★★ «발밑만 본다». 이펙트가 몸통과 겹쳐 그려진 시트(2026-08-20 교체분)의 정답이다 —
+        #   공중에 뜬 이펙트는 발밑 띠에 없으므로 몸통만 남는다(그 함수의 긴 주석).
+        #
+        # ★ <b>``expect`` 를 «목표 장수» 로 함께 넘긴다.</b> 맨다리 캐릭터는 <b>다리 하나가
+        #   조각 하나</b>가 되어 조각이 프레임보다 많이 나온다(카이론 이동 줄: 9장 → 16조각).
+        #   그때 «가장 좁은 틈부터» 합쳐 장수를 맞춘다(`skin_sheet.merge_to_count`).
+        #   ⚠ 그러므로 ``feet`` 의 ``expect`` 는 <b>검산이 아니라 입력</b>이다(``span`` 과 같다) —
+        #     장수는 시트를 눈으로 세어 적을 것. 조각이 장수보다 <b>적으면</b> 합칠 수 없고,
+        #     그때는 아래 개수 검사가 죽어 준다.
+        return cells_by_feet(sheet["mask"], row.y0, row.y1, row.x0, row.x1,
+                             *row.cells[1:], count=row.expect)
     raise SystemExit("알 수 없는 칸 가르기: %r" % (row.cells,))
 
 

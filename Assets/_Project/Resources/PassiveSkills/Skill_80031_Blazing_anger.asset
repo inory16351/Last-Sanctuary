@@ -15,6 +15,7 @@ MonoBehaviour:
   skillId: 80031
   nameKey: 'skill_name_80031'
   flavorKey: 'skill_explain_80031'
+  detailKey: 'skill_detail_80031'
   effectKey: 'skill_type_desc_Blazing_anger'
   skillName: '타오르는 분노'
   skillType: 'Blazing_anger'
@@ -27,4 +28,5 @@ MonoBehaviour:
   coolTime: 0
   iconName: 'icon_flame_burst'
   flavorText: '불칸의 분노는 적들의 사지를 불태웁니다.'
+  detailText: '공격할 때 일정 확률로 적을 불태워 일정 시간 지속 피해를 줍니다.'
   effectTemplate: '불칸은 공격은 {value_01}% 확률로 적을 불태워 초당 한번 (불칸이 선택한 공격유형 공격력)(회복 제외)*{value_02}% 데미지로{value_03}초 동안 공격합니다.'

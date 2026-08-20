@@ -2152,7 +2152,43 @@ namespace LastSanctuary.Combat
             int amount = _self.Balance.Attack(_self.AttackStat) * healPercentOfAttack / 100;
             if (amount <= 0) return;
 
-            _target.Heal(amount);
+            // ★★ <b>회복에도 명중·치명타</b> — 「불안정성」(아르세니아 80028) (2026-08-20)
+            //
+            //   정의문: <i>"아르세니아는 회복과 마법 공격에도 <b>명중률과 크리티컬 확률의
+            //   영향을 받습니다</b>"</i>. 유저가 뜻을 확정해 줬다: *"아르세니아의 회복이
+            //   크리티컬로 터질때 <b>150%로 회복</b>됨"*.
+            //
+            //   ⚠⚠ <b>회복은 피해 파이프라인을 안 지난다.</b> 명중·치명타 판정은 전부
+            //     <see cref="DamageableUnit.TakeDamageFrom"/> 안에 있고, 회복은 이 함수가
+            //     <see cref="DamageableUnit.Heal"/> 을 직접 부른다. 그래서
+            //     `HitChancePercent`·`CriticalChancePercent` 를 열어 둔 것만으로는
+            //     <b>회복에 아무 일도 일어나지 않았다</b> — 120절에 그 두 칸을 열어 두고도
+            //     회복이 그대로였던 이유가 이것이다.
+            //
+            //   ★ <b>여는 조건을 유닛에게 묻는다</b>(`FullAccuracyAllowed`) — 여기서
+            //     «아르세니아인가» 를 묻지 않는다. 같은 예외를 갖는 캐릭터가 늘어도
+            //     이 코드는 그대로다(그 프로퍼티의 긴 주석과 같은 원칙).
+            //   ★ 배율은 <b>표의 치명타 배율을 그대로</b> 쓴다(`ApplyCriticalDamage`) —
+            //     회복만 다른 숫자를 쓰면 «크리티컬 1.5배» 라는 규칙이 두 벌이 된다.
+            bool healCrit = false;
+            if (_self is Units.CharacterUnit healer && healer.FullAccuracyAllowed)
+            {
+                // ── 명중 ── 빗나가면 회복이 <b>들어가지 않는다</b>. 연출도 「빗나감」이다.
+                if (Random.value * 100f >= _self.HitChancePercent)
+                {
+                    DamageableUnit.RaiseMissed(_self, _target);
+                    return;
+                }
+
+                // ── 치명타 ── 터지면 회복량이 배율만큼 커진다.
+                if (Random.value * 100f < _self.CriticalChancePercent)
+                {
+                    amount = _self.Balance.ApplyCriticalDamage(amount);
+                    healCrit = true;
+                }
+            }
+
+            _target.Heal(amount, healCrit);
 
             // ★ 회복 연출 (2026-08-19) — 회복이 <b>실제로 들어간 뒤</b>에만 깐다.
             //   거절(이기심)·회복량 0 에서 빠져나간 위 두 갈래보다 아래에 있는 것이 요점이다:

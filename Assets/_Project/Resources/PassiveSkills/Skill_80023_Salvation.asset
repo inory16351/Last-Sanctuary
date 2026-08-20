@@ -15,6 +15,7 @@ MonoBehaviour:
   skillId: 80023
   nameKey: 'skill_name_80023'
   flavorKey: 'skill_explain_80023'
+  detailKey: 'skill_detail_80023'
   effectKey: 'skill_type_desc_Salvation'
   skillName: '구원'
   skillType: 'Salvation'
@@ -27,4 +28,5 @@ MonoBehaviour:
   coolTime: 0
   iconName: 'icon_blessing'
   flavorText: '그의 손길로 살아난 동료들은 셀 수 없이 많습니다.'
+  detailText: '「도움의 손길」로 옮겨진 동료는 즉시 체력 재생이 가능한 상태가 됩니다.'
   effectTemplate: "구원의 손길'로 이송 되어진 아군은 즉시 체력 재생 가능 상태가 됩니다."

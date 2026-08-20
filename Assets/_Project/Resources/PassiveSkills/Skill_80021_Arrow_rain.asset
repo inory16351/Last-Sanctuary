@@ -15,6 +15,7 @@ MonoBehaviour:
   skillId: 80021
   nameKey: 'skill_name_80021'
   flavorKey: 'skill_explain_80021'
+  detailKey: 'skill_detail_80021'
   effectKey: 'skill_type_desc_Arrow_rain'
   skillName: '애로우 레인'
   skillType: 'Arrow_rain'
@@ -27,4 +28,5 @@ MonoBehaviour:
   coolTime: 25
   iconName: 'icon_arrow_volley_gold'
   flavorText: '시카리아의 궁술이 천상에 닿습니다.'
+  detailText: '대상 자리에 화살 비를 쏟아 원형 범위의 적을 함께 공격합니다.'
   effectTemplate: '활을 높이 치켜들어 넓은 범위의 적을 공격하는 화살의 비를 발사합니다. 현재 대상을 중심으로 반지름 {value_01}칸 범위의 적에게 시카리아의 원거리 공격력의 {Value_02}%로 공격 합니다.'

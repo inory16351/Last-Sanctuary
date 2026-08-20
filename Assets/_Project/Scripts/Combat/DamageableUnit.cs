@@ -605,7 +605,24 @@ namespace LastSanctuary.Combat
                 ? amount
                 : Mathf.Max(0, Mathf.RoundToInt(amount * (100 + _healReceivedPercent) / 100f));
 
-        public void Heal(int amount)
+        public void Heal(int amount) => Heal(amount, false);
+
+        /// <summary>
+        /// ★ <b>치명타 회복</b>을 받는 갈래 (2026-08-20 — 아르세니아 「불안정성」 80028).
+        ///
+        /// 유저 확정: *"아르세니아의 회복이 크리티컬로 터질때 150%로 회복됨"*.
+        /// <paramref name="critical"/> 은 <b>연출에만</b> 쓴다 — 배율은 부르는 쪽
+        /// (<see cref="UnitCombat"/> 의 <c>PerformHeal</c>)이 이미 곱해서 넘긴다.
+        ///
+        /// <b>왜 곱셈을 여기서 안 하나</b> — 회복 경로가 여럿이다(평타 치유 · 「희생」 ·
+        /// 「복수자」 · 체력 재생). 치명타는 <b>«평타 치유» 하나에만</b> 걸리는 것이
+        /// 정의문이고, 여기서 곱하면 다른 경로에도 새어 들어간다.
+        ///
+        /// ⚠ 「받는 회복 증폭」과의 순서 — 치명타는 <b>주는 쪽</b>, 증폭은 <b>받는 쪽</b>이다.
+        ///   그래서 치명타를 먼저(부르는 쪽) 곱하고 증폭을 나중에(여기) 곱한다.
+        ///   순서를 뒤집으면 결과는 같지만, «누구의 규칙인가» 가 코드에서 사라진다.
+        /// </summary>
+        public void Heal(int amount, bool critical)
         {
             if (!IsAlive || amount <= 0) return;
 
@@ -620,7 +637,37 @@ namespace LastSanctuary.Combat
 
             RaiseHpChanged();
 
-            if (applied > 0 && !_silentHeal) OnAnyHealed?.Invoke(this, applied);
+            if (applied <= 0 || _silentHeal) return;
+
+            // ⚠ 시그니처를 안 바꾸려고 «지금 회복이 치명타인가» 를 칸 하나로 넘긴다 —
+            //   <see cref="_pendingCritical"/> 과 <b>같은 방식</b>이다(그쪽 주석 참조).
+            //   이벤트는 동기로 발생하므로 구독자가 읽는 시점에 이 값이 유효하다.
+            _pendingHealCritical = critical;
+            OnAnyHealed?.Invoke(this, applied);
+            _pendingHealCritical = false;
+        }
+
+        bool _pendingHealCritical;
+
+        /// <summary>
+        /// 지금 <see cref="OnAnyHealed"/> 로 나가는 회복이 <b>치명타</b>인가.
+        /// 구독자가 <b>그 이벤트 처리 중에만</b> 읽는 값이다(그 밖에서는 언제나 false).
+        /// </summary>
+        public bool PendingHealCritical => _pendingHealCritical;
+
+        /// <summary>
+        /// ★ <b>「빗나감」을 밖에서 알린다</b> (2026-08-20).
+        ///
+        /// <see cref="OnAnyMissed"/> 는 static 이벤트라 <b>이 클래스 밖에서는 못 쏜다</b>.
+        /// 그런데 회복의 명중 판정은 <see cref="UnitCombat"/> 의 <c>PerformHeal</c> 에 있다 —
+        /// 회복이 피해 파이프라인(<see cref="TakeDamageFrom"/>)을 지나지 않기 때문이다.
+        /// 그래서 <b>쏘는 창구</b>만 열어 둔다. 판정을 여기로 옮기지 않는 이유는
+        /// 그쪽이 «회복» 이고 이 함수가 «피해» 이기 때문이다.
+        /// </summary>
+        public static void RaiseMissed(DamageableUnit attacker, DamageableUnit victim)
+        {
+            if (victim == null) return;
+            OnAnyMissed?.Invoke(attacker, victim);
         }
 
         /// <summary>

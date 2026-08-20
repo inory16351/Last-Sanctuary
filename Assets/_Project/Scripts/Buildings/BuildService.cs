@@ -58,6 +58,44 @@ namespace LastSanctuary.Buildings
     /// </summary>
     public class BuildService : MonoBehaviour
     {
+        // ------------------------------------------------------------------
+        // ★★ 「타워·건설」 기능 스위치 (2026-08-20)
+        //
+        // 유저 지시: *"타워랑 건설 기능 삭제"*. 범위를 물었고 <b>「플레이에서만 제거」</b>로
+        // 확정받았다(코드는 남긴다 — 되살릴 수 있게).
+        //
+        // <b>왜 스위치 하나인가</b> — 참조가 <b>9개 파일</b>에 걸쳐 있다(세이브·패배 조건·
+        // 전술 지침·AI·HUD·맵·집결지). 그 아홉 군데를 파내면 ① 되살리기가 사실상 불가능해지고
+        // ② 세이브 포맷이 바뀌어 <b>기존 세이브가 깨진다.</b>
+        //
+        // ★ 그런데 이 프로젝트는 <b>이미</b> 그 아홉 군데가 전부 «서비스가 없으면 아무것도
+        //   안 한다» 로 쓰여 있다(실측: `BuildService.Instance` 를 쓰는 모든 곳이 null 검사를
+        //   먼저 한다 — 세이브의 `CaptureTowers`/`RestoreTowers` 는 <c>return</c> 하고,
+        //   `CharacterBehavior.TryBuild` 는 <c>false</c> 를 돌려주고, HUD 는 건너뛴다).
+        //   그래서 <b>Instance 를 채우지 않는 것</b>만으로 기능이 통째로 사라진다.
+        //   패배 조건도 저절로 맞는다 — <c>WaveManager.HasLivingTower()</c> 는 타워가
+        //   하나도 안 생기므로 언제나 false 다(원래 «타워가 남아 있으면 안 진다» 였다).
+        //
+        // ⚠ <b>씬을 고치지 않는다.</b> 이 칸은 씬 YAML 에 <b>아직 없는</b> 새 필드이므로
+        //   유니티가 C# 기본값(false)을 쓴다 — 씬 파일을 열지도 저장하지도 않는다
+        //   (이 프로젝트의 씬 수정 규칙 · 진행상황 참조).
+        // ⚠ 되살리려면 인스펙터에서 이 칸만 켜면 된다. 코드는 한 줄도 안 지웠다.
+        // ------------------------------------------------------------------
+
+        [Header("기능 스위치")]
+        [Tooltip("타워·건설 기능을 쓸 것인가. ★ 2026-08-20 유저 지시로 <b>끈 상태</b>다 " +
+                 "(«플레이에서만 제거» · 코드는 남겼다).\n" +
+                 "끄면 이 서비스가 Instance 를 채우지 않으므로 건설 버튼·예정지·포탑 스폰·" +
+                 "세이브 항목이 전부 사라진다. 되살리려면 이 칸만 켜면 된다")]
+        [SerializeField] bool featureEnabled = false;
+
+        /// <summary>
+        /// 타워·건설을 쓰는가. <b>UI 가 버튼을 숨길 때 읽는다</b> —
+        /// <see cref="Instance"/> 가 null 인 것과 «서비스를 아직 못 찾은 것» 을 구별하려면
+        /// 이 값이 따로 있어야 한다(그 구별이 없으면 버튼이 «오류» 로 보인다).
+        /// </summary>
+        public static bool FeatureEnabled { get; private set; }
+
         [Header("데이터")]
         [SerializeField] BuildingDefinitionSO turretDefinition;
         [SerializeField] BalanceConfigSO balance;
@@ -141,7 +179,21 @@ namespace LastSanctuary.Buildings
             }
         }
 
-        void Awake() => Instance = this;
+        void Awake()
+        {
+            FeatureEnabled = featureEnabled;
+            if (!featureEnabled)
+            {
+                // ⚠ <b>Instance 를 채우지 않는다</b> — 그것이 이 기능을 끄는 방법이다(맨 위 ★★).
+                //   컴포넌트도 끈다: Update 가 클릭을 먹지 않게 하려는 것이다(빈 맵을 눌렀을 때
+                //   집결지 지정이 «건설 대기 중» 으로 오해받는 사고를 막는다).
+                Debug.Log("[Build] 타워·건설 기능이 꺼져 있습니다 — 건설 버튼·예정지·포탑이 " +
+                          "생기지 않습니다 (BuildService.featureEnabled).", this);
+                enabled = false;
+                return;
+            }
+            Instance = this;
+        }
 
         void OnDestroy()
         {

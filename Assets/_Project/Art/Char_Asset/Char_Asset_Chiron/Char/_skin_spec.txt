@@ -7,5 +7,5 @@ displayName=카이론
 framesPerSecond=10
 attackFramesPerSecond=14
 groundImpactOnly=0
-projectileWidthTiles=0.9
-impactWidthTiles=1.4
+projectileWidthTiles=1.0
+impactWidthTiles=1.6

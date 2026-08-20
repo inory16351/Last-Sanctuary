@@ -536,7 +536,20 @@ def load_sheet(path, box_borders=False):
     if has_alpha:
         # ★ 알파가 곧 배경 판정이다. 다만 <b>구획 테두리·제목 글자는 불투명</b>하므로
         #   흰색 판정도 함께 건다 — 둘 중 하나라도 배경이면 배경이다.
-        bg_mask = (alpha < ALPHA_INK_MIN) | (dist <= BG_TOL)
+        #
+        # ⚠⚠ <b>그 흰색 판정을 «거리» 로 하면 안 된다</b> (2026-08-20 실사고).
+        #   처음에 ``dist <= BG_TOL`` 로 썼는데, 그러면 <b>불투명한 흰 픽셀이 전부 배경</b>이
+        #   된다. 카이론의 <b>황금 구체(보호막)</b> 는 가운데가 거의 흰색(RGB 254 · 알파 250)
+        #   이라 <b>중심에 구멍이 뚫린 채</b> 구워졌다 — 실제로 그렇게 나왔다.
+        #   흰 갑옷 하이라이트·흰 두건도 같은 위험에 있었다(11,082 px 이 그렇게 지워지고 있었다).
+        #
+        # ★ 고치는 방법은 <b>이미 이 파일 안에 있었다</b> — :func:`background_mask` 는
+        #   «시트 <b>테두리와 이어진</b> 흰색만 배경» 으로 본다(그 함수의 ★★ 주석이
+        #   두건 흰색을 지키려고 만든 것이라고 적어 두었다). 알파 시트에도 그쪽을 쓴다:
+        #   그림에 <b>갇힌</b> 흰색은 바깥과 이어지지 않으므로 <b>살아남는다</b>.
+        #   ⚠ 원래 의도(불투명한 제목 딱지·테두리 지우기)는 그대로 유지된다 —
+        #     그것들은 시트 가장자리 쪽 흰 배경에 둘러싸여 있어 흘려 채우기가 닿는다.
+        bg_mask = (alpha < ALPHA_INK_MIN) | background_mask(dist)
         print("  %s · 알파로 배경 판정 (투명 %d px)"
               % (os.path.basename(path), int((alpha < ALPHA_INK_MIN).sum())))
     else:
@@ -757,6 +770,148 @@ def cells_by_span(mask, y0, y1, x0, x1, count):
     width = (b - a + 1) / float(count)
     return [(int(round(a + i * width)), int(round(a + (i + 1) * width)) - 1)
             for i in range(count)]
+
+
+#: 발밑 띠의 높이 — 밴드 안 그림 높이의 이 비율만 본다.
+FEET_FRAC = 0.18
+#: 발밑에서 이 폭보다 좁은 조각은 부스러기로 본다(px).
+FEET_MIN_W = 12
+
+
+#: 「허리」로 볼 잉크 두께 — 몸통 열 평균의 이 비율 이하면 «여기가 끊긴 곳» 으로 본다.
+TAIL_WAIST_RATIO = 0.18
+
+
+def merge_to_count(segs, count):
+    """
+    ★★ 발 조각을 <b>목표 개수까지 «가장 좁은 틈부터» 합친다</b> (2026-08-20 신설).
+
+    <b>왜 필요했나</b> — 발밑 판정은 불칸에서 완벽했지만 카이론에서 <b>무너졌다</b>(실측:
+    이동 줄이 9장인데 <b>16조각</b>). 이유가 분명하다: 불칸은 <b>긴 로브</b>를 입어 두 발이
+    한 덩어리로 붙는데, 카이론은 <b>맨다리</b>라서 <b>다리 하나가 조각 하나</b>가 된다.
+    걷는 자세는 다리를 벌리므로 조각이 프레임마다 둘씩 나온다.
+
+    ★ 고치는 방법은 «발이 몇 개인가» 를 세지 않고 <b>«프레임이 몇 장인가» 를 주는</b> 것이다.
+      그러면 남은 일은 <b>어디를 합칠지</b>인데, 답이 하나뿐이다 — <b>가장 좁은 틈</b>.
+      한 프레임 안의 두 발 사이(보폭)는 프레임과 프레임 사이보다 <b>반드시 좁다</b>
+      (그렇지 않으면 프레임이 겹친다). 그래서 좁은 틈부터 차례로 합치면
+      <b>다리끼리 먼저 붙고</b> 프레임 경계는 마지막까지 남는다.
+
+    ⚠ <b>조각이 목표보다 적으면 아무것도 안 한다</b> — 쪼갤 방법이 없다. 그때는
+      부르는 쪽의 ``expect`` 검사가 <b>죽어 준다</b>(조용히 틀린 프레임을 굽지 않는다).
+    ⚠ 이 단계가 붙으면서 ``feet`` 의 ``expect`` 는 «검산» 에서 <b>«입력»</b> 이 된다 —
+      ``span`` 과 같은 성질이다. 장수는 시트를 <b>눈으로 세어</b> 적을 것.
+    """
+    segs = list(segs)
+    if count is None or count < 1 or len(segs) <= count:
+        return segs
+    while len(segs) > count:
+        gaps = [segs[i + 1][0] - segs[i][1] for i in range(len(segs) - 1)]
+        k = min(range(len(gaps)), key=lambda i: gaps[i])
+        segs[k] = (segs[k][0], segs[k + 1][1])
+        del segs[k + 1]
+    return segs
+
+
+def cells_by_feet(mask, y0, y1, x0, x1, frac=None, min_w=None, trim_tail=False,
+                  count=None):
+    """
+    ★★ 칸 경계를 **«발밑»만 보고** 정한다 (2026-08-20 신설).
+
+    <b>왜 이것이 필요했나</b> — 2026-08-20 에 교체된 새 시트들은 <b>이펙트가 몸통과 겹쳐
+    그려져 있다</b>. 그러면 앞의 어느 방법도 못 가른다(불칸 실측):
+
+      · ``gaps``     푸른 칼자국·마법진이 칸 사이를 메워 5칸이 <b>1~3칸</b>으로 붙는다
+      · ``clusters`` 개수는 맞을 때가 있지만 <b>가장 얇은 곳</b>에서 끊으므로 경계가
+        몸통 <b>안쪽</b>으로 들어온다(마법 4번 칸이 x399 에서 끊겨 몸이 잘렸다)
+      · ``span``     줄 끝에 «손을 떠난 탄» 이 붙어 있으면 그 폭까지 나눗셈에 들어가
+        <b>모든 칸이 밀린다</b>. 게다가 이 시트는 간격이 고르지도 않다(94·93·92·99·106·106·109)
+
+    그런데 <b>몸통에는 이펙트가 갖지 못한 성질이 하나 있다</b> — 몸통은 <b>땅을 딛는다</b>.
+    칼자국·마법진·불덩이는 공중에 뜬다. 그래서 밴드의 <b>아래쪽 %d%%</b> 만 들여다보면
+    «발» 만 남고, 발은 프레임마다 <b>깨끗하게 떨어져 있다</b>.
+
+    이 성질이 두 가지를 <b>공짜로</b> 해결한다:
+
+    ① <b>손을 떠난 탄이 저절로 빠진다</b> — 불칸 원거리·스킬1 줄은 «몸통 4 + 탄 1» 인데
+       발밑으로 세면 <b>정확히 4</b> 가 나온다(``take`` 를 안 써도 된다).
+    ② 경계가 <b>몸과 몸 사이</b>에 놓인다 — 발 사이의 가운데를 경계로 삼으므로
+       몸통 안쪽으로 파고들지 않는다.
+
+    ⚠ **땅에 닿는 이펙트는 못 가른다** — 바닥에 깔리는 마법진·화염 고리는 발처럼 보인다.
+      그 줄은 여전히 ``take``/``keep`` 이나 ``bounds`` 가 필요하다(불칸 마법 줄이 그렇다).
+    ⚠ 발밑 띠는 <b>밴드 높이가 아니라 «실제 그림의 아래끝»</b> 에서 잡는다 — 밴드를
+      넉넉히 잡아도 흔들리지 않게 하려는 것이다.
+    """ % int(FEET_FRAC * 100)
+    # ⚠ ``None`` 을 받아 기본값으로 되돌린다 — 호출부가 «앞 인자는 기본, 뒤 인자만 지정»
+    #   을 하려면 (`("feet", None, None, True)`) 이 처리가 있어야 한다.
+    frac = FEET_FRAC if frac is None else frac
+    min_w = FEET_MIN_W if min_w is None else min_w
+
+    band = mask[y0:y1 + 1, x0:x1 + 1]
+    prof = band.sum(axis=1)
+    nz = np.where(prof > 1)[0]
+    if not len(nz):
+        return []
+
+    bottom = int(nz[-1])
+    height = int(nz[-1]) - int(nz[0]) + 1
+    top = max(0, bottom - max(4, int(height * frac)))
+    feet = band[top:bottom + 1].any(axis=0)
+    segs = [(a, b) for a, b in runs(feet, 1) if b - a + 1 >= min_w]
+    if not segs:
+        return []
+
+    # ★★ 다리가 갈라져 조각이 늘어난 줄은 <b>목표 개수까지 합친다</b>(위 merge_to_count).
+    segs = merge_to_count(segs, count)
+
+    # ★★ 경계는 «발 사이에서 <b>가장 옅은 열</b>» 이다 — 히스톤에서 배운 것이다
+    #   (`histon_skin_build.frame_bounds` 의 긴 주석). 가운데에서 자르면 <b>이펙트의
+    #   가장 두꺼운 곳</b>을 지나가는 일이 생겨 궤적이 반토막 난다.
+    #
+    #   ⚠ 히스톤에서는 «가장 옅은 열» 자동 탐지가 <b>실패했다</b> — 격자 경계 ±N 을
+    #     훑었더니 <b>궤적 한가운데</b>(프레임 안쪽)가 가장 옅게 나왔기 때문이다.
+    #     여기서는 그 함정이 없다: 훑는 범위를 <b>«발과 발 사이»로 못박기</b> 때문에
+    #     몸통 안쪽은 애초에 후보가 아니다(몸통은 발을 품고 있다).
+    #   ★ 동률이면 <b>가운데에 가까운 쪽</b>을 고른다 — 한쪽 프레임에 치우친 경계는
+    #     그 프레임의 날개를 깎는다.
+    ink = band.sum(axis=0)
+    cuts = [0]
+    for (_a0, b0), (a1, _b1) in zip(segs, segs[1:]):
+        lo, hi = b0 + 1, a1                      # [발 끝+1, 다음 발 시작)
+        if hi <= lo:
+            cuts.append(a1)
+            continue
+        window = ink[lo:hi]
+        mid = (b0 + a1) / 2.0
+        thin = window.min()
+        cand = [lo + int(k) for k in np.where(window == thin)[0]]
+        cuts.append(min(cand, key=lambda x: abs(x - mid)))
+
+    # ★★ <b>마지막 칸의 오른쪽 끝</b> — :paramref:`trim_tail` (2026-08-20).
+    #
+    #   <b>왜 필요했나</b> — 발밑 판정은 «칸 수» 는 맞게 세지만(뜬 이펙트는 발이 없다)
+    #   <b>마지막 칸의 오른쪽 끝은 여전히 x1</b> 이다. 그래서 「손을 떠난 탄」·「바닥 마법진」이
+    #   마지막 몸통 칸에 <b>딸려 들어간다</b> — 구운 그림에서 «몸통 옆에 붙은 붉은 조각» 으로
+    #   실제로 나왔다(유저 지시: *"캐릭터랑 이펙트를 확실하게 분리"*).
+    #
+    #   밴드 x1 을 손으로 줄이는 방법도 있지만 <b>줄마다·방향마다 값이 다르다</b>
+    #   (불칸 스킬1: 좌 397 · 우 416). 시트가 넷이고 줄이 스무 개씩이라 손으로는 못 쫓는다.
+    #
+    #   그래서 «허리» 를 찾는다: 마지막 발 끝에서 오른쪽으로 훑어, 잉크가 <b>몸통 평균의
+    #   18% 이하</b>로 떨어지는 <b>첫</b> 열에서 끊는다. 몸통은 두껍고, 몸통과 이펙트가
+    #   붙어 있어도 그 사이는 얇다 — 그것이 «허리» 다.
+    #   ⚠ 못 찾으면 <b>x1 그대로 둔다</b> — 억지로 끊으면 날개가 잘린다.
+    tail = band.shape[1]
+    if trim_tail and segs:
+        body_cols = np.concatenate([ink[a:b + 1] for a, b in segs])
+        waist = max(3.0, float(body_cols.mean()) * TAIL_WAIST_RATIO)
+        for x in range(segs[-1][1] + 1, band.shape[1]):
+            if ink[x] <= waist:
+                tail = x
+                break
+    cuts.append(tail)
+    return [(cuts[i] + x0, cuts[i + 1] - 1 + x0) for i in range(len(segs))]
 
 
 def cells_by_pitch(gray, x0, x1, ly0, ly1, count, gap=None, max_w=None, min_w=None):

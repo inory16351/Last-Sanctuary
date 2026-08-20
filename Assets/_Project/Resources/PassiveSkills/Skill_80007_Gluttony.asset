@@ -15,6 +15,7 @@ MonoBehaviour:
   skillId: 80007
   nameKey: 'skill_name_80007'
   flavorKey: 'skill_explain_80007'
+  detailKey: 'skill_detail_80007'
   effectKey: 'skill_type_desc_Gluttony'
   skillName: '포식'
   skillType: 'Gluttony'
@@ -27,4 +28,5 @@ MonoBehaviour:
   coolTime: 0
   iconName: 'icon_skull_pyre'
   flavorText: '프레이야는 분노와 함께 적들을 집어 삼킵니다.'
+  detailText: '자신이 직접 잡은 적마다 체력을 회복합니다.'
   effectTemplate: '프레이야가 2초내에 직접 공격한 적이 사망할 때마다 프레이야의 현재 체력이 최대체력의 {value_01}% 만큼 회복된다.'

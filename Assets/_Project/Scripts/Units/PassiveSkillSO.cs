@@ -32,6 +32,11 @@ namespace LastSanctuary.Units
         [Tooltip("플레이버 문장 키. 예: skill_explain_80001")]
         public string flavorKey = "";
 
+        [Tooltip("★ 2026-08-20 신설 — 「상세 설명」 키. 예: skill_detail_80001\n" +
+                 "플레이버(skill_explain)와 정의문(Skill_Type.desc) 사이의 중간 문구다. " +
+                 "수치를 적지 않는다 — 표의 값을 고쳐도 이 문장은 거짓말이 되지 않는다")]
+        public string detailKey = "";
+
         [Tooltip("효과 정의문 키. 예: skill_type_desc_Innate_delicacy\n" +
                  "★ 이 문구는 {value_01} 같은 자리표를 담고 있고 EffectText() 가 수치로 바꾼다")]
         public string effectKey = "";
@@ -80,6 +85,11 @@ namespace LastSanctuary.Units
                  "캐릭터 성장 창의 스킬 칸에 이걸 보여준다")]
         [TextArea(2, 4)] public string flavorText = "";
 
+        [Tooltip("★ 2026-08-20 신설 — Skill 시트의 skill_detail. 「무슨 일이 일어나는가」를 " +
+                 "수치 없이 적은 문장. 상세 창의 효과 칸에 <b>이것이 먼저</b> 나가고, " +
+                 "비어 있으면 아래 정의문으로 폴백한다")]
+        [TextArea(2, 5)] public string detailText = "";
+
         [Tooltip("Skill_Type 시트의 정의문 — 실제로 무슨 일이 일어나는지. " +
                  "{value_01} 같은 자리표시를 그대로 두면 EffectText 가 수치로 바꿔준다. " +
                  "스킬 칸을 클릭했을 때 뜨는 상세 창에 보여준다")]
@@ -113,6 +123,37 @@ namespace LastSanctuary.Units
 
         /// <summary>플레이버 문장 — 스트링 테이블이 먼저, 없으면 리터럴.</summary>
         public string FlavorText => Data.StringTable.Get(flavorKey, flavorText);
+
+        /// <summary>
+        /// ★ <b>「상세 설명」</b> (2026-08-20 신설). 유저 지시: *"스킬 상세 설명 보여줄 칸을
+        /// 만들어줘 … 밸류 타입보단 덜 상세하게"*.
+        ///
+        /// <b>왜 정의문으로는 부족한가</b> — <see cref="effectTemplate"/> 은 <b>기획서 문장</b>이다.
+        /// *"데미지 계산 공식 적용"* · *"중첩 불가능"* · *"이 수치는 최대 능력치 표기 값을
+        /// 초월할 수 있다"* 처럼 <b>만드는 사람에게 하는 말</b>이 섞여 있고, 수치가 전부
+        /// 박혀 나온다. 플레이어가 «이 스킬이 뭘 하나» 를 알고 싶을 때 읽기에는 너무 빽빽하다.
+        /// 반대로 <see cref="FlavorText"/> 는 인물을 말할 뿐 기능을 하나도 말하지 않는다.
+        /// 그 사이가 비어 있었다.
+        ///
+        /// ⚠ 이 칸은 <b>비어 있을 수 있다</b>(표에 안 적힌 스킬). 그때는 부르는 쪽이
+        ///   정의문으로 폴백한다 — <see cref="EffectDisplayText"/> 가 그 규칙을 들고 있다.
+        /// </summary>
+        public string DetailText => Data.StringTable.Get(detailKey, detailText);
+
+        /// <summary>
+        /// 상세 창의 <b>효과 칸에 실제로 나갈 문장</b>. 「상세 설명」이 있으면 그것,
+        /// 없으면 수치가 채워진 정의문.
+        ///
+        /// ★ <b>이 판단을 SO 안에 둔 이유</b> — 스킬 문구를 보여주는 곳이 앞으로 늘 수 있고
+        ///   (상세 창 · 성장 카드 · 툴팁), 그때마다 «둘 중 어느 것» 규칙을 다시 적으면
+        ///   한 군데만 고쳐지는 사고가 난다. `SkillDetailPanel.Instance` 가 우회를 프로퍼티
+        ///   안으로 넣은 것과 같은 판단이다.
+        /// </summary>
+        public string EffectDisplayText()
+        {
+            string detail = DetailText;
+            return string.IsNullOrWhiteSpace(detail) ? EffectText() : detail;
+        }
 
         /// <summary>
         /// 정의문의 {value_01~03} 자리표시를 실제 수치로 치환한 문장.

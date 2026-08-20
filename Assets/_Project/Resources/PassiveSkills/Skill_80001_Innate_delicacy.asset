@@ -15,6 +15,7 @@ MonoBehaviour:
   skillId: 80001
   nameKey: 'skill_name_80001'
   flavorKey: 'skill_explain_80001'
+  detailKey: 'skill_detail_80001'
   effectKey: 'skill_type_desc_Innate_delicacy'
   skillName: '타고난 섬세함'
   skillType: 'Innate_delicacy'
@@ -27,4 +28,5 @@ MonoBehaviour:
   coolTime: 0
   iconName: 'icon_holy_target'
   flavorText: '엘린은 보이지 않는 적이라 할지라도 타고난 섬세함으로 감지할 수 있습니다.'
+  detailText: '시야가 몸 주변으로 좁아지는 대신, 동료가 본 적을 공격할 때 사거리가 늘어납니다.'
   effectTemplate: '엘린의 시야가 자기 몸을 겨우 덮는 정도로 줄어들지만, 공유된 시야의 적을 공격할 때 사거리가 {value_01}만큼 늘어난다.'

@@ -419,6 +419,17 @@ namespace LastSanctuary.UI
         void HandleHealed(DamageableUnit unit, int amount)
         {
             if (!enableNumbers || unit == null || amount <= 0) return;
+
+            // ★ 치명타 회복은 <b>피해 치명타와 같은 표시 규칙</b>을 쓴다 (2026-08-20 ·
+            //   아르세니아 「불안정성」). 색은 «회복» 을 지키고 <b>크기와 느낌표</b>만
+            //   치명타 쪽을 빌린다 — 색까지 바꾸면 «회복인지 피해인지» 가 헷갈린다.
+            //   판정값은 이벤트 처리 중에만 유효하다(<see cref="DamageableUnit.PendingHealCritical"/>).
+            if (unit.PendingHealCritical)
+            {
+                Show(unit, $"+{amount}!", healColor, healTiles * criticalScale,
+                     PopupStyle.Float, lifeSeconds);
+                return;
+            }
             Show(unit, $"+{amount}", healColor, healTiles, PopupStyle.Float, lifeSeconds);
         }
 

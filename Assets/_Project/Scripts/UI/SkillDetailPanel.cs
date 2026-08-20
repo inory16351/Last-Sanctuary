@@ -133,7 +133,12 @@ namespace LastSanctuary.UI
 
             if (_effectText != null)
             {
-                string effect = skill.EffectText();
+                // ★ 2026-08-20 — <b>「상세 설명」이 있으면 그것을 보여준다</b>
+                //   (유저 지시: *"밸류 타입보단 덜 상세하게"*). 규칙은 SO 안에 있다 —
+                //   <see cref="PassiveSkillSO.EffectDisplayText"/> 의 긴 주석 참조.
+                //   수치는 아래 <see cref="BuildValuesLine"/> 가 따로 보여주므로
+                //   문장에서 숫자를 뺀다고 정보가 사라지지 않는다.
+                string effect = skill.EffectDisplayText();
                 _effectText.text = string.IsNullOrWhiteSpace(effect) ? noEffectText : effect;
             }
 
@@ -154,9 +159,17 @@ namespace LastSanctuary.UI
                 if (template.Contains(token) || v != 0f) parts.Add($"{label} {Num(v)}");
             }
 
+            // ★★ 2026-08-20 — <b>여섯 개까지 본다.</b>
+            //   예전에는 ①②③ 만 봤다. 그때는 문장(정의문)이 수치를 전부 품고 있었으므로
+            //   이 줄이 빠뜨려도 정보가 사라지지 않았다. 그런데 이제 효과 칸에
+            //   <b>수치 없는 「상세 설명」</b>이 나가므로 <b>이 줄이 수치의 유일한 통로</b>다 —
+            //   ④⑤⑥ 을 빠뜨리면 카이론 「천벌」의 데미지·방어력 감소가 <b>어디에도 안 뜬다</b>.
             Add("{value_01}", "①", skill.value01);
             Add("{value_02}", "②", skill.value02);
             Add("{value_03}", "③", skill.value03);
+            Add("{value_04}", "④", skill.value04);
+            Add("{value_05}", "⑤", skill.value05);
+            Add("{value_06}", "⑥", skill.value06);
             if (skill.coolTime > 0f) parts.Add($"쿨타임 {Num(skill.coolTime)}초");
 
             if (parts.Count == 0) return "";

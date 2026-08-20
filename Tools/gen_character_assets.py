@@ -269,6 +269,12 @@ for _f in ('skill_id', 'skill_name', 'skill_type', 'cool_time', 'skill_icon', 's
     if _f not in _SKILL_COL:
         raise SystemExit('캐릭터 테이블 Skill 시트에 %s 컬럼이 없습니다.' % _f)
 
+# ★ `skill_detail` 은 <b>필수로 두지 않는다</b> — 컬럼이 없는 옛 표로도 돌아가야 한다.
+#   대신 없으면 한 번 알린다: 조용히 빈 칸이 나가는 것이 이번 버그의 정체였다.
+if 'skill_detail' not in _SKILL_COL:
+    print('  ⚠ Skill 시트에 skill_detail 컬럼이 없습니다 — 상세 설명이 비어 나갑니다 '
+          '(Tools/table_update_20260820_skill_detail.py 를 먼저 돌리세요).')
+
 for r in range(4, ws.max_row + 1):
     sid = skill_cell(r, 'skill_id')
     if not sid:
@@ -289,6 +295,9 @@ for r in range(4, ws.max_row + 1):
     cool = num(skill_cell(r, 'cool_time'))
     icon = (skill_cell(r, 'skill_icon') or '').strip()
     flavor = text_of(skill_cell(r, 'skill_explain'))
+    # ★ 2026-08-20 신설 — 「상세 설명」. 플레이버와 정의문 사이의 중간 문구다.
+    #   컬럼이 없는 옛 표에서는 빈 문자열이 되고, 그러면 아래에서 키를 안 적는다.
+    detail = text_of(skill_cell(r, 'skill_detail'))
     effect = text_of(skill_types.get(stype, ''))
 
     asset_name = 'Skill_%d_%s' % (sid, stype.replace(' ', ''))
@@ -302,7 +311,20 @@ for r in range(4, ws.max_row + 1):
     #   키 형식은 Tools/gen_string_table.py 의 규칙과 반드시 같아야 한다.
     #   아래 리터럴(skillName·flavorText·effectTemplate)은 키를 못 찾았을 때의 폴백으로 남긴다.
     body += "  nameKey: %s\n" % yaml_str('skill_name_%d' % sid)
-    body += "  flavorKey: %s\n" % yaml_str('skill_explain_%d' % sid)
+    # ⚠⚠ <b>내용이 있을 때만 키를 적는다</b> (2026-08-20 · 유저 리포트
+    #    *"새로 추가한 캐릭터들 설명 칼럼 이상하게 들어간거"*).
+    #
+    #    예전에는 id 로 <b>무조건 조립</b>했다. 그런데 카이론의 세 스킬은 표의
+    #    `skill_explain` 칸이 <b>비어 있었다</b> — 그러면 `gen_string_table.py` 가
+    #    그 키를 만들지 않으므로 에셋에는 <b>있지도 않은 키</b>가 적히고,
+    #    `StringTable.Get(없는 키, 빈 리터럴)` 이 <b>빈 문자열</b>을 돌려준다.
+    #    에러도 경고도 없이 성장 창의 카이론 스킬 카드가 그냥 빈칸이 됐다.
+    #
+    #    → 칸이 비었으면 <b>키도 비워 둔다</b>. 그러면 «문구가 없다» 와
+    #    «키는 있는데 스트링 테이블에서 못 찾았다» 를 <b>구별할 수 있게</b> 된다 —
+    #    키를 무조건 적어 두면 그 둘이 화면에서 똑같이 빈칸으로 보인다.
+    body += "  flavorKey: %s\n" % yaml_str('skill_explain_%d' % sid if flavor else '')
+    body += "  detailKey: %s\n" % yaml_str('skill_detail_%d' % sid if detail else '')
     body += "  effectKey: %s\n" % yaml_str('skill_type_desc_%s' % stype if stype else '')
     body += "  skillName: %s\n" % yaml_str(sname)
     body += "  skillType: %s\n" % yaml_str(stype)
@@ -315,6 +337,7 @@ for r in range(4, ws.max_row + 1):
     body += "  coolTime: %s\n" % cool
     body += "  iconName: %s\n" % yaml_str(icon)
     body += "  flavorText: %s\n" % yaml_str(flavor)
+    body += "  detailText: %s\n" % yaml_str(detail)
     body += "  effectTemplate: %s\n" % yaml_str(effect)
 
     p = os.path.join(OUT_SKILL, asset_name + '.asset')

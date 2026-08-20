@@ -15,6 +15,7 @@ MonoBehaviour:
   skillId: 80022
   nameKey: 'skill_name_80022'
   flavorKey: 'skill_explain_80022'
+  detailKey: 'skill_detail_80022'
   effectKey: 'skill_type_desc_A_Helping_Hand'
   skillName: '도움의 손길'
   skillType: 'A_Helping_Hand'
@@ -27,4 +28,5 @@ MonoBehaviour:
   coolTime: 0
   iconName: 'icon_teal_portal'
   flavorText: '전장에서 구원을 바라는 것은 오만일지도 모릅니다.'
+  detailText: '주변에 침식이 심하거나 후퇴 중인 동료가 있으면 자기 곁으로 끌어옵니다.'
   effectTemplate: '아루를 중심으로 반지름{value_01} 범위에 침식 수치가 {value_02} 이상이거나 후퇴중인 동료가 있을 경우 즉시 아루의 곁으로 이동 시킵니다.'

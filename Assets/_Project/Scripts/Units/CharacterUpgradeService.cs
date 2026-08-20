@@ -85,10 +85,26 @@ namespace LastSanctuary.Units
         public int CostFor(CharacterUnit unit) =>
             unit == null ? 0 : baseCost + costIncreasePerUpgrade * unit.UpgradeCount;
 
-        /// <summary>지금 강화할 수 있는지 (대상이 살아있고 에너지가 충분한지).</summary>
+        /// <summary>
+        /// 지금 강화할 수 있는지 (대상이 살아있고 <b>강화가 허용되며</b> 에너지가 충분한지).
+        ///
+        /// ★★ <b>소환수는 강화할 수 없다</b> (2026-08-20 · 유저 리포트
+        ///   *"골렘 강화/전술 변경 가능한 버그"*). 「강림」(80024) 정의문의 마지막 문장이
+        ///   <b>"골렘은 강화할 수 없습니다"</b> 다.
+        ///
+        ///   <b>왜 여기인가</b> — 골렘은 로스터에 <b>보여야 하는</b> 유닛이므로
+        ///   (정의문: «로스터에는 표기 되지만») 성장 창에 들어오는 것 자체는 정상이다.
+        ///   막을 곳은 <b>강화라는 행위</b> 하나이고, 그 판정이 지나는 문은 여기다 —
+        ///   UI 의 버튼 잠금(<c>CharacterGrowthPanel</c>)도 이 함수를 읽으므로
+        ///   <b>한 군데만 고치면 버튼과 실제 처리가 같이 닫힌다</b>.
+        ///   ⚠ 골렘의 능력치는 소환 시점의 아루에서 <b>계산해서 만든 것</b>이라
+        ///     (<see cref="Combat.AruGolem"/>) 여기서 올려도 다음 소환에 남지 않는다.
+        ///     즉 «올려도 사라지는 강화» 에 에너지를 쓰게 되는 것이 진짜 손해였다.
+        /// </summary>
         public bool CanUpgrade(CharacterUnit unit)
         {
             if (unit == null || !unit.IsAlive) return false;
+            if (unit.IsSummoned) return false;          // 골렘 — 위 ★★
             ResourceManager resources = ResourceManager.Instance;
             return resources != null && resources.CanAfford(CostFor(unit));
         }
@@ -99,6 +115,9 @@ namespace LastSanctuary.Units
         public bool TryUpgrade(CharacterUnit unit)
         {
             if (unit == null || !unit.IsAlive) return false;
+            // ⚠ <b>여기서도 막는다</b> — 이 프로젝트의 규칙이다("막는 곳을 한 군데만 두면
+            //   다른 경로로 새어 들어온다" · CharacterTactics 의 잠금 주석과 같다).
+            if (unit.IsSummoned) return false;
 
             ResourceManager resources = ResourceManager.Instance;
             if (resources == null)

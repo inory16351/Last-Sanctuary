@@ -92,6 +92,9 @@ namespace LastSanctuary.EditorTools
             ("Death",        "deathRight",        "deathLeft"),
             // ★ 2026-08-20 — 탈진(행동 불능 · 아르세니아). 누운 자세라 크기 계산이 다르다.
             ("Stun",         "stunRight",         "stunLeft"),
+            // ★ 2026-08-20 — <b>보호막 상시 겹쳐 그리기</b>(카이론 「타락한 육체」).
+            //   방향이 없다 — 구체라서 좌우를 뒤집을 필요가 없다.
+            ("Shield",       "shieldFrames",      null),
 
             // ── 투사체·착탄 ──────────────────────────────────────────────
             ("Projectile",     "projectileFrames",   null),

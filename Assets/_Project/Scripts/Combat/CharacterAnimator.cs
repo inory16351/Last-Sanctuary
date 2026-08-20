@@ -171,6 +171,12 @@ namespace LastSanctuary.Combat
 
             ApplyRenderSize();
 
+            // ★ 보호막을 <b>상시 겹쳐 그리는</b> 유닛에만 그 컴포넌트를 붙인다
+            //   (2026-08-20 · 카이론). 여기가 «이 유닛의 외형이 확정되는» 유일한 지점이라
+            //   판단을 여기 둔다 — 씬 템플릿을 고치지 않으려는 것이다
+            //   (<see cref="ShieldOverlayFx"/> 의 ★ 주석).
+            ShieldOverlayFx.Ensure(gameObject, _skin);
+
             if (_skin != null && logSkinChoice)
                 Debug.Log($"[Anim] {name} 외형 → {(_skin.displayName != "" ? _skin.displayName : _skin.name)}", this);
         }
