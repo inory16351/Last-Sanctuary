@@ -284,6 +284,51 @@ namespace LastSanctuary.Combat
         }
 
         /// <summary>
+        /// <b>부채꼴(반원)</b> 범위 안의 적을 모은다 — 보스 스킬의 <c>Semi_Circle</c> 범위 타입
+        /// (2026-08-20 신설 · 베일 「담배 연기」).
+        ///
+        /// <see cref="CollectEnemiesInRadius"/> 에 <b>방향 조건 하나</b>를 더한 것이다:
+        /// 중심에서 대상으로 가는 방향이 조준 방향과 <b>같은 반쪽</b>에 있어야 한다
+        /// (내적 ≥ 0 = 180도). 그래서 «정면» 이라는 말이 뜻하는 만큼만 맞고 등 뒤는 안 맞는다.
+        ///
+        /// ★ <b>왜 각도를 인자로 받지 않나</b> — 표에 각도를 적는 칸이 <b>없다</b>.
+        ///   범위 값을 코드 상수로 지어내지 않는 것이 이 프로젝트의 규칙이라
+        ///   (118-3절 — 서식지 범위를 하드코딩 상수에서 표 컬럼으로 옮겼다),
+        ///   표에 적힌 이름(<c>Semi_Circle</c> = 반원)이 뜻하는 180도를 그대로 쓴다.
+        ///   각도를 조절하고 싶어지면 <b>표에 칸을 만드는 것</b>이 맞는 순서다.
+        ///
+        /// ⚠ <b>정확히 중심에 겹친 대상은 넣는다</b> — 방향을 계산할 수 없는데
+        ///   («제자리») 그렇다고 «정면이 아니다» 로 떨어뜨리면 <b>가장 붙어 있는 적이
+        ///   유일하게 안 맞는다</b>. 원형 갈래도 같은 대상을 넣는다.
+        /// </summary>
+        public static void CollectEnemiesInSemiCircle(Vector3 center, float radiusTiles, Vector2 aimDir,
+                                                     Faction myFaction, List<DamageableUnit> into)
+        {
+            into.Clear();
+            Faction enemy = myFaction.Opposite();
+            float maxSqr = radiusTiles * radiusTiles;
+
+            // 조준 방향이 0 이면 방향 조건을 걸 수 없다 — 원형과 같게 둔다(전부 통과).
+            bool hasDir = aimDir.sqrMagnitude > 0.000001f;
+            if (hasDir) aimDir.Normalize();
+
+            for (int i = 0; i < _units.Count; i++)
+            {
+                DamageableUnit u = _units[i];
+                if (u == null || !u.IsAlive || u.Faction != enemy) continue;
+
+                var delta = (Vector2)(u.transform.position - center);
+                if (delta.sqrMagnitude > maxSqr) continue;
+
+                // 정확히 겹쳤으면 방향을 못 재므로 통과시킨다(위 ⚠).
+                if (hasDir && delta.sqrMagnitude > 0.000001f &&
+                    Vector2.Dot(delta.normalized, aimDir) < 0f) continue;
+
+                into.Add(u);
+            }
+        }
+
+        /// <summary>
         /// 반경 안의 <b>같은 진영</b> 유닛 중 가장 가까운 하나 (정신 이상 "혼란" 의 아군 공격용).
         /// <see cref="FindTarget"/> 계열은 <see cref="FactionExtensions.Opposite"/> 로 적을 찾으므로
         /// 아군을 노리는 데는 쓸 수 없어 따로 둔다. <paramref name="exclude"/> 는 보통 자기 자신이다.

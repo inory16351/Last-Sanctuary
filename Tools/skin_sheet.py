@@ -100,6 +100,21 @@ LABEL_GAP = 12
 #: 라벨 덩어리의 최대 폭(px). 실측으로 진짜 라벨은 8~14px 다.
 LABEL_MAX_W = 22
 
+#: 라벨 덩어리의 **최소** 폭(px) — 기본값은 **1(무동작)**.
+#:
+#: ★★ 2026-08-20 신설. 바리올라 시트에서 **소의 뿔이 프레임 번호 줄 높이까지 솟아**
+#: 폭 3~4px 짜리 가짜 덩어리를 둘 만들었다(스킬 2 줄: 진짜 라벨 7개 + 뿔 2개 = 9개).
+#: `LABEL_MAX_W` 의 **반대 방향** 함정이다 — 위쪽은 «이펙트가 라벨에 붙어 커진 덩어리»,
+#: 아래쪽은 «그림 일부가 라벨 줄에 들어온 부스러기» 다.
+#:
+#: ⚠⚠ **기본값을 8 로 두면 안 된다.** 라벨 글자 크기가 시트마다 다르다 — 실측:
+#:       바리올라  9~12px  (두 자리 숫자 · 큰 글씨)
+#:       엘린      3~ 7px  (한 자리 숫자 · 작은 글씨) ← 8 로 자르면 **전멸**한다
+#:   실제로 8 을 기본값으로 넣었다가 엘린 분해가 «프레임 번호 0개» 로 죽었다.
+#:   그래서 **필요한 스크립트가 `min_w=` 로 직접 넘긴다** — 시트마다 다른 값을
+#:   전역 기본값으로 정할 근거가 없다.
+LABEL_MIN_W = 1
+
 #: 칸을 가르는 빈 열의 최소 두께(px). 근거리 줄의 가장 좁은 빈 열이 4px 다.
 CELL_GAP_MIN = 3
 
@@ -330,6 +345,42 @@ def enclosed_background(sheet, y0, y1, cx0, cx1):
     return out
 
 
+def reflood_background(sheet, removed):
+    """
+    ★★ 그림자를 지운 뒤 **새로 바깥과 이어진 배경**을 배경으로 편입한다 (2026-08-20 신설).
+
+    <b>왜 필요한가 — 네발 짐승의 「배 아래 흰 웅덩이」</b>
+    ------------------------------------------------------
+    :func:`background_mask` 는 배경을 «시트 테두리에서 흘려 닿는 곳» 으로 정의한다.
+    그런데 바리올라(소)는 **발밑 그림자가 다리 사이를 막아** 배 아래의 배경이 바깥과
+    끊긴다. 끊긴 배경은 배경으로 안 잡히므로 **불투명한 흰 덩어리**로 남는다
+    (실측: 대기 한 프레임에 수백 px · 화면에서 배 밑에 흰 천이 붙은 것처럼 보인다).
+
+    그림자를 지우면 그 벽이 없어지지만, :data:`bg_mask` 는 :func:`load_sheet` 에서
+    **한 번 구해 둔 값**이라 저절로 갱신되지 않는다. 그래서 지운 뒤 다시 흘려 준다.
+
+    ★ <b>:func:`enclosed_background` 로는 안 된다</b> — 그쪽은 「갇힌 덩어리」를 찾지만
+      <b>테두리가 먹선일 때만</b> 되돌린다(:data:`POCKET_INK_RING_LUM`). 배 아래 웅덩이의
+      벽 절반은 **연회색 그림자**라 그 조건에 안 걸린다. 두 함수는 노리는 것이 다르다:
+      저쪽은 «그림 안의 흰 원판»(엘린 원호), 이쪽은 «그림자가 막은 바깥 배경».
+
+    ⚠ <b>배경색 픽셀만</b> 편입한다(:data:`BG_TOL` 안) — 밝은 하이라이트는 그 대역
+      밖이라 안전하다. 그림에 진짜 순백이 있고 그것이 바깥과 이어져 있으면 사라지므로,
+      돌려주는 픽셀 수를 **반드시 확인할 것**(프레임 하나에 수백 px 이 정상, 수만이면
+      배경 판정이 무너진 것이다).
+
+    :param removed: 방금 그림에서 뺀 픽셀(그림자). 흘려 채우기의 **씨앗이자 통로**다.
+    :returns: 새로 배경이 된 픽셀 수 (``removed`` 자신은 세지 않는다).
+    """
+    ok = (sheet["dist"] <= BG_TOL) | removed
+    region = flood(ok, sheet["bg_mask"] | removed)
+
+    gained = region & ~sheet["bg_mask"] & ~removed
+    sheet["bg_mask"] |= region
+    sheet["mask"] &= ~region
+    return int(gained.sum())
+
+
 def shadow_in_box(sheet, box):
     """
     ★★ 프레임 하나의 **발밑 그림자** 픽셀 (맨 위 ★★ 두 번째).
@@ -477,16 +528,21 @@ def runs(flags, min_len=1):
     return out
 
 
-def label_blobs(gray, x0, x1, ly0, ly1, gap=None, max_w=None):
+def label_blobs(gray, x0, x1, ly0, ly1, gap=None, max_w=None, min_w=None):
     """
     프레임 번호 줄의 라벨 덩어리 목록 ``[(x0, x1), …]``.
 
     ⚠ 라벨은 **회색조로만** 찾는다 — 채도가 있는 이펙트가 라벨 줄 높이까지 올라와 있으면
     「흰색과의 거리」로만 찾을 때 이펙트가 라벨에 붙어 폭 50px 짜리 가짜 덩어리가 된다
     (라린길 실측 · 102-3절). 그 필터는 :func:`load_sheet` 의 ``gray`` 가 이미 걸었다.
+
+    ⚠ **폭이 양쪽으로 걸린다** — :data:`LABEL_MAX_W` 위(이펙트가 붙은 덩어리)와
+    :data:`LABEL_MIN_W` 아래(그림 일부가 라벨 줄에 솟은 부스러기)를 둘 다 버린다.
+    바리올라 시트에서 소의 뿔이 정확히 아래쪽 함정이었다(2026-08-20).
     """
     gap = LABEL_GAP if gap is None else gap
     max_w = LABEL_MAX_W if max_w is None else max_w
+    min_w = LABEL_MIN_W if min_w is None else min_w
 
     lab = gray[ly0:ly1 + 1, x0:x1 + 1].any(axis=0)
     xs = np.where(lab)[0]
@@ -501,12 +557,13 @@ def label_blobs(gray, x0, x1, ly0, ly1, gap=None, max_w=None):
             start = x
         prev = x
     blobs.append((start, prev))
-    return [(a + x0, b + x0) for a, b in blobs if b - a + 1 <= max_w]
+    return [(a + x0, b + x0) for a, b in blobs
+            if min_w <= b - a + 1 <= max_w]
 
 
-def label_count(gray, x0, x1, ly0, ly1, gap=None, max_w=None):
+def label_count(gray, x0, x1, ly0, ly1, gap=None, max_w=None, min_w=None):
     """프레임 번호가 몇 개인지. **검산 전용**이다."""
-    return len(label_blobs(gray, x0, x1, ly0, ly1, gap, max_w))
+    return len(label_blobs(gray, x0, x1, ly0, ly1, gap, max_w, min_w))
 
 
 def boxes_dominant(mask, cells, y0, y1, min_ink_ratio=0.12):
@@ -654,7 +711,7 @@ def cells_by_span(mask, y0, y1, x0, x1, count):
             for i in range(count)]
 
 
-def cells_by_pitch(gray, x0, x1, ly0, ly1, count, gap=None, max_w=None):
+def cells_by_pitch(gray, x0, x1, ly0, ly1, count, gap=None, max_w=None, min_w=None):
     """
     ★★ 칸 경계를 **일정한 간격**으로 정한다 — 프레임 수를 아는 줄에 쓴다.
 
@@ -669,7 +726,7 @@ def cells_by_pitch(gray, x0, x1, ly0, ly1, count, gap=None, max_w=None):
     ⚠ 그래서 **개수를 반드시 넘겨야 한다** — 시트에 «(16프레임)» 처럼 적혀 있는 값이다.
       개수를 틀리면 조용히 어긋난 칸이 나오므로, 부르는 쪽이 시트의 표기를 그대로 적을 것.
     """
-    blobs = label_blobs(gray, x0, x1, ly0, ly1, gap, max_w)
+    blobs = label_blobs(gray, x0, x1, ly0, ly1, gap, max_w, min_w)
     if len(blobs) < 2 or count < 1:
         return []
 
@@ -686,7 +743,7 @@ def cells_by_pitch(gray, x0, x1, ly0, ly1, count, gap=None, max_w=None):
     return [(edges[i], edges[i + 1]) for i in range(count)]
 
 
-def cells_by_labels(gray, x0, x1, ly0, ly1, gap=None, max_w=None):
+def cells_by_labels(gray, x0, x1, ly0, ly1, gap=None, max_w=None, min_w=None):
     """
     ★ 칸 경계를 **라벨 중심의 중간점**으로 정한다 (말파스·라린길 방식 · 113-1절).
 
@@ -697,7 +754,7 @@ def cells_by_labels(gray, x0, x1, ly0, ly1, gap=None, max_w=None):
     ⚠ 첫 칸의 왼쪽 끝과 마지막 칸의 오른쪽 끝은 **패널 경계**로 둔다. 라벨 간격의 절반을
       바깥으로 미는 방법도 있지만, 그러면 패널 밖(다른 단)까지 먹을 수 있다.
     """
-    centers = [(a + b) // 2 for a, b in label_blobs(gray, x0, x1, ly0, ly1, gap, max_w)]
+    centers = [(a + b) // 2 for a, b in label_blobs(gray, x0, x1, ly0, ly1, gap, max_w, min_w)]
     if len(centers) < 2:
         return []
     edges = [x0] + [(centers[i] + centers[i + 1]) // 2 for i in range(len(centers) - 1)] + [x1]

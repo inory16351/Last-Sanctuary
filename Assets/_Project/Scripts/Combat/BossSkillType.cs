@@ -176,6 +176,91 @@ namespace LastSanctuary.Combat
         /// 방어력이 아무리 높아도 반드시 아픈, 최종보스다운 확정 피해다.
         /// </summary>
         BurningBreath,
+
+        // ──────────────────────────────────────────────────────────────
+        // 베일 (웨이브 최종보스 120005) — 2026-08-20
+        //
+        // ⚠ <b>여기도 칸의 뜻이 다르다.</b> 스트링 테이블의 정의문이 근거다:
+        //   담뱃대 강타 value_01 = <b>반지름</b> 타일 · value_02 = <b>대상 수(명)</b>
+        //               · value_03 = 피해 % · value_04 = <b>밀쳐내는 타일</b>
+        //   담배 연기   value_01 = <b>부채꼴 반지름</b> 타일 · value_02 = <b>연기 지속 초</b>
+        //               · value_03 = 피해(=0) · value_04 = <b>중독 초</b>
+        //               · value_05 = <b>초당 최대체력 %</b>
+        //
+        // ★★ <b>value_02 가 「세로」가 아니라 「명」이다</b> — 그래서 이 둘은 기본
+        //    직사각형 갈래에 태울 수 없다. 태우면 3x1 상자가 되어 «반지름 3 원형에
+        //    1명» 이라는 표의 뜻과 전혀 다른 기술이 된다.
+        // ──────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// 담뱃대 강타 (130009) — 자기 중심 <b>반지름 <c>value_01</c></b> 원형 안에서
+        /// <b>가장 가까운 <c>value_02</c>명</b>에게 <c>value_03</c>% 피해를 주고
+        /// <c>value_04</c> 타일 <b>밀쳐낸다</b>.
+        ///
+        /// ★ 밀리는 방향이 <b>「보스 반대쪽」이 아니다</b> — 정의문이
+        ///   *"캐릭터는 자신이 바라보는 반대 방향으로 밀려납니다"* 라고 못박고 있다.
+        ///   그래서 「죽음의 포효」(<see cref="RoarDeath"/>)의 넉백과 <b>기준이 다르다</b>:
+        ///   그쪽은 시전자에서 멀어지는 쪽, 이쪽은 <b>맞는 쪽이 보고 있는 반대쪽</b>이다.
+        ///   교전 중이면 대개 보스를 보고 있어 결과가 비슷하지만, 도망치던 중에 맞으면
+        ///   <b>보스 쪽으로</b> 끌려온다 — 그게 표가 말하는 것이다.
+        ///
+        /// ⚠ 표의 <c>range_type</c> 은 <c>Line</c> 인데 정의문은 <b>원형</b>이다.
+        ///   정의문을 따랐고(칸의 뜻이 그쪽에만 적혀 있다), 그래서 이 종류는
+        ///   <see cref="BossSkillShape"/> 를 <b>보지 않는다</b> — 구속탄·이끌리는 혈취와
+        ///   같이 <see cref="BossSkillCaster"/> 의 전용 갈래를 탄다.
+        /// </summary>
+        PipeStrike,
+
+        /// <summary>
+        /// 담배 연기 (130010) — <b>정면 부채꼴</b>(반지름 <c>value_01</c>) 안에 캐릭터가
+        /// 있으면 <c>value_02</c>초간 연기를 깔고, 닿은 적을 <c>value_04</c>초 동안
+        /// <b>「중독」</b>(매초 최대 체력의 <c>value_05</c>%)으로 만든다.
+        ///
+        /// ★ <b>직접 피해가 0 이다</b>(표의 <c>value_03</c> = 0). 「아우성」과 같은 이유로
+        ///   <see cref="BossSkillSO.DamagePercent"/> 의 «비면 100%» 폴백을 <b>끈다</b> —
+        ///   폴백이 돌면 중독을 거는 기술이 평타 한 대를 얹는 다른 기술이 된다.
+        ///
+        /// ★ 이 프로젝트에서 <b>부채꼴 범위를 쓰는 첫 스킬</b>이다
+        ///   (<see cref="BossSkillShape.SemiCircle"/> 신설).
+        /// </summary>
+        PipeSmoke,
+
+        // ──────────────────────────────────────────────────────────────
+        // 바리올라 (에픽 중립 보스 1103) — 2026-08-20
+        //
+        // 스트링 테이블 정의문이 근거다. ★ <b>둘 다 「지름」</b>이라
+        // <see cref="BossSkillSO.CircleValueIsRadius"/> 에 넣지 않는다 —
+        // 카르시노스·아니사킬·라린길과 반대쪽(단탈리온 계열과 같은 쪽)이다:
+        //   소름 끼치는 흉터 "바리올라 + {value_01} <b>지름</b> 타일 범위에 가장 가까운
+        //                     적 {value_02}명에게 <b>침식 수치 {value_03}</b>을 증가"
+        //   치명적인 독기   "바리올라 + {value_01} <b>지름</b> 타일 범위에 있는 모든 적의
+        //                     현재 체력이 <b>최대체력의 {value_02}%</b> 감소"
+        // ──────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// 소름 끼치는 흉터 (2005) — 자기 중심 <b>지름 <c>value_01</c></b> 원형 안에서
+        /// <b>가장 가까운 <c>value_02</c>명</b>의 <b>침식만</b> <c>value_03</c> 올린다.
+        ///
+        /// ★ <b>피해가 없다</b> — 정의문에 피해라는 말이 아예 없다. 「아우성」과 같은
+        ///   «침식 전용» 기술이라 <see cref="BossSkillSO.DamagePercent"/> 폴백을 끈다.
+        ///
+        /// ★★ <b>침식량이 전용 칸(<c>mentalerror_damage</c>)에 없다</b> — 그 칸은 0 이고
+        ///   정의문이 <c>value_03</c> 을 가리킨다. 그래서 이 종류만
+        ///   <see cref="BossSkillSO.ErosionValue"/> 가 <c>value_03</c> 을 읽는다.
+        ///   («모든 스킬이 같은 칸을 쓴다»는 2026-08-18 의 정리에 대한 <b>유일한 예외</b>이고,
+        ///   근거는 표 자신이다 — 전용 칸이 비어 있다.)
+        /// </summary>
+        CreepyScar,
+
+        /// <summary>
+        /// 치명적인 독기 (2006) — 자기 중심 <b>지름 <c>value_01</c></b> 원형 안의
+        /// <b>모든</b> 적에게 <b>최대 체력의 <c>value_02</c>%</b> 피해.
+        ///
+        /// ★ <b>방어력을 거치지 않는다</b> — 「타오르는 숨결」의 추가 피해와 같은 성질이라
+        ///   <see cref="BossSkillSO.MaxHpPercentDamage"/> 를 그대로 쓴다. 다만 숨결은
+        ///   <b>평타 피해에 얹는</b> 것이고 이쪽은 <b>그것만</b>이다(<c>value_03</c> = 0).
+        /// </summary>
+        DeadlyVenom,
     }
 
     public static class BossSkillTypes
@@ -203,6 +288,14 @@ namespace LastSanctuary.Combat
                 case "huge_threat": return BossSkillType.HugeThreat;
                 case "screaming":   return BossSkillType.Screaming;
                 case "burning_breath": return BossSkillType.BurningBreath;
+
+                // ── 베일 120005 (2026-08-20) ──
+                case "pipe_strike":    return BossSkillType.PipeStrike;
+                case "pipe_smoke":     return BossSkillType.PipeSmoke;
+
+                // ── 바리올라 1103 (2026-08-20) ──
+                case "creepy_scar":    return BossSkillType.CreepyScar;
+                case "deadly_venom":   return BossSkillType.DeadlyVenom;
                 default:            return BossSkillType.None;
             }
         }
@@ -231,6 +324,23 @@ namespace LastSanctuary.Combat
         /// 방향이라는 개념이 없으므로 어느 각도의 적이든 거리만 맞으면 전부 맞는다.
         /// </summary>
         Circle = 1,
+
+        /// <summary>
+        /// 조준 방향의 <b>부채꼴(반원)</b>. 반지름 = <c>value_01</c>, 각도는 <b>180도</b> —
+        /// 「정면」이라는 말이 뜻하는 만큼만 열려 있고 등 뒤는 안 맞는다
+        /// (2026-08-20 신설 · 베일 「담배 연기」).
+        ///
+        /// ★★ <b>왜 새로 필요했나</b> — 표는 이 값을 <c>Semi_Circle</c> 로 적어놨는데
+        ///   enum 에 없어서 <see cref="Parse"/> 가 조용히 <see cref="Line"/> 로 떨어뜨리고
+        ///   있었다. 그러면 «정면 반지름 5 부채꼴» 이 «5x1 상자» 가 된다 — 표와 화면이
+        ///   어긋나는데 <b>경고 한 줄도 안 남는다</b>(폴백이 정상 동작이라서).
+        ///
+        /// ★ <b>왜 180도인가</b> — 표의 값이 <c>Semi_Circle</c>(반원)이고, 부채꼴의 각도를
+        ///   적는 칸이 표에 <b>없다</b>. 각도를 코드에 지어내는 대신 이름이 말하는 값을
+        ///   그대로 쓴다. 각도를 정하고 싶어지면 그때 표에 칸을 만드는 것이 맞다
+        ///   (범위 값을 하드코딩 상수에서 표 컬럼으로 옮겨 온 이 프로젝트의 규칙 · 118-3절).
+        /// </summary>
+        SemiCircle = 2,
     }
 
     public static class BossSkillShapes
@@ -245,6 +355,17 @@ namespace LastSanctuary.Combat
                 case "circle":
                 case "round":
                 case "radial": return BossSkillShape.Circle;
+
+                // ★ 2026-08-20 — 표의 `Semi_Circle` 이 여기 없어서 Line 으로 떨어지고
+                //   있었다(위 SemiCircle 주석). 사람이 적는 칸이라 표기 흔들림을 다 받는다.
+                case "semi_circle":
+                case "semicircle":
+                case "semi circle":
+                case "half_circle":
+                case "fan":
+                case "cone":
+                case "sector":  return BossSkillShape.SemiCircle;
+
                 default:       return BossSkillShape.Line;
             }
         }

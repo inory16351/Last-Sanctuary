@@ -267,9 +267,17 @@ namespace LastSanctuary.Combat
             // 세로를 가로와 같게 두면 지금 있는 두 원형 스킬의 결과는 <b>한 픽셀도 안 바뀐다</b>:
             // 원화가 가로로 길어(2.25:1 · 1.86:1) fit 의 최소값을 <b>가로가 정하기</b> 때문이다.
             // 바뀌는 것은 <b>세로로 긴 이펙트가 들어올 때</b>뿐이고, 그때가 사고가 날 자리였다.
+            // ★ 2026-08-20 — <b>부채꼴도 정사각이다.</b> 위 ⚠ 가 «그 전에 막는다» 고 적어둔
+            //   사고가 실제로 들어왔다: 베일 「담배 연기」의 <c>value_02</c> 는 세로가 아니라
+            //   <b>연기가 남는 초</b>(=1)다. 그대로 두면 상자가 <c>5 x 1</c> 이 되고
+            //   아래 fit 의 최소값을 <b>세로가 정해</b> <c>area.x</c> 가 5 보다 작아진다
+            //   → <b>반지름이 표보다 줄어든다.</b> 원형과 같이 취급하면 그 경로가 막힌다.
+            bool squareBox = skill.Shape == BossSkillShape.Circle
+                          || skill.Shape == BossSkillShape.SemiCircle;
+
             var box = new Vector2(
                 skill.LengthTiles,
-                skill.Shape == BossSkillShape.Circle ? skill.LengthTiles : skill.WidthTiles);
+                squareBox ? skill.LengthTiles : skill.WidthTiles);
 
             if (!fitAreaToSkillArt) return box;
 
@@ -366,6 +374,16 @@ namespace LastSanctuary.Combat
             if (skill.Type == BossSkillType.BindingOrb) return TryCastBindingOrb(slot, skill);
             if (skill.Type == BossSkillType.LureBlood) return TryCastLureBlood(slot, skill);
 
+            // ★ 2026-08-20 — 베일 「담뱃대 강타」. 표의 `range_type` 은 <c>Line</c> 인데
+            //   정의문은 <b>«반지름 {v1} 원형 안 {v2}명»</b> 이라 <c>value_02</c> 가
+            //   <b>세로가 아니라 「명」</b>이다. 기본 직사각형 갈래에 태우면 3x1 상자가 되어
+            //   전혀 다른 기술이 되므로 전용 갈래를 탄다(구속탄과 같은 이유).
+            if (skill.Type == BossSkillType.PipeStrike) return TryCastPipeStrike(slot, skill);
+
+            // ── 부채꼴 범위 (2026-08-20 신설 · 베일 「담배 연기」) ────────
+            //    ⚠ <b>표 값을 그대로 넘긴다</b>(<c>area</c> 가 아니다) — 아래 주석 참조.
+            if (skill.Shape == BossSkillShape.SemiCircle) return TryCastSemiCircle(slot, skill);
+
             // ── 원형 범위 ───────────────────────────────────────────────
             // 방향이라는 개념이 없으므로 조준도 필요 없다 — 반지름 안이면 전부 맞는다.
             if (skill.Shape == BossSkillShape.Circle)
@@ -379,6 +397,10 @@ namespace LastSanctuary.Combat
                 length = radius * 2f;                     // 아래 연출·로그는 지름을 쓴다
 
                 UnitRegistry.CollectEnemiesInRadius(transform.position, radius, _self.Faction, _scratch);
+
+                // ★ 2026-08-20 — 대상 수 상한(바리올라 「소름 끼치는 흉터」의 «가장 가까운
+                //   {v2}명»). 상한이 0 인 <b>기존 스킬 전부는 아무 일도 안 일어난다</b>.
+                TrimToMaxTargets(skill);
                 if (requireTarget && _scratch.Count == 0) return false;
 
                 // 그림은 지름 x 지름 정사각으로 깐다(회전 없음 — 원형이라 방향이 없다).
@@ -409,6 +431,7 @@ namespace LastSanctuary.Combat
             var half = new Vector2(length * 0.5f, width * 0.5f);
 
             UnitRegistry.CollectEnemiesInOrientedRect(center, half, dir, _self.Faction, _scratch);
+            TrimToMaxTargets(skill);          // 직사각형 스킬은 지금 전부 상한 0 이라 무동작
             if (requireTarget && _scratch.Count == 0) return false;
 
             // 연출을 피해보다 먼저 띄운다 — 맞고 죽어 사라진 대상의 자리에도 범위가 보이게.
@@ -445,6 +468,148 @@ namespace LastSanctuary.Combat
                 if (_scratch.Count == 0) continue;
                 ApplyDamage(slot, skill, length, width, $"연타 {i + 2}/{skill.HitCount}");
             }
+        }
+
+        // ------------------------------------------------------------------
+        // 베일 (2026-08-20) — <b>대상 수가 정해진 원형</b> · <b>부채꼴</b>
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// ★ <b>「담뱃대 강타」(130009)</b> — 자기 중심 <b>반지름 <c>value_01</c></b> 원형에서
+        /// <b>가장 가까운 <c>value_02</c>명</b>만 때리고 <c>value_04</c> 타일 밀어낸다.
+        ///
+        /// 기존 <see cref="BossSkillShape.Circle"/> 갈래를 <b>못 쓰는 이유</b>는 하나다 —
+        /// 그쪽은 «반지름 안이면 전부» 인데 이 스킬은 <b>대상 수 상한</b>이 있고, 그 상한이
+        /// 하필 <c>value_02</c>(= 다른 스킬에서는 「세로」)에 적혀 있다.
+        /// 상한 자체는 <see cref="TrimToMaxTargets"/> 가 처리하므로 여기서는
+        /// <b>원형으로 모으고 넘기는 일</b>만 한다.
+        /// </summary>
+        bool TryCastPipeStrike(int slot, BossSkillSO skill)
+        {
+            // 정의문이 «반지름» 이라 CircleValueIsRadius 가 true 다 — 그대로 반지름이다.
+            float radius = Mathf.Max(0.5f, skill.value01);
+            float diameter = radius * 2f;
+
+            UnitRegistry.CollectEnemiesInRadius(transform.position, radius, _self.Faction, _scratch);
+            TrimToMaxTargets(skill);
+            if (requireTarget && _scratch.Count == 0) return false;
+
+            // 원형이라 방향이 없다 — 연출은 지름 x 지름 정사각으로 깐다(Circle 갈래와 같다).
+            PlayFx(slot, skill, transform.position, Vector2.right,
+                   diameter, diameter, NearestOf(_scratch));
+            return ApplyDamage(slot, skill, diameter, diameter, "원형(대상 제한)");
+        }
+
+        /// <summary>
+        /// ★ <b>「담배 연기」(130010)</b> — <b>정면 부채꼴</b>(반지름 <c>value_01</c>) 안의 적을
+        /// <b>중독</b>시킨다. 직접 피해는 표가 0 이다.
+        ///
+        /// ★★ <b>연기가 <c>value_02</c> 초 동안 남는다</b> — 정의문이 «연기를 {v2}초간
+        ///   생성합니다» 이고 *"연기를 <b>맞은</b> 캐릭터는"* 이라, <b>나중에 걸어 들어온
+        ///   캐릭터도 맞아야</b> 한다. 그래서 시전 순간 한 번으로 끝내지 않고
+        ///   <see cref="LingerSmoke"/> 가 그 시간 동안 같은 자리를 계속 판정한다.
+        ///
+        /// ★ 부채꼴은 <b>방향이 있다</b>(원형과 다르다) — 조준은 직사각형 갈래와 같은
+        ///   <see cref="PickAim"/> 로 정한다. 대상이 없으면 방향을 정할 수 없으므로
+        ///   («정면» 이 어디인지 알 수 없다) 시전하지 않는다.
+        /// </summary>
+        bool TryCastSemiCircle(int slot, BossSkillSO skill)
+        {
+            // 정의문이 «부채꼴의 반지름» 이라 CircleValueIsRadius 가 true 다.
+            //
+            // ⚠⚠ <b>반지름을 <see cref="ResolveArea"/> 의 결과가 아니라 표 값에서 직접 읽는다.</b>
+            //   원형 갈래는 <c>area.x</c> 를 쓰는데(원화 비율에 맞춰 줄어들 수 있다), 부채꼴은
+            //   그러면 안 된다: 표의 <c>value_02</c> 가 <b>세로가 아니라 「연기 지속 초」</b>라
+            //   «표가 말하는 가로:세로 비율» 이라는 것이 <b>애초에 존재하지 않는다</b>.
+            //   맞출 비율이 없는데 맞추면 <b>반지름만 조용히 줄어든다</b>.
+            //   (같은 종류의 사고를 이 날 「소름 끼치는 흉터」에서 한 번 잡았다 —
+            //    칸의 뜻을 확인하지 않고 자리만 보면 이렇게 된다.)
+            //
+            // ★ 그래서 <b>판정과 연출이 같은 값</b>을 쓴다(아래 PlayFx 도 이 반지름이다) —
+            //   «보이는 범위 = 맞는 범위» 라는 이 프로젝트의 규칙은 그대로 지킨다.
+            float radius = Mathf.Max(0.5f, skill.CircleValueIsRadius
+                ? skill.value01
+                : skill.value01 * 0.5f);
+
+            DamageableUnit aim = PickAim(skill.Type, radius);
+            if (aim == null && requireTarget) return false;
+
+            Vector2 dir = aim != null
+                ? AimDirection(aim.transform.position - transform.position)
+                : Vector2.right;
+
+            UnitRegistry.CollectEnemiesInSemiCircle(transform.position, radius, dir,
+                                                   _self.Faction, _scratch);
+            TrimToMaxTargets(skill);
+            if (requireTarget && _scratch.Count == 0) return false;
+
+            // 연출은 <b>지름 x 지름</b> 상자를 조준 각도로 돌려 깐다 — 원화(반원형 범위
+            // 이펙트 한 장)가 +X 를 향해 그려져 있고, 부채꼴은 그 상자의 앞 절반이다.
+            float diameter = radius * 2f;
+            PlayFx(slot, skill, transform.position, dir, diameter, diameter, aim);
+
+            bool cast = ApplyDamage(slot, skill, diameter, diameter, "부채꼴");
+
+            // 연기가 남는 동안 계속 판정한다(위 ★★).
+            if (cast && skill.SmokeSeconds > 0f)
+                StartCoroutine(LingerSmoke(skill, dir, radius));
+
+            return cast;
+        }
+
+        /// <summary>
+        /// 깔린 연기가 <b>남아 있는 동안</b> 같은 부채꼴을 다시 판정한다 — 그 사이 걸어
+        /// 들어온 적도 중독된다.
+        ///
+        /// ★ <b>부채꼴은 처음 잡은 방향·자리에 고정</b>이다(「죽음의 노래」의 연타 상자와
+        ///   같은 판단) — 연기는 공기 중에 남는 것이고 보스를 따라다니지 않는다.
+        ///   보스를 따라다니게 하면 도망친 적까지 계속 중독된다.
+        ///
+        /// ★ <b>피해는 다시 넣지 않는다</b> — 중독만 다시 건다. 연기의 직접 피해는
+        ///   표가 0 이지만(<c>value_03</c>), 표가 채워지더라도 «연기 안에 서 있으면 매
+        ///   프레임 평타» 가 되면 안 된다. 초당 피해는 「중독」쪽이 담당한다.
+        ///
+        /// ⚠ 중독은 <b>중첩되지 않는다</b>(<see cref="UnitCombat.ApplyPoison"/>) —
+        ///   그래서 매 프레임 다시 걸어도 «더 아픈 쪽 + 지속시간 갱신» 으로만 끝난다.
+        /// </summary>
+        System.Collections.IEnumerator LingerSmoke(BossSkillSO skill, Vector2 dir, float radius)
+        {
+            Vector3 center = transform.position;
+            float until = Time.time + skill.SmokeSeconds;
+
+            while (Time.time < until)
+            {
+                yield return null;
+                if (_self == null || !_self.IsAlive) yield break;
+
+                UnitRegistry.CollectEnemiesInSemiCircle(center, radius, dir, _self.Faction, _scratch);
+                for (int i = 0; i < _scratch.Count; i++)
+                {
+                    DamageableUnit u = _scratch[i];
+                    if (u == null || !u.IsAlive) continue;
+                    ApplyPoison(skill, u);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 대상 목록을 <see cref="BossSkillSO.MaxTargets"/> 명으로 <b>가까운 순</b>으로 자른다.
+        /// 상한이 0(제한 없음)이거나 이미 그 아래면 아무 일도 하지 않는다 —
+        /// <b>기존 스킬 전부가 그 경우</b>라 동작이 바뀌지 않는다.
+        /// </summary>
+        void TrimToMaxTargets(BossSkillSO skill)
+        {
+            int cap = skill.MaxTargets;
+            if (cap <= 0 || _scratch.Count <= cap) return;
+
+            Vector3 me = transform.position;
+            _scratch.Sort((a, b) =>
+            {
+                float da = a == null ? float.MaxValue : ((Vector2)(a.transform.position - me)).sqrMagnitude;
+                float db = b == null ? float.MaxValue : ((Vector2)(b.transform.position - me)).sqrMagnitude;
+                return da.CompareTo(db);
+            });
+            _scratch.RemoveRange(cap, _scratch.Count - cap);
         }
 
         // ------------------------------------------------------------------
@@ -642,8 +807,14 @@ namespace LastSanctuary.Combat
                     PassiveSkillService.ApplyCorrosion(target, amount, skill.DefenseDownSeconds);
             }
 
-            // ── 넉백 (죽음의 포효) ──────────────────────────────────────
-            if (skill.KnockbackTiles > 0f) Knockback(target, skill.KnockbackTiles);
+            // ── 넉백 (죽음의 포효 · 담뱃대 강타) ────────────────────────
+            //    ⚠ 두 스킬이 <b>방향 기준이 다르다</b> — Knockback 안에서 가른다.
+            if (skill.KnockbackTiles > 0f) Knockback(skill, target, skill.KnockbackTiles);
+
+            // ── 중독 (담배 연기) ────────────────────────────────────────
+            //    ★ 시전 순간과 «연기가 남아 있는 동안»(LingerSmoke) <b>둘 다</b> 이걸 부른다 —
+            //      거는 규칙이 한 곳에만 있어야 두 경로가 어긋나지 않는다.
+            ApplyPoison(skill, target);
 
             // ── 허약 → 구속 (구속탄) ────────────────────────────────────
             // 정의문: "…'허약' 상태로 만든다. … 허약 상태의 적이 <b>해당 공격에 다시 피격</b> 시
@@ -716,7 +887,48 @@ namespace LastSanctuary.Combat
         }
 
         /// <summary>
-        /// 대상을 <b>보스 반대 방향으로</b> 밀어낸다.
+        /// 「중독」을 건다 (베일 「담배 연기」). 해당 없는 스킬은 조용히 지나간다.
+        ///
+        /// 실제 상태는 <see cref="UnitCombat.ApplyPoison"/> 가 들고 있다 — 「허약」·「구속」과
+        /// <b>같은 자리</b>다. 상태를 여기(스킬 쪽)에 두면 <b>중독된 유닛을 매 프레임 훑는
+        /// 장부</b>가 하나 더 생기고, 보스가 죽었을 때 그 장부를 정리하는 코드가 또 필요해진다.
+        ///
+        /// <paramref name="skill"/> 의 <c>status_name</c> 이 비어 있으면
+        /// <see cref="UnitCombat.ApplyPoison"/> 안에서 <b>"중독"</b> 으로 떨어진다
+        /// (「구속」의 <see cref="Bind"/> 와 같은 규칙).
+        /// </summary>
+        void ApplyPoison(BossSkillSO skill, DamageableUnit target)
+        {
+            if (skill.PoisonSeconds <= 0f || skill.PoisonMaxHpPercentPerSecond <= 0f) return;
+
+            var combat = target.GetComponent<UnitCombat>();
+            if (combat == null) return;
+
+            bool wasClean = !combat.IsPoisoned;
+            combat.ApplyPoison(skill.PoisonMaxHpPercentPerSecond, skill.PoisonSeconds,
+                               skill.StatusName);
+
+            // 로그는 <b>새로 걸릴 때만</b> 남긴다 — 연기 안에 서 있으면 매 프레임 다시
+            // 거므로(LingerSmoke) 안 그러면 로그창이 한 종류로 가득 찬다.
+            if (wasClean && combat.IsPoisoned)
+                UI.HudLog.Add($"{target.DisplayName} {combat.PoisonLabel}!", UI.HudLogKind.Danger);
+        }
+
+        /// <summary>
+        /// 대상을 밀어낸다. <b>방향 기준이 스킬마다 다르다</b>:
+        /// <code>
+        ///   죽음의 포효 (2002)   <b>시전자 반대쪽</b>  — "…뒤로 {value_02} 타일 만큼 밀려나며"
+        ///   담뱃대 강타 (130009) <b>대상이 보는 반대쪽</b> — "캐릭터는 자신이 바라보는
+        ///                        반대 방향으로 밀려납니다"
+        /// </code>
+        /// ★ <b>두 기준은 대개 같은 결과를 낸다</b>(교전 중이면 보스를 마주 보고 있다).
+        ///   갈리는 것은 <b>등을 보이고 있을 때</b>다 — 도망치던 캐릭터는 강타에 맞으면
+        ///   <b>보스 쪽으로 끌려온다</b>. 표가 그렇게 적혀 있고, 「담뱃대로 후려친다」는
+        ///   그림과도 맞는다.
+        ///
+        /// ⚠ 「보는 방향」은 <see cref="CharacterAnimator.FacingRight"/> 다 —
+        ///   <b>좌우뿐</b>이라 위아래 성분이 없다. 애니메이터가 없는 대상(구조물·포탑)은
+        ///   방향이라는 개념이 없으므로 <b>시전자 반대쪽</b>으로 떨어뜨린다.
         ///
         /// ⚠ <b>벽을 뚫지 않는다.</b> 목표 지점이 막혀 있으면 한 타일씩 줄여가며 설 수 있는
         /// 가장 먼 자리를 찾는다 — 통째로 순간이동시키면 벽 안에 박혀 빠져나오지 못한다
@@ -725,11 +937,25 @@ namespace LastSanctuary.Combat
         /// ⚠ <b>이동 목표(귀환 지점·집결지)는 건드리지 않는다.</b> 밀려난 뒤 스스로 걸어
         /// 돌아오는 것이 맞고, 목표까지 옮기면 "왜 자리를 이탈했지"가 된다.
         /// </summary>
-        void Knockback(DamageableUnit target, float tiles)
+        void Knockback(BossSkillSO skill, DamageableUnit target, float tiles)
         {
-            Vector2 away = (Vector2)(target.transform.position - transform.position);
-            if (away.sqrMagnitude < 0.0001f) away = Vector2.right;   // 정확히 겹쳤으면 아무 쪽으로
-            away.Normalize();
+            Vector2 away;
+
+            var anim = skill.Type == BossSkillType.PipeStrike
+                ? target.GetComponent<CharacterAnimator>()
+                : null;
+
+            if (anim != null)
+            {
+                // 「바라보는 반대 방향」 — 오른쪽을 보고 있으면 왼쪽으로 밀린다.
+                away = anim.FacingRight ? Vector2.left : Vector2.right;
+            }
+            else
+            {
+                away = (Vector2)(target.transform.position - transform.position);
+                if (away.sqrMagnitude < 0.0001f) away = Vector2.right;   // 정확히 겹쳤으면 아무 쪽으로
+                away.Normalize();
+            }
 
             Vector3 from = target.transform.position;
             if (_map == null) _map = FindAnyObjectByType<Map.MapGenerator>();

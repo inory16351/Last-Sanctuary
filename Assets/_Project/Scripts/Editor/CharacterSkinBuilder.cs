@@ -134,6 +134,32 @@ namespace LastSanctuary.EditorTools
                       "(다음: python Tools/measure_skin_tiles.py — 실측 크기 채우기)");
         }
 
+        /// <summary>
+        /// <c>Assets/…</c> 경로의 폴더를 <b>없는 단계마다 차례로</b> 만든다.
+        /// <see cref="AssetDatabase.CreateFolder"/> 는 <b>부모가 이미 있어야</b> 하므로
+        /// 한 번에 여러 단계를 만들 수 없다 — 위에서부터 훑어 내려간다.
+        /// </summary>
+        static bool EnsureFolder(string folder)
+        {
+            string[] parts = folder.Replace("\\", "/").Split('/');
+            if (parts.Length == 0 || parts[0] != "Assets") return false;
+
+            string path = parts[0];
+            for (int i = 1; i < parts.Length; i++)
+            {
+                if (string.IsNullOrEmpty(parts[i])) continue;
+
+                string next = $"{path}/{parts[i]}";
+                if (!AssetDatabase.IsValidFolder(next) &&
+                    string.IsNullOrEmpty(AssetDatabase.CreateFolder(path, parts[i])))
+                    return false;
+
+                path = next;
+            }
+            Debug.Log($"[스킨] 출력 폴더를 만들었습니다: {folder}");
+            return true;
+        }
+
         static bool BuildOne(string specPath)
         {
             Dictionary<string, string> spec = ReadSpec(specPath);
@@ -148,9 +174,17 @@ namespace LastSanctuary.EditorTools
 
             string outFolder = spec.TryGetValue("outputFolder", out string of) &&
                                !string.IsNullOrWhiteSpace(of) ? of : DefaultOutputFolder;
-            if (!AssetDatabase.IsValidFolder(outFolder))
+            // ★ 2026-08-20 — <b>없으면 만든다.</b> 예전에는 여기서 죽었는데(«출력 폴더가
+            //   없습니다»), 새 유닛을 넣을 때마다 <b>반드시</b> 걸리는 단계였다:
+            //   분해 스크립트가 원화 폴더는 만들지만 <c>Resources/MonsterSkins/&lt;종&gt;</c> 은
+            //   만들지 않는다(그쪽은 유니티가 관리하는 자리다). 실제로 바리올라가 그렇게
+            //   조용히 빠졌다 — 스킨 4개는 만들어졌다고 찍히고 5번째만 에러 한 줄이었다.
+            //
+            // ⚠ <b>유니티가 만든다</b>(<see cref="AssetDatabase.CreateFolder"/>) — 파이썬이
+            //   폴더와 .meta 를 손으로 만들면 guid 가 두 벌 생길 수 있다.
+            if (!AssetDatabase.IsValidFolder(outFolder) && !EnsureFolder(outFolder))
             {
-                Debug.LogError($"[스킨] 출력 폴더가 없습니다: {outFolder}");
+                Debug.LogError($"[스킨] 출력 폴더를 만들지 못했습니다: {outFolder}");
                 return false;
             }
 

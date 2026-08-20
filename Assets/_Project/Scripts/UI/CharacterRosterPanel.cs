@@ -714,13 +714,19 @@ namespace LastSanctuary.UI
                     UnitCombat combat = unit.GetComponent<UnitCombat>();
                     CharacterErosion erosion = CharacterErosion.Of(unit);
                     bool bound = combat != null && combat.IsBound;
-                    bool deranged = !bound && erosion != null && erosion.HasActive;
+                    // ★ 2026-08-20 — 「중독」(베일 「담배 연기」)도 같은 자리에 같은 방식으로.
+                    //   우선순위는 UnitPortraitPanel.StateTextOf 와 <b>같게</b> 맞춘다:
+                    //   구속 → 중독 → 정신 이상 → 임무. 두 창이 서로 다른 것을 보여주면
+                    //   "어느 쪽이 맞지" 가 된다.
+                    bool poisoned = !bound && combat != null && combat.IsPoisoned;
+                    bool deranged = !bound && !poisoned && erosion != null && erosion.HasActive;
 
                     if (bound) row.Duty.text = combat.BoundLabel;
+                    else if (poisoned) row.Duty.text = combat.PoisonLabel;
                     else if (deranged) row.Duty.text = erosion.ActiveName;
                     else row.Duty.text = DutyTextOf(unit);
 
-                    row.Duty.color = bound ? HudTheme.TextDanger
+                    row.Duty.color = bound || poisoned ? HudTheme.TextDanger
                                    : deranged ? HudTheme.TextErosion
                                    : HudTheme.TextDim;
                 }

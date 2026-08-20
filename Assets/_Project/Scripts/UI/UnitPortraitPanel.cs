@@ -478,6 +478,11 @@ namespace LastSanctuary.UI
             var combat = unit.GetComponent<UnitCombat>();
             if (combat != null && combat.IsBound) return combat.BoundLabel;
 
+            // ★ 2026-08-20 — 「중독」(베일 「담배 연기」). <b>구속 다음</b>이다:
+            //   둘이 같이 걸릴 수 있고, 그때 «움직일 수 없다» 가 «독에 걸렸다» 보다
+            //   플레이어가 먼저 알아야 하는 정보다(칸이 하나뿐이라 우선순위가 필요하다).
+            if (combat != null && combat.IsPoisoned) return combat.PoisonLabel;
+
             if (unit is CharacterUnit character)
             {
                 CharacterErosion erosion = CharacterErosion.Of(character);

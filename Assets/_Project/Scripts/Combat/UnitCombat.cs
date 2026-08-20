@@ -784,6 +784,100 @@ namespace LastSanctuary.Combat
         /// <summary>지금 「고통의 기쁨」이 켜져 있는지.</summary>
         public bool IsHastened => Time.time < _hasteUntil;
 
+        // ------------------------------------------------------------------
+        // ★★ 「중독」 — 초당 최대 체력 비례 지속 피해 (2026-08-20 · 베일 「담배 연기」)
+        //
+        // 정의문(`skill_type_desc_Pipe_smoke`): <i>"…{value_04}초 만큼 중독상태가 됩니다.
+        // 중독상태가 된 캐릭터는 <b>매 초 최대체력의 {value_05}%</b>의 피해를 입습니다."</i>
+        //
+        // ★ <b>왜 「허약」·「구속」과 같은 자리에 두는가</b> — 이것도 <b>시각(時刻) 하나로
+        //   표현되는 상태</b>다(되돌릴 보정이 없다 · 유닛이 죽으면 컴포넌트째 사라진다).
+        //   위 「허약」 주석의 판단 기준이 그대로 적용된다.
+        //
+        // ★★ 하지만 <b>하나 다르다 — 이건 스스로 피해를 낸다.</b> 그래서 남은 시간 말고
+        //   <b>초 누적기</b>가 하나 더 필요하다. 프레임마다 조금씩 깎지 않고 <b>1초마다
+        //   한 번</b> 넣는다 — 정의문이 «매 초» 이고, 프레임 분할로 넣으면
+        //   ① 최대 체력이 작은 유닛에서 <b>반올림이 0 이 되어 아예 안 아프고</b>
+        //   ② 전투 숫자(88절)가 초당 60개 뜬다.
+        //
+        // ⚠ <b>중첩되지 않는다</b> — 다시 걸리면 «더 아픈 쪽» 을 남기고 지속시간을 새로
+        //   잡는다(「허약」의 «지속시간만 초기화» 와 같은 취지). 연기 안에 서 있으면
+        //   매 프레임 다시 걸리는데, 중첩시키면 <b>몇 프레임 만에 즉사</b>한다.
+        // ------------------------------------------------------------------
+
+        /// <summary>「중독」이 끝나는 시각. 0 이면 안 걸렸다.</summary>
+        float _poisonUntil;
+
+        /// <summary>「중독」이 <b>매초</b> 깎는 최대 체력의 %.</summary>
+        float _poisonPercentPerSecond;
+
+        /// <summary>다음 「중독」 피해를 넣을 시각 — 1초 간격을 지키는 데 쓴다.</summary>
+        float _poisonNextTickAt;
+
+        /// <summary>「중독」의 화면 표시 이름. 「구속」의 <c>_boundLabel</c> 과 같은 이유로 인스턴스 값이다.</summary>
+        string _poisonLabel = "중독";
+
+        /// <summary>
+        /// <b>「중독」</b> — <paramref name="seconds"/> 초 동안 매초 최대 체력의
+        /// <paramref name="percentOfMaxHpPerSecond"/> % 를 깎는다.
+        ///
+        /// 이미 걸려 있으면 <b>더 아픈 쪽의 세기</b>를 남기고 지속시간을 새로 잡는다
+        /// (중첩 금지 — 위 ⚠). 세기가 같으면 시간만 늘어난다.
+        /// </summary>
+        public void ApplyPoison(float percentOfMaxHpPerSecond, float seconds, string label = null)
+        {
+            if (seconds <= 0f || percentOfMaxHpPerSecond <= 0f) return;
+
+            bool fresh = !IsPoisoned;
+            _poisonPercentPerSecond = Mathf.Max(_poisonPercentPerSecond, percentOfMaxHpPerSecond);
+            _poisonUntil = Mathf.Max(_poisonUntil, Time.time + seconds);
+            if (!string.IsNullOrEmpty(label)) _poisonLabel = label;
+
+            // 새로 걸릴 때만 시계를 다시 찍는다 — 매 프레임 갱신하면 «다음 1초» 가 계속
+            // 뒤로 밀려 <b>연기 안에 서 있는 동안 한 대도 안 맞는다</b>.
+            if (fresh) _poisonNextTickAt = Time.time + 1f;
+        }
+
+        /// <summary>지금 「중독」에 걸려 있는지.</summary>
+        public bool IsPoisoned => Time.time < _poisonUntil;
+
+        /// <summary>
+        /// 지금 걸린 「중독」의 화면 표시 이름. <see cref="IsPoisoned"/> 가 false 여도
+        /// 마지막 값을 들고 있으니 호출부는 반드시 그쪽을 먼저 볼 것
+        /// (<see cref="BoundLabel"/> 과 같은 규칙).
+        /// </summary>
+        public string PoisonLabel => _poisonLabel;
+
+        /// <summary>「중독」을 즉시 푼다.</summary>
+        public void ClearPoison()
+        {
+            _poisonUntil = 0f;
+            _poisonPercentPerSecond = 0f;
+        }
+
+        /// <summary>
+        /// 「중독」의 <b>초당 피해</b>를 넣는다. <see cref="Update"/> 가 매 프레임 부르고,
+        /// 1초가 지났을 때만 실제로 깎는다.
+        ///
+        /// ★ <b>구속보다 먼저 돈다</b>(<see cref="Update"/> 참조) — 구속된 채로 중독되면
+        ///   «움직이지도 못하고 독도 안 퍼진다» 가 되는데, 두 상태는 서로 아무 관계가 없다.
+        ///
+        /// ⚠ 피해량은 <b>올림</b>이다 — 최대 체력이 작은 유닛에서 0 이 되면
+        ///   «최대체력의 %» 라는 말 자체가 무너진다(「타오르는 숨결」과 같은 판단).
+        /// ⚠ <see cref="DamageableUnit.ApplyDamage(int)"/> 를 쓴다 — 근거가 공격력이 아니라
+        ///   <b>맞는 쪽의 체력</b>이라 방어력 계산에 넣을 자리가 없다.
+        /// </summary>
+        void TickPoison()
+        {
+            if (!IsPoisoned) return;
+            if (Time.time < _poisonNextTickAt) return;
+
+            _poisonNextTickAt = Time.time + 1f;
+
+            int amount = Mathf.CeilToInt(_self.MaxHp * _poisonPercentPerSecond / 100f);
+            if (amount > 0) _self.ApplyDamage(amount);
+        }
+
         /// <summary>「허약」을 즉시 푼다 (구속으로 넘어갈 때).</summary>
         public void ClearWeaken()
         {
@@ -921,6 +1015,13 @@ namespace LastSanctuary.Combat
             }
 
             float dt = Time.deltaTime;
+
+            // ★ 「중독」(베일 「담배 연기」) — <b>이 함수의 맨 앞</b>이다(TickPoison 주석).
+            //   ⚠ 아래 두 갈래는 <b>둘 다 return</b> 한다(벽 탈출 · 구속). 그 뒤에 두면
+            //     벽에 끼거나 구속된 동안 <b>독이 멈춘다</b> — 중독은 «행동» 이 아니라
+            //     «몸» 에 걸린 상태라 행동을 못 하는 것과 아무 관계가 없다.
+            TickPoison();
+            if (!_self.IsAlive) { _state = CombatState.Dead; return; }   // 독으로 죽었다
 
             // 벽 안에 갇혀 있으면 이동 판정이 전부 실패해 영구히 멈춘다. 먼저 빼낸다.
             if (EscapeIfEmbedded(dt)) return;

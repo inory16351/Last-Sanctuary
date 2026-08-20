@@ -163,11 +163,31 @@ namespace LastSanctuary.Combat
         {
             get
             {
+                // ★★ <b>피해 칸이 아예 없는 종류</b>가 먼저다 — 「소름 끼치는 흉터」(2005)는
+                //   정의문에 <b>피해라는 말이 없다</b>: *"…가장 가까운 적 {value_02}명에게
+                //   <b>침식 수치 {value_03}</b>을 증가 시킨다"*. 즉 <c>value_03</c> 은 침식량이고
+                //   피해가 아니다.
+                //   ⚠ 이걸 아래 「폴백 없음」 갈래에만 넣으면 <b>침식량 20 이 「공격력 20%」로
+                //     읽힌다</b> — 있어서는 안 되는 피해가 생긴다(2026-08-20에 그렇게 짰다가
+                //     잡았다). 칸 번호가 아니라 <b>정의문</b>이 정본이라는 규칙의 실전 예다.
+                if (Type == BossSkillType.CreepyScar) return 0;
+
                 bool damageInValue02 = Type == BossSkillType.LureBlood
                                     || Type == BossSkillType.HugeThreat
                                     || Type == BossSkillType.Screaming;
                 float raw = damageInValue02 ? value02 : value03;
-                if (Type == BossSkillType.Screaming) return Mathf.Max(0, Mathf.RoundToInt(raw));
+
+                // ★ <b>폴백이 없는 종류</b> — 표의 피해 칸이 <b>0 인 것이 뜻</b>인 스킬들.
+                //   폴백(비면 100%)이 돌면 «침식만 올린다» · «중독만 건다» 는 기술이
+                //   평타 한 대를 그대로 얹는 <b>전혀 다른 기술</b>이 된다.
+                //     아우성(130007)          피해 없이 침식만 (value_02 = 0)
+                //     담배 연기(130010)       피해 없이 중독만 (value_03 = 0)
+                //     치명적인 독기(2006)     피해는 <b>최대체력 비례 쪽 하나뿐</b>
+                //                             (value_03 = 0 · MaxHpPercentDamage 가 value_02)
+                if (Type == BossSkillType.Screaming || Type == BossSkillType.PipeSmoke
+                 || Type == BossSkillType.DeadlyVenom)
+                    return Mathf.Max(0, Mathf.RoundToInt(raw));
+
                 return raw > 0f ? Mathf.RoundToInt(raw) : 100;
             }
         }
@@ -189,8 +209,16 @@ namespace LastSanctuary.Combat
         /// 체력의 %"* 라고 못박고 있어 그 계산에 넣을 자리가 없다 — 공격력이 아니라
         /// <b>맞는 쪽의 체력</b>이 근거인 값이기 때문이다.
         /// </summary>
-        public float MaxHpPercentDamage =>
-            Type == BossSkillType.BurningBreath ? Mathf.Max(0f, value04) : 0f;
+        /// ★ 2026-08-20 — 바리올라 「치명적인 독기」(2006)도 같은 성질인데 <b>칸이 다르다</b>
+        /// (정의문: *"…모든 적의 현재 체력이 <b>최대체력의 {value_02}%</b> 감소한다"*).
+        /// 숨결은 평타 피해에 <b>얹는</b> 추가분이고, 독기는 <b>그것만</b>이다
+        /// (표의 <c>value_03</c> 이 0 — 위 <see cref="DamagePercent"/> 의 폴백 예외 목록).
+        public float MaxHpPercentDamage => Type switch
+        {
+            BossSkillType.BurningBreath => Mathf.Max(0f, value04),
+            BossSkillType.DeadlyVenom   => Mathf.Max(0f, value02),
+            _                           => 0f,
+        };
 
         // ──────────────────────────────────────────────────────────────────
         // 카시노마 (2026-08-18)
@@ -218,7 +246,16 @@ namespace LastSanctuary.Combat
         /// <c>value_04</c> 가 침식" 이라 종류를 봐야 했는데, 표가 <c>mentalerror_damage</c>
         /// 라는 <b>전용 칸</b>을 갖게 되면서 그럴 이유가 사라졌다 — 모든 스킬이 같은 칸을 쓴다.
         /// </summary>
-        public float ErosionValue => Mathf.Max(0f, erosionValue);
+        /// ★★ 2026-08-20 — <b>예외가 하나 생겼다.</b> 바리올라 「소름 끼치는 흉터」(2005)는
+        /// 전용 칸(<c>mentalerror_damage</c>)이 <b>0 이고</b>, 정의문이
+        /// *"…적 {value_02}명에게 <b>침식 수치 {value_03}</b>을 증가 시킨다"* 로
+        /// <c>value_03</c> 을 가리킨다. 표가 그렇게 적혀 있으므로 표를 따른다 —
+        /// 이 스킬은 <b>침식이 곧 효과 전부</b>라 전용 칸이 비었다고 0 을 쓰면
+        /// 스킬이 아무 일도 안 한다.
+        public float ErosionValue =>
+            Type == BossSkillType.CreepyScar
+                ? Mathf.Max(0f, erosionValue > 0f ? erosionValue : value03)
+                : Mathf.Max(0f, erosionValue);
 
         // ──────────────────────────────────────────────────────────────────
         // 카르시노스 — 칸 번호가 아니라 <b>뜻</b>으로 읽는 프로퍼티 (2026-08-15)
@@ -241,8 +278,17 @@ namespace LastSanctuary.Combat
         /// <summary>
         /// 맞은 적을 <b>뒤로 몇 타일</b> 밀어내는지. 죽음의 포효 전용 — 다른 스킬은 0.
         /// </summary>
-        public float KnockbackTiles =>
-            Type == BossSkillType.RoarDeath ? Mathf.Max(0f, value02) : 0f;
+        /// ★ 2026-08-20 — 베일 「담뱃대 강타」(130009)도 밀어내는데 <b>칸도 기준도 다르다</b>:
+        /// 칸은 <c>value_04</c> 이고, 밀리는 <b>방향</b>이 «시전자 반대쪽» 이 아니라
+        /// <b>«맞는 쪽이 보고 있는 반대쪽»</b> 이다(정의문: *"캐릭터는 자신이 바라보는
+        /// 반대 방향으로 밀려납니다"*). 방향 판단은
+        /// <see cref="BossSkillCaster.Knockback"/> 가 종류를 보고 가른다.
+        public float KnockbackTiles => Type switch
+        {
+            BossSkillType.RoarDeath  => Mathf.Max(0f, value02),
+            BossSkillType.PipeStrike => Mathf.Max(0f, value04),
+            _                        => 0f,
+        };
 
         // ──────────────────────────────────────────────────────────────────
         // 말파스 — 구속탄 (2026-08-18)
@@ -301,9 +347,74 @@ namespace LastSanctuary.Combat
         /// 둘</b>이고 지름 쪽이 단탈리온 계열이다.
         /// ★ 2026-08-19 — 라린길 「아우성」도 정의문이 *"라린길이 + {value_01} 반지름 범위"*
         /// 라 같은 쪽이다. 이제 <b>반지름 쪽이 셋</b>이고 지름 쪽이 단탈리온 계열이다.
+        /// ★ 2026-08-20 — 베일의 두 스킬도 정의문이 <b>반지름</b>이다
+        /// (*"반지름 {value_01}의 원형 범위"* · *"부채꼴의 반지름이 {value_01}"*).
+        /// 반면 <b>바리올라의 두 스킬은 「지름」</b>이라 넣지 않는다 —
+        /// 이 프로젝트에서 두 표기가 계속 섞여 들어오므로 <b>정의문을 읽고</b> 정할 것.
         public bool CircleValueIsRadius =>
             Type == BossSkillType.RoarDeath || Type == BossSkillType.HugeThreat
-            || Type == BossSkillType.Screaming;
+            || Type == BossSkillType.Screaming
+            || Type == BossSkillType.PipeStrike || Type == BossSkillType.PipeSmoke;
+
+        // ──────────────────────────────────────────────────────────────────
+        // 베일 · 바리올라 (2026-08-20)
+        //
+        // ★★ 여기서 <b>새로 생긴 개념</b>이 둘이다:
+        //   ① <b>대상 수 제한</b>(「명」) — 지금까지 모든 보스 스킬은 «범위 안 전부» 였다.
+        //   ② <b>중독</b>(초당 최대체력 비례 지속 피해) — 지금까지 지속 피해는 캐릭터
+        //      패시브(비기오르 「타오르는 날개」)에만 있었고 <b>보스 쪽에는 없었다</b>.
+        // ──────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// 이 스킬이 때릴 수 있는 <b>최대 대상 수</b>. <b>0 이면 제한 없음</b>(기존 스킬 전부).
+        ///
+        /// 정의문이 <b>「명」</b>이라고 적은 스킬만 값을 갖는다:
+        /// <code>
+        ///   담뱃대 강타 (130009)     "…현재 공격 중인 대상 {value_02}<b>명</b>에게"
+        ///   소름 끼치는 흉터 (2005)  "…가장 가까운 적 {value_02}<b>명</b>에게"
+        /// </code>
+        /// ⚠ <b>그래서 이 두 스킬의 <c>value_02</c> 는 「세로」가 아니다.</b> 기본 직사각형
+        ///   갈래(<see cref="WidthTiles"/>)에 태우면 3x1 · 5x1 상자가 되어 표의 뜻과
+        ///   전혀 다른 기술이 된다. 두 스킬 다 <b>원형</b>이라 세로라는 개념 자체가 없다.
+        ///
+        /// 넘칠 때 <b>누구를 고르는가</b> — <b>가까운 순</b>이다. 흉터는 정의문이
+        /// *"가장 가까운 적"* 이라 명시하고, 강타는 *"현재 공격 중인 대상"* 이라
+        /// 붙어 있는 쪽을 뜻하므로 둘 다 같은 규칙으로 떨어진다.
+        /// </summary>
+        public int MaxTargets => Type switch
+        {
+            BossSkillType.PipeStrike => Mathf.Max(0, Mathf.RoundToInt(value02)),
+            BossSkillType.CreepyScar => Mathf.Max(0, Mathf.RoundToInt(value02)),
+            _                        => 0,
+        };
+
+        /// <summary>
+        /// 「담배 연기」가 <b>바닥에 남아 있는 초</b>(정의문: *"연기를 {value_02}초간 생성"*).
+        /// 다른 스킬은 0 — 그러면 <see cref="BossSkillCaster"/> 가 <b>그 순간 한 번만</b> 판정한다.
+        ///
+        /// ★ <b>왜 「지속되는 연기」로 만들었나</b> — 정의문이 «생성한다» 이고,
+        ///   *"연기를 <b>맞은</b> 캐릭터는"* 이라 <b>나중에 들어온 캐릭터도 맞아야</b> 한다.
+        ///   시전 순간만 판정하면 «연기를 {v2}초간 생성» 이라는 말이 아무 뜻도 없어진다.
+        /// </summary>
+        public float SmokeSeconds =>
+            Type == BossSkillType.PipeSmoke ? Mathf.Max(0f, value02) : 0f;
+
+        /// <summary>
+        /// 「중독」이 지속되는 초. 담배 연기 전용 — 다른 스킬은 0.
+        /// (정의문: *"…{value_04}초 만큼 중독상태가 됩니다"*)
+        /// </summary>
+        public float PoisonSeconds =>
+            Type == BossSkillType.PipeSmoke ? Mathf.Max(0f, value04) : 0f;
+
+        /// <summary>
+        /// 「중독」이 <b>매초</b> 깎는 <b>최대 체력의 %</b>. 담배 연기 전용 — 다른 스킬은 0.
+        /// (정의문: *"중독상태가 된 캐릭터는 매 초 최대체력의 {value_05}%의 피해를 입습니다"*)
+        ///
+        /// ⚠ <b>최대</b> 체력이다 — 남은 체력의 %로 하면 절대 안 죽는다
+        /// (「타오르는 숨결」의 추가 피해와 같은 주의점).
+        /// </summary>
+        public float PoisonMaxHpPercentPerSecond =>
+            Type == BossSkillType.PipeSmoke ? Mathf.Max(0f, value05) : 0f;
 
         /// <summary>이 에셋이 쓸 만한지 — 종류를 못 알아보면 시전하지 않는다.</summary>
         public bool IsUsable => Type != BossSkillType.None && coolTime > 0f;
