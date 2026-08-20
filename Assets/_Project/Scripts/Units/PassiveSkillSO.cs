@@ -56,6 +56,13 @@ namespace LastSanctuary.Units
                  "쿨타임·아이콘이 한 칸씩 밀릴 상태였다 — 같이 고쳤다(그쪽 주석 참조)")]
         public float value04;
 
+        [Tooltip("★ 2026-08-20 신설 (유저가 표에 `value_05` 컬럼을 추가). 첫 사용자는 " +
+                 "시그리드 「가학증」의 마지막 문장이다: <b>「시그리드의 후퇴기준이 " +
+                 "{Value_05}%로 고정됩니다」</b>.\n" +
+                 "⚠ 컬럼을 <b>이름으로</b> 읽으므로(gen_character_assets.py) 칸이 하나 더 " +
+                 "늘어도 뒤의 쿨타임·아이콘이 밀리지 않는다 — 그게 value_04 때 났던 사고다")]
+        public float value05;
+
         [Tooltip("쿨타임(초). 0 이면 상시 발동")]
         public float coolTime;
 

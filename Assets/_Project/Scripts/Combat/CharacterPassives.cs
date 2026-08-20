@@ -220,6 +220,19 @@ namespace LastSanctuary.Combat
                 _appliedMeleeCritGrant = wantCritGrant;
             }
             _tactics?.SetRoleLock(wantCritGrant != 0);
+
+            // ── 가학증: 후퇴 기준을 value05% 로 고정한다 (2026-08-20) ──
+            //    정의문 마지막 문장이 그렇게 적혀 있다. 근거는
+            //    <see cref="CharacterTactics.RetreatHpLocked"/> 위의 긴 주석 —
+            //    「통제할 수 없는 쾌락」의 무적이 켜지기 전에 물러나 버리면 안 되기 때문이다.
+            //
+            // ⚠ 이 함수는 <b>해금 목록이 바뀔 때마다</b> 다시 돈다(ApplyAlwaysOn). 그래서
+            //   강화로 슬롯이 늦게 열려도 그 순간부터 잠기고, 스킬이 없는 캐릭터에서는
+            //   잠금을 <b>푼다</b> — 걸어둔 채 두면 다른 캐릭터가 이 컴포넌트를 물려받는
+            //   구조는 아니지만, 「걸었으면 반드시 되돌린다」 는 이 파일의 규칙이다.
+            PassiveSkillSO sadism = Find(PassiveSkillType.Sadism);
+            if (sadism != null) _tactics?.SetRetreatHpLock(Mathf.RoundToInt(sadism.value05));
+            else _tactics?.ClearRetreatHpLock();
         }
 
         /// <summary>

@@ -22,6 +22,7 @@ MonoBehaviour:
   value02: 0
   value03: 0
   value04: 0
+  value05: 0
   coolTime: 0
   iconName: 'icon_holy_target'
   flavorText: '엘린은 보이지 않는 적이라 할지라도 타고난 섬세함으로 감지할 수 있습니다.'

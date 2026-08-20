@@ -22,6 +22,7 @@ MonoBehaviour:
   value02: 100
   value03: 20
   value04: 0
+  value05: 0
   coolTime: 0
   iconName: 'icon_gold_tornado'
   flavorText: '그의 부활은 적들에겐 공포이지만 아군에겐 기적과도 같습니다.'

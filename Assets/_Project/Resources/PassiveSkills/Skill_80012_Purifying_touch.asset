@@ -22,6 +22,7 @@ MonoBehaviour:
   value02: 20
   value03: 50
   value04: 0
+  value05: 0
   coolTime: 120
   iconName: 'icon_heal_plus'
   flavorText: '피올로의 손길은 천사들에겐 달콤한 휴식과도 같습니다.'

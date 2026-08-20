@@ -22,6 +22,7 @@ MonoBehaviour:
   value02: 2
   value03: 0
   value04: 0
+  value05: 0
   coolTime: 0
   iconName: 'icon_feather_burst'
   flavorText: '비기오르의 의지가 불타오릅니다.'

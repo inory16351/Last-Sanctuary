@@ -22,6 +22,7 @@ MonoBehaviour:
   value02: 0
   value03: 0
   value04: 0
+  value05: 0
   coolTime: 180
   iconName: 'icon_light_pillar'
   flavorText: '전장의 광기는 그들을 머나먼 곳으로 인도하곤 하지만 아직은 떠날 때가 아닙니다.'

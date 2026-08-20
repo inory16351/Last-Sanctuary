@@ -22,6 +22,7 @@ MonoBehaviour:
   value02: 0.5
   value03: 3
   value04: 0
+  value05: 0
   coolTime: 300
   iconName: 'icon_revive_angel'
   flavorText: '죽음조차 히스톤의 복수를 막을 수는 없습니다.'

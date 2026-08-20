@@ -22,6 +22,7 @@ MonoBehaviour:
   value02: 8
   value03: 0
   value04: 0
+  value05: 0
   coolTime: 0
   iconName: 'icon_holy_banner'
   flavorText: '동료들에게 그는 전설이자 진정 신뢰할 수 있는 버팀목입니다.'

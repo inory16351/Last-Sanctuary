@@ -22,6 +22,7 @@ MonoBehaviour:
   value02: 3
   value03: 0
   value04: 0
+  value05: 0
   coolTime: 0
   iconName: 'icon_dark_effigy'
   flavorText: '광란에 빠진 프레이야는 동료조차 막을 수 없는 힘을 발합니다.'

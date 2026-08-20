@@ -22,7 +22,8 @@ MonoBehaviour:
   value02: 20
   value03: 5
   value04: 10
+  value05: 5
   coolTime: 0
   iconName: 'icon_blood_spikes'
   flavorText: '고통스럽게 죽어간 시체를 탐닉하는 것이야말로 시그리드의 가장 큰 기쁨입니다.'
-  effectTemplate: '시그리드가 공격한 적이 {Value_01}초 안에 사망하면 {Value_02}%확률로 시그리드 중심으로 지름 {Value_03}범위의 아군의 현재 체력을 시그리드의 현재체력의{Value_04}% 만큼 회복시키고 시그리드는 현재 체력이 {Value_04}% 만큼 감소합니다.'
+  effectTemplate: '시그리드가 공격한 적이 {Value_01}초 안에 사망하면 {Value_02}%확률로 시그리드 중심으로 지름 {Value_03}범위의 아군의 현재 체력을 시그리드의 현재체력의{Value_04}% 만큼 회복시키고 시그리드는 현재 체력이 {Value_04}% 만큼 감소합니다. 시그리드의 후퇴기준이 {Value_05}%로 고정됩니다.'

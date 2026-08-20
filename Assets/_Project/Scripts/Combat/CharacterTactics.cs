@@ -64,7 +64,7 @@ namespace LastSanctuary.Combat
         public void SetOrder(TacticalOrder newOrder)
         {
             order.CopyFrom(newOrder);
-            if (RoleLocked) ForceLockedRole();
+            ForceAllLocks();
             Apply();
         }
 
@@ -97,6 +97,49 @@ namespace LastSanctuary.Combat
             if (!locked) return;
 
             if (ForceLockedRole()) Apply();
+        }
+
+        // ------------------------------------------------------------------
+        // 후퇴 기준 잠금 — 「가학증」(시그리드 80016) (2026-08-20)
+        //
+        // 정의문 마지막 문장: <b>"시그리드의 후퇴기준이 {Value_05}%로 고정됩니다."</b>
+        //
+        // ★ <b>왜 그 스킬에 이 문장이 붙었나</b> — 시그리드의 셋은 «체력이 바닥일 때 강해지는»
+        //   구성이다. 「통제할 수 없는 쾌락」이 최대 체력 10% 아래에서 무적을 주므로,
+        //   유저가 후퇴 기준을 30% 로 두면 <b>그 무적이 한 번도 안 켜진다</b> — 그 전에
+        //   물러나 버리기 때문이다. 그래서 스킬이 후퇴 기준을 5% 로 못박는다.
+        //
+        // 짜임은 위 <see cref="RoleLocked"/>(선봉장)와 <b>완전히 같다</b> — 잠금은 두 겹이고
+        // (UI 가 버튼·슬라이더를 끄고, 여기서도 값을 거부한다) 거는 순간 값을 스냅한다.
+        // ------------------------------------------------------------------
+
+        /// <summary>후퇴 기준이 패시브로 잠겨 있는가. <see cref="CharacterPassives"/> 가 켠다.</summary>
+        public bool RetreatHpLocked { get; private set; }
+
+        /// <summary>잠겨 있을 때 강제되는 후퇴 기준(%). 잠기지 않았으면 의미 없다.</summary>
+        public int LockedRetreatHpPercent { get; private set; }
+
+        /// <summary>
+        /// 후퇴 기준을 <paramref name="percent"/> 로 잠근다. 거는 순간 <b>그 값으로 스냅</b>한다 —
+        /// 스킬이 강화로 늦게 해금돼도 그 시점부터 정의문대로 맞춰진다.
+        /// </summary>
+        public void SetRetreatHpLock(int percent)
+        {
+            percent = Mathf.Clamp(percent, 0, 100);
+            if (RetreatHpLocked && LockedRetreatHpPercent == percent) return;
+
+            RetreatHpLocked = true;
+            LockedRetreatHpPercent = percent;
+            if (order.retreatHpPercent == percent) return;
+
+            order.retreatHpPercent = percent;
+            Apply();
+        }
+
+        /// <summary>후퇴 기준 잠금을 푼다. 값은 <b>그대로 둔다</b> — 되돌릴 «원래 값»이 없다.</summary>
+        public void ClearRetreatHpLock()
+        {
+            RetreatHpLocked = false;
         }
 
         /// <summary>잠긴 값(전방·근거리)으로 맞춘다. 실제로 바뀐 게 있으면 true.</summary>
@@ -218,16 +261,36 @@ namespace LastSanctuary.Combat
 
         public void SetRetreatHpPercent(int percent)
         {
+            if (RetreatHpLocked) return;          // 「가학증」 — 후퇴 기준 고정
             percent = Mathf.Clamp(percent, 0, 100);
             if (order.retreatHpPercent == percent) return;
             order.retreatHpPercent = percent; Apply();
         }
 
-        /// <summary>UI 의 "초기화" — 코드 기본값으로 되돌린다.</summary>
+        /// <summary>
+        /// UI 의 "초기화" — 코드 기본값으로 되돌린다.
+        ///
+        /// ⚠ <b>잠긴 칸은 되돌리지 않는다</b>(2026-08-20에 고쳤다). 예전에는 여기서
+        /// <see cref="ForceLockedRole"/> 을 안 불러서, 「선봉장」이 걸린 히스톤도
+        /// <b>초기화 버튼 한 번으로 중위·원거리가 됐다</b> — 정의문의 「고정」이 깨진다.
+        /// 「가학증」의 후퇴 기준도 같은 구멍을 탔을 것이므로 둘을 함께 다시 건다.
+        /// </summary>
         public void ResetToDefault()
         {
             order.ResetToDefault();
+            ForceAllLocks();
             Apply();
+        }
+
+        /// <summary>
+        /// 패시브로 잠긴 칸을 전부 다시 강제한다 — 지침을 <b>통째로 갈아끼우는</b> 경로
+        /// (<see cref="SetOrder"/> · <see cref="ResetToDefault"/>)에서 부른다.
+        /// 항목별 Set* 은 각자 자기 잠금을 보므로 여기 올 일이 없다.
+        /// </summary>
+        void ForceAllLocks()
+        {
+            if (RoleLocked) ForceLockedRole();
+            if (RetreatHpLocked) order.retreatHpPercent = LockedRetreatHpPercent;
         }
     }
 }

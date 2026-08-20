@@ -282,7 +282,9 @@ namespace LastSanctuary.UI
             _retreatSlider.SetValueWithoutNotify(percent);
 
             // 선택이 없으면 끌 수 없게 한다 — 움직여도 아무 일이 없는 손잡이는 고장으로 보인다.
-            _retreatSlider.interactable = _tactics != null;
+            // ★ 「가학증」(시그리드)으로 후퇴 기준이 고정된 캐릭터도 같은 이유로 끈다
+            //   (2026-08-20). 값은 그대로 보이므로 «무엇으로 고정됐는지» 는 화면에 남는다.
+            _retreatSlider.interactable = _tactics != null && !_tactics.RetreatHpLocked;
         }
 
         /// <summary>
@@ -430,10 +432,17 @@ namespace LastSanctuary.UI
 
             // 후퇴 기준 — 슬라이더 대신 +/- 버튼. 오브젝트 참조(Slider 의 fillRect/handleRect)를
             // MCP 로 넣을 수 없어서, 참조가 필요 없는 구성으로 바꿨다.
+            //
+            // ★ <b>「가학증」(시그리드 80016)이 걸린 캐릭터는 이 두 버튼이 잠긴다</b> —
+            //   정의문이 "후퇴기준이 {Value_05}%로 <u>고정</u>됩니다" 이기 때문이다.
+            //   선봉장과 같은 두 겹 잠금이다: 여기서 버튼을 끄고,
+            //   <see cref="CharacterTactics.SetRetreatHpPercent"/> 쪽에서도 값을 거부한다.
+            System.Func<bool> retreatFree = () => !_tactics.RetreatHpLocked;
+
             AddOption("Col2/Retreat/Minus", () => Set(t => t.SetRetreatHpPercent(t.Order.retreatHpPercent - retreatStep)),
-                      () => false);
+                      () => false, retreatFree);
             AddOption("Col2/Retreat/Plus",  () => Set(t => t.SetRetreatHpPercent(t.Order.retreatHpPercent + retreatStep)),
-                      () => false);
+                      () => false, retreatFree);
 
             // 후퇴 시 행동 — '동료와 함께 후퇴'는 전방 포지션에서 고를 수 없다.
             // 잠금은 RefreshAll 이 매번 다시 판단한다(포지션을 바꾸면 그 자리에서 반영돼야 한다).

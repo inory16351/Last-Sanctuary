@@ -228,8 +228,10 @@ made = 0
 #
 # 예전에는 컬럼 번호를 박아 뒀다(`ws.cell(r, 7)` = 쿨타임 …). 그런데 그 뒤 표에
 # **`value_04` 컬럼이 새로 생겼다** — 지금 시트는 10칸이다:
-#   1 skill_id · 2 skill_name · 3 skill_type · 4~7 value_01~04 · 8 cool_time ·
-#   9 skill_icon · 10 skill_explain
+#   1 skill_id · 2 skill_name · 3 skill_type · 4~8 value_01~05 · 9 cool_time ·
+#   10 skill_icon · 11 skill_explain
+#   (2026-08-20 에 value_05 가 또 늘었다 — 이름으로 읽으므로 아무 일도 안 났다.
+#    번호로 읽었다면 그때마다 뒤가 전부 밀렸을 것이다.)
 #
 # ⚠⚠ 그래서 번호로 읽으면 **전부 한 칸씩 밀린다**: 쿨타임 칸이 `value_04` 를 읽고,
 #    아이콘 칸이 **숫자(쿨타임)** 를 읽고, 플레이버 칸이 **아이콘 이름**을 읽는다.
@@ -265,6 +267,8 @@ for r in range(4, ws.max_row + 1):
     # ★ value_04 — 시그리드 「가학증」이 네 번째 값을 쓴다(아군 회복량 = 시그리드
     #   현재 체력의 value_04%). 컬럼이 없는 옛 표에서는 0 이 된다.
     v4 = num(skill_cell(r, 'value_04'))
+    # ★ value_05 — 2026-08-20 유저가 표에 추가. 시그리드 「가학증」의 후퇴기준 고정값.
+    v5 = num(skill_cell(r, 'value_05'))
     cool = num(skill_cell(r, 'cool_time'))
     icon = (skill_cell(r, 'skill_icon') or '').strip()
     flavor = text_of(skill_cell(r, 'skill_explain'))
@@ -289,6 +293,7 @@ for r in range(4, ws.max_row + 1):
     body += "  value02: %s\n" % v2
     body += "  value03: %s\n" % v3
     body += "  value04: %s\n" % v4
+    body += "  value05: %s\n" % v5
     body += "  coolTime: %s\n" % cool
     body += "  iconName: %s\n" % yaml_str(icon)
     body += "  flavorText: %s\n" % yaml_str(flavor)
