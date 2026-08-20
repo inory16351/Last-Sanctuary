@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21498a0a43b4e824ea7e6db210ef2e29, type: 3}
+  m_Name: Skill_80024_Dawn
+  m_EditorClassIdentifier:
+  skillId: 80024
+  nameKey: 'skill_name_80024'
+  flavorKey: 'skill_explain_80024'
+  effectKey: 'skill_type_desc_Dawn'
+  skillName: '강림'
+  skillType: 'Dawn'
+  value01: 50
+  value02: 3
+  value03: 2
+  value04: 0
+  value05: 0
+  value06: 0
+  coolTime: 180
+  iconName: 'icon_stone_golem'
+  flavorText: "보라! 저 찬란한 자태를!' 동료들은 경이에 차서 바라볼 뿐입니다."
+  effectTemplate: '아루의 선택 된 공격 유형이 사용하는 능력치의(근거리 공격력/ 원거리 공격력 / 마법 / 회복력) {value_01}%를 모든 능력치로 사용하는 골렘을 소환합니다. 쿨타임은 골렘 사망 시부터 타이머가 작동합니다. 골렘의 공격 유형은 근접 / 전방으로 고정입니다. 아루가 공격중인 대상을 우선적으로 공격합니다. 아루의 공격 유형이 회복이라면 가장 가까운 적을 공격합니다. 아루를 부대에 배정할 경우 골렘도 같이 부대에 배정됩니다. 골렘은 로스터에는 표기 되지만, 침식이 일어나지 않으며, 전술을 수정할 수도 없습니다. 골렘은 후퇴하지 않습니다. 골렘의 크기는 타일 기준 {value_02}(가로) * {value_03}(세로) 입니다.'

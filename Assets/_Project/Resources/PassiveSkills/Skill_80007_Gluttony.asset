@@ -23,6 +23,7 @@ MonoBehaviour:
   value03: 0
   value04: 0
   value05: 0
+  value06: 0
   coolTime: 0
   iconName: 'icon_skull_pyre'
   flavorText: '프레이야는 분노와 함께 적들을 집어 삼킵니다.'

@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21498a0a43b4e824ea7e6db210ef2e29, type: 3}
+  m_Name: Skill_80023_Salvation
+  m_EditorClassIdentifier:
+  skillId: 80023
+  nameKey: 'skill_name_80023'
+  flavorKey: 'skill_explain_80023'
+  effectKey: 'skill_type_desc_Salvation'
+  skillName: '구원'
+  skillType: 'Salvation'
+  value01: 0
+  value02: 0
+  value03: 0
+  value04: 0
+  value05: 0
+  value06: 0
+  coolTime: 0
+  iconName: 'icon_blessing'
+  flavorText: '그의 손길로 살아난 동료들은 셀 수 없이 많습니다.'
+  effectTemplate: "구원의 손길'로 이송 되어진 아군은 즉시 체력 재생 가능 상태가 됩니다."

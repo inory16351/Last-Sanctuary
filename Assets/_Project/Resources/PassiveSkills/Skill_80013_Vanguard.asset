@@ -23,6 +23,7 @@ MonoBehaviour:
   value03: 0
   value04: 0
   value05: 0
+  value06: 0
   coolTime: 0
   iconName: 'icon_charge_slash'
   flavorText: '전장의 앞을 지키는 것은 히스톤에게 쥐어진 운명입니다.'

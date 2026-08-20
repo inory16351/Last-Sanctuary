@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21498a0a43b4e824ea7e6db210ef2e29, type: 3}
+  m_Name: Skill_80021_Arrow_rain
+  m_EditorClassIdentifier:
+  skillId: 80021
+  nameKey: 'skill_name_80021'
+  flavorKey: 'skill_explain_80021'
+  effectKey: 'skill_type_desc_Arrow_rain'
+  skillName: '애로우 레인'
+  skillType: 'Arrow_rain'
+  value01: 3
+  value02: 150
+  value03: 0
+  value04: 0
+  value05: 0
+  value06: 0
+  coolTime: 25
+  iconName: 'icon_arrow_volley_gold'
+  flavorText: '시카리아의 궁술이 천상에 닿습니다.'
+  effectTemplate: '활을 높이 치켜들어 넓은 범위의 적을 공격하는 화살의 비를 발사합니다. 현재 대상을 중심으로 반지름 {value_01}칸 범위의 적에게 시카리아의 원거리 공격력의 {Value_02}%로 공격 합니다.'

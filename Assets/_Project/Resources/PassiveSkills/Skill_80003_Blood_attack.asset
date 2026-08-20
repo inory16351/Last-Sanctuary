@@ -23,6 +23,7 @@ MonoBehaviour:
   value03: 0
   value04: 0
   value05: 0
+  value06: 0
   coolTime: 0
   iconName: 'icon_blood_drop'
   flavorText: '상처는 엘린을 더욱 강하게 만들었습니다.'

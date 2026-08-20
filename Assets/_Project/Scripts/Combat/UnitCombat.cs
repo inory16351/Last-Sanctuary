@@ -1203,9 +1203,80 @@ namespace LastSanctuary.Combat
             if (++_failedRepaths >= UnreachableAfterFailures) _destinationUnreachable = true;
         }
 
+        // ------------------------------------------------------------------
+        // ★★ 도발 (2026-08-20 — 카이론 「천상의 방패」 80026)
+        //
+        // <b>왜 사냥 타겟(<see cref="SetForcedHuntTarget"/>)을 재활용하지 않았나</b> —
+        // 그 칸은 <b>정신 이상 「혼란」이 소유</b>하고 있고(위 그 함수의 긴 주석), 도발이
+        // 그 위에 덮어쓰면 도발이 풀릴 때 혼란도 같이 풀린다. 서로 다른 원인이 같은 칸을
+        // 쓰면 «누가 마지막에 썼는가» 로 동작이 갈린다 — 이 파일이 이미 한 번 겪은 사고다.
+        //
+        // 그래서 <b>자기 칸</b>을 따로 둔다. 판정은 타겟을 고르는 <b>맨 앞</b>에서 한 줄로
+        // 끝난다: 도발 중이면 그 상대가 곧 타겟이다.
+        //
+        // ⚠ 도발한 쪽이 죽거나 시간이 다하면 <b>스스로 풀린다</b> — 별도의 해제 호출이
+        //   필요 없게 «시각 + 대상» 두 값으로만 표현한다(「허약」·「구속」과 같은 규칙).
+        // ------------------------------------------------------------------
+
+        DamageableUnit _tauntBy;
+        float _tauntUntil;
+
+        /// <summary>지금 도발당해 특정 상대만 노리고 있는지.</summary>
+        public bool IsTaunted =>
+            Time.time < _tauntUntil && _tauntBy != null && _tauntBy.IsAlive;
+
+        /// <summary>도발한 상대. 도발 중이 아니면 null.</summary>
+        public DamageableUnit TauntedBy => IsTaunted ? _tauntBy : null;
+
+        /// <summary>
+        /// <paramref name="seconds"/> 초 동안 <paramref name="by"/> 만 노리게 한다.
+        /// 이미 도발 중이면 <b>더 긴 쪽</b>으로 둔다(무적·보호막과 같은 규칙).
+        /// </summary>
+        public void ApplyTaunt(DamageableUnit by, float seconds)
+        {
+            if (by == null || seconds <= 0f) return;
+            _tauntBy = by;
+            _tauntUntil = Mathf.Max(_tauntUntil, Time.time + seconds);
+            _target = by;
+        }
+
+        /// <summary>도발을 즉시 푼다.</summary>
+        public void ClearTaunt()
+        {
+            _tauntBy = null;
+            _tauntUntil = 0f;
+        }
+
+        // ------------------------------------------------------------------
+        // ★★ 다중 사격 (2026-08-20 — 시카리아 「한발에 두마리」 80020)
+        //
+        // 정의문: <i>"원거리 공격은 사거리 안에 있는 모든 적을 동시에 {value_01} 마리를 공격"</i>.
+        // 즉 <b>총 몇 마리</b>이고 추가 수가 아니다 — 값 2 는 «둘을 동시에» 다.
+        //
+        // ⚠ 마법의 범위 타격(<see cref="PerformMagicSplash"/>)과 <b>다르다</b>: 그쪽은
+        //   «타겟 지점 주변의 정사각형» 이고 이쪽은 «내 사거리 안의 아무 적 N 명» 이다.
+        //   그래서 코드를 합치지 않는다.
+        // ------------------------------------------------------------------
+
+        int _rangedMultiShot = 1;
+
+        /// <summary>원거리 평타가 한 번에 때리는 적 수(총계). 1 이면 평소와 같다.</summary>
+        public int RangedMultiShot => _rangedMultiShot;
+
+        /// <summary>다중 사격 수를 정한다. 1 이하는 «평소» 로 되돌린다.</summary>
+        public void SetRangedMultiShot(int targets) => _rangedMultiShot = Mathf.Max(1, targets);
+
         void AcquireTargetIfNeeded()
         {
             if (_combatSuppressed) { _target = null; return; }
+
+            // ★ 도발이 <b>가장 앞</b>이다 — 전술·사냥·진영 판단 전부를 덮는다.
+            //   그것이 «도발» 이라는 말의 뜻이다(위 ★★).
+            if (IsTaunted)
+            {
+                _target = _tauntBy;
+                return;
+            }
 
             // ── 비선공 유닛 ──────────────────────────────────────────────────
             // 스스로 적을 찾지는 않는다. 다만 두 가지에는 반응한다:
@@ -1912,11 +1983,58 @@ namespace LastSanctuary.Combat
                 // 근거리와 원거리는 "즉시 단일 타격"으로 동일하다 — 다른 건 사거리뿐이다
                 // (원거리 = 히트 스캔, 투사체를 날리지 않는다).
                 default:
-                    _target.TakeDamageFrom(_self);
+                    // ★ 「한발에 두마리」 — 원거리일 때만, 값이 2 이상일 때만 갈라진다.
+                    if (attackType == TacticalAttackType.Ranged && _rangedMultiShot > 1)
+                        PerformRangedMultiShot();
+                    else
+                        _target.TakeDamageFrom(_self);
                     break;
             }
 
             OnAttackPerformed?.Invoke();
+        }
+
+        /// <summary>
+        /// ★ 「한발에 두마리」(시카리아 80020) — <b>사거리 안</b>의 적을 최대
+        /// <see cref="_rangedMultiShot"/> 명까지 동시에 때린다.
+        ///
+        /// <b>현재 타겟이 항상 첫 번째</b>다 — 그래야 «조준하던 적이 안 맞는» 일이 없다.
+        /// 나머지는 가까운 순으로 채운다(정의문에 우선순위가 없으므로 가장 자연스러운 순서).
+        ///
+        /// ⚠ <b>사냥 중인 중립</b>도 맞아야 한다. <see cref="UnitRegistry.CollectEnemiesInBox"/>
+        ///   는 <see cref="FactionExtensions.Opposite"/> 진영만 모으는데 중립은 그 진영이
+        ///   아니다 — <see cref="PerformMagicSplash"/> 가 이미 밟은 함정이라 여기서도
+        ///   <b>타겟을 따로 먼저 때린다</b>.
+        /// </summary>
+        void PerformRangedMultiShot()
+        {
+            _target.TakeDamageFrom(_self);          // ① 조준하던 적이 먼저다
+
+            int remain = _rangedMultiShot - 1;
+            if (remain <= 0) return;
+
+            Vector3 myPos = transform.position;
+            float range = EffectiveAttackRange;
+            UnitRegistry.CollectEnemiesInBox(myPos, range, _self.Faction, _splashScratch);
+
+            // 가까운 순으로 — 정의문에 우선순위가 없다(위 요약).
+            _splashScratch.Sort((x, y) =>
+                ((Vector2)(x.transform.position - myPos)).sqrMagnitude
+                .CompareTo(((Vector2)(y.transform.position - myPos)).sqrMagnitude));
+
+            float sqr = range * range;
+            for (int i = 0; i < _splashScratch.Count && remain > 0; i++)
+            {
+                DamageableUnit u = _splashScratch[i];
+                if (u == null || !u.IsAlive) continue;
+                if (ReferenceEquals(u, _target)) continue;                 // ①에서 이미 맞았다
+                // 상자로 모았으므로 <b>원형 사거리</b>로 한 번 더 거른다 —
+                // 안 그러면 모서리의 적이 사거리 밖인데도 맞는다.
+                if (((Vector2)(u.transform.position - myPos)).sqrMagnitude > sqr) continue;
+
+                u.TakeDamageFrom(_self);
+                remain--;
+            }
         }
 
         /// <summary>

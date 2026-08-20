@@ -326,6 +326,43 @@ namespace LastSanctuary.Units
             return unit;
         }
 
+        /// <summary>
+        /// ★ <b>스킬이 부르는 소환수</b> 한 기를 만든다 (2026-08-20 — 아루의 「강림」 골렘).
+        ///
+        /// <b>왜 여기에 두는가</b> — 캐릭터 템플릿과 밸런스 참조를 <b>이 컴포넌트가 소유</b>하기
+        /// 때문이다(둘 다 인스펙터 참조라 밖에서 얻을 방법이 없다). 소환 코드가 자기 템플릿을
+        /// 따로 들면 «두 벌» 이 되고, 템플릿을 고칠 때 한쪽만 고쳐지는 사고가 난다.
+        ///
+        /// <see cref="SpawnOneCharacter"/> · <see cref="SpawnRestored"/> 와 갈라 둔 이유:
+        /// <list type="bullet">
+        /// <item><b>난수를 쓰지 않는다</b> — 위치도 능력치도 부르는 쪽이 이미 정했다.
+        ///       난수를 건드리면 «같은 시드 = 같은 판» 이 깨진다(SpawnRestored 와 같은 이유).</item>
+        /// <item><b><see cref="SpawnedCharacters"/> 에 넣지 않는다</b> — 그 목록은 «내가 만든
+        ///       플레이어 캐릭터» 이고 저장·복원의 대상이다. 소환수는 판이 이어지면 사라지는
+        ///       것이 맞다(주인의 쿨타임도 저장되지 않는다).</item>
+        /// </list>
+        ///
+        /// 로스터에는 <b>저절로 뜬다</b> — 로스터는 <c>UnitRegistry.All</c> 을 훑고,
+        /// 등록은 <see cref="DamageableUnit"/> 이 스스로 한다.
+        /// </summary>
+        public CharacterUnit SpawnSummon(CharacterDefinitionSO def, Vector3 worldPos)
+        {
+            if (!Validate() || def == null) return null;
+
+            if (_unitsRoot == null)
+            {
+                _unitsRoot = new GameObject("Units").transform;
+                _unitsRoot.SetParent(transform, false);
+            }
+
+            CharacterUnit unit = Instantiate(characterTemplate, worldPos,
+                                             Quaternion.identity, _unitsRoot);
+            unit.gameObject.SetActive(true);
+            unit.MarkSummoned();
+            unit.InitializeFrom(def, balance);
+            return unit;
+        }
+
         /// <summary>넥서스 주위를 균등하게 둘러싸는 위치를 고르고, 막혀 있으면 근처 빈 칸을 찾는다.</summary>
         Vector3Int PickCharacterCell(Vector3Int centerCell, int index, int ringDivisor,
                                      HashSet<Vector3Int> used)

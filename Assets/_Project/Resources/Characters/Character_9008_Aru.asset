@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bacf4f16746e56b4da254173d578cf4e, type: 3}
+  m_Name: Character_9008_Aru
+  m_EditorClassIdentifier:
+  characterId: 9008
+  nameKey: 'character_name_9008'
+  characterName: '아루'
+  characterNameEn: 'Aru'
+  titleKey: 'character_title_9008'
+  title: '종말의 사신'
+  illustName: 'illust_Aru'
+  skinAssetName: 'Skin_Aru'
+  stats:
+    hp: 2
+    attack: 1
+    defense: 3
+    regen: 4
+    rangedAttack: 4
+    magic: 7
+    cure: 6
+    accuracy: 5
+    critical: 3
+    attackSpeed: 3
+    moveSpeed: 1
+    resistance: 41
+  attackPreset: 0
+  positionPreset: 0
+  passives:
+  - {fileID: 11400000, guid: c31f8ab4f70f7c66f7ce6e5a42dc3734, type: 2}
+  - {fileID: 11400000, guid: 2af605b8178bf99b6229d89454d4ff90, type: 2}
+  - {fileID: 11400000, guid: b681b92357fb94e7e0c70f89440e8b57, type: 2}
+  narrative: ''

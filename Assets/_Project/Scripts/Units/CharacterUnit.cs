@@ -42,6 +42,26 @@ namespace LastSanctuary.Units
         public StatBlock Stats => stats;
         public int UpgradeCount => upgradeCount;
 
+        // ------------------------------------------------------------------
+        // ★★ 소환된 유닛인가 (2026-08-20 — 아루의 「강림」 골렘)
+        //
+        // 골렘은 <b>캐릭터로 만들어졌지만 캐릭터로 세면 안 된다.</b> 정의문이 그렇게 갈라 놓았다:
+        //   · <b>로스터에는 뜬다</b>            → 로스터는 이 값을 안 본다
+        //   · <b>침식이 일어나지 않는다</b>     → CharacterErosion 을 붙이지 않는다
+        //   · <b>전술을 수정할 수 없다</b>      → CharacterTactics 를 잠근다
+        //   · <b>후퇴하지 않는다</b>            → 후퇴 기준을 0 으로 잠근다
+        //
+        // 그리고 여기 플래그가 필요한 이유는 <b>«전멸» 판정</b> 하나 때문이다 —
+        // 골렘만 살아남았는데 «아직 캐릭터가 있다» 로 보면 패배 화면이 영원히 안 뜬다
+        // (WaveManager 의 전멸 판정 · 결과 화면의 생존자 수).
+        // ------------------------------------------------------------------
+
+        /// <summary>스킬로 소환된 유닛인지. 「전멸」 판정과 결과 화면의 생존자 수에서 제외된다.</summary>
+        public bool IsSummoned { get; private set; }
+
+        /// <summary>소환 표식을 세운다. <b>되돌리지 않는다</b> — 소환수는 평생 소환수다.</summary>
+        public void MarkSummoned() => IsSummoned = true;
+
         /// <summary>
         /// 지금 정해진 성장 유형. <see cref="CharacterUpgradeService"/> 가 강화할 때 읽는다.
         /// 미선택(<see cref="StatGrowthFocus.None"/>)이면 모든 능력치가 같은 확률로 오른다.

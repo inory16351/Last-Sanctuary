@@ -153,6 +153,65 @@ skill_name_80016	가학증	Sadism
 skill_name_80017	고통의 기쁨	Joy of Pain
 skill_name_80018	통제할 수 없는 쾌락	Uncontrollable Pleasure
 skill_type_desc_Joy_of_pain	가학증'이 발동할 때마다 시그리드의 공격속도가 {Value_01}% 만큼 {Value_02}초 동안 증가합니다. 해당 효과는 중첩될 수 없으며 지속시간만을 초기화 합니다.	
-skill_type_desc_Sadism	시그리드가 공격한 적이 {Value_01}초 안에 사망하면 {Value_02}%확률로 시그리드 중심으로 지름 {Value_03}범위의 아군의 현재 체력을 시그리드의 현재체력의{Value_04}% 만큼 회복시키고 시그리드는 현재 체력이 {Value_04}% 만큼 감소합니다.	
+skill_type_desc_Sadism	시그리드가 공격한 적이 {Value_01}초 안에 사망하면 {Value_02}%확률로 시그리드 중심으로 지름 {Value_03}범위의 아군의 현재 체력을 시그리드의 현재체력의{Value_04}% 만큼 회복시키고 시그리드는 현재 체력이 {Value_04}% 만큼 감소합니다. 시그리드의 후퇴기준이 {Value_05}%로 고정됩니다.	
 skill_type_desc_Uncontrollable_pleasure	시그리드의 현재 체력이 최대체력의 {Value_01}% 보다 낮아지면 {Value_02}초 동안 시그리드가 어떠한 데미지도 받지 않습니다. 회복은 가능합니다. 해당 효과는 체력의 변화로 해제되지 않습니다.	
 character_title_9006	환희에 젖은 순교자	The Ecstatic Martyr
+character_name_9007	시카리아	Sicaria
+character_name_9008	아루	Aru
+character_name_9009	카이론	Chiron
+character_title_9007	빛의 궁수	The Light Archer
+character_title_9008	종말의 사신	The Reaper of Armageddon
+character_title_9009	타락한 투사	The Fallen Fighter
+skill_explain_80019	시카리아는 다른 천사들보다 고조된 감각을 지니고 있습니다.	
+skill_explain_80020	계속된 전투로 인해 시카리아의 궁술이 더욱 성장하게 되었습니다.	
+skill_explain_80021	시카리아의 궁술이 천상에 닿습니다.	
+skill_explain_80022	전장에서 구원을 바라는 것은 오만일지도 모릅니다.	
+skill_explain_80023	그의 손길로 살아난 동료들은 셀 수 없이 많습니다.	
+skill_explain_80024	보라! 저 찬란한 자태를!' 동료들은 경이에 차서 바라볼 뿐입니다.	
+skill_name_80019	고조된 감각	
+skill_name_80020	한발에 두마리	
+skill_name_80021	애로우 레인	
+skill_name_80022	도움의 손길	
+skill_name_80023	구원	
+skill_name_80024	강림	
+skill_name_80025	타락한 육체	
+skill_name_80026	천상의 방패	
+skill_name_80027	천벌	
+skill_type_desc_A_Helping_Hand	아루를 중심으로 반지름{value_01} 범위에 침식 수치가 {value_02} 이상이거나 후퇴중인 동료가 있을 경우 즉시 아루의 곁으로 이동 시킵니다.	
+skill_type_desc_Arrow_rain	활을 높이 치켜들어 넓은 범위의 적을 공격하는 화살의 비를 발사합니다. 현재 대상을 중심으로 반지름 {value_01}칸 범위의 적에게 시카리아의 원거리 공격력의 {Value_02}%로 공격 합니다.	
+skill_type_desc_Celestial_shield	카이론이 {value_01}초 동안 정신집중을 합니다. 정신집중이 끝나면 지름값{value_02} 범위 내의 적을 {value_03}초 동안 도발합니다. 도발 시간이 끝나면 {value_02} 범위 내의 적에게 근거리 공격력의 {value_04}%의 데미지를 줍니다.	
+skill_type_desc_Dawn	아루의 선택 된 공격 유형이 사용하는 능력치의(근거리 공격력/ 원거리 공격력 / 마법 / 회복력) {value_01}%를 모든 능력치로 사용하는 골렘을 소환합니다. 쿨타임은 골렘 사망 시부터 타이머가 작동합니다. 골렘의 공격 유형은 근접 / 전방으로 고정입니다. 아루가 공격중인 대상을 우선적으로 공격합니다. 아루의 공격 유형이 회복이라면 가장 가까운 적을 공격합니다. 아루를 부대에 배정할 경우 골렘도 같이 부대에 배정됩니다. 골렘은 로스터에는 표기 되지만, 침식이 일어나지 않으며, 전술을 수정할 수도 없습니다. 골렘은 후퇴하지 않습니다. 골렘의 크기는 타일 기준 {value_02}(가로) * {value_03}(세로) 입니다.	
+skill_type_desc_Divine_wrath	카이론이 {value_01}초 동안 정신집중을 합니다. 정신집중이 끝나면 가로 {value_02}x세로 {value_03}의 직사각형 범위의 적에게 근거리 공격력의 {value_04}%의 데미지를 줍니다. 피해를 당한 적은 {value_05}초 동안 방어력이 {value_06}% 감소합니다.	
+skill_type_desc_Fallen_body	카이론이 {value_01}초 동안 최대 체력의 {value_02}%의 보호막을 생성합니다.	
+skill_type_desc_Heightened_senses	시카리아의 사거리는 다른 캐릭터보다 {value_01} 타일 만큼 높습니다. 시카리아의 공격 유형이 원거리 일 경우 추가로 사거리를 {Value_02}만큼 획득합니다.	
+skill_type_desc_Salvation	구원의 손길'로 이송 되어진 아군은 즉시 체력 재생 가능 상태가 됩니다.	
+skill_type_desc_Two_on_one_leg	시카리아의 원거리 공격은 사거리 안에 있는 모든 적을 동시에 {value_01} 마리를 공격 합니다.	
+unit_name_aru_golem	강림한 골렘	Descended Golem
+character_name_9010	아르세니아	Arsenia
+character_name_9011	불칸	Vulcan
+character_title_9010	부서진 날개의 연금술사	The Alchemist of Broken Wings
+character_title_9011	화염의 마수	The Beast of Flames
+skill_explain_80031	불칸의 분노는 적들의 사지를 불태웁니다.	
+skill_explain_80032	현자의 지혜는 전장의 위협을 슬기롭게 헤쳐나갈 힘이 있습니다.	
+skill_explain_80033	연옥의 화염에게 자비란 없습니다.	
+skill_name_80028	불안정성	
+skill_name_80029	성스러운 축복	
+skill_name_80030	완성되지 못한 고귀함	
+skill_name_80031	타오르는 분노	
+skill_name_80032	현자의 지혜	
+skill_name_80033	화염 세례	
+skill_type_desc_Blazing_anger	불칸은 공격은 {value_01}% 확률로 적을 불태워 초당 한번 (불칸이 선택한 공격유형 공격력)(회복 제외)*{value_02}% 데미지로{value_03}초 동안 공격합니다.	
+skill_type_desc_Flame_blast	불칸이 공격 중인 대상에게 거대 화염구를 발사합니다 피격시 시격지점 반지름 원형 {value_01} 타일 범위의 적에게 불칸의 마법의 {value_02}% 의 데미지를 줍니다	
+skill_type_desc_The_wisdom_of_a_sage	불칸의 마법이 {value_01} 만큼 상승하고 불칸의 공격속도가 {value_02} 만큼 영구적으로 상승합니다. 이값은 최댓값을 초월할 수 있습니다.	
+skill_explain_80028	아르세니아의 잃어버린 팔과 날개는 헌신의 상징으로 기억됩니다.	
+skill_explain_80029	아르세니아는 명석한 두뇌와 기술로 자신의 아픔을 극복해 냈습니다.	
+skill_explain_80030	때로는 불안전함이 아름다움을 완성합니다.	
+skill_type_desc_Instability	아르세니아는 근거리 공격 유형을 선택할 수 없습니다. 아르세니아는 회복과 마법 공격에도 명중률과 크리티컬 확률의 영향을 받습니다. 데미지와 회복량 추가 공식은 공격 데미지와 똑같은 가산 값을 받습니다.	
+skill_type_desc_Sacred_blessing	아르세니아가 현재 전투 중인 가장 전방의 아군에게 물약을 던져 적중 대상을 중심으로 반지름 {value_01} 크기의 원형 공간을{value_02}초 동안 생성합니다. 해당 공간에 있는 몬스터는 초당 아르세니아의 마법 * {value_03}% 의 데미지를 입고, 캐릭터는 자신이 받는 회복 효과가 {value_03}만큼 증폭됩니다.	
+skill_type_desc_Unfinished_nobility	아르세니아가 자신의 기술을 모두 개방합니다. 아르세니아 중심으로 반지름 {value_01} 범위에 있는 몬스터의 수가{value_02} 이상이 될 경우 아르세니아 중심으로 반지름 {value_03} 범위의 모든 적들에게 아르세니아 마법 * {value_04} 데미지를 줍니다. 해당 스킬을 사용하면 아르세니아는 {value_05} 초 동안 어떤 행동도 할 수 없습니다. 이 행동 불능 상태는 해로운 정신 상태 이상을 해제하는 효과로 해제할 수 없습니다.	
+skill_type_desc_Tumor_explosion	레기미아를 중심으로 레기미아 + {value_01} 지름 타일 범위에 있는 모든 적에게  레기미아의 근거리 공격력{value_02}% 만큼 공격한다	
+skill_type_desc_Forced_supply	레기미아의 현재 체력이 {value_01}% 일 때, {value_02}초 동안 자신의 최대체력의 {value_03}% 만큼 체력을 회복한다.	
+skill_name_130011	종양 폭발	
+skill_name_130012	강제 보급	
+monster_name_120006	레기미아	
+boss_title_120006	부패의 마왕	

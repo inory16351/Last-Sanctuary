@@ -114,6 +114,24 @@ namespace LastSanctuary.Combat
         /// <summary>지금 부활 모션을 재생 중인지.</summary>
         bool InReviveMotion => Time.time < _reviveUntil;
 
+        /// <summary>소환 모션이 끝나는 시각 (아루의 「강림」 골렘이 일어서는 구간).</summary>
+        float _summonUntil;
+
+        /// <summary>사망 모션이 끝나는 시각 (골렘이 무너지는 구간).</summary>
+        float _deathUntil;
+
+        /// <summary>지금 소환 모션을 재생 중인지.</summary>
+        bool InSummonMotion => Time.time < _summonUntil;
+
+        /// <summary>지금 사망 모션을 재생 중인지.</summary>
+        bool InDeathMotion => Time.time < _deathUntil;
+
+        /// <summary>탈진(행동 불능) 모션이 끝나는 시각.</summary>
+        float _stunUntil;
+
+        /// <summary>지금 탈진 모션을 재생 중인지.</summary>
+        bool InStunMotion => Time.time < _stunUntil;
+
         /// <summary>지금 쓰고 있는 스킨. 없으면 null(스프라이트를 건드리지 않는다).</summary>
         public CharacterSkinSO Skin => _skin;
 
@@ -263,6 +281,33 @@ namespace LastSanctuary.Combat
             Vector2 art = _skin.contentSizeTiles;
             if (art.x <= 0.0001f || art.y <= 0.0001f) return 0f;
 
+            // ★★ <b>탈진 구간은 상자를 눕힌다</b> (2026-08-20 · 유저 지시
+            //   *"탈진 하면 일시적으로 아르세니아가 1x2에서 2x1로 바뀌는 로직이 필요할듯"*).
+            //
+            //   평소 배율은 <b>대기 원화의 세로</b>로 정해진다. 그런데 탈진 원화는 누운 그림이라
+            //   가로가 길고 세로가 짧다 — 같은 배율을 먹이면 <b>가로로 화면을 넘고</b> 몸이
+            //   커 보인다. 그래서 이 구간만 «가로 H · 세로 H/2» 짜리 상자에 <b>맞춰 넣는다</b>
+            //   (H = 평소 세로 크기). 그것이 곧 «1x2 → 2x1» 이다.
+            //
+            //   ⚠ 기준을 <b>지금 프레임</b>이 아니라 <b>탈진 원화 한 장</b>(첫 장)으로 잡는다 —
+            //     프레임마다 다시 재면 눕는 도중에 크기가 출렁인다.
+            if (InStunMotion)
+            {
+                Sprite[] stun = _skin.Stun(_facingRight);
+                if (stun != null && stun.Length > 0 && stun[0] != null)
+                {
+                    float box = colliderHeightTiles > 0f ? colliderHeightTiles : renderHeightTiles;
+                    if (box > 0f)
+                    {
+                        float ppu = Mathf.Max(1f, stun[0].pixelsPerUnit);
+                        float w = stun[0].rect.width / ppu;
+                        float h = stun[0].rect.height / ppu;
+                        if (w > 0.0001f && h > 0.0001f)
+                            return Mathf.Min(box / w, (box * 0.5f) / h);
+                    }
+                }
+            }
+
             if (colliderWidthTiles > 0f && colliderHeightTiles > 0f)
                 return Mathf.Min(colliderWidthTiles / art.x, colliderHeightTiles / art.y);
 
@@ -274,6 +319,7 @@ namespace LastSanctuary.Combat
         {
             if (_skin == null) return;
             if (colliderWidthTiles <= 0f && colliderHeightTiles <= 0f && renderHeightTiles <= 0f) return;
+            // (탈진 구간은 위 셋 중 하나만 있으면 성립한다 — ResolveScale 이 알아서 눕힌다)
 
             if (_skin.contentSizeTiles.x <= 0.0001f || _skin.contentSizeTiles.y <= 0.0001f)
             {
@@ -340,7 +386,46 @@ namespace LastSanctuary.Combat
             //   "공격 → 대기 → 걷기" 로 한 프레임 튄다.
             if (moved > moveThreshold) _walkUntil = Time.time + moveMotionHoldSeconds;
 
-            // ★ 부활이 <b>가장 앞</b>이다 — 이 구간에서 캐릭터는 체력 0(사망 상태)이라
+            // ★★ <b>사망 → 소환 → 부활</b> 순으로 먼저 본다 (2026-08-20 · 골렘).
+            //   사망이 맨 앞인 이유는 그 구간에서 유닛이 이미 «없는 것» 이기 때문이다 —
+            //   뒤의 어떤 모션도 그 위에 겹치면 안 된다. 소환은 반대로 아직 «싸우기 전» 이라
+            //   걷기·평타보다 앞서야 한다. 전용 원화가 없으면 폴백 없이 그냥 지나간다.
+            if (InDeathMotion)
+            {
+                Sprite[] death = _skin.Death(_facingRight);
+                if (death != null && death.Length > 0)
+                {
+                    fps = _skin.attackFramesPerSecond;
+                    return death;
+                }
+                _deathUntil = 0f;
+            }
+
+            // ★ 탈진 — 사망 다음이다. 이 구간에는 «어떤 행동도 할 수 없다»(정의문)라서
+            //   평타·걷기가 섞이면 안 된다.
+            if (InStunMotion)
+            {
+                Sprite[] stun = _skin.Stun(_facingRight);
+                if (stun != null && stun.Length > 0)
+                {
+                    fps = _skin.framesPerSecond;
+                    return stun;
+                }
+                _stunUntil = 0f;
+            }
+
+            if (InSummonMotion)
+            {
+                Sprite[] summon = _skin.Summon(_facingRight);
+                if (summon != null && summon.Length > 0)
+                {
+                    fps = _skin.attackFramesPerSecond;
+                    return summon;
+                }
+                _summonUntil = 0f;
+            }
+
+            // ★ 부활이 <b>그 다음</b>이다 — 이 구간에서 캐릭터는 체력 0(사망 상태)이라
             //   AI 가 멈춰 있고, 그대로 두면 대기 모션으로 <b>멀쩡히 서 있는 시체</b>가 된다.
             //   전용 원화가 없는 캐릭터는 폴백 없이 그냥 건너뛴다(부활은 히스톤 전용이다).
             if (InReviveMotion)
@@ -526,6 +611,68 @@ namespace LastSanctuary.Combat
             _skillSlot = -1;
             _attackUntil = 0f;
             _walkUntil = 0f;
+        }
+
+        /// <summary>
+        /// 소환 모션을 한 바퀴 재생한다 (아루의 「강림」 골렘이 땅에서 일어서는 구간).
+        /// <b>돌려주는 값은 그 구간의 길이(초)</b> — 부르는 쪽이 그동안 유닛을 멈춰 둔다.
+        /// 전용 원화가 없으면 <b>0</b> 을 돌려주고 아무 일도 하지 않는다(부활과 같은 규칙).
+        /// </summary>
+        public float PlaySummonMotion()
+        {
+            if (_skin == null) return 0f;
+            float clip = _skin.SummonClipSeconds(_facingRight);
+            if (clip <= 0f) return 0f;
+
+            _summonUntil = Time.time + clip;
+            _frameClock = 0f;
+            _skillSlot = -1;
+            _attackUntil = 0f;
+            _walkUntil = 0f;
+            return clip;
+        }
+
+        /// <summary>
+        /// 사망 모션을 한 바퀴 재생한다 (골렘이 무너지는 구간). 길이(초)를 돌려준다 —
+        /// 부르는 쪽이 그만큼 기다렸다가 오브젝트를 치운다. 원화가 없으면 0.
+        /// </summary>
+        public float PlayDeathMotion()
+        {
+            if (_skin == null) return 0f;
+            float clip = _skin.DeathClipSeconds(_facingRight);
+            if (clip <= 0f) return 0f;
+
+            _deathUntil = Time.time + clip;
+            _frameClock = 0f;
+            _skillSlot = -1;
+            _attackUntil = 0f;
+            _walkUntil = 0f;
+            _reviveUntil = 0f;
+            return clip;
+        }
+
+        /// <summary>
+        /// 탈진(행동 불능) 모션을 <paramref name="seconds"/> 동안 재생한다.
+        /// 원화가 없으면 <b>아무 일도 하지 않는다</b>(부활·소환과 같은 규칙).
+        /// </summary>
+        public void PlayStunMotion(float seconds)
+        {
+            if (_skin == null || seconds <= 0f || !_skin.HasStun) return;
+
+            _stunUntil = Time.time + seconds;
+            _frameClock = 0f;
+            _skillSlot = -1;
+            _attackUntil = 0f;
+            _walkUntil = 0f;
+            ApplyRenderSize();      // ★ 누운 상자로 즉시 바꾼다 (ResolveScale 주석)
+        }
+
+        /// <summary>탈진이 끝났을 때 원래 크기로 되돌린다. 부르는 쪽이 만료 시점에 부른다.</summary>
+        public void EndStunMotion()
+        {
+            if (_stunUntil <= 0f) return;
+            _stunUntil = 0f;
+            ApplyRenderSize();
         }
 
         /// <summary>이 스킨에 부활 원화가 실제로 들어 있는지 (히스톤 외에는 비어 있다).</summary>

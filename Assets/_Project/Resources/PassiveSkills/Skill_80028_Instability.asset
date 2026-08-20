@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21498a0a43b4e824ea7e6db210ef2e29, type: 3}
+  m_Name: Skill_80028_Instability
+  m_EditorClassIdentifier:
+  skillId: 80028
+  nameKey: 'skill_name_80028'
+  flavorKey: 'skill_explain_80028'
+  effectKey: 'skill_type_desc_Instability'
+  skillName: '불안정성'
+  skillType: 'Instability'
+  value01: 0
+  value02: 0
+  value03: 0
+  value04: 0
+  value05: 0
+  value06: 0
+  coolTime: 0
+  iconName: 'icon_arcane_aura'
+  flavorText: '아르세니아의 잃어버린 팔과 날개는 헌신의 상징으로 기억됩니다.'
+  effectTemplate: '아르세니아는 근거리 공격 유형을 선택할 수 없습니다. 아르세니아는 회복과 마법 공격에도 명중률과 크리티컬 확률의 영향을 받습니다. 데미지와 회복량 추가 공식은 공격 데미지와 똑같은 가산 값을 받습니다.'

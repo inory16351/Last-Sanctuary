@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21498a0a43b4e824ea7e6db210ef2e29, type: 3}
+  m_Name: Skill_80033_Flame_blast
+  m_EditorClassIdentifier:
+  skillId: 80033
+  nameKey: 'skill_name_80033'
+  flavorKey: 'skill_explain_80033'
+  effectKey: 'skill_type_desc_Flame_blast'
+  skillName: '화염 세례'
+  skillType: 'Flame_blast'
+  value01: 2
+  value02: 150
+  value03: 0
+  value04: 0
+  value05: 0
+  value06: 0
+  coolTime: 25
+  iconName: 'icon_comet_fall'
+  flavorText: '연옥의 화염에게 자비란 없습니다.'
+  effectTemplate: '불칸이 공격 중인 대상에게 거대 화염구를 발사합니다 피격시 시격지점 반지름 원형 {value_01} 타일 범위의 적에게 불칸의 마법의 {value_02}% 의 데미지를 줍니다'

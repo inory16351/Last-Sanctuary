@@ -1,0 +1,10 @@
+# Tools/aru_skin_build.py 가 만든 파일 — 손으로 고치지 말 것.
+# Editor/CharacterSkinBuilder.cs 가 읽어서 스킨 에셋에 적는다.
+# 원화만 봐서는 알 수 없는 값만 여기 있다(폴더 구성은 폴더 이름이 정본).
+
+skinAssetName=Skin_Aru
+displayName=아루
+framesPerSecond=10
+attackFramesPerSecond=14
+groundImpactOnly=0
+projectileWidthTiles=0.9

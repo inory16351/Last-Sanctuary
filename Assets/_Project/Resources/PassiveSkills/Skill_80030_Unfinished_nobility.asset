@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21498a0a43b4e824ea7e6db210ef2e29, type: 3}
+  m_Name: Skill_80030_Unfinished_nobility
+  m_EditorClassIdentifier:
+  skillId: 80030
+  nameKey: 'skill_name_80030'
+  flavorKey: 'skill_explain_80030'
+  effectKey: 'skill_type_desc_Unfinished_nobility'
+  skillName: '완성되지 못한 고귀함'
+  skillType: 'Unfinished_nobility'
+  value01: 6
+  value02: 20
+  value03: 5
+  value04: 350
+  value05: 5
+  value06: 0
+  coolTime: 180
+  iconName: 'icon_angel_ascend'
+  flavorText: '때로는 불안전함이 아름다움을 완성합니다.'
+  effectTemplate: '아르세니아가 자신의 기술을 모두 개방합니다. 아르세니아 중심으로 반지름 {value_01} 범위에 있는 몬스터의 수가{value_02} 이상이 될 경우 아르세니아 중심으로 반지름 {value_03} 범위의 모든 적들에게 아르세니아 마법 * {value_04} 데미지를 줍니다. 해당 스킬을 사용하면 아르세니아는 {value_05} 초 동안 어떤 행동도 할 수 없습니다. 이 행동 불능 상태는 해로운 정신 상태 이상을 해제하는 효과로 해제할 수 없습니다.'

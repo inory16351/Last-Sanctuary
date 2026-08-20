@@ -1,0 +1,156 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a517e511b352f46488ffa35edf32295d, type: 3}
+  m_Name: Skin_Vulcan
+  m_EditorClassIdentifier: Assembly-CSharp::LastSanctuary.Combat.CharacterSkinSO
+  displayName: "\uBD88\uCE78"
+  framesPerSecond: 10
+  attackFramesPerSecond: 14
+  idleRight:
+  - {fileID: 21300000, guid: 5637fd0800a8d46233ba885a3957d4a9, type: 3}
+  - {fileID: 21300000, guid: 22c2bbb6d195abd158f460b470628099, type: 3}
+  - {fileID: 21300000, guid: dfaf5141df3aab9e6d6de2481d453efd, type: 3}
+  idleLeft:
+  - {fileID: 21300000, guid: 0dcaccc984a79998508fb855d768f6fb, type: 3}
+  - {fileID: 21300000, guid: 99be272285f2bfabfaad080d2f34b2cc, type: 3}
+  - {fileID: 21300000, guid: 0fc166b1905d887655f72b4357d407b1, type: 3}
+  walkRight:
+  - {fileID: 21300000, guid: 902b5b703754354b9fdd08a3d2b111be, type: 3}
+  - {fileID: 21300000, guid: c39ce647ceaa7db126e5f32a5606f607, type: 3}
+  - {fileID: 21300000, guid: 7f0bf89c298528e0179cccfc2e23c856, type: 3}
+  - {fileID: 21300000, guid: c2076022692daf5a45ad8f367260654b, type: 3}
+  - {fileID: 21300000, guid: 2213615db8827d2e6e3a757b0c0f54ca, type: 3}
+  - {fileID: 21300000, guid: 601b65022da95a83577d55b47a84befd, type: 3}
+  - {fileID: 21300000, guid: deb2959153e64f16aba81518a5a2cf8d, type: 3}
+  walkLeft:
+  - {fileID: 21300000, guid: 4fdcf3f86c3d5a50362318a3f63731b1, type: 3}
+  - {fileID: 21300000, guid: dca28485e121022a3ced6e45531a4670, type: 3}
+  - {fileID: 21300000, guid: 4de0574268a89513ab2c51d51f04788d, type: 3}
+  - {fileID: 21300000, guid: 1d8e2a8e7294d1ce4b40ae19dab9063c, type: 3}
+  - {fileID: 21300000, guid: 4153d558a3aa724a73d1dfafb16d25d6, type: 3}
+  - {fileID: 21300000, guid: 09fec7d751f861af863552678ba5f1e3, type: 3}
+  - {fileID: 21300000, guid: 58a2ee97745bc69b989aa990d76e6e6b, type: 3}
+  attackRight:
+  - {fileID: 21300000, guid: 3029f2f8635aeb6dfbdf8aca5db6c661, type: 3}
+  - {fileID: 21300000, guid: c823c6c4e5fd96e734ebb0b6bb82704a, type: 3}
+  - {fileID: 21300000, guid: a7c8a6f182595e60e278ae099fe5f1cb, type: 3}
+  - {fileID: 21300000, guid: 22f8eef595548f34b59b8daf6bd08ac0, type: 3}
+  - {fileID: 21300000, guid: 22c750d5e95846048e2317d662641da8, type: 3}
+  attackLeft:
+  - {fileID: 21300000, guid: e11321e7e90707d6de3eefb1353d06b8, type: 3}
+  - {fileID: 21300000, guid: 22a4c81cc2fb8fb7583ec12cfac070aa, type: 3}
+  - {fileID: 21300000, guid: 2babaad40ac3371fd3804ff074dd67e2, type: 3}
+  - {fileID: 21300000, guid: a8ce8d042dca9037e9158c6004667eed, type: 3}
+  - {fileID: 21300000, guid: bcf280007f72e9605fe8fa8c700fcce1, type: 3}
+  rangedRight:
+  - {fileID: 21300000, guid: 5c8a21eb3d87fd9875115ac00882fb08, type: 3}
+  - {fileID: 21300000, guid: 021bdfc4a2613cefb9793082c3a3bfa6, type: 3}
+  - {fileID: 21300000, guid: ef2c29bd2d5f7e8f3dfdce5788dee626, type: 3}
+  rangedLeft:
+  - {fileID: 21300000, guid: 6b7a2e4842f6585757204b2b6a95f4cf, type: 3}
+  - {fileID: 21300000, guid: 926dee2fdbc9e96386830bf28a63a68e, type: 3}
+  - {fileID: 21300000, guid: fc74d1be1342d3639b0a88e5c79e81fc, type: 3}
+  magicRight:
+  - {fileID: 21300000, guid: ed509b599316be0662d0e49523eca9c2, type: 3}
+  - {fileID: 21300000, guid: 02767393227b17ffb938d5cd72652d2f, type: 3}
+  - {fileID: 21300000, guid: 84a20e076b6c03856293af560b8f20c0, type: 3}
+  - {fileID: 21300000, guid: 15d4509b5b4eea5bc582ca03e161aa08, type: 3}
+  magicLeft:
+  - {fileID: 21300000, guid: e1ddfc15078df2d7c9cae431d8823334, type: 3}
+  - {fileID: 21300000, guid: d985442bb0db6603eb34904b55079900, type: 3}
+  - {fileID: 21300000, guid: 71c8a65d631d67a8578938e55116e40e, type: 3}
+  - {fileID: 21300000, guid: 68f42d586a7cc5666c0d89115a00cf92, type: 3}
+  healRight:
+  - {fileID: 21300000, guid: 815c73d090f3e877d4aa33788f923851, type: 3}
+  - {fileID: 21300000, guid: d988342e43727ff8e46a8b99720823be, type: 3}
+  - {fileID: 21300000, guid: f53b98edc1f290fc9b169207861df2e2, type: 3}
+  - {fileID: 21300000, guid: 14001fe08496ead636de389dbc9c612f, type: 3}
+  - {fileID: 21300000, guid: dfb0470ed639893daa4719cd8ff4c277, type: 3}
+  - {fileID: 21300000, guid: 1d9b887a49247c87d37679352b46e288, type: 3}
+  - {fileID: 21300000, guid: 3fb29f9f0a7931101118d996fa5f33c3, type: 3}
+  healLeft:
+  - {fileID: 21300000, guid: e3ccaa4f2108f6dac38bcb10bce5c762, type: 3}
+  - {fileID: 21300000, guid: a2b5ffaee26520528df96a700803f178, type: 3}
+  - {fileID: 21300000, guid: 9120237115a66f9ed401c41ff1cd8cc1, type: 3}
+  - {fileID: 21300000, guid: 93243635b7019ffd43925dbedf025df9, type: 3}
+  - {fileID: 21300000, guid: f41984247f5938fcc6303361d99ddc84, type: 3}
+  - {fileID: 21300000, guid: c52ccb64630e8dbb31939c95ffd54959, type: 3}
+  - {fileID: 21300000, guid: 9e121c7173fd539182516818760aa09a, type: 3}
+  healFxFrames:
+  - {fileID: 21300000, guid: 875f3d0e4a594403f416564d5e0c7a4e, type: 3}
+  - {fileID: 21300000, guid: d07f6affac85dd092d0ba6c1ced9a44f, type: 3}
+  - {fileID: 21300000, guid: 6aa2089b4afdb2d85e4e7a6ec23388ca, type: 3}
+  - {fileID: 21300000, guid: 7cecb79958977b4d3ec276e8bbbf6dbf, type: 3}
+  - {fileID: 21300000, guid: 1c0310f14a20104c2d59f62384dc0dc1, type: 3}
+  reviveRight: []
+  reviveLeft: []
+  reviveFx: []
+  summonRight: []
+  summonLeft: []
+  deathRight: []
+  deathLeft: []
+  stunRight: []
+  stunLeft: []
+  skill1Right:
+  - {fileID: 21300000, guid: 76347586c921065770d2b32f5991b93f, type: 3}
+  - {fileID: 21300000, guid: 530ca201e3f3f883795892789536702c, type: 3}
+  - {fileID: 21300000, guid: 351261f259eafc826fb30450d2f9049f, type: 3}
+  skill1Left:
+  - {fileID: 21300000, guid: f7b4899353553da12ba47774e81fa525, type: 3}
+  - {fileID: 21300000, guid: 2613860586550700d656d5ec84ebb235, type: 3}
+  - {fileID: 21300000, guid: fe9daf819efa83f8a6225d42791afbb8, type: 3}
+  skill2Right: []
+  skill2Left: []
+  skill3Right: []
+  skill3Left: []
+  skill1Fx:
+  - {fileID: 21300000, guid: 356e9359e383e39edf396a0de4a12f14, type: 3}
+  - {fileID: 21300000, guid: b1860440c4ff64b1c2a3999a511b288b, type: 3}
+  - {fileID: 21300000, guid: 56d54f3ea29c9c897a1d7509edbebe0c, type: 3}
+  - {fileID: 21300000, guid: 166904a67ec2bf022d1df06325e296fb, type: 3}
+  skill2Fx: []
+  skill3Fx: []
+  skill1Projectile:
+  - {fileID: 21300000, guid: 799cdd6cc0aec605eb791519f66ec7c2, type: 3}
+  - {fileID: 21300000, guid: 808e3554451d377c99970dbac8d3a6f6, type: 3}
+  - {fileID: 21300000, guid: 840a3ccc9e878a74a8cbf095a3d85811, type: 3}
+  - {fileID: 21300000, guid: c0c0ea692f8a15178690640e64cff474, type: 3}
+  - {fileID: 21300000, guid: c0800470bb6ea7681aa0be2855e44bb3, type: 3}
+  skill2Projectile: []
+  projectileFrames:
+  - {fileID: 21300000, guid: 3566213e0a4606a820f09737c8507bf8, type: 3}
+  - {fileID: 21300000, guid: 11eb51f390a27c7d355ee4aa5d46b8e2, type: 3}
+  - {fileID: 21300000, guid: 9a918cbb0c6154d0d75d809b4fb1a598, type: 3}
+  - {fileID: 21300000, guid: 598702fe5387606ebc868016f5e3f184, type: 3}
+  - {fileID: 21300000, guid: 702b0c494ee63fab41f675df79c02e24, type: 3}
+  muzzleFlashFrames: []
+  impactFrames: []
+  magicImpactFrames:
+  - {fileID: 21300000, guid: 29a551e446f2c8ec4fdb53833e647630, type: 3}
+  - {fileID: 21300000, guid: 5d9f3c8a33e4105cd0461a9323d49696, type: 3}
+  - {fileID: 21300000, guid: 5d40293c82a3bcc7b023839a6e386f66, type: 3}
+  - {fileID: 21300000, guid: 58bd03fb5d3b8a635fdf670f7f6da218, type: 3}
+  meleeTravelFrames:
+  - {fileID: 21300000, guid: 6b8894b8ceac8e3b6b773c283c7f1af2, type: 3}
+  - {fileID: 21300000, guid: e88b1b0fd063c5365ccbf8e88327e316, type: 3}
+  - {fileID: 21300000, guid: 5b59414da019a395cecb258ef0d81392, type: 3}
+  - {fileID: 21300000, guid: b946b171bf1475db4f1ddce1831a6371, type: 3}
+  meleeTravelWidthTiles: 1.2
+  groundImpactOnly: 0
+  projectileScale: 0.55
+  impactScale: {x: 1, y: 1}
+  contentSizeTiles: {x: 1.203, y: 1.312}
+  projectileSizeTiles: {x: 1.031, y: 0.469}
+  impactSizeTiles: {x: 0, y: 0}
+  projectileWidthTiles: 1
+  impactWidthTiles: 1.6
+  impactFlattenY: 1

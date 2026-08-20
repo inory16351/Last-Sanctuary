@@ -157,6 +157,90 @@ namespace LastSanctuary.Combat
         public Sprite[] ReviveFx() => HasFrames(reviveFx) ? reviveFx : null;
 
         // ------------------------------------------------------------------
+        // 소환 · 사망 (2026-08-20 — 아루의 「강림」 골렘)
+        //
+        // 아루의 패시브 <b>강림(Dawn · 80024)</b> 이 골렘을 소환한다. 그 원화 시트에는
+        // <b>소환되는 모습 8장</b>(빛기둥 → 돌무더기 → 일어섬)과 <b>사망 7장</b>(무너져
+        // 돌무더기가 됨)이 들어 있고, 둘 다 <b>한 번만 돌고 끝나는</b> 모션이다.
+        //
+        // <b>왜 부활 칸을 재활용하지 않았나</b> — 「부활」은 <b>죽은 뒤 다시 서는</b> 것이라
+        // 재생 조건이 «체력 0 + 되살아나는 중» 이다. 소환은 <b>태어나는</b> 것이고 사망은
+        // <b>사라지는</b> 것이라 조건이 서로 배타적이다. 한 칸에 담으면
+        // <see cref="CharacterAnimator"/> 가 셋을 구분할 방법이 없다.
+        //
+        // ⚠ 골렘 외의 스킨은 이 칸이 비어 있고, 비면 연출을 통째로 건너뛴다
+        //   (:c:`CharacterAnimator.PlaySummonMotion` 이 프레임이 없으면 아무 일도 안 한다).
+        // ------------------------------------------------------------------
+
+        [Header("소환 · 사망 (아루의 「강림」 골렘 전용)")]
+        [Tooltip("소환되는 동안 한 번 도는 모션. 이 구간에는 아직 싸우지 않는다")]
+        public Sprite[] summonRight;
+        public Sprite[] summonLeft;
+
+        [Tooltip("무너지며 사라지는 모션. 이 구간이 끝나면 오브젝트가 사라진다")]
+        public Sprite[] deathRight;
+        public Sprite[] deathLeft;
+
+        /// <summary>소환 모션. 없으면 null — 평타로 대체하지 않는다(부활과 같은 이유).</summary>
+        public Sprite[] Summon(bool facingRight)
+        {
+            Sprite[] frames = Pick(summonRight, summonLeft, facingRight);
+            return HasFrames(frames) ? frames : null;
+        }
+
+        /// <summary>사망 모션. 없으면 null.</summary>
+        public Sprite[] Death(bool facingRight)
+        {
+            Sprite[] frames = Pick(deathRight, deathLeft, facingRight);
+            return HasFrames(frames) ? frames : null;
+        }
+
+        // ------------------------------------------------------------------
+        // ★★ 탈진 (2026-08-20 — 아르세니아의 「완성되지 못한 고귀함」 80030)
+        //
+        // 그 스킬의 정의문 마지막 문장이 <b>«{value_05}초 동안 어떤 행동도 할 수 없습니다»</b> 다.
+        // 원화 시트에도 「사용 후 탈진 모션」 네 장이 따로 그려져 있다.
+        //
+        // ★★ <b>이 모션만 몸이 «눕는다»</b> — 그래서 크기 계산이 다른 모션과 달라야 한다.
+        //   유저 리포트: *"탈진 모습이 잘리네 탈진 하면 일시적으로 아르세니아가 1x2에서
+        //   2x1로 바뀌는 로직이 필요할듯"*. 실제로 그렇다:
+        //
+        //     서 있을 때  세로가 길다 (1 x 2 타일)
+        //     누웠을 때   가로가 길다 (2 x 1 타일)
+        //
+        //   게임의 크기 배율은 <b>대기 원화 하나</b>로 정해지고 모든 모션에 그대로 곱해지므로
+        //   (`CharacterAnimator.ResolveScale`), 누운 그림은 세로 기준으로 맞춰져
+        //   <b>화면 밖으로 삐져나가거나 우스꽝스럽게 커진다.</b>
+        //   → <see cref="CharacterAnimator"/> 가 탈진 구간에만 <b>가로·세로를 맞바꾼 상자</b>에
+        //     맞춘다(그 함수의 주석).
+        // ------------------------------------------------------------------
+
+        [Header("탈진 (행동 불능 — 아르세니아 「완성되지 못한 고귀함」)")]
+        [Tooltip("행동 불능 동안 재생한다. 이 모션만 <b>누운 자세</b>라 크기 계산이 다르다")]
+        public Sprite[] stunRight;
+        public Sprite[] stunLeft;
+
+        /// <summary>탈진 모션. 없으면 null — 평타로 대체하지 않는다(부활·소환과 같은 규칙).</summary>
+        public Sprite[] Stun(bool facingRight)
+        {
+            Sprite[] frames = Pick(stunRight, stunLeft, facingRight);
+            return HasFrames(frames) ? frames : null;
+        }
+
+        /// <summary>이 스킨에 탈진 원화가 있는지.</summary>
+        public bool HasStun => HasFrames(stunRight) || HasFrames(stunLeft);
+
+        /// <summary>소환 모션 한 바퀴(초). 없으면 0.</summary>
+        public float SummonClipSeconds(bool facingRight) => ClipSeconds(Summon(facingRight));
+
+        /// <summary>사망 모션 한 바퀴(초). 없으면 0.</summary>
+        public float DeathClipSeconds(bool facingRight) => ClipSeconds(Death(facingRight));
+
+        /// <summary>한 바퀴에 걸리는 시간. 공격 fps 를 쓴다 — 한 번만 도는 모션이라 빠른 쪽이 맞다.</summary>
+        float ClipSeconds(Sprite[] frames) =>
+            frames == null || attackFramesPerSecond <= 0f ? 0f : frames.Length / attackFramesPerSecond;
+
+        // ------------------------------------------------------------------
         // 보스 스킬 모션 (2026-08-13)
         //
         // <b>왜 슬롯 번호인가</b> — 스킬 종류(enum)로 칸을 나누면 표에 스킬이 하나 늘 때마다
@@ -177,6 +261,17 @@ namespace LastSanctuary.Combat
         public Sprite[] skill2Right;
         public Sprite[] skill2Left;
 
+        // ★★ 2026-08-20 — <b>세 번째 슬롯</b>을 열었다 (카이론 9009).
+        //
+        // 지금까지 이 칸을 쓰는 것은 보스뿐이었고 보스는 스킬이 <b>둘</b>이라 두 벌로 충분했다.
+        // 카이론은 <b>발동형 스킬이 셋</b>이고(타락한 육체·천상의 방패·천벌) 원화 시트에도
+        // 「스킬 1·2·3」 세 줄이 그려져 있다. 셋째를 안 열면 <b>실드 모션이 갈 곳이 없다.</b>
+        //
+        // ⚠ 슬롯 번호는 <b>표의 skill_01·02·03 순서</b>와 같게 쓴다 — 원화 시트의 「스킬 N」
+        //   번호와도 그대로 맞는다. 규칙이 하나여야 다음 캐릭터에서 헷갈리지 않는다.
+        public Sprite[] skill3Right;
+        public Sprite[] skill3Left;
+
         [Header("보스 스킬 — 지면 연출 (피해 범위 표시)")]
         [Tooltip("슬롯 0 의 범위 연출. 범위(가로 x 세로 타일)에 맞춰 늘려 그린다 — " +
                  "마법 착탄과 같은 원칙으로 <b>보이는 범위 = 맞는 범위</b> 가 된다")]
@@ -184,6 +279,9 @@ namespace LastSanctuary.Combat
 
         [Tooltip("슬롯 1 의 범위 연출")]
         public Sprite[] skill2Fx;
+
+        [Tooltip("세 번째 스킬의 범위 연출 (2026-08-20 · 카이론)")]
+        public Sprite[] skill3Fx;
 
         [Header("보스 스킬 — 날아가는 탄환 (2026-08-18 신설)")]
         [Tooltip("★ <b>스킬 전용 탄환</b>. 말파스 「구속탄」이 첫 사용자다.\n\n" +
@@ -212,6 +310,7 @@ namespace LastSanctuary.Combat
         {
             switch (slot)
             {
+                case 2: return Pick(skill3Right, skill3Left, facingRight);
                 case 0: return Pick(skill1Right, skill1Left, facingRight);
                 case 1: return Pick(skill2Right, skill2Left, facingRight);
                 default: return null;
@@ -223,6 +322,7 @@ namespace LastSanctuary.Combat
         {
             switch (slot)
             {
+                case 2: return HasFrames(skill3Fx) ? skill3Fx : null;
                 case 0: return HasFrames(skill1Fx) ? skill1Fx : null;
                 case 1: return HasFrames(skill2Fx) ? skill2Fx : null;
                 default: return null;

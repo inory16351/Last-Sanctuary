@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bacf4f16746e56b4da254173d578cf4e, type: 3}
+  m_Name: Character_9009_Chiron
+  m_EditorClassIdentifier:
+  characterId: 9009
+  nameKey: 'character_name_9009'
+  characterName: '카이론'
+  characterNameEn: 'Chiron'
+  titleKey: 'character_title_9009'
+  title: '타락한 투사'
+  illustName: 'illust_Chiron'
+  skinAssetName: 'Skin_Chiron'
+  stats:
+    hp: 10
+    attack: 10
+    defense: 6
+    regen: 4
+    rangedAttack: 4
+    magic: 1
+    cure: 5
+    accuracy: 4
+    critical: 5
+    attackSpeed: 4
+    moveSpeed: 8
+    resistance: 60
+  attackPreset: 0
+  positionPreset: 0
+  passives:
+  - {fileID: 11400000, guid: 686a803f5435ef2e24cd0c23f52b6983, type: 2}
+  - {fileID: 11400000, guid: 9c3def54bdf014d00e1f7a3a7a1aed29, type: 2}
+  - {fileID: 11400000, guid: a7beac623322a8e2977acc92683ef838, type: 2}
+  narrative: ''

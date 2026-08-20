@@ -63,6 +63,11 @@ namespace LastSanctuary.Units
                  "늘어도 뒤의 쿨타임·아이콘이 밀리지 않는다 — 그게 value_04 때 났던 사고다")]
         public float value05;
 
+        [Tooltip("★ 2026-08-20 신설 (신규 캐릭터 3인). 첫 사용자는 카이론 「천벌」(80027)의 " +
+                 "마지막 문장이다: <b>「피해를 당한 적은 {value_05}초 동안 방어력이 " +
+                 "{value_06}% 감소합니다」</b>. 표에 이미 있던 컬럼이라 값만 받아 온다")]
+        public float value06;
+
         [Tooltip("쿨타임(초). 0 이면 상시 발동")]
         public float coolTime;
 
@@ -119,10 +124,31 @@ namespace LastSanctuary.Units
             string template = Data.StringTable.Get(effectKey, effectTemplate);
             if (string.IsNullOrEmpty(template)) return "";
 
-            return template
-                .Replace("{value_01}", Num(value01))
-                .Replace("{value_02}", Num(value02))
-                .Replace("{value_03}", Num(value03));
+            // ★★ 2026-08-20 — <b>여섯 개까지 · 대소문자를 가리지 않고</b> 치환한다.
+            //
+            //   ① 예전에는 01~03 만 바꿨다. 그런데 표의 정의문은 이미 <b>{value_06} 까지</b>
+            //      쓰고 있다(카이론 「천벌」). 안 바꾸면 상세 카드에 «{value_04}% 의 데미지»
+            //      처럼 <b>자리표시가 그대로</b> 뜬다.
+            //   ② 표에는 <b>{Value_02}</b> 처럼 대문자로 적힌 자리표시가 실재한다
+            //      (시카리아 「고조된 감각」·「애로우 레인」). 사람이 손으로 적는 칸이라
+            //      대소문자를 강제할 수 없으므로 <b>읽는 쪽이 관대해야 한다</b> —
+            //      `skillType` 을 Trim 하는 것과 같은 판단이다(PassiveSkillType 주석).
+            float[] values = { value01, value02, value03, value04, value05, value06 };
+            for (int i = 0; i < values.Length; i++)
+                template = ReplaceCaseInsensitive(template, "{value_0" + (i + 1) + "}", Num(values[i]));
+            return template;
+        }
+
+        /// <summary>대소문자를 가리지 않는 치환 (위 ②). 못 찾으면 원문 그대로.</summary>
+        static string ReplaceCaseInsensitive(string text, string token, string value)
+        {
+            int at = text.IndexOf(token, System.StringComparison.OrdinalIgnoreCase);
+            while (at >= 0)
+            {
+                text = text.Substring(0, at) + value + text.Substring(at + token.Length);
+                at = text.IndexOf(token, at + value.Length, System.StringComparison.OrdinalIgnoreCase);
+            }
+            return text;
         }
 
         /// <summary>소수점이 없으면 정수로 보여준다 — "3.0배" 대신 "3배".</summary>

@@ -23,6 +23,7 @@ MonoBehaviour:
   value03: 0
   value04: 0
   value05: 0
+  value06: 0
   coolTime: 180
   iconName: 'icon_ascension'
   flavorText: '엘린은 사랑하는 이들을 위해 자기 자신마저 버릴 수 있습니다.'

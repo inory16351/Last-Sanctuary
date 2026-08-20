@@ -23,6 +23,7 @@ MonoBehaviour:
   value03: 3
   value04: 0
   value05: 0
+  value06: 0
   coolTime: 0
   iconName: 'icon_heart_guard'
   flavorText: '그녀는 전투 중 종종 황홀경에 빠지곤 합니다.'

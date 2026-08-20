@@ -256,6 +256,23 @@ namespace LastSanctuary.Combat
         }
 
         /// <summary>
+        /// ★ <b>재생 대기를 즉시 푼다</b> (2026-08-20 — 아루 「구원」 80023).
+        ///
+        /// 정의문: <i>"'구원의 손길'로 이송 되어진 아군은 즉시 체력 재생 가능 상태가 됩니다."</i>
+        /// 재생 조건은 «마지막 전투 행동으로부터 <see cref="BalanceConfigSO.outOfCombatRegenDelay"/>
+        /// 초» 하나뿐이므로(<see cref="IsInCombat"/>), 그 시각을 <b>충분히 과거로</b> 밀면
+        /// 그 순간 재생이 가능해진다. <see cref="MarkCombatAction"/> 의 정반대 짝이다.
+        ///
+        /// ⚠ 체력을 <b>주지는 않는다</b> — 정의문이 "재생 가능 상태" 라고만 했다.
+        ///   회복량은 평소 재생 규칙이 그대로 정한다.
+        /// </summary>
+        public void MakeRegenReady()
+        {
+            float delay = balance != null ? balance.outOfCombatRegenDelay : 0f;
+            _lastCombatTime = Time.time - delay - 1f;
+        }
+
+        /// <summary>
         /// 마지막으로 나를 때린 상대. 비선공 유닛의 <b>반격</b> 판정에 쓴다 —
         /// "비선공"은 <b>먼저</b> 공격하지 않는다는 뜻이지 맞고도 가만히 있는다는 뜻이 아니다
         /// (유저 정의). <see cref="UnitCombat"/> 가 이 값을 보고 반격 대상을 잡는다.
@@ -448,6 +465,65 @@ namespace LastSanctuary.Combat
             ApplyDamageCore(safe);
         }
 
+        // ------------------------------------------------------------------
+        // ★★ 보호막 (2026-08-20 — 카이론 「타락한 육체」 80025)
+        //
+        // <b>무적과 무엇이 다른가</b> — 무적은 «시간» 이 다할 때까지 <b>전부</b> 막고,
+        // 보호막은 «양» 이 다할 때까지 막는다. 정의문이 «최대 체력의 20% 짜리 보호막» 이라고
+        // <b>양</b>으로 적어 두었으므로 시간만으로는 표현할 수 없다.
+        //
+        // <b>왜 여기(체력이 깎이는 자리)에 두는가</b> — 무적과 완전히 같은 이유다:
+        // 피해 경로가 여럿(평타·지속 피해·보스 스킬)인데 <see cref="ApplyDamageCore"/> 는
+        // 하나다. 위쪽에서 막으면 새 경로가 조용히 보호막을 뚫는다.
+        //
+        // ⚠ <b>대가(<see cref="LoseHpToSelfCost"/>)는 막지 않는다</b> — 그건 «내가 내는 값» 이라
+        //   무적도 안 막는다. 보호막이 자기 스킬 비용까지 대신 내면 스킬이 공짜가 된다.
+        // ⚠ 시간이 다하면 <b>남은 양은 사라진다</b>(정의문 "value01 초 동안").
+        // ------------------------------------------------------------------
+
+        int _shield;
+        float _shieldUntil;
+
+        /// <summary>지금 남아 있는 보호막의 양. 시간이 지났으면 0.</summary>
+        public int Shield => Time.time < _shieldUntil ? _shield : 0;
+
+        /// <summary>보호막이 걸려 있는지 (UI·로그가 쓴다).</summary>
+        public bool HasShield => Shield > 0;
+
+        /// <summary>
+        /// <paramref name="amount"/> 만큼의 보호막을 <paramref name="seconds"/> 초 동안 건다.
+        /// 이미 걸려 있으면 <b>더 큰 쪽·더 긴 쪽</b>으로 둔다 — 무적과 같은 규칙이고 이유도 같다
+        /// (약한 것이 강한 것을 덮어 깎으면 "보호막이 도중에 얇아진다" 는 사고가 난다).
+        /// </summary>
+        public void GrantShield(int amount, float seconds)
+        {
+            if (amount <= 0 || seconds <= 0f) return;
+            _shield = Mathf.Max(Shield, amount);
+            _shieldUntil = Mathf.Max(_shieldUntil, Time.time + seconds);
+        }
+
+        /// <summary>보호막을 즉시 없앤다.</summary>
+        public void ClearShield()
+        {
+            _shield = 0;
+            _shieldUntil = 0f;
+        }
+
+        /// <summary>
+        /// 보호막으로 <paramref name="amount"/> 를 흡수하고 <b>남은 피해</b>를 돌려준다.
+        /// 보호막이 없으면 그대로 돌려준다.
+        /// </summary>
+        int AbsorbWithShield(int amount)
+        {
+            int shield = Shield;
+            if (shield <= 0) return amount;
+
+            int absorbed = Mathf.Min(shield, amount);
+            _shield = shield - absorbed;
+            if (_shield <= 0) _shieldUntil = 0f;
+            return amount - absorbed;
+        }
+
         /// <summary>계산이 끝난 피해량(정수)을 직접 적용한다.</summary>
         public void ApplyDamage(int amount)
         {
@@ -456,6 +532,14 @@ namespace LastSanctuary.Combat
             // ★★ 무적 — 체력을 건드리지 않고 그대로 돌아간다 (위 주석).
             //    ⚠ 숫자도 띄우지 않는다: "0" 이 뜨면 빗나간 것과 구분이 안 된다.
             if (IsInvulnerable)
+            {
+                _pendingCritical = false;
+                return;
+            }
+
+            // ★ 보호막이 먼저 먹는다. 전부 막았으면 무적과 같게 <b>조용히</b> 돌아간다.
+            amount = AbsorbWithShield(amount);
+            if (amount <= 0)
             {
                 _pendingCritical = false;
                 return;

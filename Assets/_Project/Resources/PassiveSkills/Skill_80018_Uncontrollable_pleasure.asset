@@ -23,6 +23,7 @@ MonoBehaviour:
   value03: 0
   value04: 0
   value05: 0
+  value06: 0
   coolTime: 300
   iconName: 'icon_void_orb'
   flavorText: '황홀감에 젖어버린 시그리드는 스스로를 제어할 수 없습니다.'

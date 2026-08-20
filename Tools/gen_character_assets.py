@@ -284,6 +284,8 @@ for r in range(4, ws.max_row + 1):
     v4 = num(skill_cell(r, 'value_04'))
     # ★ value_05 — 2026-08-20 유저가 표에 추가. 시그리드 「가학증」의 후퇴기준 고정값.
     v5 = num(skill_cell(r, 'value_05'))
+    # ★ value_06 — 2026-08-20. 카이론 「천벌」(80027) 이 쓴다 (방어력 감소량 %).
+    v6 = num(skill_cell(r, 'value_06'))
     cool = num(skill_cell(r, 'cool_time'))
     icon = (skill_cell(r, 'skill_icon') or '').strip()
     flavor = text_of(skill_cell(r, 'skill_explain'))
@@ -309,6 +311,7 @@ for r in range(4, ws.max_row + 1):
     body += "  value03: %s\n" % v3
     body += "  value04: %s\n" % v4
     body += "  value05: %s\n" % v5
+    body += "  value06: %s\n" % v6
     body += "  coolTime: %s\n" % cool
     body += "  iconName: %s\n" % yaml_str(icon)
     body += "  flavorText: %s\n" % yaml_str(flavor)

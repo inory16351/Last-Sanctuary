@@ -23,6 +23,7 @@ MonoBehaviour:
   value03: 0
   value04: 0
   value05: 0
+  value06: 0
   coolTime: 0
   iconName: 'icon_guard_shield'
   flavorText: '비기오르는 강철과 같은 의지로 전방에 나섭니다.'

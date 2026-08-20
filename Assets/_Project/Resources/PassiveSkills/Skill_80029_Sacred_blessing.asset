@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21498a0a43b4e824ea7e6db210ef2e29, type: 3}
+  m_Name: Skill_80029_Sacred_blessing
+  m_EditorClassIdentifier:
+  skillId: 80029
+  nameKey: 'skill_name_80029'
+  flavorKey: 'skill_explain_80029'
+  effectKey: 'skill_type_desc_Sacred_blessing'
+  skillName: '성스러운 축복'
+  skillType: 'Sacred_blessing'
+  value01: 3
+  value02: 8
+  value03: 20
+  value04: 40
+  value05: 0
+  value06: 0
+  coolTime: 25
+  iconName: 'icon_holy_light'
+  flavorText: '아르세니아는 명석한 두뇌와 기술로 자신의 아픔을 극복해 냈습니다.'
+  effectTemplate: '아르세니아가 현재 전투 중인 가장 전방의 아군에게 물약을 던져 적중 대상을 중심으로 반지름 {value_01} 크기의 원형 공간을{value_02}초 동안 생성합니다. 해당 공간에 있는 몬스터는 초당 아르세니아의 마법 * {value_03}% 의 데미지를 입고, 캐릭터는 자신이 받는 회복 효과가 {value_03}만큼 증폭됩니다.'

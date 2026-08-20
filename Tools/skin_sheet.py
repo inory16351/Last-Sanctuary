@@ -177,7 +177,7 @@ TextureImporter:
   maxTextureSize: 2048
   textureSettings:
     serializedVersion: 2
-    filterMode: 0
+    filterMode: {filter}
     aniso: 1
     mipBias: 0
     wrapU: 1
@@ -312,15 +312,26 @@ def background_mask(dist):
     return flood(ok, seed)
 
 
-def enclosed_background(sheet, y0, y1, cx0, cx1):
+def enclosed_background(sheet, y0, y1, cx0, cx1, min_area=None, ring_lum=None):
     """
     ★★ 칸 하나 안의 **갇힌 배경** (맨 위 ``POCKET_*`` 주석의 표).
+
+    ★ 2026-08-20 — :paramref:`min_area` · :paramref:`ring_lum` 를 열었다(기본값은 그대로).
+
+      골렘(아루의 소환수)은 <b>두 다리 사이</b>가 101~275px 로 갇히는데 기본
+      :data:`POCKET_MIN_AREA` (300) 에 못 미쳐 흰 판때기로 남았다. 면적만 낮추면
+      갑옷 속 흰 하이라이트까지 뚫릴 수 있으므로 **테두리 어둡기를 같이 조인다** —
+      실측으로 다리 사이의 테두리 광도(하위 5%)는 <b>14~23</b> 이고, 갑옷 하이라이트는
+      금빛·회색(80 이상)에 둘러싸여 있어 60 으로 자르면 깨끗이 갈린다.
 
     칸 단위로 도는 이유는 **속도**다 — 시트 전체에서 갇힌 덩어리를 세면 2,751개가 나와
     한 덩어리씩 흘려 채우는 데 몇 분이 걸린다. 칸은 100x90 남짓이라 즉시 끝난다.
     (배경 마스크 자체는 전역에서 구한 것을 그대로 쓴다 — 칸마다 다시 구하면 캐릭터가
     칸 위·아래 경계에 닿는 줄에서 판정이 갈린다.)
     """
+    min_area = POCKET_MIN_AREA if min_area is None else min_area
+    ring_lum = POCKET_INK_RING_LUM if ring_lum is None else ring_lum
+
     sl = (slice(y0, y1 + 1), slice(cx0, cx1 + 1))
     pockets = (sheet["dist"][sl] <= BG_TOL) & ~sheet["bg_mask"][sl]
     lum = sheet["lum"][sl]
@@ -335,12 +346,12 @@ def enclosed_background(sheet, y0, y1, cx0, cx1):
         comp = flood(pockets, seed)
         rest &= ~comp
 
-        if int(comp.sum()) < POCKET_MIN_AREA:
+        if int(comp.sum()) < min_area:
             continue
         ring = grow(grow(comp, ones), ones) & ~comp
         if not ring.any():
             continue
-        if np.percentile(lum[ring], 5) < POCKET_INK_RING_LUM:
+        if np.percentile(lum[ring], 5) < ring_lum:
             out[sl] |= comp
     return out
 
@@ -761,12 +772,18 @@ def cells_by_labels(gray, x0, x1, ly0, ly1, gap=None, max_w=None, min_w=None):
     return [(edges[i], edges[i + 1]) for i in range(len(edges) - 1)]
 
 
-def cells_by_gaps(mask, y0, y1, x0, x1):
+def cells_by_gaps(mask, y0, y1, x0, x1, min_len=None):
     """
     칸 경계 = **빈 열의 가운데**. 이 시트는 (프레임 수 + 1)개의 빈 열이 다 있다(맨 위).
+
+    ★ 2026-08-20 — :paramref:`min_len` 을 열었다(기본값 :data:`CELL_GAP_MIN` 그대로).
+
+      아르세니아의 이펙트 줄에서 <b>3px 짜리 틈</b>이 폭발 하나를 둘로 갈랐다(실측:
+      투사체 줄에 5칸을 기대했는데 6칸). 반짝이는 입자 사이의 우연한 틈이라 «칸 경계» 가
+      아니다 — 그런 줄만 8 정도로 올려 <b>진짜 칸 사이의 틈만</b> 남긴다.
     """
     band = mask[y0:y1 + 1, x0:x1 + 1].any(axis=0)
-    gaps = [(a + x0, b + x0) for a, b in runs(~band, CELL_GAP_MIN)]
+    gaps = [(a + x0, b + x0) for a, b in runs(~band, CELL_GAP_MIN if min_len is None else min_len)]
     mids = [(a + b) // 2 for a, b in gaps]
     return [(mids[k], mids[k + 1]) for k in range(len(mids) - 1)]
 
@@ -1017,14 +1034,23 @@ def compose(frames, anchors):
     return out, w, h
 
 
-def write_png(img, folder, name, ppu=PPU):
+#: 기본 필터 — <b>Point(0)</b>. 이 프로젝트의 원화는 대부분 픽셀아트라 확대해도 또렷한 쪽이 맞다.
+#:
+#: ★ 2026-08-20 — <b>열어 뒀다</b>(기본값은 그대로). 베일처럼 «원화는 손그림인데 게임에서
+#:   7배로 확대되는» 유닛은 Point 로 그리면 <b>7px 짜리 계단</b>이 그대로 보인다
+#:   (유저 리포트: *"베일 너무 이미지 깨짐"*). 그런 유닛만 Bilinear(1) 로 굽는다.
+FILTER_POINT = 0
+FILTER_BILINEAR = 1
+
+
+def write_png(img, folder, name, ppu=PPU, filter_mode=FILTER_POINT):
     os.makedirs(folder, exist_ok=True)
     path = os.path.join(folder, name + ".png")
     img.save(path)
     rel = os.path.relpath(path, os.path.join(PROJECT, "Assets", "_Project")).replace("\\", "/")
     g = guid_for(rel)
     with open(path + ".meta", "w", encoding="utf-8", newline="\n") as f:
-        f.write(META.format(guid=g, ppu=ppu, sprite_id=g[:32]))
+        f.write(META.format(guid=g, ppu=ppu, sprite_id=g[:32], filter=filter_mode))
 
 
 def ensure_folder_meta(path):

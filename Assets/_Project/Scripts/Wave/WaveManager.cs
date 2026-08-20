@@ -506,7 +506,9 @@ namespace LastSanctuary.Wave
             var all = UnitRegistry.All;
             int n = 0;
             for (int i = 0; i < all.Count; i++)
-                if (all[i] is CharacterUnit c && (c.IsAlive || c.IsRevivePending)) n++;
+                // ★ 소환수는 세지 않는다 — 공렘만 남았는데 «캐릭터가 있다» 로 보면 전멸 판정이 안 난다.
+                if (all[i] is CharacterUnit c && !c.IsSummoned &&
+                    (c.IsAlive || c.IsRevivePending)) n++;
             return n;
         }
 

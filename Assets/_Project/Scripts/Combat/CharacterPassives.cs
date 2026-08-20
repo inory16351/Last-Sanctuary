@@ -24,7 +24,7 @@ namespace LastSanctuary.Combat
     /// 강화로 새로 열리면 <see cref="Refresh"/> 가 그 순간부터 적용한다.
     /// </summary>
     [RequireComponent(typeof(CharacterUnit))]
-    public class CharacterPassives : MonoBehaviour
+    public partial class CharacterPassives : MonoBehaviour
     {
         // ── 상시 효과가 "지금 걸어둔" 양. 해제할 때 정확히 같은 값을 빼려면 기억해야 한다 ──
         int _appliedDefenseAura;      // 로 아이아스가 <b>남에게</b> 걸어둔 것은 아래 _auraTargets
@@ -117,6 +117,7 @@ namespace LastSanctuary.Combat
             // 죽거나 사라질 때 <b>남에게 걸어둔 보정을 반드시 되돌린다</b> —
             // 안 그러면 비기오르가 죽은 뒤에도 동료 방어력이 영구히 +8 로 남는다.
             ClearDefenseAura();
+            ClearNewcomerEffects();     // 신규 3인 (CharacterPassives.Newcomers.cs)
         }
 
         /// <summary>
@@ -166,6 +167,11 @@ namespace LastSanctuary.Combat
         static readonly PassiveSkillType[] CooldownSkillTypes =
         {
             PassiveSkillType.Sacrifice, PassiveSkillType.CalmDown, PassiveSkillType.PurifyingTouch,
+
+            // ── 신규 캐릭터 3인 (2026-08-20) — 구현은 CharacterPassives.Newcomers.cs ──
+            PassiveSkillType.ArrowRain, PassiveSkillType.Dawn,
+            PassiveSkillType.FallenBody, PassiveSkillType.CelestialShield,
+            PassiveSkillType.DivineWrath,
         };
 
         /// <summary>이 캐릭터가 그 패시브를 지금 쓸 수 있는지 (해금 + 표에 있는 종류).</summary>
@@ -233,6 +239,9 @@ namespace LastSanctuary.Combat
             PassiveSkillSO sadism = Find(PassiveSkillType.Sadism);
             if (sadism != null) _tactics?.SetRetreatHpLock(Mathf.RoundToInt(sadism.value05));
             else _tactics?.ClearRetreatHpLock();
+
+            // ── 신규 캐릭터 3인의 상시 효과 (CharacterPassives.Newcomers.cs) ──
+            ApplyAlwaysOnNewcomers();
         }
 
         /// <summary>
@@ -317,6 +326,7 @@ namespace LastSanctuary.Combat
             TickBlazingWings(dt);
             TickRageDecay(dt);
             TickUncontrollablePleasure();
+            TickNewcomers(dt);          // 신규 3인 (CharacterPassives.Newcomers.cs)
             TickCooldownSkills();
         }
 
@@ -335,6 +345,13 @@ namespace LastSanctuary.Combat
                     PassiveSkillType.Sacrifice => TrySacrifice(),
                     PassiveSkillType.CalmDown => TryCalmDown(),
                     PassiveSkillType.PurifyingTouch => TryPurifyingTouch(),
+
+                    // ── 신규 캐릭터 3인 (2026-08-20) ──
+                    PassiveSkillType.ArrowRain => TryArrowRain(),
+                    PassiveSkillType.Dawn => TryDawn(),
+                    PassiveSkillType.FallenBody => TryFallenBody(),
+                    PassiveSkillType.CelestialShield => TryCelestialShield(),
+                    PassiveSkillType.DivineWrath => TryDivineWrath(),
                     _ => false,
                 };
                 if (fired) return;   // 한 프레임에 하나만 (BossSkillCaster.Update 와 같은 규칙)

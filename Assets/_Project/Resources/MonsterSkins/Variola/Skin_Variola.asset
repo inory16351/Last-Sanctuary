@@ -79,6 +79,12 @@ MonoBehaviour:
   reviveRight: []
   reviveLeft: []
   reviveFx: []
+  summonRight: []
+  summonLeft: []
+  deathRight: []
+  deathLeft: []
+  stunRight: []
+  stunLeft: []
   skill1Right:
   - {fileID: 21300000, guid: f0212758c45cf8c5248e9a09000bf9b6, type: 3}
   - {fileID: 21300000, guid: aefc282f75af526658eebe1ee0e2ed43, type: 3}
@@ -107,6 +113,8 @@ MonoBehaviour:
   - {fileID: 21300000, guid: 70970d62cfade1c6e0d7ab3267d7fde7, type: 3}
   - {fileID: 21300000, guid: 7319cb987ed136c71522470b37af193a, type: 3}
   - {fileID: 21300000, guid: bb20ba2f1dea74ba9f0e5816ed20392a, type: 3}
+  skill3Right: []
+  skill3Left: []
   skill1Fx:
   - {fileID: 21300000, guid: d24d3561b75a58fe50af95f0ef671abb, type: 3}
   - {fileID: 21300000, guid: 1fd13bbb8e582a2fc3d104e917dc73b7, type: 3}
@@ -121,6 +129,7 @@ MonoBehaviour:
   - {fileID: 21300000, guid: 361e79b7d8e3c3b475820c3f0c8cf783, type: 3}
   - {fileID: 21300000, guid: e7f76b5d07983c0e15cde29a893ed3d3, type: 3}
   - {fileID: 21300000, guid: 1209c8ce0bd0792ee466c36371837ef7, type: 3}
+  skill3Fx: []
   skill1Projectile: []
   skill2Projectile: []
   projectileFrames: []

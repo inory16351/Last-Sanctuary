@@ -11,6 +11,7 @@ PreserveAspect 때문에 어떤 건 위아래가, 어떤 건 좌우가 남아 �
 Unity 의 Resources 로 쓰므로, 몇 번을 돌려도 결과가 같고 원본이 상하지 않는다(멱등).
 크롭 위치를 바꾸려면 FACES 의 숫자만 고쳐 다시 돌리면 된다.
 """
+import hashlib
 import os
 from PIL import Image
 
@@ -65,7 +66,7 @@ FACES = [
     #   옛 좌표(147, 70, 115)를 그대로 두면 새 그림의 <b>왼쪽 위 구석</b>을 잘라낸다 —
     #   원본을 갈아끼우면 이 줄도 반드시 다시 찍어야 한다.
     ('illust_Bigior.png', 'illust_Bigior', 678,  395, 640),   # 1254x1254 — 후광 + 투구 + 흉갑
-    ('ilust_Preyja.png',  'illust_Preyja', 515,  290, 580),   # 1024x1536 — 가시 후광 전체 + 상반신
+    ('illust_Preyja.png', 'illust_Preyja', 515,  290, 580),   # 1024x1536 — 가시 후광 전체 + 상반신
     ('illust_Piolo.png',  'illust_Piolo',  570,  588, 625),   # 1024x1535 — 실크햇 + 어깨·망토
     # 2026-08-14 신규 캐릭터. 원본이 세로 전신샷이라 다른 넷과 같은 규칙으로 잡았다.
     ('illust_Histon.png', 'illust_Histon', 610,  400, 780),   # 1109x1418 — 가시관 + 흉갑
@@ -79,7 +80,68 @@ FACES = [
     #   ★ 그래서 아래 `resolve_src` 가 <b>두 이름을 다 받는다</b> — 이름 규칙이 또 흔들려도
     #     죽지 않고, 없으면 확실하게 죽는다(조용히 건너뛰지 않는다).
     ('illust_Sigrid.png', 'illust_Sigrid', 500,  405, 580),   # 1024x1536 — 가시관 + 지팡이 머리
+    # 2026-08-20 신규 캐릭터 3인. 같은 세 기준(머리 위 여백 5~8% · 가로 중심 · 눈높이 1/3)으로 잡았다.
+    # ⚠ 크롭 높이가 셋 다 다르다 — 원화의 <b>인물 크기</b>가 다르기 때문이다. 시카리아는 무릎까지
+    #   오는 중경, 아루는 전신, 카이론은 <b>올려다보는 구도</b>라 얼굴이 화면 위쪽에 이미 있다.
+    ('illust_Sicaria.png', 'illust_Sicaria', 512,  525, 760),  # 1024x1536 — 후드 + 활 잡은 두 손
+    ('illust_Aru.png',     'illust_Aru',     530,  410, 590),  # 1023x1537 — 가시 후광 + 랜턴
+    ('illust_Chiron.png',  'illust_Chiron',  585,  295, 500),  # 1122x1402 — 일식 + 상반신
+    # 2026-08-20 신규 캐릭터 2인.
+    ('illust_Arsenia.png', 'illust_Arsenia', 545,  383, 654),  # 1024x1536 — 후드 + 붉은 포션
+    ('illust_Vulcan.png',  'illust_Vulcan',  545,  455, 540),  # 1024x1536 — 가시관 + 수염·날개
 ]
+
+
+
+# ---------------------------------------------------------------------------
+# ★★ .meta 를 여기서 같이 쓴다 (2026-08-20 · 미결 185번 해소)
+#
+# <b>왜</b> — 이 스크립트는 PNG 만 쓰고 `.meta` 는 안 만들었다. 그러면 유니티가 기본값으로
+# 만들어 주는데 그 기본값이 `textureType: 0`(Default) 이고, 그 상태에서는
+# `Resources.Load<Sprite>` 가 <b>null</b> 을 돌려준다. 그러면 초상화 코드의 폴백이
+# <b>인게임 스프라이트</b>를 대신 얹는다 — 히스톤이 실제로 그랬다(84-8절 ②).
+# 캐릭터를 넣을 때마다 같은 함정을 밟으므로 스크립트가 직접 쓴다.
+#
+# ⚠ <b>이미 있으면 건드리지 않는다</b> — 유저가 인스펙터에서 손본 설정을 덮으면 안 된다.
+# ⚠ guid 는 경로에서 결정적으로 만든다(다른 Tools/*.py 와 같은 규칙) — 다시 돌려도
+#   같은 값이라 참조가 안 끊긴다.
+NL = chr(10)      # 줄바꿈 한 글자 — .meta 를 항상 LF 로 쓴다
+REF_META = 'illust_Elin.png.meta'      # 본뜰 설정(textureType 8 · spriteMode 1 …)
+
+
+def _guid_for(rel):
+    return hashlib.md5(('LastSanctuary/' + rel).encode('utf-8')).hexdigest()
+
+
+def write_meta(out_name):
+    """`<이름>.png.meta` 가 없으면 기존 일러스트 것을 본떠 만든다."""
+    dst = os.path.join(DST, out_name + '.png.meta')
+    if os.path.exists(dst):
+        return False
+
+    ref = os.path.join(DST, REF_META)
+    if not os.path.exists(ref):
+        print('  ⚠ %s 가 없어 .meta 를 못 만들었습니다 — 유니티가 기본값(textureType 0)으로 '
+              '만들면 초상화가 인게임 스프라이트로 뜹니다(84-8절).' % REF_META)
+        return False
+
+    guid = _guid_for('Resources/Illust/%s.png' % out_name)
+    # spriteID 는 <b>고유하기만</b> 하면 된다 — 다른 에셋과 겹치면 두 스프라이트가 같은
+    # id 를 갖는다(84-8절에서 실제로 밟은 함정). guid 앞 16자 + 0 으로 채운다.
+    sprite_id = guid[:16] + '0' * 16
+
+    lines = []
+    with open(ref, encoding='utf-8') as f:
+        for line in f:
+            if line.startswith('guid: '):
+                line = 'guid: %s' % guid + NL
+            elif line.strip().startswith('spriteID: '):
+                line = line[:line.index('spriteID:')] + 'spriteID: %s' % sprite_id + NL
+            lines.append(line)
+    with open(dst, 'w', encoding='utf-8', newline=NL) as f:
+        f.writelines(lines)
+    print('  + %s.png.meta (guid %s)' % (out_name, guid[:8]))
+    return True
 
 
 def crop_face(im, cx, cy, crop_h):
@@ -137,6 +199,7 @@ def main():
         cropped, box = crop_face(im, cx, cy, crop_h)
         out = cropped.resize((OUT_W, OUT_H), Image.LANCZOS)
         out.save(os.path.join(DST, out_name + '.png'))
+        write_meta(out_name)
         print('%-16s %s -> crop %s @%s  = %.4f' %
               (out_name, im.size, (box[2], box[3]), (box[0], box[1]),
                box[2] / float(box[3])))

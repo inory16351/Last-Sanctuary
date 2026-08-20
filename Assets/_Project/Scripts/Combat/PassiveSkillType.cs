@@ -1,7 +1,7 @@
 namespace LastSanctuary.Combat
 {
     /// <summary>
-    /// 패시브 스킬 18종의 <b>분기용 식별자</b>. 캐릭터 테이블 <c>Skill.skill_type</c> 문자열과 1:1 이다.
+    /// 패시브 스킬 27종의 <b>분기용 식별자</b>. 캐릭터 테이블 <c>Skill.skill_type</c> 문자열과 1:1 이다.
     ///
     /// <b>왜 enum 으로 한 번 더 옮기는가</b> — <c>PassiveSkillSO.skillType</c> 은 문자열이고
     /// (테이블의 enum 칸을 그대로 옮긴 것), 전투 로직에서 매 프레임 문자열을 비교하면
@@ -77,6 +77,63 @@ namespace LastSanctuary.Combat
         /// 쿨타임이 있다(표의 cool_time).
         /// </summary>
         UncontrollablePleasure,
+
+        // ── 시카리아 9007 (2026-08-20) ───────────────────────────────
+        /// <summary>
+        /// 고조된 감각 — 사거리 +value01 타일. 공격 유형이 <b>원거리</b>면 value02 만큼 더.
+        /// 상시 효과다(쿨타임 없음).
+        /// </summary>
+        HeightenedSenses,
+
+        /// <summary>
+        /// 한발에 두마리 — 원거리 평타가 사거리 안의 적 <b>value01 마리</b>를 동시에 때린다.
+        /// (value01 은 «총 몇 마리» 다 — 추가 수가 아니다. 정의문: "모든 적을 동시에 2마리")
+        /// </summary>
+        TwoOnOneLeg,
+
+        /// <summary>
+        /// 애로우 레인 — 현재 대상을 중심으로 반경 value01 칸 안의 적에게
+        /// <b>원거리 공격력의 value02%</b> 피해. 쿨타임.
+        /// </summary>
+        ArrowRain,
+
+        // ── 아루 9008 (2026-08-20) ───────────────────────────────────
+        /// <summary>
+        /// 도움의 손길 — 반경 value01 안에서 침식이 value02 이상이거나 후퇴 중인 동료를
+        /// <b>즉시 아루 곁으로 옮긴다</b>. 상시(쿨타임 0)라 이 파일에서 자체 간격을 둔다.
+        /// </summary>
+        AHelpingHand,
+
+        /// <summary>
+        /// 구원 — 「도움의 손길」로 옮겨진 아군을 <b>즉시 체력 재생 가능 상태</b>로 만든다.
+        /// 단독으로는 아무 일도 하지 않는다 — 위 스킬의 <b>부가 효과</b>다.
+        /// </summary>
+        Salvation,
+
+        /// <summary>
+        /// 강림 — 아루의 공격 유형이 쓰는 능력치의 value01% 를 <b>모든 능력치로 갖는 골렘</b>을
+        /// 소환한다. 크기는 value02(가로) x value03(세로) 타일.
+        /// ⚠ 쿨타임은 <b>골렘이 죽은 시점부터</b> 돈다(정의문).
+        /// </summary>
+        Dawn,
+
+        // ── 카이론 9009 (2026-08-20) ─────────────────────────────────
+        /// <summary>
+        /// 타락한 육체 — value01 초 동안 <b>최대 체력의 value02% 짜리 보호막</b>. 쿨타임.
+        /// </summary>
+        FallenBody,
+
+        /// <summary>
+        /// 천상의 방패 — value01 초 정신집중 → 지름 value02 안의 적을 value03 초 <b>도발</b> →
+        /// 도발이 끝나면 그 범위에 <b>근거리 공격력의 value04%</b> 피해. 쿨타임.
+        /// </summary>
+        CelestialShield,
+
+        /// <summary>
+        /// 천벌 — value01 초 정신집중 → <b>가로 value02 x 세로 value03</b> 직사각형 안의 적에게
+        /// 근거리 공격력의 value04% 피해 + value05 초 동안 <b>방어력 value06% 감소</b>. 쿨타임.
+        /// </summary>
+        DivineWrath,
     }
 
     public static class PassiveSkillTypes
@@ -111,6 +168,20 @@ namespace LastSanctuary.Combat
                 case "sadism":                  return PassiveSkillType.Sadism;
                 case "joy_of_pain":             return PassiveSkillType.JoyOfPain;
                 case "uncontrollable_pleasure": return PassiveSkillType.UncontrollablePleasure;
+
+                // ── 신규 캐릭터 3인 (2026-08-20) ──
+                case "heightened_senses":       return PassiveSkillType.HeightenedSenses;
+                case "two_on_one_leg":          return PassiveSkillType.TwoOnOneLeg;
+                case "arrow_rain":              return PassiveSkillType.ArrowRain;
+                case "a_helping_hand":          return PassiveSkillType.AHelpingHand;
+                case "salvation":               return PassiveSkillType.Salvation;
+                case "dawn":                    return PassiveSkillType.Dawn;
+                case "fallen_body":             return PassiveSkillType.FallenBody;
+                // ⚠ 표의 `Skill` 시트는 소문자 s(`Celestial_shield`), `Skill_Type` 시트는
+                //   대문자 S 로 적혀 있었다(2026-08-20 에 소문자로 통일). 어느 쪽이 와도 받는다 —
+                //   여기서 이미 ToLowerInvariant 를 거치므로 자동으로 그렇게 된다.
+                case "celestial_shield":        return PassiveSkillType.CelestialShield;
+                case "divine_wrath":            return PassiveSkillType.DivineWrath;
                 default:                return PassiveSkillType.None;
             }
         }

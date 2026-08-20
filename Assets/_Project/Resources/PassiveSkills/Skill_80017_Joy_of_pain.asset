@@ -23,6 +23,7 @@ MonoBehaviour:
   value03: 0
   value04: 0
   value05: 0
+  value06: 0
   coolTime: 0
   iconName: 'icon_blade_buff'
   flavorText: '끔찍한 고통조차 기꺼이 받아들인다면 더는 괴롭지 않을 것입니다.'

@@ -23,6 +23,7 @@ MonoBehaviour:
   value03: 0
   value04: 0
   value05: 0
+  value06: 0
   coolTime: 0
   iconName: 'icon_plague_cloud'
   flavorText: '역병의사의 숨결은 적들에게 공포를 선사합니다.'

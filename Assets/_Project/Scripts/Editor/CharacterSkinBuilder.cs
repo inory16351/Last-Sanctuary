@@ -87,6 +87,12 @@ namespace LastSanctuary.EditorTools
             ("Revive",       "reviveRight",       "reviveLeft"),
             ("ReviveFx",     "reviveFx",          null),
 
+            // ── 소환·사망 (2026-08-20 · 아루의 「강림」 골렘) ────────────
+            ("Summon",       "summonRight",       "summonLeft"),
+            ("Death",        "deathRight",        "deathLeft"),
+            // ★ 2026-08-20 — 탈진(행동 불능 · 아르세니아). 누운 자세라 크기 계산이 다르다.
+            ("Stun",         "stunRight",         "stunLeft"),
+
             // ── 투사체·착탄 ──────────────────────────────────────────────
             ("Projectile",     "projectileFrames",   null),
             ("MuzzleFlash",    "muzzleFlashFrames",  null),
@@ -101,6 +107,9 @@ namespace LastSanctuary.EditorTools
             ("Skill2",           "skill2Right",       "skill2Left"),
             ("Skill1Fx",         "skill1Fx",          null),
             ("Skill2Fx",         "skill2Fx",          null),
+            // ★ 2026-08-20 — 세 번째 슬롯(카이론). 보스는 둘뿐이라 지금까지 필요가 없었다.
+            ("Skill3",           "skill3Right",       "skill3Left"),
+            ("Skill3Fx",         "skill3Fx",          null),
             ("Skill1Projectile", "skill1Projectile",  null),
             ("Skill2Projectile", "skill2Projectile",  null),
         };

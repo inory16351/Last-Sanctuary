@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21498a0a43b4e824ea7e6db210ef2e29, type: 3}
+  m_Name: Skill_80032_The_wisdom_of_a_sage
+  m_EditorClassIdentifier:
+  skillId: 80032
+  nameKey: 'skill_name_80032'
+  flavorKey: 'skill_explain_80032'
+  effectKey: 'skill_type_desc_The_wisdom_of_a_sage'
+  skillName: '현자의 지혜'
+  skillType: 'The_wisdom_of_a_sage'
+  value01: 5
+  value02: 5
+  value03: 0
+  value04: 0
+  value05: 0
+  value06: 0
+  coolTime: 0
+  iconName: 'icon_spell_tome'
+  flavorText: '현자의 지혜는 전장의 위협을 슬기롭게 헤쳐나갈 힘이 있습니다.'
+  effectTemplate: '불칸의 마법이 {value_01} 만큼 상승하고 불칸의 공격속도가 {value_02} 만큼 영구적으로 상승합니다. 이값은 최댓값을 초월할 수 있습니다.'

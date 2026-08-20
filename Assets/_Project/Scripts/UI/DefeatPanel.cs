@@ -176,7 +176,8 @@ namespace LastSanctuary.UI
             var all = UnitRegistry.All;
             int n = 0;
             for (int i = 0; i < all.Count; i++)
-                if (all[i] is CharacterUnit c && c.IsAlive) n++;
+                // ★ 소환수(아루의 골렘)는 세지 않는다 — CharacterUnit.IsSummoned 의 긴 주석 참조.
+                if (all[i] is CharacterUnit c && c.IsAlive && !c.IsSummoned) n++;
             return n;
         }
 
