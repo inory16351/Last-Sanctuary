@@ -233,7 +233,7 @@ MonoBehaviour:
     meleeCount: 36
     rangedCount: 36
     bossCount: 1
-    bossMonsterId: 120001
+    bossMonsterId: 120005
     statPercent: 2260
     reinforceIntervalSeconds: 0
     reinforceCount: 0
@@ -278,7 +278,7 @@ MonoBehaviour:
     meleeCount: 41
     rangedCount: 41
     bossCount: 1
-    bossMonsterId: 120002
+    bossMonsterId: 120001
     statPercent: 2560
     reinforceIntervalSeconds: 0
     reinforceCount: 0
@@ -323,7 +323,7 @@ MonoBehaviour:
     meleeCount: 46
     rangedCount: 46
     bossCount: 1
-    bossMonsterId: 120003
+    bossMonsterId: 120002
     statPercent: 2810
     reinforceIntervalSeconds: 0
     reinforceCount: 0
@@ -368,7 +368,7 @@ MonoBehaviour:
     meleeCount: 51
     rangedCount: 51
     bossCount: 1
-    bossMonsterId: 120004
+    bossMonsterId: 120003
     statPercent: 3000
     reinforceIntervalSeconds: 0
     reinforceCount: 0

@@ -40,7 +40,7 @@ MonoBehaviour:
   colliderWidthTiles: 11
   illustName: Variola_illust
   skinAssetName: Variola
-  habitatTileAsset: 
+  habitatTileAsset: VariolaHabitat
   titleKey: epic_boss_title_1103
   rangedAttackStat: 0
   magicStat: 0

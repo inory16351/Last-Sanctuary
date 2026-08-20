@@ -1,83 +1,80 @@
 # -*- coding: utf-8 -*-
 """베일(웨이브 최종보스 120005) 모션 시트 → 프레임 분해 (2026-08-20).
 
-유저 지시: *"베일도 만들고"* (2026-08-20)
+유저 지시: *"베일 스킨 모션 동작 값은 너가 스킨 이미지 분석해서 적절한 값 지정해서 잘라서 써
+내가 넣은 두가지 이미지 조합해서"*
 
-원본 — **두 장이고 ``_02`` 가 정본이다**
-----------------------------------------
-``<볼트>/리소스/sprites/Bale_asset_02.png``  (1536x1024) — ★ **정본**
-``<볼트>/리소스/sprites/Bale_asset_01.png``  (1536x1024) — 같은 구성의 **저프레임 판본**
+원본 — **두 장을 실제로 나눠 쓴다**
+====================================
+``<볼트>/리소스/sprites/Bale_asset_01.png``  (1536x1024) — ★ **몸통 전부**
+``<볼트>/리소스/sprites/Bale_asset_02.png``  (1536x1024) — ★ **투사체만**
 
-두 장이 <b>구성은 완전히 같고 장수만 다르다</b>. ``_02`` 가 모든 줄에서 약 두 배다:
+두 장은 <b>구성이 완전히 같고 장수만 다르다</b>(``_02`` 가 대략 두 배). 처음에는 장수가
+많은 ``_02`` 를 정본으로 잡았는데 **그게 틀린 선택이었다**:
 
-| 줄 | ``_01`` | ``_02`` | 판정 |
-|---|---|---|---|
-| 대기 | 8 | **16** | ``_02`` |
-| 이동 | 10 | **16** | ``_02`` |
-| 근거리 공격 | 9 | **18** | ``_02`` |
-| 원거리 공격 | 10 | **20** | ``_02`` |
-| 담뱃대 휘두르기 패턴 | 12 | **24** | ``_02`` |
-| 담배연기 패턴 | 10 | **24** | ``_02`` |
-| 원거리 투사체 | 8 | **16** | ``_02`` |
-| 반원형 범위 이펙트 | 1 | 1 | 같음 |
+★★ 판단 근거 — **`_02` 는 칸을 가를 수가 없다**
+-----------------------------------------------
+``_02`` 는 같은 폭에 두 배를 그려 넣느라 **프레임이 서로 붙어 있다.** 네 가지 방법을
+전부 재봤는데 다 실패했다(실측):
 
-⚠⚠ <b>시트 헤더의 프레임 수를 믿으면 안 된다.</b> 「■ 대기 (16프레임)」이라고 적혀 있지만
-  실제로 그려진 것은 <b>14장</b>이다(빈 열로 갈라보면 정확히 14덩어리 · 간격 94.6px).
-  라벨 번호도 <b>건너뛰거나 중복된다</b>(대기 줄에 12·15 가 없고, 원거리 줄에 14 가 두 번).
-  그래서 장수는 <b>라벨 덩어리 개수</b>로 센다 — 그 값이 실제 덩어리 수와 일치한다(실측).
+| 방법 | ``_02`` 결과 |
+|---|---|
+| 빈 열로 가르기 | 24칸이 **4~11칸**으로 붙는다 |
+| 라벨 개수 | 두 자리 숫자가 붙어 16칸 줄에서 **13~14개** |
+| 맨 앞·뒤 라벨 간격 | **맨 앞 라벨이 「1」이 아니다**(원거리 줄) — 한 칸씩 밀린다 |
+| 폭 ÷ 장수 | 간격이 완전히 일정하지 않아 **프레임마다 옆 칸 망토가 딸려 온다** |
 
-★ <b>장수가 시전 시간과 맞아떨어지는 쪽</b>을 골랐다 — 표(`웨이브 몬스터 테이블` / `Skill`)의
-  `cast_time` 이 담뱃대 강타 **2초** · 담배연기 **3초** 다. 공격 모션은 초당 14장이므로
-  24장 = 1.7초로 2초에 가깝다. ``_01`` 의 12·10장은 0.86·0.71초라 <b>시전이 끝나기 전에
-  모션이 끝난다</b>. ``_01`` 이 픽셀은 더 큰데(프레임이 두 배 크다) 게임 안 크기는
-  `contentSizeTiles` 로 정규화되므로 화면 크기는 어느 쪽을 써도 같다.
+⚠ 게다가 ``_02`` 는 <b>헤더의 프레임 수도 틀리다</b> — 「대기 (16프레임)」인데 실제로
+  그려진 것은 **14장**이고(빈 열로 세면 정확히 14덩어리), 라벨 번호가 건너뛰거나
+  중복된다(대기에 12·15 없음 · 원거리에 14 가 두 번).
 
-칸을 어떻게 가르나 — ★★ **그림 폭을 균등 분할**한다
-----------------------------------------------------
-이 시트는 앞의 세 방법이 **전부 안 통한다**(실측):
+반면 ``_01`` 은 **프레임이 깨끗하게 떨어져 있다** — 대기 줄이 8덩어리에 폭 91~96px 로
+고르다. 그림도 <b>1.4배 크게</b> 그려져 있어 픽셀이 더 많다. 장수(8~12장)는 이 프로젝트의
+다른 유닛과 같은 대역이다(엘린 대기 8 · 라린길 대기 8 · 시그리드 대기 8).
 
-  · ``cells_by_gaps`` — 프레임이 서로 붙어 빈 열이 없다. 24칸이 **4~11칸**으로 붙는다.
-  · ``cells_by_labels`` — 두 자리 라벨이 붙거나 헤더 글자와 섞여 개수가 모자란다
-    (16칸 줄에서 **13~14개**만 잡힌다).
-  · ``cells_by_pitch`` — 맨 앞·뒤 라벨로 간격을 구하는 방법. 여기서는 **맨 앞 라벨이
-    「1」이 아니었다**(원거리 줄에서 「1」을 놓쳐 249 = 「2」를 시작으로 잡았다) —
-    간격이 한 칸씩 밀려 프레임마다 옆 칸이 조금씩 잘려 들어왔다. 실제로 그렇게 나왔다.
+→ **몸통 여섯 줄은 ``_01``**. 장수가 절반이지만 <b>자를 수 있는 쪽</b>이 정본이다.
 
-→ 그래서 :func:`skin_sheet.cells_by_span` 을 쓴다: **그림이 놓인 전체 폭 ÷ 장수**.
-  라벨을 아예 안 보므로 위 함정이 통째로 사라지고, 실측으로 라벨에서 구한 간격과
-  거의 같다(대기 82.4 ↔ 82.3 · 스킬1 62.1 ↔ 62.3 · 스킬2 61.4 ↔ 61.0).
-  시트가 «(16프레임)» 처럼 장수를 적어 놨으므로 개수는 확실하다.
+★ 투사체만 ``_02`` 를 쓴다 — 이쪽은 반대다
+------------------------------------------
+투사체는 <b>연기 구체가 커졌다 흩어지는</b> 그림이라 장수가 많을수록 부드럽고, 서로
+겹칠 일이 없어 ``_02`` 에서도 **덩어리가 깨끗하게 갈린다**(폭 32~42px 로 고르다).
+``_01`` 은 8장인데 폭이 31~72px 로 들쭉날쭉하다. 그래서 **투사체만 ``_02``(16장)** 다.
 
-⚠ 라벨은 **검산 전용**으로만 읽는다(:func:`report_frame_counts`) — 개수가 맞으면 좋고
-  모자라도 그냥 알려준다. 라벨 줄의 x 시작이 캐릭터 줄만 **140** 인 이유는 헤더
-  (`■ 대기 (16프레임)`)가 번호와 같은 줄에 있어서다.
+⚠ 몸통과 투사체는 <b>따로 그려져 따로 재생</b>되므로 판본이 갈려도 화면에서 어긋날 곳이
+  없다 — 라린길이 화염만 다른 판본에서 가져온 것과 같은 이유다(115절).
+
+칸을 어떻게 가르나 — :func:`skin_sheet.cells_by_clusters`
+---------------------------------------------------------
+덩어리를 그대로 쓰되 **뒷정리 두 가지**를 한다(그쪽 주석에 자세히):
+① 폭이 중앙값의 40% 미만인 **부스러기를 버린다**(이동 줄의 7px·5px 두 점),
+② 중앙값의 1.55배를 넘는 **붙은 덩어리를 가른다** — 경계는 그 근처에서 잉크가 가장 적은
+   열로 옮겨 팔·망토 한가운데를 자르지 않는다.
+
+★ 그래서 <b>장수를 코드에 적지 않는다.</b> 시트 헤더가 틀렸으므로 세는 쪽이 정본이다 —
+  아래 실행 결과가 그 값이고, 헤더와 ±1 안쪽이다.
 
 ★★ 시트에 **검은 액자**가 있다
 ------------------------------
 구획 상자는 연회색인데 시트 전체를 감싼 테두리는 **검정**이다. 그래서 배경 흘려 채우기의
-씨앗이 전부 액자 위에 떨어져 **시트 전부가 그림으로 잡혔다**(1,572,864px = 전 화소).
-:func:`skin_sheet.erase_box_borders` 에 어두운 액자 판정을, :func:`background_mask` 에
-안쪽 씨앗(``SEED_INSET``)을 넣어 해결했다 — 그쪽 주석에 근거가 있다.
+씨앗이 전부 액자 위에 떨어져 **시트 전부가 그림으로 잡혔다**(전 화소).
+:func:`skin_sheet.erase_box_borders` 의 어두운 액자 판정과 :func:`background_mask` 의
+안쪽 씨앗(``SEED_INSET``)이 그것을 막는다.
 
 무엇이 어디로 가나 (배선은 `Editor/CharacterSkinBuilder.cs` 가 한다)
 --------------------------------------------------------------------
-| 폴더 | 장수 | 스킨 칸 |
+| 폴더 | 원본 | 스킨 칸 |
 |---|---|---|
-| ``Char/Idle`` | 16 | ``idleRight`` · ``idleLeft`` |
-| ``Char/Move`` | 16 | ``walkRight`` · ``walkLeft`` |
-| ``Char/MeleeAttack`` | 18 | ``attackRight`` · ``attackLeft`` |
-| ``Char/RangedAttack`` | 20 | ``rangedRight`` · ``rangedLeft`` |
-| ``Char/Skill1`` | 24 | ``skill1Right`` · ``skill1Left`` — 담뱃대 강타(130009) |
-| ``Char/Skill2`` | 24 | ``skill2Right`` · ``skill2Left`` — 담배연기(130010) |
-| ``Char/Projectile`` | 16 | ``projectileFrames`` — 원거리 평타 탄환 |
-| ``Char/Skill2Fx`` | 1 | ``skill2Fx`` — 반원형 범위 이펙트 |
+| ``Char/Idle`` | ``_01`` | ``idleRight`` · ``idleLeft`` |
+| ``Char/Move`` | ``_01`` | ``walkRight`` · ``walkLeft`` |
+| ``Char/MeleeAttack`` | ``_01`` | ``attackRight`` · ``attackLeft`` |
+| ``Char/RangedAttack`` | ``_01`` | ``rangedRight`` · ``rangedLeft`` |
+| ``Char/Skill1`` | ``_01`` | ``skill1Right`` · ``skill1Left`` — 담뱃대 강타(130009) |
+| ``Char/Skill2`` | ``_01`` | ``skill2Right`` · ``skill2Left`` — 담배연기(130010) |
+| ``Char/Skill2Fx`` | ``_01`` | ``skill2Fx`` — 반원형 범위 이펙트 |
+| ``Char/Projectile`` | ``_02`` | ``projectileFrames`` — 원거리 평타 탄환 |
 
-⚠ **``skill1Fx`` 는 없다.** 담뱃대 강타는 시트에 <b>범위 연출이 따로 없고</b> 모션 안에
-  휘두르는 궤적이 그려져 있다(7~12번 칸). 비워두면 `BossSkillCaster` 가 범위 표시를
-  생략한다 — 없는 그림을 지어내는 것보다 낫다.
-
-⚠ 원거리 평타 줄의 **14번 칸은 탄환만** 그려져 있다(몸통이 없다). 그 칸도 그대로 뽑는다 —
-  20장이 한 동작이고, 중간에 캐릭터가 사라지는 것이 원화의 의도다(발사 순간의 연출).
+⚠ **``skill1Fx`` 는 없다.** 담뱃대 강타는 범위 연출이 따로 없고 모션 안에 휘두르는 궤적이
+  그려져 있다. 비워두면 `BossSkillCaster` 가 범위 표시를 생략한다 — 없는 그림을 지어내지 않는다.
 
 방향 — **전부 오른쪽**
 ----------------------
@@ -98,13 +95,13 @@ from vault_path import VAULT, PROJECT
 
 from skin_sheet import (  # noqa: F401
     PPU, SKIN_SPEC_NAME, write_skin_spec,
-    load_sheet, label_blobs, cells_by_span, boxes_for, boxes_dominant, crop_rgba,
+    load_sheet, cells_by_clusters, boxes_for, crop_rgba,
     body_anchor, base_anchor, compose, write_png, ensure_folder_meta,
     shadow_in_box,
 )
 
-SRC = os.path.join(VAULT, "리소스", "sprites", "Bale_asset_02.png")
-SRC_LOW = os.path.join(VAULT, "리소스", "sprites", "Bale_asset_01.png")
+SRC_BODY = os.path.join(VAULT, "리소스", "sprites", "Bale_asset_01.png")
+SRC_PROJ = os.path.join(VAULT, "리소스", "sprites", "Bale_asset_02.png")
 
 DST_ROOT = os.path.join(PROJECT, "Assets", "_Project", "Art", "Char_Asset",
                         "Char_Asset_Bale", "Char")
@@ -117,100 +114,36 @@ SKIN_SPEC = {
     "displayName": "베일",
     "framesPerSecond": "10",
     "attackFramesPerSecond": "14",
-    # 담뱃대에서 뿜는 검은 구체. 몸집이 15타일이라 1.4 면 주먹만 하게 보인다.
+    # 담뱃대에서 뿜는 연기 구체. 베일 몸집이 15타일이라 1.4 면 주먹만 하게 보인다.
     "projectileWidthTiles": "1.4",
 }
 
-#: 라벨 줄의 x 시작 — 캐릭터 모션 줄은 헤더가 같은 줄에 있다(맨 위 ⚠).
-LABEL_X_BODY = 140
-LABEL_X_PATTERN = 10
-
 # ──────────────────────────────────────────────────────────────────────────
-# 시트 좌표 — **실측** (Bale_asset_02.png)
-#   name · 라벨 y0,y1 · 그림 y0,y1 · x0,x1 · 장수 · kind
+# 시트 좌표 — **실측**. 장수는 적지 않는다(세는 쪽이 정본 · 맨 위 ★).
+#   (폴더, 원본, y0, y1, x0, x1, kind)
 # ──────────────────────────────────────────────────────────────────────────
-# ⚠⚠ 라벨 줄의 x 와 **그림 줄의 x 는 다르다.** 캐릭터 모션 줄은 헤더
-#    (`■ 대기 (16프레임)`)가 번호와 같은 줄에 있어 라벨은 140 부터 봐야 하는데,
-#    그림에까지 그 값을 쓰면 **1번 프레임의 왼쪽이 잘려** 칸 간격이 통째로 어긋난다
-#    (실측: 대기 줄의 진짜 잉크는 x114 에서 시작한다 — 140 으로 자르면 26px 손실).
 ROWS = [
-    #  name           라벨 y0,y1   그림 y0,y1   라벨x0          그림x0  x1    장수  kind
-    ("Idle",          49,  61,  72, 151, LABEL_X_BODY,    10, 1523, 16, "body"),
-    ("Move",         170, 185, 197, 270, LABEL_X_BODY,    10, 1523, 16, "body"),
-    ("MeleeAttack",  292, 306, 314, 388, LABEL_X_BODY,    10, 1523, 18, "body"),
-    ("RangedAttack", 409, 426, 431, 505, LABEL_X_BODY,    10, 1523, 20, "body"),
-    ("Skill1",       576, 587, 590, 690, LABEL_X_PATTERN, 10, 1523, 24, "body"),
-    ("Skill2",       727, 737, 742, 816, LABEL_X_PATTERN, 10, 1523, 24, "body"),
-    # ⚠ 투사체는 오른쪽에 반원형 이펙트가 같이 있어 x 를 755 로 막는다.
-    ("Projectile",   881, 897, 900, 1000, LABEL_X_PATTERN, 10, 755, 16, "fx"),
+    ("Idle",         "body",  66, 152,  10, 1523, "body"),
+    ("Move",         "body", 186, 269,  10, 1523, "body"),
+    ("MeleeAttack",  "body", 303, 388,  10, 1523, "body"),
+    ("RangedAttack", "body", 423, 510,  10, 1523, "body"),
+    # ⚠ 패턴 두 줄은 **구획 제목과 프레임 번호가 그림과 같은 y 에 걸친다**(캐릭터가
+    #   그만큼 높다). 위 네 줄과 달리 제목 줄이 따로 떨어져 있지 않아 잉크 밴드로는
+    #   못 가른다 — 그래서 y0 를 글자 아래로 **직접 내려 잡았다**(실측: 제목이
+    #   Skill1 560~577 · Skill2 706~730). 담뱃대 끝이 몇 px 잘리지만 글자가 프레임에
+    #   섞여 들어가는 것보다 낫다.
+    ("Skill1",       "body", 586, 688,  10, 1523, "body"),
+    ("Skill2",       "body", 732, 815,  10, 1523, "body"),
+    # ★ 투사체만 다른 판본 (맨 위 ★). 오른쪽의 반원형 이펙트를 안 먹게 x 를 막는다.
+    #   ⚠ 이 판본은 라벨(896~904)이 그림(925~963)과 **떨어져** 있어 그대로 잘라내면 된다.
+    ("Projectile",   "proj", 925, 963,  10,  755, "fx"),
 ]
 
-#: 반원형 범위 이펙트 — 라벨이 「(1프레임)」 하나뿐이라 칸을 가를 것이 없다.
-#:   (name, y0, y1, x0, x1)
-SINGLE_FX = [("Skill2Fx", 884, 1000, 760, 1523)]
+#: 반원형 범위 이펙트 — 한 장짜리라 칸을 가를 것이 없다. (폴더, 원본, y0, y1, x0, x1)
+SINGLE_FX = [("Skill2Fx", "body", 881, 1004, 780, 1523)]
 
 #: 좌우 방향이 없는 묶음 — 파일 이름에 Right/Left 를 안 붙인다.
 NO_DIRECTION = {"Projectile", "Skill2Fx"}
-
-
-def report_frame_counts(sheet):
-    """장수가 시트 표기와 맞는지 매번 다시 확인해 출력한다."""
-    print("  [칸 검산] 라벨 개수는 붙어서 모자랄 수 있다 — 간격은 맨 앞·뒤만 쓴다")
-    for name, l0, l1, y0, y1, lx0, x0, x1, cnt, kind in ROWS:
-        bl = label_blobs(sheet["gray"], lx0, x1, l0, l1, gap=10, max_w=30)
-        if len(bl) < 2:
-            raise SystemExit("⚠ %s: 라벨을 두 개도 못 찾았습니다 (y%d~%d · x%d~%d)"
-                             % (name, l0, l1, lx0, x1))
-        print("    %-13s 라벨 %2d개 (x %4d..%4d) → 칸 %2d개"
-              % (name, len(bl), bl[0][0], bl[-1][1], cnt))
-
-
-def build(sheet):
-    made = 0
-    for name, l0, l1, y0, y1, lx0, x0, x1, cnt, kind in ROWS:
-        # ★★ 장수는 **라벨 덩어리 개수**다 — 시트 헤더의 «(16프레임)» 을 믿으면 안 된다
-        #    (맨 위 ⚠⚠). 그리고 칸은 «그림이 놓인 폭 ÷ 장수» 로 가른다.
-        cnt = len(label_blobs(sheet["gray"], lx0, x1, l0, l1, gap=10, max_w=30))
-        cells = cells_by_span(sheet["mask"], y0, y1, x0, x1, cnt)
-        if len(cells) != cnt:
-            raise SystemExit("⚠ %s: 칸이 %d개로 나왔습니다 (%d 기대)"
-                             % (name, len(cells), cnt))
-
-        if kind == "body":
-            rough = [b for b in boxes_dominant(sheet["mask"], cells, y0, y1,
-                                               min_ink_ratio=0.35) if b is not None]
-            shadow = np.zeros(sheet["mask"].shape, dtype=bool)
-            for b in rough:
-                shadow |= shadow_in_box(sheet, b)
-            sheet["mask"] &= ~shadow
-
-        # ★★ 칸 안의 «가장 잉크가 많은 덩어리»만 — 옆 칸 조각을 버린다(그쪽 주석).
-        # ⚠ 옆 칸에서 삐져 들어온 **망토 조각**이 꽤 커서(본체의 12~25%) 기본값으로는
-        #   안 걸러진다 — 0.35 로 올렸다. 연기·담뱃대처럼 몸통과 떨어져 있어도 그 프레임의
-        #   일부인 것은 훨씬 크므로 함께 남는다(실측으로 확인).
-        boxes = boxes_dominant(sheet["mask"], cells, y0, y1, min_ink_ratio=0.35)
-        missing = [i for i, b in enumerate(boxes) if b is None]
-        if missing:
-            raise SystemExit("⚠ %s: 빈 칸이 있습니다 %s — 좌표를 다시 재세요."
-                             % (name, missing))
-
-        frames = [crop_rgba(sheet, b) for b in boxes]
-        anchor = body_anchor if kind == "body" else base_anchor
-        images, w, h = compose(frames, [anchor(f) for f in frames])
-
-        made += write_group(images, name)
-        print("  %-13s %3d x %3d · %2d장" % (name, w, h, len(images)))
-
-    for name, y0, y1, x0, x1 in SINGLE_FX:
-        box = boxes_for(sheet["mask"], [(x0, x1)], y0, y1)[0]
-        if box is None:
-            raise SystemExit("⚠ %s: 그림을 못 찾았습니다" % name)
-        rgba = crop_rgba(sheet, box)
-        images, w, h = compose([rgba], [base_anchor(rgba)])
-        made += write_group(images, name)
-        print("  %-13s %3d x %3d ·  1장" % (name, w, h))
-
-    return made
 
 
 def write_group(images, name):
@@ -229,17 +162,55 @@ def write_group(images, name):
     return n
 
 
+def build(sheets):
+    made = 0
+    for name, src, y0, y1, x0, x1, kind in ROWS:
+        sheet = sheets[src]
+        cells = cells_by_clusters(sheet["mask"], y0, y1, x0, x1)
+        if not cells:
+            raise SystemExit("⚠ %s: 칸을 하나도 못 찾았습니다 (y%d~%d)" % (name, y0, y1))
+
+        # ★ 몸통 줄만 발밑 그림자를 지운다 — 이펙트는 그 자체가 연출이다.
+        if kind == "body":
+            rough = [b for b in boxes_for(sheet["mask"], cells, y0, y1) if b is not None]
+            shadow = np.zeros(sheet["mask"].shape, dtype=bool)
+            for b in rough:
+                shadow |= shadow_in_box(sheet, b)
+            sheet["mask"] &= ~shadow
+
+        boxes = [b for b in boxes_for(sheet["mask"], cells, y0, y1) if b is not None]
+        frames = [crop_rgba(sheet, b) for b in boxes]
+        anchor = body_anchor if kind == "body" else base_anchor
+        images, w, h = compose(frames, [anchor(f) for f in frames])
+
+        made += write_group(images, name)
+        print("  %-13s (%s) %3d x %3d · %2d장  폭 %s"
+              % (name, src, w, h, len(images), [e - s + 1 for s, e in cells]))
+
+    for name, src, y0, y1, x0, x1 in SINGLE_FX:
+        sheet = sheets[src]
+        box = boxes_for(sheet["mask"], [(x0, x1)], y0, y1)[0]
+        if box is None:
+            raise SystemExit("⚠ %s: 그림을 못 찾았습니다" % name)
+        rgba = crop_rgba(sheet, box)
+        images, w, h = compose([rgba], [base_anchor(rgba)])
+        made += write_group(images, name)
+        print("  %-13s (%s) %3d x %3d ·  1장" % (name, src, w, h))
+
+    return made
+
+
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
     print("[베일 모션 시트 분해]")
-    if os.path.isfile(SRC_LOW):
-        print("  (저프레임 판본 %s 은 읽지 않는다 — 맨 위 표)" % os.path.basename(SRC_LOW))
 
     # ★★ 검은 액자를 배경 판정보다 먼저 지운다 (맨 위 ★★).
-    sheet = load_sheet(SRC, box_borders=True)
-    report_frame_counts(sheet)
+    sheets = {
+        "body": load_sheet(SRC_BODY, box_borders=True),
+        "proj": load_sheet(SRC_PROJ, box_borders=True),
+    }
 
-    n = build(sheet)
+    n = build(sheets)
     spec = write_skin_spec(DST_ROOT, SKIN_SPEC, "Tools/bale_skin_build.py")
     ensure_folder_meta(DST_ROOT)
     ensure_folder_meta(os.path.dirname(DST_ROOT))

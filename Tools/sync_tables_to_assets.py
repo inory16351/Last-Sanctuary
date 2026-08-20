@@ -217,14 +217,47 @@ def sync_mental_errors():
 #
 # ★ 2026-08-18 — 중간보스 2종(110001·110002)이 <b>빠졌다</b>. 유저 지시로 중간보스를 없애고
 #   보스를 「5웨이브마다 단탈리온/말파스 교대」로 바꿨다. 말파스(120002)가 새로 들어온다.
-MONSTER_ASSET_BY_ID = {
-    100001: 'Monster_HellFang',
-    100002: 'Monster_SoulArcher',
-    120001: 'Monster_Dantalian',
-    120002: 'Monster_Malphas',
-    120003: 'Monster_Kasinoma',
-    120004: 'Monster_Laryngeal',   # ★ 라린길 신규 (2026-08-19) — 표만 있고 원화(스킨)는 아직 없다
-}
+#
+# ★★ 2026-08-20 — <b>손으로 적던 표를 없앴다.</b> 유저 지시: *"하드 코딩 최대한 자제"*.
+#
+# 여섯 줄이 전부 <b>같은 규칙</b>이었다: 표의 `ingame_asset`(`Char_Asset_HellFang`)에서
+# 접두사만 갈아 끼운 것(`Monster_HellFang`). 즉 표의 중복이었고, 그래서 베일(120005)을
+# 추가했을 때 이 줄을 안 고쳐 <b>정의 에셋이 아예 안 만들어졌다.</b>
+#
+# 이제 규칙으로 만든다 — :func:`monster_asset_name`. `MONSTER_ASSET_OVERRIDE` 는
+# 이름 규칙에서 벗어나는 몬스터가 생길 때만 쓰는 예외 칸이다(지금은 비어 있는 것이 정상).
+MONSTER_ASSET_OVERRIDE = {}
+
+#: 표의 `ingame_asset` 접두사 → 정의 에셋 접두사.
+_ASSET_PREFIX = 'Char_Asset_'
+
+
+def monster_asset_name(mid, ingame_asset):
+    """표의 `ingame_asset` 에서 정의 에셋 이름을 짓는다 (위 ★★)."""
+    if mid in MONSTER_ASSET_OVERRIDE:
+        return MONSTER_ASSET_OVERRIDE[mid]
+    name = (ingame_asset or '').strip()
+    if name.startswith(_ASSET_PREFIX):
+        name = name[len(_ASSET_PREFIX):]
+    return 'Monster_%s' % name if name else ''
+
+
+def monster_assets():
+    """
+    표에 있는 <b>모든</b> 웨이브 몬스터의 id → 정의 에셋 이름.
+    잡몹(`wave_nom`)과 보스(`wave_top_boss`) 두 시트를 다 본다.
+    """
+    out = {}
+    for sheet in ('wave_nom', 'wave_top_boss'):
+        for row in read_rows(XLSX_WAVE_MON, sheet):
+            raw = row.get('monster_id')
+            if raw in (None, ''):
+                continue
+            mid = int(num(raw))
+            asset = monster_asset_name(mid, row.get('ingame_asset'))
+            if asset:
+                out[mid] = asset
+    return out
 
 # 삭제된 중간보스 에셋 — 남아 있으면 스포너 슬롯에 다시 끌려 들어갈 수 있어서 지운다.
 REMOVED_MONSTER_ASSETS = (
@@ -479,7 +512,7 @@ def sync_monsters():
 
     remove_deleted_assets(folder)
 
-    for mid, asset in MONSTER_ASSET_BY_ID.items():
+    for mid, asset in sorted(monster_assets().items()):
         r = stats.get(mid)
         if r is None:
             print('  ! 표에 id %d 가 없습니다' % mid)
@@ -675,8 +708,8 @@ def sync_boss_skills():
     # ⚠ 필드명으로 읽는다 - 영어 이름 컬럼 삭제(2026-08-13)로 위치가 밀렸다.
     for row in read_rows(XLSX_WAVE_MON, 'wave_top_boss'):
         mid = int(num(row.get('monster_id')))
-        asset = MONSTER_ASSET_BY_ID.get(mid)
-        if asset is None:
+        asset = monster_asset_name(mid, row.get('ingame_asset'))
+        if not asset:
             print('  ! 최종보스 id %d 에 해당하는 에셋 이름을 모릅니다' % mid)
             continue
 

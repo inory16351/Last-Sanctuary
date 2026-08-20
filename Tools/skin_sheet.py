@@ -572,6 +572,56 @@ def boxes_dominant(mask, cells, y0, y1, min_ink_ratio=0.12):
     return out
 
 
+def cells_by_clusters(mask, y0, y1, x0, x1,
+                      sliver_ratio=0.40, split_ratio=1.55, edge_margin=8, search=18):
+    """
+    ★★ 칸을 **그림 덩어리 그대로** 잡는다 — 프레임이 서로 떨어져 있는 시트용.
+
+    :func:`cells_by_gaps` 와 다른 점은 **뒷정리 두 가지**다. 그것 때문에 빈 열이 있어도
+    그냥 세기만 하면 개수가 틀린다:
+
+    1. <b>부스러기를 버린다</b> — 폭이 중앙값의 :paramref:`sliver_ratio` 미만인 덩어리.
+       원화 옆에 튄 점·잘린 획이 한두 개씩 있다(베일 이동 줄에 7px·5px 두 개).
+    2. <b>붙은 덩어리를 가른다</b> — 폭이 중앙값의 :paramref:`split_ratio` 배를 넘으면
+       «중앙값 몇 개분인지» 로 등분하되, 경계는 그 근처에서 <b>잉크가 가장 적은 열</b>로
+       옮긴다. 그래야 팔·망토 한가운데를 자르지 않는다.
+
+    ⚠ 이 방법은 **프레임 폭이 고르다는 전제**에 기댄다(중앙값을 자로 쓰므로). 베일
+      ``_01`` 이 그렇다(91~146px). 폭이 제각각인 시트에서는 :func:`cells_by_span` 이 낫다.
+    """
+    sub = mask[y0:y1 + 1, x0:x1 + 1]
+    band = sub.any(axis=0)
+    groups = runs(band, 1)
+    if not groups:
+        return []
+
+    widths = [e - s + 1 for s, e in groups]
+    med = float(np.median(widths))
+    keep = [g for g, wd in zip(groups, widths) if wd >= med * sliver_ratio]
+    if not keep:
+        return []
+    med = float(np.median([e - s + 1 for s, e in keep]))
+
+    cols = sub.sum(axis=0)
+    out = []
+    for s, e in keep:
+        wd = e - s + 1
+        n = int(round(wd / med)) if med > 0 else 1
+        if n >= 2 and wd > med * split_ratio:
+            bounds = [s]
+            for k in range(1, n):
+                mid = s + int(wd * k / n)
+                lo = max(s + edge_margin, mid - search)
+                hi = min(e - edge_margin, mid + search)
+                bounds.append(lo + int(np.argmin(cols[lo:hi])) if hi > lo else mid)
+            bounds.append(e + 1)
+            for k in range(len(bounds) - 1):
+                out.append((bounds[k] + x0, bounds[k + 1] - 1 + x0))
+        else:
+            out.append((s + x0, e + x0))
+    return out
+
+
 def cells_by_span(mask, y0, y1, x0, x1, count):
     """
     ★★ 칸 경계를 **그림이 차지한 폭을 균등 분할**해서 정한다 — 프레임 수를 아는 줄에 쓴다.
