@@ -112,5 +112,50 @@ namespace LastSanctuary.EditorTools
 
             AssetDatabase.Refresh();
         }
+
+        /// <summary>
+        /// 정의 에셋들이 가리키는 <b>일러스트가 실제로 Sprite 로 읽히는지</b> 점검한다
+        /// (2026-08-20 신설).
+        ///
+        /// ★★ <b>왜 별도 점검이 필요한가</b> — 위 <see cref="FixAll"/> 는 «임포트 설정이
+        /// Sprite 인가» 를 본다. 그런데 그림이 화면에 안 뜨는 원인은 그것 하나가 아니다:
+        /// 표의 이름이 파일명과 다를 수도 있고(대소문자·오타), 파일이 <c>Resources/</c> 밖에
+        /// 있을 수도 있다. 그 셋을 한꺼번에 잡는 유일한 방법은 <b>실제로 읽어 보는 것</b>이다.
+        ///
+        /// ★ 런타임 경고에 기대면 안 된다 — <c>CharacterDefinitionSO.Illust</c> 는 실패를
+        ///   <b>초상화를 처음 여는 순간 한 번만</b> 경고하고 <c>_illustLoaded</c> 캐시에 걸려
+        ///   두 번 다시 안 뜬다. 그래서 «그냥 안 나온다» 로만 보인다(시그리드가 그랬다).
+        /// </summary>
+        [MenuItem("LastSanctuary/스킨/일러스트 로드 점검", priority = 61)]
+        public static void VerifyIllusts()
+        {
+            var sb = new StringBuilder();
+            int ok = 0, bad = 0;
+
+            // 표에서 온 정의 에셋 전부. 종류별로 필드 이름이 달라 <b>리플렉션</b>으로 읽는다 —
+            // 종이 늘어도 이 파일은 안 바뀐다(CharacterSkinBuilder 의 _skin_spec 처리와 같은 취지).
+            foreach (ScriptableObject so in Resources.LoadAll<ScriptableObject>(""))
+            {
+                if (so == null) continue;
+
+                var field = so.GetType().GetField("illustName");
+                if (field == null || field.FieldType != typeof(string)) continue;
+
+                string n = (field.GetValue(so) as string)?.Trim();
+                if (string.IsNullOrEmpty(n)) continue;   // 빈 칸은 정상(일러스트 없는 종)
+
+                if (Resources.Load<Sprite>("Illust/" + n) != null) { ok++; continue; }
+
+                bad++;
+                bool asTexture = Resources.Load<Texture2D>("Illust/" + n) != null;
+                sb.AppendLine($"  · {so.name}: 'Illust/{n}' 을 Sprite 로 읽지 못했습니다" +
+                              (asTexture
+                                  ? " — <b>파일은 있는데 Sprite 가 아닙니다</b>(위 메뉴로 고칠 수 있습니다)."
+                                  : " — <b>파일 자체가 없습니다</b>(표의 이름과 파일명을 맞춰 주세요)."));
+            }
+
+            if (bad == 0) Debug.Log($"[일러스트] {ok}개 전부 Sprite 로 읽힙니다.");
+            else Debug.LogError($"[일러스트] {bad}개를 읽지 못했습니다 (정상 {ok}개):\n{sb}");
+        }
     }
 }

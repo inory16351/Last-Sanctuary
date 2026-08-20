@@ -72,10 +72,13 @@ FACES = [
     # 2026-08-20 신규 캐릭터 시그리드. 원본이 프레이야와 같은 1024x1536 전신샷이라
     # 그쪽과 같은 크롭 높이(580)를 썼다. cy 는 가시관 꼭대기(원본 y≈150) 위로
     # 크롭 높이의 6% 를 남기도록 잡은 값이다 — 얼굴(y≈280)이 크롭 위쪽 28% 에 온다.
-    # ⚠ 원본 파일 이름이 다른 넷과 규칙이 다르다(`Sigrid_illust` ↔ `illust_*`) —
-    #   표는 `illust_Sigrid` 이므로 <b>임포트하면서 이름을 맞춘다</b>
-    #   (import_monster_illust.py 가 Carcinos 오타에 쓴 것과 같은 처리).
-    ('Sigrid_illust.png', 'illust_Sigrid', 500,  405, 580),   # 1024x1536 — 가시관 + 지팡이 머리
+    # ⚠⚠ 2026-08-20 — <b>볼트의 파일 이름이 바뀌었다</b>: `Sigrid_illust.png` →
+    #   `illust_Sigrid.png`(다른 넷과 같은 규칙으로 유저가 맞췄다). 옛 이름을 그대로 두면
+    #   이 스크립트가 <b>`MISSING` 한 줄만 찍고 조용히 건너뛴다</b> — 크롭이 갱신되지 않아
+    #   볼트의 새 원화가 게임에 안 들어간다. 실제로 그 상태였다.
+    #   ★ 그래서 아래 `resolve_src` 가 <b>두 이름을 다 받는다</b> — 이름 규칙이 또 흔들려도
+    #     죽지 않고, 없으면 확실하게 죽는다(조용히 건너뛰지 않는다).
+    ('illust_Sigrid.png', 'illust_Sigrid', 500,  405, 580),   # 1024x1536 — 가시관 + 지팡이 머리
 ]
 
 
@@ -99,13 +102,36 @@ def crop_face(im, cx, cy, crop_h):
     return im.crop((left, top, left + crop_w, top + crop_h)), (left, top, crop_w, crop_h)
 
 
+def resolve_src(src_name, out_name):
+    """
+    원본 파일을 찾는다. **이름 규칙이 두 벌**이라 둘 다 받는다 —
+    `illust_<이름>.png` (지금 규칙) 과 `<이름>_illust.png` (옛 규칙).
+    오타가 섞인 파일(`ilust_Preyja.png`)이 실재하므로 표에 적힌 이름이 **먼저**다.
+
+    ⚠ 못 찾으면 <b>None</b> 을 돌려주고, 부르는 쪽이 <b>죽인다</b>(2026-08-20).
+      예전에는 `MISSING` 한 줄만 찍고 넘어갔는데, 그러면 볼트에서 원화를 갈아끼우고
+      이 스크립트를 돌려도 **«완료» 만 찍히고 아무것도 안 바뀐다** — 시그리드가 정확히
+      그 상태였다(볼트 파일이 프로젝트 크롭보다 새로운데 이름이 안 맞아 건너뛰었다).
+    """
+    stem = out_name[len('illust_'):] if out_name.startswith('illust_') else out_name
+    for cand in (src_name, 'illust_%s.png' % stem, '%s_illust.png' % stem):
+        path = os.path.join(SRC, cand)
+        if os.path.exists(path):
+            return path, cand
+    return None, None
+
+
 def main():
     os.makedirs(DST, exist_ok=True)
+    missing = []
     for src_name, out_name, cx, cy, crop_h in FACES:
-        path = os.path.join(SRC, src_name)
-        if not os.path.exists(path):
-            print('MISSING', path)
+        path, found = resolve_src(src_name, out_name)
+        if path is None:
+            missing.append((out_name, src_name))
             continue
+        if found != src_name:
+            print('  ⚠ %s: 표의 이름 %r 이 없어 %r 로 찾았습니다 — 표를 고쳐 두세요.'
+                  % (out_name, src_name, found))
 
         im = Image.open(path).convert('RGB')
         cropped, box = crop_face(im, cx, cy, crop_h)
@@ -115,6 +141,12 @@ def main():
               (out_name, im.size, (box[2], box[3]), (box[0], box[1]),
                box[2] / float(box[3])))
     print('목표 비율 %.4f / 출력 %dx%d' % (ASPECT, OUT_W, OUT_H))
+
+    # ⚠ 조용히 넘어가지 않는다 (resolve_src 주석) — 하나라도 못 찾으면 죽는다.
+    if missing:
+        lines = ['    %s  (표에 적힌 이름: %s)' % (o, s_) for o, s_ in missing]
+        raise SystemExit('⚠ 원본을 못 찾은 캐릭터가 %d명 있습니다 — %s 아래를 확인하세요:\n%s'
+                         % (len(missing), SRC, '\n'.join(lines)))
 
 
 if __name__ == '__main__':

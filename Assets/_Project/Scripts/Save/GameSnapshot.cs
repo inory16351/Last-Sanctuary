@@ -386,6 +386,10 @@ namespace LastSanctuary.Save
             if (service == null) return;
 
             service.ExportDiscovered(data.subjugationDiscovered);
+            // ★ 2026-08-20 — 개체 번호와 <b>따로</b> 종 번호도 저장한다. 개체는 죽으면
+            //   사라지지만 «그 종을 안다» 는 사실은 남아야 한다
+            //   (EpicSubjugationService 클래스 주석 ★★).
+            service.ExportKnownSpecies(data.subjugationKnownSpecies);
             service.ExportOrders(data.subjugationOrderSquads, data.subjugationOrderTargets);
         }
 
@@ -578,6 +582,10 @@ namespace LastSanctuary.Save
         {
             EpicSubjugationService service = EpicSubjugationService.Instance;
             if (service == null) return;
+
+            // ⚠ <b>종 기억을 먼저</b> 되돌린다 — RestoreState 는 이걸 비우지 않고, 개체
+            //   목록에서 종을 역산해 <b>보태기만</b> 한다(옛 세이브 호환).
+            service.RestoreKnownSpecies(data.subjugationKnownSpecies);
 
             var discovered = new List<NeutralMonsterUnit>();
             foreach (int spawnId in data.subjugationDiscovered)

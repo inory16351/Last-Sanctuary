@@ -28,7 +28,7 @@ import hashlib
 import os
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageFilter
 
 PROJECT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -821,6 +821,142 @@ def crop_rgba(sheet, box):
     ys = np.where(solid.any(axis=1))[0]
     xs = np.where(solid.any(axis=0))[0]
     return rgba[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
+
+
+def resample_rgba(rgba, factor, resample=None):
+    """
+    RGBA 프레임 한 장을 <paramref name="factor"/> 배로 리샘플한다 (2026-08-20 신설).
+
+    ★★ <b>알파를 먼저 곱한다(premultiply).</b> 그냥 RGBA 를 늘리면 <b>투명 픽셀의 색</b>이
+    경계로 번진다 — 이 시트들의 배경은 흰색이라 캐릭터 둘레에 <b>흰 테두리</b>가 생기고,
+    게임 배경이 어두워서 그게 그대로 눈에 보인다.
+    ``말파스`` 는 같은 문제를 «RGB 를 먼저 늘리고 그 다음에 알파를 만든다» 로 피했는데
+    (``malphas_skin_build.render_frame``), 그 방법은 <b>알파를 거리로 다시 계산</b>해야 해서
+    :func:`background_mask` 가 살려낸 <b>흰 두건</b>을 잃는다. 곱셈 방식은 이미 만들어 둔
+    알파를 그대로 늘리므로 그 위험이 없다.
+
+    ⚠ 배율이 1 에 가까우면 <b>원본을 그대로 돌려준다</b> — 무의미한 리샘플로 도트가
+      한 번 더 뭉개지지 않게.
+    """
+    if resample is None:
+        resample = Image.LANCZOS
+    if abs(factor - 1.0) <= 0.002:
+        return rgba
+
+    h, w = rgba.shape[0], rgba.shape[1]
+    nw = max(1, int(round(w * factor)))
+    nh = max(1, int(round(h * factor)))
+
+    a = rgba[:, :, 3].astype(np.float32) / 255.0
+    pm = rgba[:, :, :3].astype(np.float32) * a[:, :, None]      # 곱해 둔다
+
+    pm_img = Image.fromarray(np.clip(pm, 0, 255).astype(np.uint8), "RGB")
+    a_img = Image.fromarray(rgba[:, :, 3], "L")
+
+    pm2 = np.asarray(pm_img.resize((nw, nh), resample)).astype(np.float32)
+    a2 = np.asarray(a_img.resize((nw, nh), resample)).astype(np.float32)
+
+    # 다시 나눈다. 알파 0 인 곳은 색이 뜻을 갖지 않으므로 0 으로 둔다.
+    safe = np.maximum(a2, 1.0) / 255.0
+    rgb2 = np.clip(pm2 / safe[:, :, None], 0, 255)
+    rgb2[a2 <= 0] = 0
+
+    out = np.dstack([rgb2.astype(np.uint8), a2.astype(np.uint8)])
+
+    # 리샘플이 남긴 반투명 여백을 다시 죈다(crop_rgba 와 같은 마무리).
+    solid = out[:, :, 3] > 0
+    if not solid.any():
+        return out
+    ys = np.where(solid.any(axis=1))[0]
+    xs = np.where(solid.any(axis=0))[0]
+    return out[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
+
+
+def sharpen_rgba(rgba, amount=0.9, radius=1.0, threshold=2):
+    """
+    RGBA 프레임의 <b>RGB 만</b> 언샵 마스크로 조인다 (2026-08-20 신설).
+
+    ★★ <b>왜 필요한가</b> (유저 지시: *"이미지가 너무 흐려서 베일이랑 베일 스킬 이미지
+    선명하게 해줘"*)
+    ------------------------------------------------------------------
+    큰 보스는 원화 한 픽셀이 화면에서 <b>여러 픽셀</b>이 된다. 실측:
+    <code>
+        타일당 원화 픽셀   일반 중립 70~96 px
+                           에픽 보스  13~23 px      ← 5~6배 부족
+        베일은 콜라이더가 15x10 으로 <b>표에서 혼자 큰 값</b>이라(나머지 보스는 11x7.5)
+        확대율이 x7.4 까지 올라간다.
+    </code>
+    거기다 베일 원화는 <b>부드러운 에어브러시 음영</b>으로 그려져 있어(다른 보스는 먹선이
+    또렷하다) 확대하면 그 무름이 그대로 커진다. 다른 보스와 나란히 놓고 보면 확연히 흐리다.
+
+    ★ 확대로 잃은 <b>해상도</b>는 되돌릴 수 없다 — 대신 <b>국부 대비</b>를 올려 경계를
+      또렷하게 만든다. 그림을 새로 그리지 않고 할 수 있는 것 중 이게 가장 정직하다.
+
+    ⚠ <b>알파는 건드리지 않는다.</b> 알파에 언샵을 걸면 :func:`alpha_for` 가 만든 부드러운
+      경계 한 겹이 들쭉날쭉해져 <b>테두리에 점이 튄다</b>.
+    ⚠ 투명한 곳의 RGB(흰 배경)가 경계로 번지지 않게 <b>알파를 곱해 두고</b> 필터를 걸었다가
+      다시 나눈다 — :func:`resample_rgba` 와 같은 이유다.
+    """
+    if amount <= 0.0:
+        return rgba
+
+    a = rgba[:, :, 3].astype(np.float32) / 255.0
+    pm = rgba[:, :, :3].astype(np.float32) * a[:, :, None]
+
+    img = Image.fromarray(np.clip(pm, 0, 255).astype(np.uint8), "RGB")
+    img = img.filter(ImageFilter.UnsharpMask(radius=radius,
+                                             percent=int(round(amount * 100)),
+                                             threshold=threshold))
+    pm2 = np.asarray(img).astype(np.float32)
+
+    safe = np.maximum(a, 1.0 / 255.0)
+    rgb2 = np.clip(pm2 / safe[:, :, None], 0, 255)
+    rgb2[a <= 0] = 0
+
+    return np.dstack([rgb2.astype(np.uint8), rgba[:, :, 3]])
+
+
+def head_pixels(rgba, thin_ratio=0.35, top_ratio=0.45,
+                lum_min=140, sat_max=45, gray_max=35):
+    """
+    프레임에서 <b>머리(밝고 저채도인 덩어리 = 은발 + 흰 두건)</b> 픽셀 수 (2026-08-20 신설).
+
+    ★★ <b>왜 「키」가 아니라 「머리」로 크기를 재는가</b> — 말파스는 행마다 그린 크기가
+    다른 문제를 <b>세로 중앙값</b>으로 맞췄다(``SCALE_REFERENCE_MOTION``). 그런데 그 방법은
+    <b>지팡이를 든 캐릭터와 기울어지는 모션</b>에서 어긋난다:
+
+      · 지팡이가 곧게 서면(대기) 경계 상자가 위로 늘어나고, 비스듬하면(이동) 짧아진다.
+      · <b>이동은 몸을 기울인다</b> — 키가 줄어드는 것이 <b>연출</b>이지 크기 오류가 아니다.
+
+    실측(시그리드): 「키」로 재면 이동에 <b>1.154배</b>가 필요하다고 나오는데, 머리로 재면
+    <b>1.045배</b>다. 눈으로 봐도 이동의 머리는 대기와 거의 같다 — 기울어져서 키만 줄었다.
+    「키」를 믿고 늘리면 걸을 때 <b>10% 커진다</b>(고치려던 증상이 반대로 생긴다).
+
+    머리는 <b>기울어도 크기가 안 바뀌는</b> 부위라 배율의 기준이 된다.
+
+    ⚠ <b>얇은 줄기(지팡이·사슬)를 먼저 버린다</b> — 그 열이 상자를 위로 끌어올려
+      「상단 45%」의 기준을 망친다. 판정은 :data:`EDGE_STREAK_RATIO` 와 같은 생각이다.
+    """
+    a = rgba[:, :, 3] > 100
+    if not a.any():
+        return 0
+
+    thick = a.sum(axis=0)
+    keep = thick >= thick.max() * thin_ratio
+    body = a & keep[None, :]
+    if not body.any():
+        return 0
+
+    ys = np.where(body.any(axis=1))[0]
+    y0, y1 = ys[0], ys[-1]
+    top = np.zeros_like(a)
+    top[y0:y0 + max(1, int((y1 - y0 + 1) * top_ratio)), :] = True
+
+    r = rgba[:, :, 0].astype(int)
+    g = rgba[:, :, 1].astype(int)
+    b = rgba[:, :, 2].astype(int)
+    head = body & top & (r > lum_min) & (np.abs(r - b) < sat_max) & (np.abs(r - g) < gray_max)
+    return int(head.sum())
 
 
 def column_thickness(rgba):

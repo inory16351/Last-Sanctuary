@@ -92,6 +92,19 @@ namespace LastSanctuary.Save
         /// <summary>발견한 에픽들의 <c>NeutralMonsterUnit.SpawnId</c>.</summary>
         public List<int> subjugationDiscovered = new List<int>();
 
+        /// <summary>
+        /// 한 번이라도 발견한 에픽의 <b>종 번호</b>(<c>mon_id</c>) (2026-08-20 신설).
+        ///
+        /// ★ 위 <see cref="subjugationDiscovered"/> 는 <b>개체</b> 번호라 그 마리가 죽으면
+        /// 사라진다. 그런데 «그 종을 안다» 는 사실은 남아야 한다 — 안 남기면 잡은 에픽이
+        /// 재생성될 때 <b>시야가 없으면 토벌 목록에 안 뜬다</b>
+        /// (<c>EpicSubjugationService</c> 클래스 주석 ★★).
+        ///
+        /// ⚠ 이 칸이 없는 <b>옛 세이브도 그대로 열린다</b> — 비어 있으면 개체 목록에서
+        ///   종을 역산한다(<c>RestoreState</c>).
+        /// </summary>
+        public List<int> subjugationKnownSpecies = new List<int>();
+
         /// <summary>토벌 지시를 걸어둔 부대 id. 아래 목록과 <b>같은 순서로 짝</b>지어진다.</summary>
         public List<int> subjugationOrderSquads = new List<int>();
 

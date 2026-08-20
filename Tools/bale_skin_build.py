@@ -97,7 +97,7 @@ from skin_sheet import (  # noqa: F401
     PPU, SKIN_SPEC_NAME, write_skin_spec,
     load_sheet, cells_by_clusters, boxes_for, crop_rgba,
     body_anchor, base_anchor, compose, write_png, ensure_folder_meta,
-    shadow_in_box,
+    shadow_in_box, sharpen_rgba,
 )
 
 SRC_BODY = os.path.join(VAULT, "리소스", "sprites", "Bale_asset_01.png")
@@ -105,6 +105,25 @@ SRC_PROJ = os.path.join(VAULT, "리소스", "sprites", "Bale_asset_02.png")
 
 DST_ROOT = os.path.join(PROJECT, "Assets", "_Project", "Art", "Char_Asset",
                         "Char_Asset_Bale", "Char")
+
+#: ★★ <b>선명도 보정</b> (유저 지시 2026-08-20 — 자세한 근거는 :func:`skin_sheet.sharpen_rgba`).
+#:   베일은 콜라이더가 15x10 으로 <b>표에서 혼자 크고</b>(나머지 보스 11x7.5) 원화는 85px 라
+#:   화면에서 <b>x7.4</b> 로 확대된다. 게다가 이 원화는 음영이 부드러워 확대하면 뭉개진다.
+#:
+#: ★ 값은 <b>네 단계를 눈으로 비교해서</b> 골랐다. 「인접 화소 대비」가 올라가는 만큼
+#:   털·망토에 <b>흰 점(언샵이 부풀린 잡티)</b>도 늘어나므로, 대비 이득의 대부분을 가져가면서
+#:   잡티가 가장 적은 지점을 잡았다(실측 — 밝은 점 개수는 원본 34개 기준):
+#: <code>
+#:     원본          대비 20.8   흰 점  34
+#:     0.40/1.2/6    대비 30.3   흰 점 176   ← 채택 (대비 +46%)
+#:     0.55/1.2/5    대비 32.0   흰 점 229
+#:     0.90/1.0/2    대비 34.7   흰 점 282   ← 털에 흰 점이 눈에 띈다
+#: </code>
+#: ⚠ threshold 를 6 으로 올린 것이 잡티를 줄이는 핵심이다 — 평탄한 면(검은 옷)은 건드리지
+#:   않고 <b>경계만</b> 조인다.
+SHARPEN_AMOUNT = 0.40
+SHARPEN_RADIUS = 1.2
+SHARPEN_THRESHOLD = 6
 
 SKIN_SPEC = {
     "skinAssetName": "Skin_Bale",
@@ -139,11 +158,45 @@ ROWS = [
     ("Projectile",   "proj", 925, 963,  10,  755, "fx"),
 ]
 
-#: 반원형 범위 이펙트 — 한 장짜리라 칸을 가를 것이 없다. (폴더, 원본, y0, y1, x0, x1)
-SINGLE_FX = [("Skill2Fx", "body", 881, 1004, 780, 1523)]
+#: 한 장짜리 이펙트 — 칸을 가를 것이 없다. (폴더, 원본, y0, y1, x0, x1)
+#:
+#: ★★ 2026-08-20 — <b>``Skill2Fx`` → ``Unused_Skill2Fx``</b> (유저 지시: *"Pipe_smoke 의
+#:   기획 의도가 베일이 바라보는 방향으로 연기 브레스를 쏘는건데 지금 에셋에 있는 담배연기
+#:   패턴 반원형 이펙트를 빼고 만들어줘"*).
+#:   이 원화는 <b>바닥에 깔던 「반원형 범위 표시」</b>다 — 범위를 알려주는 그림이지
+#:   «입에서 뿜는 연기» 가 아니다. 그래서 스킬 칸에서 빼고, 연출은
+#:   `BossSkillCaster.PlayBreath` 가 <b>연기 구체 원화</b>(투사체 칸)를 앞쪽에 깔아 만든다.
+#:   ⚠ 원화는 <b>지우지 않고</b> ``Unused_`` 로 남긴다 — 나중에 범위 표시가 다시 필요해지면
+#:     접두사만 떼면 된다.
+SINGLE_FX = [("Unused_Skill2Fx", "body", 881, 1004, 780, 1523)]
 
 #: 좌우 방향이 없는 묶음 — 파일 이름에 Right/Left 를 안 붙인다.
-NO_DIRECTION = {"Projectile", "Skill2Fx"}
+NO_DIRECTION = {"Projectile", "Unused_Skill2Fx"}
+
+
+#: ★ 이름을 바꾼 폴더의 <b>옛 자리</b>. 지우지 않으면 유니티 빌더가 그 폴더를 여전히
+#:   스킨 칸으로 읽어 <b>빼려던 원화가 계속 배선된다</b>(실제로 그랬다 —
+#:   `Skill2Fx(1)` 이 그대로 남아 있었다).
+#:   ⚠ 옛 파일은 <b>같은 원화</b>가 `Unused_Skill2Fx` 로 옮겨간 것이라 잃는 것이 없다.
+STALE_FOLDERS = ["Skill2Fx"]
+
+
+def drop_stale_folders():
+    """이름이 바뀌어 더 이상 만들지 않는 폴더를 지운다 (엘린 스크립트의 옛 파일 정리와 같은 취지)."""
+    removed = 0
+    for name in STALE_FOLDERS:
+        folder = os.path.join(DST_ROOT, name)
+        if not os.path.isdir(folder):
+            continue
+        for f in os.listdir(folder):
+            os.remove(os.path.join(folder, f))
+            removed += 1
+        os.rmdir(folder)
+        meta = folder + ".meta"
+        if os.path.exists(meta):
+            os.remove(meta)
+        print("  옛 폴더 삭제: %s (%d개 파일)" % (name, removed))
+    return removed
 
 
 def write_group(images, name):
@@ -179,7 +232,9 @@ def build(sheets):
             sheet["mask"] &= ~shadow
 
         boxes = [b for b in boxes_for(sheet["mask"], cells, y0, y1) if b is not None]
-        frames = [crop_rgba(sheet, b) for b in boxes]
+        frames = [sharpen_rgba(crop_rgba(sheet, b), SHARPEN_AMOUNT, SHARPEN_RADIUS,
+                               SHARPEN_THRESHOLD)
+                  for b in boxes]
         anchor = body_anchor if kind == "body" else base_anchor
         images, w, h = compose(frames, [anchor(f) for f in frames])
 
@@ -192,7 +247,8 @@ def build(sheets):
         box = boxes_for(sheet["mask"], [(x0, x1)], y0, y1)[0]
         if box is None:
             raise SystemExit("⚠ %s: 그림을 못 찾았습니다" % name)
-        rgba = crop_rgba(sheet, box)
+        rgba = sharpen_rgba(crop_rgba(sheet, box), SHARPEN_AMOUNT, SHARPEN_RADIUS,
+                            SHARPEN_THRESHOLD)
         images, w, h = compose([rgba], [base_anchor(rgba)])
         made += write_group(images, name)
         print("  %-13s (%s) %3d x %3d ·  1장" % (name, src, w, h))
@@ -210,6 +266,7 @@ def main():
         "proj": load_sheet(SRC_PROJ, box_borders=True),
     }
 
+    drop_stale_folders()
     n = build(sheets)
     spec = write_skin_spec(DST_ROOT, SKIN_SPEC, "Tools/bale_skin_build.py")
     ensure_folder_meta(DST_ROOT)

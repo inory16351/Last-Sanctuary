@@ -79,11 +79,18 @@
 
 크기 — **다른 캐릭터와 같게 나온다**
 ------------------------------------
-유저 지시(2026-08-19): *"다른 캐릭터랑 크기 맞춰서 만들어"*. 크기는 이 스크립트가 정하지
-않는다 — 씬의 ``Character_Template.renderHeightTiles = 2.15`` 가 스킨 실측값
-(``contentSizeTiles``)으로 나눠 **전원을 2.15타일 키로** 그린다. 그래서 여기서는
-:func:`report_scale` 로 «한 배율로 그려진 시트인지»만 확인하고 정규화는 하지 않는다
-(엘린과 같은 판단 — 이유는 그쪽 주석).
+유저 지시(2026-08-19): *"다른 캐릭터랑 크기 맞춰서 만들어"*. **캐릭터 사이의** 크기는 이
+스크립트가 정하지 않는다 — 씬의 ``Character_Template.renderHeightTiles = 2.15`` 가 스킨
+실측값(``contentSizeTiles``)으로 나눠 **전원을 2.15타일 키로** 그린다.
+
+★★ 2026-08-20 — 그런데 **모션 사이의** 크기는 여기서 맞춰야 한다.
+유저 리포트: *"시그리드 이미지가 인게임에서 커졌다 작아졌다"*.
+``contentSizeTiles`` 는 **대기 원화 하나만** 재는데 이 시트는 **줄마다 그린 크기가 다르다** —
+그러니 모션이 바뀌는 순간 몸이 커지거나 작아진다. 말파스가 겪은 것과 같은 버그다(113절 ②).
+:func:`measure_head_scale` 가 **머리 면적**으로 배율을 재서 대기에 맞춘다
+(왜 「키」가 아닌지는 :func:`skin_sheet.head_pixels`).
+⚠ 예전 주석은 «정규화하지 않는다(엘린과 같은 판단)» 였는데, 엘린은 <b>무릎 꿇는 자세</b>가
+  섞여 있어 키를 맞추면 안 되는 경우였다. 시그리드는 전부 서 있는 자세라 사정이 다르다.
 
 사용법:  python Tools/sigrid_skin_build.py
 다음:    유니티 메뉴 **LastSanctuary/스킨/원화 폴더로 스킨 에셋 만들기**
@@ -104,6 +111,7 @@ from skin_sheet import (  # noqa: F401
     guid_for, load_sheet, label_count, cells_by_labels, cells_by_gaps,
     boxes_for, crop_rgba, body_anchor, base_anchor, compose,
     write_png, ensure_folder_meta, shadow_in_box, enclosed_background,
+    resample_rgba, head_pixels,
 )
 
 ART = os.path.join(VAULT, "리소스", "asset", "char_asset")
@@ -167,34 +175,103 @@ ROWS = [
 NO_DIRECTION = {"Projectile", "Unused_MoveFx", "Unused_MeleeFx",
                 "Unused_Skill1Fx", "Unused_Skill2Fx", "Unused_Skill3Fx"}
 
-#: ★ 시그리드는 **오른쪽을 보고** 그려졌다 — 지팡이가 오른쪽으로 뻗고(근거리 3·4·8번)
-#:   이동에서도 몸이 오른쪽으로 기운다. 왼쪽은 미러다.
+#: ★ 시그리드는 대체로 **오른쪽을 보고** 그려졌다 — 지팡이가 오른쪽으로 뻗는다(근거리 2·4번).
 #:   ⚠ 대기·스킬은 정면 대칭이라 어느 쪽이어도 같다 — 규칙을 하나로 두려고 같이 미러한다.
+#:
+#: ★★ 2026-08-20 — **「이동」만 왼쪽을 본다.** 유저 리포트: *"시그리드가 엘린과 마찬가지로
+#:   바라보는 방향과 실제로 가는 방향이 반대"*. 예전 주석은 «이동에서도 몸이 오른쪽으로
+#:   기운다» 고 적었는데 **그게 틀렸다.**
+#:
+#:   근거 — **머리와 발의 가로 차이**(기울기)를 쟀다. 달릴 때는 <b>머리가 앞선다</b>:
+#:       바리올라 이동(오른쪽 확정)  **+27.4px**   ← 양수 = 오른쪽
+#:       시그리드 근거리(오른쪽 확정)  **+8.8px**
+#:       시그리드 이동 (당시 Right)   **−3.2px**   ← <b>부호가 반대다</b>
+#:   1:1 로 겹쳐 봐도 이동 프레임은 머리가 발보다 왼쪽에 있다(왼쪽으로 달린다).
+#:   그래서 **이동 줄만 원본을 ``Left`` 로** 쓴다.
+#:
+#: ⚠ 엘린과 **원인이 다르다** — 엘린은 좌/우 전용 두 줄의 y 좌표를 뒤바꿔 적은 것이고,
+#:   시그리드는 **한 줄을 미러**하므로 «원본이 어느 쪽을 보는가» 하나만 정하면 된다.
+ORIGINAL_SIDE = {
+    "Walk": "Left",          # ★ 위 ★★
+}
+DEFAULT_ORIGINAL_SIDE = "Right"
 
-def report_scale(sheets):
+#: 크기 정규화의 기준 모션. ⚠ `measure_skin_tiles.py` 가 **대기만** 재기 때문에 대기다
+#: (말파스 `SCALE_REFERENCE_MOTION` 과 같은 이유 — 기준을 바꾸려면 그쪽도 같이 바꿔야 한다).
+SCALE_REFERENCE = "Idle"
+
+#: 배율의 안전 범위. 이 밖으로 나가면 <b>측정이 틀린 것</b>으로 보고 죽는다 —
+#: 조용히 엉뚱한 크기로 굽는 것보다 낫다.
+SCALE_MIN, SCALE_MAX = 0.70, 1.80
+
+
+def measure_head_scale(collected):
     """
-    한 배율로 그려진 시트인지 — **머리 폭**으로 확인한다(엘린과 같은 검산).
-    두 시트를 섞어 쓰므로 **두 판본 사이도** 같아야 한다.
+    ★★ 모션마다 **대기 대비 몇 배로 늘려야 하는지** (2026-08-20 신설).
+
+    <b>왜 필요한가</b> (유저 리포트: *"시그리드 이미지가 인게임에서 커졌다 작아졌다"*) —
+    이 시트는 **줄마다 그린 크기가 다르다.** 그런데 게임의 크기 기준
+    (`CharacterSkinSO.contentSizeTiles`)은 **대기 원화 하나만** 재고 그 배율이 모든 모션에
+    그대로 곱해진다. 그래서 모션이 바뀌는 순간 몸이 커지거나 작아진다 —
+    <b>코드가 아니라 원화가 다른 것</b>이다. 말파스가 겪은 것과 **같은 버그**다(113절 ②).
+
+    ★ 다만 **기준을 「키」로 잡을 수 없다** — 자세한 이유는
+    :func:`skin_sheet.head_pixels`. 요약하면 지팡이가 상자를 늘리고, 이동은 몸을 기울여
+    키가 줄어드는 것이 <b>연출</b>이다. 그래서 <b>머리 면적</b>으로 잰다(면적은 배율의
+    제곱이므로 제곱근이 곧 선형 배율).
+
+    실측 결과 (대기 = 1.000):
+        이동 1.045 · 근거리 1.154 · 원거리 1.391
+    ★ 원거리가 유독 큰 이유는 그 줄만 **다른 판본(``_01``)** 에서 왔고 그 시트가 전체적으로
+      작게 그려져 있기 때문이다.
     """
-    print("  [크기 검산] 줄마다 머리 폭(px) — 같으면 한 배율이라 정규화 불필요")
-    for src, name, ly0, ly1, y0, y1, x0, x1, expect, kind in ROWS:
-        if kind != "body":
+    ref = None
+    areas = {}
+    for name, frames in collected.items():
+        vals = [head_pixels(f) for f in frames]
+        vals = [v for v in vals if v > 60]
+        if not vals:
             continue
-        sheet = sheets[src]
-        cells = cells_by_labels(sheet["gray"], x0, x1, ly0, ly1)
-        widths = []
-        for box in boxes_for(sheet["mask"], cells, y0, y1):
-            if box is None:
-                continue
-            bx0, bx1, by0, _by1 = box
-            top = sheet["mask"][by0:by0 + 14, bx0:bx1 + 1]
-            xs = np.where(top.any(axis=0))[0]
-            widths.append(int(xs.max() - xs.min() + 1) if len(xs) else 0)
-        print("    %-16s (%s) %s" % (name, src, widths))
+        areas[name] = float(np.mean(vals))
+
+    ref = areas.get(SCALE_REFERENCE)
+    if not ref:
+        print("  ⚠ 기준 모션(%s)의 머리를 못 재 크기 정규화를 건너뜁니다" % SCALE_REFERENCE)
+        return {}
+
+    factors = {}
+    print("  [크기 정규화] 머리 면적 → 대기(%s) 기준 배율" % SCALE_REFERENCE)
+    for name, area in sorted(areas.items()):
+        f = (ref / area) ** 0.5
+        factors[name] = f
+        flag = ""
+        if not (SCALE_MIN <= f <= SCALE_MAX):
+            flag = "  ← ⚠ 범위 밖"
+        print("    %-16s 머리 %6.1f px  →  x%.3f%s" % (name, area, f, flag))
+
+    bad = {k: v for k, v in factors.items() if not (SCALE_MIN <= v <= SCALE_MAX)}
+    if bad:
+        raise SystemExit(
+            "⚠ 크기 배율이 안전 범위(%.2f~%.2f) 를 벗어났습니다: %s\n"
+            "   머리 판정이 틀렸거나 시트가 바뀌었습니다 — measure_head_scale 을 확인하세요."
+            % (SCALE_MIN, SCALE_MAX, bad))
+    return factors
 
 
 def build(sheets):
-    made = 0
+    """
+    두 번 훑는다 — ★ **크기 정규화 때문에** 그렇다.
+
+    ① 모든 몸통 줄의 프레임을 먼저 잘라 모은다(그림자 지우기까지).
+    ② 그 프레임들로 «대기 대비 배율»을 재고(:func:`measure_head_scale`),
+    ③ 배율을 먹여 굽는다.
+
+    한 번에 못 하는 이유는 <b>기준(대기)을 다 재기 전에는 다른 줄의 배율을 모른다</b>는
+    것 하나다. 이펙트·투사체 줄은 배율을 안 먹인다(몸이 아니라 연출이라 기준이 없다).
+    """
+    cut = []          # (src, name, kind, labels, frames)
+    collected = {}    # name -> frames  (몸통 줄만 · 배율 측정용)
+
     for src, name, ly0, ly1, y0, y1, x0, x1, expect, kind in ROWS:
         sheet = sheets[src]
 
@@ -216,6 +293,21 @@ def build(sheets):
 
         boxes = [b for b in boxes_for(sheet["mask"], cells, y0, y1) if b is not None]
         frames = [crop_rgba(sheet, b) for b in boxes]
+
+        cut.append((src, name, kind, labels, frames))
+        # ⚠ 배선 안 하는 줄(Unused_)은 기준에 넣지 않는다 — 스킬 원화는 자세가 크게
+        #   달라(웅크림·도약) 머리 판정이 흔들리고, 어차피 게임에 안 나온다.
+        if kind == "body" and not name.startswith("Unused_"):
+            collected[name] = frames
+
+    factors = measure_head_scale(collected)
+
+    made = 0
+    for src, name, kind, labels, frames in cut:
+        factor = factors.get(name, 1.0)
+        if abs(factor - 1.0) > 0.002:
+            frames = [resample_rgba(f, factor) for f in frames]
+
         anchor = body_anchor if kind == "body" else base_anchor
         images, w, h = compose(frames, [anchor(f) for f in frames])
 
@@ -226,16 +318,20 @@ def build(sheets):
                 made += 1
             note = "방향 없음"
         else:
+            # ★ 원본이 어느 쪽을 보는지는 줄마다 다르다 (ORIGINAL_SIDE 주석).
+            orig = ORIGINAL_SIDE.get(name, DEFAULT_ORIGINAL_SIDE)
+            other = "Left" if orig == "Right" else "Right"
             for i, img in enumerate(images):
-                write_png(img, folder, "Char_%s_Right_%02d" % (name, i))
+                write_png(img, folder, "Char_%s_%s_%02d" % (name, orig, i))
                 write_png(img.transpose(Image.FLIP_LEFT_RIGHT), folder,
-                          "Char_%s_Left_%02d" % (name, i))
+                          "Char_%s_%s_%02d" % (name, other, i))
                 made += 2
-            note = "오른쪽 원본 + 미러"
+            note = "%s 원본 + 미러" % ("오른쪽" if orig == "Right" else "★왼쪽")
         ensure_folder_meta(folder)
 
-        print("  %-18s (%s) %3d x %3d · %2d장 · 라벨 %d개 · %s"
-              % (name, src, w, h, len(images), labels, note))
+        scale_note = "" if abs(factor - 1.0) <= 0.002 else "  (크기 x%.3f)" % factor
+        print("  %-18s (%s) %3d x %3d · %2d장 · 라벨 %d개 · %s%s"
+              % (name, src, w, h, len(images), labels, note, scale_note))
     return made
 
 
@@ -249,7 +345,6 @@ def main():
     for tag, path in (("01", SRC01), ("02", SRC02)):
         sheets[tag] = load_sheet(path, box_borders=True)
 
-    report_scale(sheets)
     n = build(sheets)
 
     spec = write_skin_spec(DST_ROOT, SKIN_SPEC, "Tools/sigrid_skin_build.py")

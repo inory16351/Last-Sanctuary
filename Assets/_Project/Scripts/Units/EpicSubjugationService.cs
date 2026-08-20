@@ -20,6 +20,28 @@ namespace LastSanctuary.Units
     /// 이 게임의 안개는 한 번 밝히면 지형이 기억되는 방식이고(12절), "발견했다"는 사실도
     /// 같은 성질이어야 유저가 목록에서 대상을 잃지 않는다.
     ///
+    /// ★★ <b>발견은 「개체」가 아니라 「종」으로 기억한다</b> (2026-08-20, 유저 리포트).
+    /// -----------------------------------------------------------------------
+    /// <i>"한 번 잡고 재생성 됐을 때 전장의 안개는 밝혀진 상황이지만 … 시야가 없으면
+    /// 토벌 지시에 에픽 몬스터 UI가 뜨지않아 기능이 작동하지 않아"</i>
+    ///
+    /// 원인은 <see cref="_discovered"/> 가 <b>유닛 인스턴스</b>를 들고 있었다는 것이다:
+    /// <code>
+    ///   ① 에픽을 잡는다        → PruneDead 가 목록에서 지운다
+    ///   ② 재생성(respawnSeconds 600) → <b>완전히 새 GameObject</b> 다
+    ///   ③ 그 자리에 캐릭터가 없다   → 안개 판정이 false → <b>다시는 목록에 안 올라온다</b>
+    /// </code>
+    /// 안개는 이미 걷혀 있는데도 «시야» 가 없어서 못 찾는 상태가 영구히 이어졌다.
+    ///
+    /// 그래서 <b>종 번호</b>(<see cref="NeutralMonsterDefinitionSO.monId"/>)를
+    /// <see cref="_knownSpecies"/> 에 남긴다. 한 번 본 종은 재생성돼도 <b>보자마자가 아니라
+    /// 태어나자마자</b> 목록에 오른다. 「서식지는 고정이고(99-9절) 그 자리를 이미 안다」는
+    /// 것이 이 게임의 전제이므로, 같은 종이 같은 자리에 다시 나오는 것을 플레이어가
+    /// «모른다» 고 볼 이유가 없다.
+    ///
+    /// ⚠ <b>종 기억은 세이브에 남는다</b> — 안 남기면 불러오기 한 번에 «처음 보는 종» 으로
+    ///   되돌아가 같은 버그가 재현된다(개체 번호만 저장하던 것이 정확히 그랬다).
+    ///
     /// ⚠ <b>명령은 부대 단위</b>다. 부대에 속하지 않은 캐릭터는 토벌 명령을 받지 않는다 —
     /// 유저 지시가 "각 부대에" 이고, 개인 단위로 열면 지시 대상이 두 갈래가 된다.
     /// </summary>
@@ -47,6 +69,12 @@ namespace LastSanctuary.Units
 
         /// <summary>한 번이라도 시야에 들어온 에픽. 안개가 다시 덮여도 남는다(클래스 주석 참조).</summary>
         readonly List<NeutralMonsterUnit> _discovered = new List<NeutralMonsterUnit>();
+
+        /// <summary>
+        /// 한 번이라도 발견한 <b>종</b>의 번호. 개체가 죽어도 <b>지우지 않는다</b> —
+        /// 이게 «재생성돼도 토벌 목록에 남는다» 를 만드는 유일한 상태다(클래스 주석 ★★).
+        /// </summary>
+        readonly HashSet<int> _knownSpecies = new HashSet<int>();
 
         Fog.FogOfWarService _fog;
         float _nextScan;
@@ -94,11 +122,21 @@ namespace LastSanctuary.Units
                 if (n.Definition == null || !n.Definition.epic) continue;
                 if (_discovered.Contains(n)) continue;
 
+                // ★★ <b>이미 아는 종이면 시야를 보지 않는다</b>(클래스 주석 ★★) —
+                //    잡아서 사라졌다가 다시 태어난 개체가 이 갈래로 돌아온다.
+                int speciesId = n.Definition.monId;
+                bool known = _knownSpecies.Contains(speciesId);
+
                 // 안개 서비스가 없으면(테스트 씬) 전부 보이는 것으로 친다.
-                if (_fog != null && !_fog.IsVisibleWorld(n.transform.position)) continue;
+                if (!known && _fog != null && !_fog.IsVisibleWorld(n.transform.position)) continue;
 
                 _discovered.Add(n);
+                _knownSpecies.Add(speciesId);
                 changed = true;
+
+                // ⚠ <b>처음 보는 종만</b> 알린다 — 재생성마다 «발견!» 이 뜨면 600초마다
+                //   같은 줄이 로그를 채운다(재발견은 새 정보가 아니다).
+                if (known) continue;
 
                 if (logOrders)
                     Debug.Log($"[토벌] 에픽 몬스터 발견 — {n.DisplayName}" +
@@ -215,6 +253,25 @@ namespace LastSanctuary.Units
         // ------------------------------------------------------------------
 
         /// <summary>발견한 개체들의 <see cref="NeutralMonsterUnit.SpawnId"/> 를 담는다.</summary>
+        /// <summary>
+        /// 발견한 <b>종</b> 번호를 내보낸다 (2026-08-20). 개체 번호(<see cref="ExportDiscovered"/>)와
+        /// <b>따로</b> 저장해야 한다 — 개체는 죽으면 사라지지만 «그 종을 안다» 는 사실은 남는다.
+        /// </summary>
+        public void ExportKnownSpecies(List<int> ids)
+        {
+            if (ids == null) return;
+            foreach (int id in _knownSpecies) ids.Add(id);
+        }
+
+        /// <summary>발견한 종 번호를 되돌린다. <b>개체 복원보다 먼저</b> 불러도 상관없다.</summary>
+        public void RestoreKnownSpecies(IReadOnlyList<int> ids)
+        {
+            _knownSpecies.Clear();
+            if (ids == null) return;
+            for (int i = 0; i < ids.Count; i++)
+                if (ids[i] > 0) _knownSpecies.Add(ids[i]);
+        }
+
         public void ExportDiscovered(List<int> spawnIds)
         {
             if (spawnIds == null) return;
@@ -257,12 +314,19 @@ namespace LastSanctuary.Units
             _discovered.Clear();
             _orders.Clear();
 
+            // ⚠ <b>_knownSpecies 는 여기서 비우지 않는다</b> — 그건 RestoreKnownSpecies 가
+            //   따로 채운다. 여기서 지우면 옛 세이브(종 목록이 없는 판)를 불러올 때
+            //   «처음 보는 종» 으로 되돌아가 버그가 재현된다.
             if (discovered != null)
                 for (int i = 0; i < discovered.Count; i++)
                 {
                     NeutralMonsterUnit unit = discovered[i];
                     if (unit == null || !unit.IsAlive || _discovered.Contains(unit)) continue;
                     _discovered.Add(unit);
+
+                    // 개체로 복원된 것은 그 종도 아는 것으로 본다 — 옛 세이브(종 목록이
+                    // 없던 판)를 불러와도 그 자리에서 종 기억이 살아난다.
+                    if (unit.Definition != null) _knownSpecies.Add(unit.Definition.monId);
                 }
 
             if (orderSquadIds != null && orderTargets != null)

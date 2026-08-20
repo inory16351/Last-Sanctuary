@@ -487,7 +487,9 @@ namespace LastSanctuary.Combat
         bool TryCastPipeStrike(int slot, BossSkillSO skill)
         {
             // 정의문이 «반지름» 이라 CircleValueIsRadius 가 true 다 — 그대로 반지름이다.
-            float radius = Mathf.Max(0.5f, skill.value01);
+            // ★★ 여기에 <b>자기 몸 반지름</b>을 더한다 — 안 더하면 원이 베일 몸 속에서
+            //    끝나 <b>아무도 못 맞힌다</b>(SelfBodyRadiusTiles 주석의 계산).
+            float radius = Mathf.Max(0.5f, skill.value01) + SelfBodyRadiusTiles();
             float diameter = radius * 2f;
 
             UnitRegistry.CollectEnemiesInRadius(transform.position, radius, _self.Faction, _scratch);
@@ -529,7 +531,7 @@ namespace LastSanctuary.Combat
             //   «보이는 범위 = 맞는 범위» 라는 이 프로젝트의 규칙은 그대로 지킨다.
             float radius = Mathf.Max(0.5f, skill.CircleValueIsRadius
                 ? skill.value01
-                : skill.value01 * 0.5f);
+                : skill.value01 * 0.5f) + SelfBodyRadiusTiles();
 
             DamageableUnit aim = PickAim(skill.Type, radius);
             if (aim == null && requireTarget) return false;
@@ -543,10 +545,24 @@ namespace LastSanctuary.Combat
             TrimToMaxTargets(skill);
             if (requireTarget && _scratch.Count == 0) return false;
 
-            // 연출은 <b>지름 x 지름</b> 상자를 조준 각도로 돌려 깐다 — 원화(반원형 범위
-            // 이펙트 한 장)가 +X 를 향해 그려져 있고, 부채꼴은 그 상자의 앞 절반이다.
+            // ★★ 연출은 <b>「앞으로 뿜는 브레스」</b>다 (유저 지시 2026-08-20:
+            //    *"Pipe_smoke 의 기획 의도가 베일이 바라보는 방향으로 연기 브레스를 쏘는건데
+            //    지금 에셋에 있는 담배연기 패턴 반원형 이펙트를 빼고 만들어줘"*).
+            //
+            //    예전에는 원화의 «반원형 범위 이펙트» 한 장을 <b>지름 x 지름 상자</b>에 깔았다.
+            //    그건 «범위 표시»(바닥에 반원을 그리는 것)이지 <b>브레스가 아니다</b> —
+            //    입에서 뿜는 그림이 없으니 연기가 어디서 나오는지 안 보였다.
+            //
+            //    지금은 <b>연기 구체 원화</b>(스킨의 투사체 칸 · 담뱃대에서 뿜는 그 그림)를
+            //    <b>앞쪽 절반</b>에 깔고 조준 각도로 돌린다:
+            //      · 중심을 <b>앞으로 반지름의 절반</b> 밀어 상자가 «내 앞» 만 덮게 한다
+            //        (부채꼴이 실제로 판정하는 영역과 같은 쪽이다).
+            //      · 세로는 지름 그대로 — 부채꼴이 좌우로 반지름만큼 벌어지기 때문이다.
+            //    ⚠ 「보이는 범위 = 맞는 범위」 규칙은 유지된다: 판정도 같은 반지름의
+            //      <b>앞쪽 180도</b>이고, 상자도 앞쪽 절반이다.
             float diameter = radius * 2f;
-            PlayFx(slot, skill, transform.position, dir, diameter, diameter, aim);
+            Vector3 breathAt = transform.position + (Vector3)(dir * (radius * 0.5f));
+            PlayBreath(slot, skill, breathAt, dir, radius, diameter, aim);
 
             bool cast = ApplyDamage(slot, skill, diameter, diameter, "부채꼴");
 
@@ -590,6 +606,39 @@ namespace LastSanctuary.Combat
                     ApplyPoison(skill, u);
                 }
             }
+        }
+
+        /// <summary>
+        /// ★★ <b>시전자 자기 몸의 반지름</b>(타일). 없으면 0 (2026-08-20 신설).
+        ///
+        /// <b>왜 필요한가 — 「담뱃대 강타」의 넉백이 한 번도 안 걸렸다</b>
+        /// -----------------------------------------------------------
+        /// 유저 리포트: *"담뱃대 휘두르기 스킬에 넉백이 구현이 안되어있어"*. 넉백 코드는
+        /// 있었지만 <b>스킬이 아무도 못 맞히고 있었다</b>:
+        /// <code>
+        ///   베일 콜라이더 15 x 10  →  BodyRadiusTiles = min(15,10)/2 = <b>5.0타일</b>
+        ///   근접 캐릭터는 그 <b>몸 표면</b>에 붙어 선다(UnitCombat.TargetRadius)
+        ///     = 베일 <b>중심에서 5타일 밖</b>
+        ///   그런데 표의 반지름은 <b>3</b> — 원이 <b>베일 몸 속에서 끝난다.</b>
+        /// </code>
+        /// 즉 «반지름 3» 을 <b>중심에서</b> 재면 이 스킬은 원리적으로 발동할 수 없다.
+        ///
+        /// ★ <b>표가 스스로 「보스 + N」이라고 적어놨다.</b> 다른 보스 스킬의 정의문을 보면
+        ///   전부 그 형식이다: *"카르시노스 <b>+</b> {value_01} 반지름 타일 범위"* ·
+        ///   *"아니사킬 <b>+</b> {value_01}"* · *"라린길이 <b>+</b> {value_01}"* ·
+        ///   *"바리올라 <b>+</b> {value_01} 지름"*. 즉 <b>몸집에 더하는 값</b>이라는 뜻이다.
+        ///   그래서 몸 반지름을 더한다 — 표를 그대로 읽는 것이다.
+        ///
+        /// ⚠ <b>지금은 베일의 두 스킬에만 적용한다.</b> 다른 넷(할퀴기·죽음의 포효·거대한
+        ///   위협 포효·아우성)은 <b>이미 나가 있는 밸런스</b>라, 같은 규칙을 소급하면 범위가
+        ///   커진다(카르시노스 몸 반지름 1.15 → 포효 5 가 6.15 로 +23%). 그건 밸런스 변경이라
+        ///   유저가 정할 일이다 — 발견 사실만 남긴다.
+        /// </summary>
+        float SelfBodyRadiusTiles()
+        {
+            if (_self is Units.MonsterUnit m) return Mathf.Max(0f, m.BodyRadiusTiles);
+            if (_self is Units.NeutralMonsterUnit n) return Mathf.Max(0f, n.BodyRadiusTiles);
+            return 0f;
         }
 
         /// <summary>
@@ -1041,6 +1090,39 @@ namespace LastSanctuary.Combat
             delta.sqrMagnitude > 0.000001f ? delta.normalized : Vector2.right;
 
         /// <summary>시전 모션 + 지면 범위 연출. 둘 다 없으면 조용히 넘어간다(피해는 그대로 들어간다).</summary>
+        /// <summary>
+        /// <b>앞으로 뿜는 연기 브레스</b> (2026-08-20 · 베일 「담배 연기」).
+        ///
+        /// <see cref="PlayFx"/> 와 다른 점은 <b>어느 원화를 쓰는지</b> 하나다:
+        /// 그쪽은 스킬 칸(<c>skill2Fx</c> = 바닥에 깔던 반원형 범위 표시)을 쓰고,
+        /// 이쪽은 <b>연기 구체</b>(<c>skill2Projectile</c> → 없으면 평타 <c>projectileFrames</c>)를
+        /// 쓴다. 시전 모션은 똑같이 재생한다 — 그건 «누가 뭘 한다» 를 보여주는 부분이다.
+        ///
+        /// ⚠ 원화가 <b>하나도 없으면</b> 시전 모션만 나가고 조용히 지나간다 — 연출이 없다고
+        ///   피해까지 막으면 «스킬이 안 나간다» 가 된다(<see cref="PlayFx"/> 와 같은 규칙).
+        /// </summary>
+        void PlayBreath(int slot, BossSkillSO skill, Vector3 center, Vector2 dir,
+                        float length, float width, DamageableUnit aim)
+        {
+            if (_animator == null) _animator = GetComponent<CharacterAnimator>();
+
+            float seconds = skill.CastSecondsOr(castSeconds);
+            Vector3 lookAt = aim != null ? aim.transform.position
+                                         : transform.position + (Vector3)dir;
+            _animator?.PlaySkillMotion(slot, seconds, lookAt);
+
+            CharacterSkinSO skin = _animator != null ? _animator.Skin : null;
+            if (skin == null) return;
+
+            Sprite[] fx = skin.SkillProjectile(slot);
+            if (fx == null || fx.Length == 0) fx = skin.projectileFrames;
+            if (fx == null || fx.Length == 0) return;
+
+            float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
+            CombatProjectileFx.PlayArea(fx, center, new Vector2(length, width), angle,
+                                        _self, seconds);
+        }
+
         void PlayFx(int slot, BossSkillSO skill, Vector3 center, Vector2 dir,
                     float length, float width, DamageableUnit aim)
         {
