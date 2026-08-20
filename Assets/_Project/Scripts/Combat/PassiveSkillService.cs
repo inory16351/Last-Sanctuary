@@ -195,6 +195,13 @@ namespace LastSanctuary.Combat
                     credit.by.OnRecentTargetKilled(since);
             }
 
+            // ★★ 주인이 죽으면 <b>소환수도 죽는다</b> (2026-08-21 · 아루 「강림」 정의문
+            //   마지막 문장). 왜 여기냐는 <see cref="CharacterPassives.OnOwnerDied"/> 의
+            //   긴 주석에 있다 — 죽은 캐릭터는 <c>Tick</c> 을 안 받고 <c>OnDisable</c> 도
+            //   오지 않으므로 <b>죽음 이벤트</b>가 유일한 통로다.
+            if (dead is CharacterUnit deadChar)
+                deadChar.GetComponent<CharacterPassives>()?.OnOwnerDied();
+
             // 죽은 유닛에 걸려 있던 보정은 되돌릴 필요가 없다(사라지므로) — 장부만 비운다.
             _corrosion.Remove(dead);
             _purified.Remove(dead);

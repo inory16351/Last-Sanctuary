@@ -1,0 +1,76 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65ad3cae191f5994a8004f1e5da8f97e, type: 3}
+  m_Name: Event_205021_점착_되는_피
+  m_EditorClassIdentifier:
+  eventId: 205021
+  eventName: "점착 되는 피"
+  eventType: 5001
+  value01: 120
+  value02: 10
+  scriptGroupId: 1021
+  eventDesc: "갑자기 성역의 땅이 끈적거리며 천사들의 발목을 붙들고 있습니다.\n악마들과 싸우는 데 큰 지장이 되고 있습니다.\n(일시적으로 천사들의 공격 속도가 감소합니다.)\n(일시적으로 천사들의 이동 속도가 감소합니다.)"
+  startSwitch: 500001
+  endSwitch: 500005
+  eventBg: "bg_test"
+  cond: "wave_done"
+  condValue01: 0
+  condValue02: 0
+  lines:
+  - dialogueId: 300081
+    dialogue: "갑자기 성역의 땅이 끈적거리며 천사들의 발목을 붙들고 있습니다."
+    dialogueStart: "active"
+    endSwitch: 0
+    nextDialogueId01: 300082
+    rewardProceedCond: ""
+    rewardProceedValue01: 0
+    rewardValue01: ""
+    rewardValue02: 0
+    nextDialogueId02: 0
+    rewardValue03: ""
+    rewardValue04: 0
+  - dialogueId: 300082
+    dialogue: "악마들과 싸우는 데 큰 지장이 되고 있습니다."
+    dialogueStart: ""
+    endSwitch: 0
+    nextDialogueId01: 300083
+    rewardProceedCond: "choice_proceed"
+    rewardProceedValue01: 0
+    rewardValue01: "char_atk_spd_durat_down"
+    rewardValue02: 5
+    nextDialogueId02: 300084
+    rewardValue03: "char_move_spd_durat_down"
+    rewardValue04: 5
+  - dialogueId: 300083
+    dialogue: "일시적으로 천사들의 공격 속도가 감소합니다."
+    dialogueStart: "wave_done"
+    endSwitch: 500005
+    nextDialogueId01: 0
+    rewardProceedCond: ""
+    rewardProceedValue01: 0
+    rewardValue01: ""
+    rewardValue02: 0
+    nextDialogueId02: 0
+    rewardValue03: ""
+    rewardValue04: 0
+  - dialogueId: 300084
+    dialogue: "일시적으로 천사들의 이동 속도가 감소합니다."
+    dialogueStart: "wave_done"
+    endSwitch: 500005
+    nextDialogueId01: 0
+    rewardProceedCond: ""
+    rewardProceedValue01: 0
+    rewardValue01: ""
+    rewardValue02: 0
+    nextDialogueId02: 0
+    rewardValue03: ""
+    rewardValue04: 0

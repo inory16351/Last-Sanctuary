@@ -1,0 +1,76 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65ad3cae191f5994a8004f1e5da8f97e, type: 3}
+  m_Name: Event_205025_이_빠진_무기
+  m_EditorClassIdentifier:
+  eventId: 205025
+  eventName: "이 빠진 무기"
+  eventType: 5001
+  value01: 120
+  value02: 10
+  scriptGroupId: 1025
+  eventDesc: "오랜 시간 전장을 누벼온 천사들의 무기가 점점 망가지기 시작했습니다.\n망가진 무기로는 악마들과 싸우는 데 지장을 초래할 수 밖에 없습니다.\n(일시적으로 천사들의 근거리 공격력이 감소합니다.)\n(일시적으로 천사들의 원거리 공격력이 감소합니다.)"
+  startSwitch: 500001
+  endSwitch: 500005
+  eventBg: "bg_test"
+  cond: "wave_done"
+  condValue01: 0
+  condValue02: 0
+  lines:
+  - dialogueId: 300097
+    dialogue: "오랜 시간 전장을 누벼온 천사들의 무기가 점점 망가지기 시작했습니다."
+    dialogueStart: "active"
+    endSwitch: 0
+    nextDialogueId01: 300096
+    rewardProceedCond: ""
+    rewardProceedValue01: 0
+    rewardValue01: ""
+    rewardValue02: 0
+    nextDialogueId02: 0
+    rewardValue03: ""
+    rewardValue04: 0
+  - dialogueId: 300098
+    dialogue: "망가진 무기로는 악마들과 싸우는 데 지장을 초래할 수 밖에 없습니다."
+    dialogueStart: ""
+    endSwitch: 0
+    nextDialogueId01: 300097
+    rewardProceedCond: "choice_proceed"
+    rewardProceedValue01: 0
+    rewardValue01: "char_melee_atk_durat_down"
+    rewardValue02: 5
+    nextDialogueId02: 300098
+    rewardValue03: "char_long_distance_atk_durat_down"
+    rewardValue04: 5
+  - dialogueId: 300099
+    dialogue: "일시적으로 천사들의 근거리 공격력이 감소합니다."
+    dialogueStart: "wave_done"
+    endSwitch: 500005
+    nextDialogueId01: 0
+    rewardProceedCond: ""
+    rewardProceedValue01: 0
+    rewardValue01: ""
+    rewardValue02: 0
+    nextDialogueId02: 0
+    rewardValue03: ""
+    rewardValue04: 0
+  - dialogueId: 300100
+    dialogue: "일시적으로 천사들의 원거리 공격력이 감소합니다."
+    dialogueStart: "wave_done"
+    endSwitch: 500005
+    nextDialogueId01: 0
+    rewardProceedCond: ""
+    rewardProceedValue01: 0
+    rewardValue01: ""
+    rewardValue02: 0
+    nextDialogueId02: 0
+    rewardValue03: ""
+    rewardValue04: 0

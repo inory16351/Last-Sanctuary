@@ -1,0 +1,76 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65ad3cae191f5994a8004f1e5da8f97e, type: 3}
+  m_Name: Event_205033_괴물_증식
+  m_EditorClassIdentifier:
+  eventId: 205033
+  eventName: "괴물 증식"
+  eventType: 5001
+  value01: 120
+  value02: 10
+  scriptGroupId: 1033
+  eventDesc: "어디서 나타났는지 모를 악마들이 침입해오고 있습니다.\n신성한 장소에 멋대로 침범한 놈들에게 분노의 철퇴를 내려야 합니다.\n(악마가 다수 소환됩니다.)\n(강력한 악마가 소환됩니다.)"
+  startSwitch: 500001
+  endSwitch: 500005
+  eventBg: "bg_test"
+  cond: "wave_done"
+  condValue01: 0
+  condValue02: 0
+  lines:
+  - dialogueId: 300129
+    dialogue: "어디서 나타났는지 모를 악마들이 침입해오고 있습니다."
+    dialogueStart: "active"
+    endSwitch: 0
+    nextDialogueId01: 300126
+    rewardProceedCond: ""
+    rewardProceedValue01: 0
+    rewardValue01: ""
+    rewardValue02: 0
+    nextDialogueId02: 0
+    rewardValue03: ""
+    rewardValue04: 0
+  - dialogueId: 300130
+    dialogue: "신성한 장소에 멋대로 침범한 놈들에게 분노의 철퇴를 내려야 합니다."
+    dialogueStart: ""
+    endSwitch: 0
+    nextDialogueId01: 300127
+    rewardProceedCond: "choice_proceed"
+    rewardProceedValue01: 0
+    rewardValue01: "summon_enemy"
+    rewardValue02: 5
+    nextDialogueId02: 300128
+    rewardValue03: "summon_m_boss"
+    rewardValue04: 1
+  - dialogueId: 300131
+    dialogue: "악마가 다수 소환됩니다."
+    dialogueStart: "wave_done"
+    endSwitch: 500005
+    nextDialogueId01: 0
+    rewardProceedCond: ""
+    rewardProceedValue01: 0
+    rewardValue01: ""
+    rewardValue02: 0
+    nextDialogueId02: 0
+    rewardValue03: ""
+    rewardValue04: 0
+  - dialogueId: 300132
+    dialogue: "강력한 악마가 소환됩니다."
+    dialogueStart: "wave_done"
+    endSwitch: 500005
+    nextDialogueId01: 0
+    rewardProceedCond: ""
+    rewardProceedValue01: 0
+    rewardValue01: ""
+    rewardValue02: 0
+    nextDialogueId02: 0
+    rewardValue03: ""
+    rewardValue04: 0

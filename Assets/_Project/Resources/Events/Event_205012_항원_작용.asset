@@ -1,0 +1,76 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65ad3cae191f5994a8004f1e5da8f97e, type: 3}
+  m_Name: Event_205012_항원_작용
+  m_EditorClassIdentifier:
+  eventId: 205012
+  eventName: "항원 작용"
+  eventType: 5001
+  value01: 120
+  value02: 10
+  scriptGroupId: 1012
+  eventDesc: "천사들의 마나가 한층 강화됩니다.\n마치 신체가 돌이라도 된 것처럼 단단하게 만들었습니다.\n(일시적으로 천사들의 방어력이 크게 증가합니다.)\n(일시적으로 천사들의 저항력이 증가합니다.)"
+  startSwitch: 500001
+  endSwitch: 500005
+  eventBg: "bg_test"
+  cond: "wave_done"
+  condValue01: 0
+  condValue02: 0
+  lines:
+  - dialogueId: 300045
+    dialogue: "천사들의 마나가 한층 강화됩니다."
+    dialogueStart: "active"
+    endSwitch: 0
+    nextDialogueId01: 300046
+    rewardProceedCond: ""
+    rewardProceedValue01: 0
+    rewardValue01: ""
+    rewardValue02: 0
+    nextDialogueId02: 0
+    rewardValue03: ""
+    rewardValue04: 0
+  - dialogueId: 300046
+    dialogue: "마치 신체가 돌이라도 된 것처럼 단단하게 만들었습니다."
+    dialogueStart: ""
+    endSwitch: 0
+    nextDialogueId01: 300047
+    rewardProceedCond: "choice_proceed"
+    rewardProceedValue01: 0
+    rewardValue01: "char_def_durat_up"
+    rewardValue02: 10
+    nextDialogueId02: 300048
+    rewardValue03: "char_resist_durat_up"
+    rewardValue04: 5
+  - dialogueId: 300047
+    dialogue: "일시적으로 천사들의 방어력이 크게 증가합니다."
+    dialogueStart: "wave_done"
+    endSwitch: 500005
+    nextDialogueId01: 0
+    rewardProceedCond: ""
+    rewardProceedValue01: 0
+    rewardValue01: ""
+    rewardValue02: 0
+    nextDialogueId02: 0
+    rewardValue03: ""
+    rewardValue04: 0
+  - dialogueId: 300048
+    dialogue: "일시적으로 천사들의 저항력이 증가합니다."
+    dialogueStart: "wave_done"
+    endSwitch: 500005
+    nextDialogueId01: 0
+    rewardProceedCond: ""
+    rewardProceedValue01: 0
+    rewardValue01: ""
+    rewardValue02: 0
+    nextDialogueId02: 0
+    rewardValue03: ""
+    rewardValue04: 0

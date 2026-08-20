@@ -48,6 +48,19 @@ namespace LastSanctuary.UI
         // ⚠ noteAffordable("능력치에 무작위 성장치를 더합니다") 는 없앴다 — 유형을 고른 뒤에는
         //   그 자리에 <b>어떤 유형인지</b>를 보여주는 것이 더 쓸모 있다(아래 noteFocusFormat).
         [SerializeField] string noteUnaffordable = "에너지가 부족합니다.";
+
+        /// <summary>
+        /// ★★ 소환수(아루의 골렘) 안내 (2026-08-21 · 유저 리포트: *"아루의 골렘이 강화
+        /// 가능하고 전술 수정이 가능한 버그"*).
+        ///
+        /// <see cref="CharacterUpgradeService.CanUpgrade"/> 는 <b>이미</b> 소환수를 거부하고
+        /// 있었다. 그런데 이 창의 «성장 유형 고르기» 단계(<c>pickingStage</c>)는 그 검사를
+        /// <b>거치지 않아</b> 버튼이 눌렸고, 안내문도 «에너지가 부족합니다» 로 나왔다 —
+        /// 그래서 «강화가 되는 것처럼» 보였다. 정의문은 <b>"골렘은 강화할 수 없습니다"</b> 다.
+        /// </summary>
+        [SerializeField] string noteSummoned = "소환수는 강화할 수 없습니다.";
+
+        [SerializeField] string enhanceSummoned = "강화 불가";
         [SerializeField] string noteNoSelection = "-";
 
         [Header("문구 — 성장 유형 (토글 1단계)")]
@@ -821,13 +834,17 @@ namespace LastSanctuary.UI
 
             bool statCapped = has && _unit.Balance != null &&
                               AreStatsAtCap(_unit.Stats, _unit.Balance.statMax);
-            bool canUpgrade = has && _upgrades != null && _upgrades.CanUpgrade(_unit) && !statCapped;
+            // ★★ 소환수는 <b>어느 단계에서도</b> 강화할 수 없다 (noteSummoned 의 긴 주석).
+            bool summoned = has && _unit.IsSummoned;
+            bool canUpgrade = has && !summoned && _upgrades != null &&
+                              _upgrades.CanUpgrade(_unit) && !statCapped;
             int cost = has && _upgrades != null ? _upgrades.CostFor(_unit) : 0;
 
             // 토글 1단계("성장 유형 결정")에서는 <b>에너지가 없어도 눌려야 한다</b> —
             // 그 클릭은 강화가 아니라 유형 칸을 펼치는 조작이기 때문이다. 여기서 canUpgrade 로
             // 잠가버리면 돈이 없을 때 유형을 미리 정해둘 수조차 없다.
-            bool pickingStage = has && _unit.GrowthFocus == StatGrowthFocus.None && !statCapped;
+            bool pickingStage = has && !summoned &&
+                               _unit.GrowthFocus == StatGrowthFocus.None && !statCapped;
 
             if (_enhanceButton != null) _enhanceButton.interactable = pickingStage || canUpgrade;
 
@@ -842,6 +859,7 @@ namespace LastSanctuary.UI
             if (_enhanceLabel != null)
             {
                 if (!has) _enhanceLabel.text = enhanceNoSelection;
+                else if (summoned) _enhanceLabel.text = enhanceSummoned;
                 else if (statCapped) _enhanceLabel.text = enhanceMaxed;
                 else if (pickingStage) _enhanceLabel.text = enhancePickType;
                 else _enhanceLabel.text = string.Format(enhanceFormat, cost);
@@ -850,6 +868,7 @@ namespace LastSanctuary.UI
             if (_noteText != null)
             {
                 if (!has) _noteText.text = noteNoSelection;
+                else if (summoned) _noteText.text = noteSummoned;
                 else if (statCapped) _noteText.text = enhanceMaxed;
                 else if (pickingStage) _noteText.text = notePickType;
                 else if (!canUpgrade) _noteText.text = noteUnaffordable;

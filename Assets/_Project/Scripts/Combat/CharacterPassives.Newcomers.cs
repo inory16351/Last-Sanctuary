@@ -451,6 +451,30 @@ namespace LastSanctuary.Combat
             return true;
         }
 
+        /// <summary>
+        /// ★★ <b>주인이 죽었다</b> — 골렘도 함께 죽인다 (2026-08-21).
+        ///
+        /// 정의문(<c>skill_type_desc_Dawn</c>) 마지막 문장이 <b>"아루가 사망할 경우 골렘도
+        /// 함께 사망합니다"</b> 다. 코드에는 <see cref="AruGolem.Dismiss"/> 가 있었지만
+        /// 부르는 곳이 <see cref="CharacterPassives"/> 의 <c>OnDisable</c> <b>하나뿐</b>이었다.
+        ///
+        /// ⚠ 그런데 캐릭터는 <b>죽어도 오브젝트가 남는다</b>(사망 모션·부활 대기) — 즉
+        ///   <c>OnDisable</c> 이 오지 않는다. 그리고 <see cref="PassiveSkillService"/> 는
+        ///   죽은 캐릭터의 <c>Tick</c> 을 <b>건너뛰므로</b> 안에서 스스로 알아챌 수도 없다.
+        ///   그래서 아루가 죽어도 <b>골렘만 남아 계속 싸웠다.</b>
+        ///
+        /// → 죽음 <b>이벤트</b>에서 부른다(<c>PassiveSkillService.HandleDied</c>).
+        ///   이미 전역 <c>OnAnyDied</c> 를 듣고 있는 곳이라 새 구독을 만들지 않는다.
+        /// ⚠ 여기서 쿨타임을 <b>재지 않는다</b> — 주인이 죽었으면 다시 소환할 주체가 없고,
+        ///   부활(「복수자」)로 살아나면 그때 <see cref="TryDawn"/> 이 쿨타임부터 본다.
+        /// </summary>
+        public void OnOwnerDied()
+        {
+            if (_golem == null) return;
+            AruGolem.Dismiss(_golem);
+            _golem = null;
+        }
+
         /// <summary>골렘이 죽었으면 그 순간부터 쿨타임을 센다(위 <see cref="TryDawn"/> 주석).</summary>
         void TickGolemLifetime()
         {

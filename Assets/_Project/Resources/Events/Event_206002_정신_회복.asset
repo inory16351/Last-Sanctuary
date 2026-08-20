@@ -1,0 +1,76 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65ad3cae191f5994a8004f1e5da8f97e, type: 3}
+  m_Name: Event_206002_정신_회복
+  m_EditorClassIdentifier:
+  eventId: 206002
+  eventName: "정신 회복"
+  eventType: 5002
+  value01: 180
+  value02: 10
+  scriptGroupId: 1038
+  eventDesc: "정신이 무너져 가던 천사들이 마음을 다잡습니다.\n힘들지만 이겨내야 합니다. 지쳐만 가는 전장에서도 꽃은 피어나기 마련입니다.\n(천사 1명의 침식 상태를 회복합니다.)\n(모든 천사의 침식 수치가 감소합니다.)"
+  startSwitch: 500001
+  endSwitch: 500005
+  eventBg: "bg_test"
+  cond: "private_done"
+  condValue01: 0
+  condValue02: 0
+  lines:
+  - dialogueId: 300149
+    dialogue: "정신이 무너져 가던 천사들이 마음을 다잡습니다."
+    dialogueStart: "active"
+    endSwitch: 0
+    nextDialogueId01: 300144
+    rewardProceedCond: ""
+    rewardProceedValue01: 0
+    rewardValue01: ""
+    rewardValue02: 0
+    nextDialogueId02: 0
+    rewardValue03: ""
+    rewardValue04: 0
+  - dialogueId: 300150
+    dialogue: "힘들지만 이겨내야 합니다. 지쳐만 가는 전장에서도 꽃은 피어나기 마련입니다."
+    dialogueStart: ""
+    endSwitch: 0
+    nextDialogueId01: 300145
+    rewardProceedCond: "choice_proceed"
+    rewardProceedValue01: 0
+    rewardValue01: "char_mental_error_down"
+    rewardValue02: 80
+    nextDialogueId02: 300146
+    rewardValue03: "char_all_mental_error_down"
+    rewardValue04: 10
+  - dialogueId: 300151
+    dialogue: "천사의 침식 상태를 회복합니다."
+    dialogueStart: "private_done"
+    endSwitch: 500005
+    nextDialogueId01: 0
+    rewardProceedCond: ""
+    rewardProceedValue01: 0
+    rewardValue01: ""
+    rewardValue02: 0
+    nextDialogueId02: 0
+    rewardValue03: ""
+    rewardValue04: 0
+  - dialogueId: 300152
+    dialogue: "모든 천사의 침식 수치가 크게 감소합니다."
+    dialogueStart: "private_done"
+    endSwitch: 500005
+    nextDialogueId01: 0
+    rewardProceedCond: ""
+    rewardProceedValue01: 0
+    rewardValue01: ""
+    rewardValue02: 0
+    nextDialogueId02: 0
+    rewardValue03: ""
+    rewardValue04: 0

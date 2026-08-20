@@ -225,10 +225,25 @@ namespace LastSanctuary.UI
         {
             bool has = _tactics != null;
 
+            // ★★ <b>전면 잠금</b>(소환수) — 2026-08-21 · 유저 리포트:
+            //   *"아루의 골렘이 … 전술 수정이 가능한 버그"*.
+            //
+            //   <see cref="CharacterTactics"/> 는 <b>이미</b> 잠긴 유닛의 값 변경을 전부
+            //   거부하고 있었다(그 파일의 «골렘 — 전술 전면 잠금» 주석 11곳). 그런데 이 창은
+            //   <b>역할 두 줄만</b> 잠금을 반영했다(``roleFree``) — 나머지 줄(교전 대상·탐험
+            //   유형·웨이브 반응·배회 범위·후퇴 행동)은 버튼이 <b>멀쩡히 눌렸고</b> 색도
+            //   평상시였다. 눌러도 값이 안 바뀌니 «되는 것 같은데 안 되는» 상태였다.
+            //   → 여기서 한 번에 막는다. 옵션마다 조건을 또 적으면 새 줄이 늘 때 빠뜨린다.
+            //
+            // ⚠ <b>``on``(지금 선택된 값)은 그대로 강조한다</b> — 잠긴 줄도 «무엇으로
+            //   고정됐는지» 는 보여야 한다(아래 ★ 주석과 같은 이유).
+            bool locked = has && _tactics.TacticsLocked;
+
             for (int i = 0; i < _options.Count; i++)
             {
                 Option option = _options[i];
-                bool available = has && (option.IsAvailable == null || option.IsAvailable());
+                bool available = has && !locked &&
+                                 (option.IsAvailable == null || option.IsAvailable());
 
                 if (option.Button != null) option.Button.interactable = available;
                 if (option.Background == null) continue;

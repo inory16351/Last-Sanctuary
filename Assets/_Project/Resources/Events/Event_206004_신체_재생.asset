@@ -1,0 +1,76 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65ad3cae191f5994a8004f1e5da8f97e, type: 3}
+  m_Name: Event_206004_신체_재생
+  m_EditorClassIdentifier:
+  eventId: 206004
+  eventName: "신체 재생"
+  eventType: 5002
+  value01: 180
+  value02: 5
+  scriptGroupId: 1040
+  eventDesc: "갈라진 성역이 조금씩 재생되기 시작합니다.\n적어도 아직 희망을 놓을 때는 아닌 듯 합니다.\n(넥서스의 현재 체력이 크게 증가합니다.)\n(건물의 현재 체력이 크게 증가합니다.)"
+  startSwitch: 500001
+  endSwitch: 500005
+  eventBg: "bg_test"
+  cond: "private_done"
+  condValue01: 0
+  condValue02: 0
+  lines:
+  - dialogueId: 300157
+    dialogue: "갈라진 성역이 조금씩 재생되기 시작합니다."
+    dialogueStart: "active"
+    endSwitch: 0
+    nextDialogueId01: 300152
+    rewardProceedCond: ""
+    rewardProceedValue01: 0
+    rewardValue01: ""
+    rewardValue02: 0
+    nextDialogueId02: 0
+    rewardValue03: ""
+    rewardValue04: 0
+  - dialogueId: 300158
+    dialogue: "적어도 아직 희망을 놓을 때는 아닌 듯 합니다."
+    dialogueStart: ""
+    endSwitch: 0
+    nextDialogueId01: 300153
+    rewardProceedCond: "choice_proceed"
+    rewardProceedValue01: 0
+    rewardValue01: "nexus_percent_heal"
+    rewardValue02: 20
+    nextDialogueId02: 300154
+    rewardValue03: "tower_percent_heal"
+    rewardValue04: 20
+  - dialogueId: 300159
+    dialogue: "넥서스의 체력을 회복합니다."
+    dialogueStart: "private_done"
+    endSwitch: 500005
+    nextDialogueId01: 0
+    rewardProceedCond: ""
+    rewardProceedValue01: 0
+    rewardValue01: ""
+    rewardValue02: 0
+    nextDialogueId02: 0
+    rewardValue03: ""
+    rewardValue04: 0
+  - dialogueId: 300160
+    dialogue: "모든 건물의 체력을 회복합니다."
+    dialogueStart: "private_done"
+    endSwitch: 500005
+    nextDialogueId01: 0
+    rewardProceedCond: ""
+    rewardProceedValue01: 0
+    rewardValue01: ""
+    rewardValue02: 0
+    nextDialogueId02: 0
+    rewardValue03: ""
+    rewardValue04: 0

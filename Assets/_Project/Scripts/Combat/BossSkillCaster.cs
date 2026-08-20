@@ -1093,10 +1093,22 @@ namespace LastSanctuary.Combat
         /// <summary>
         /// <b>앞으로 뿜는 연기 브레스</b> (2026-08-20 · 베일 「담배 연기」).
         ///
-        /// <see cref="PlayFx"/> 와 다른 점은 <b>어느 원화를 쓰는지</b> 하나다:
-        /// 그쪽은 스킬 칸(<c>skill2Fx</c> = 바닥에 깔던 반원형 범위 표시)을 쓰고,
-        /// 이쪽은 <b>연기 구체</b>(<c>skill2Projectile</c> → 없으면 평타 <c>projectileFrames</c>)를
-        /// 쓴다. 시전 모션은 똑같이 재생한다 — 그건 «누가 뭘 한다» 를 보여주는 부분이다.
+        /// <see cref="PlayFx"/> 와 다른 점은 <b>그림을 어디에 두는지</b> 하나다: 그쪽은 상자
+        /// <b>가운데</b>를 시전자에 맞추고, 이쪽은 <b>앞쪽 절반</b>만 덮는다(부르는 쪽이
+        /// 중심을 앞으로 밀어 준다). 시전 모션은 똑같이 재생한다.
+        ///
+        /// ★★ <b>2026-08-21 — 원화 선택 순서를 고쳤다</b> (유저: *"보스 베일 이펙트
+        /// 이상한거 있었으니까"*). 예전에는 <c>skill2Projectile</c> → <c>projectileFrames</c>
+        /// 만 봤고, 베일은 둘 다 비어 있어 <b>평타 탄환(연기 구체 14장)</b>이 깔렸다.
+        /// 그 원화는 «날아가다 흩어지는 <b>둥근 구체</b>» 라 앞쪽 반원에 깔면
+        /// <b>공깃돌이 굴러다니는</b> 것처럼 보인다 — 「입에서 뿜는 연기」가 아니다.
+        ///
+        /// 그래서 <c>skill2Fx</c> 를 <b>가장 먼저</b> 본다. 그 칸에는 이제
+        /// <b>진짜 연기 브레스 한 장</b>이 들어 있다(`Tools/bale_skin_build.py` 의
+        /// :data:`SINGLE_FX` — 시트에 처음부터 그려져 있었는데 덩어리 판정이 다섯 조각으로
+        /// 잘라 ``Unused_`` 에 넣어 두었던 그림이다).
+        /// ⚠ 옛 순서를 폴백으로 <b>남겨 둔다</b> — 다른 보스가 브레스를 갖게 될 때
+        ///   스킬 칸이 비어 있을 수 있고, 그때 «연출이 아예 없는» 것보다는 낫다.
         ///
         /// ⚠ 원화가 <b>하나도 없으면</b> 시전 모션만 나가고 조용히 지나간다 — 연출이 없다고
         ///   피해까지 막으면 «스킬이 안 나간다» 가 된다(<see cref="PlayFx"/> 와 같은 규칙).
@@ -1114,7 +1126,9 @@ namespace LastSanctuary.Combat
             CharacterSkinSO skin = _animator != null ? _animator.Skin : null;
             if (skin == null) return;
 
-            Sprite[] fx = skin.SkillProjectile(slot);
+            // ★ 순서: 스킬 범위 칸 → 스킬 전용 탄 → 평타 탄 (위 ★★ 의 근거).
+            Sprite[] fx = skin.SkillFx(slot);
+            if (fx == null || fx.Length == 0) fx = skin.SkillProjectile(slot);
             if (fx == null || fx.Length == 0) fx = skin.projectileFrames;
             if (fx == null || fx.Length == 0) return;
 

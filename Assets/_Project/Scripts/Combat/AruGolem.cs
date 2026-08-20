@@ -144,12 +144,17 @@ namespace LastSanctuary.Combat
         static void ApplyRules(CharacterUnit owner, CharacterUnit golem, PassiveSkillSO so)
         {
             // ── 크기 : 가로 value02 · 세로 value03 타일 ──
+            //
+            // ★★ 2026-08-21 — <b>표 값을 그대로 쓴다</b> (유저 지시: *"골렘 크기 테이블
+            //   값대로 적용 안됐음 테이블 스킬 타입 스트링 키 다시 읽어보고 맞는 방향으로
+            //   수정해줘"*). 정의문은 <b>"골렘의 크기는 타일 기준 {value_02}(가로) *
+            //   {value_03}(세로) 입니다"</b> 라고 <b>어느 쪽이 가로인지 못박고 있다.</b>
+            //   그래서 <see cref="OrientBoxToArt"/> 의 «원화가 서 있으면 상자를 세운다» 는
+            //   해석을 <b>버렸다</b> — 그것은 표를 코드가 뒤집는 일이었다.
+            //   ⚠ 그 함수의 긴 주석은 «왜 그렇게 했었는지» 의 기록으로 남겨 둔다.
             var anim = golem.GetComponent<CharacterAnimator>();
             if (anim != null && so.value02 > 0f && so.value03 > 0f)
-            {
-                Vector2 box = OrientBoxToArt(anim, so.value02, so.value03);
-                anim.SetColliderBoxTiles(box.x, box.y);
-            }
+                anim.SetColliderBoxTiles(so.value02, so.value03);
 
             // ── 침식이 일어나지 않는다 : 컴포넌트를 아예 끈다 ──
             //    (템플릿에 붙어 있으므로 «안 붙이기» 가 아니라 «끄기» 가 맞다.
@@ -226,7 +231,14 @@ namespace LastSanctuary.Combat
         ///   바꾸면 이 규칙이 저절로 따라가야 한다. 여기서 돌리는 것은 <b>원화가 서서
         ///   그려져 왔기 때문</b>이며, 원화가 눕는 날에는 저절로 안 돌아간다.
         /// ⚠ 원화 실측값이 없으면(스킨 미배선) <b>표 값을 그대로</b> 쓴다 — 지어내지 않는다.
+        ///
+        /// ⚠⚠ <b>2026-08-21 — 이 함수는 더 이상 쓰지 않는다.</b> 정의문이
+        ///   *"{value_02}(가로) * {value_03}(세로)"* 로 <b>축을 못박고</b> 있어서, 상자를
+        ///   돌리는 것은 «표를 코드가 뒤집는» 일이었다(유저 지시로 되돌렸다).
+        ///   기록으로 남긴다 — 골렘이 아루보다 작아 보이는 것이 문제라면 <b>표의 3x2 를
+        ///   기획이 고치는</b> 것이 맞는 방향이다.
         /// </summary>
+#pragma warning disable IDE0051     // 기록용으로 남긴 함수 — 위 ⚠⚠
         static Vector2 OrientBoxToArt(CharacterAnimator anim, float widthTiles, float heightTiles)
         {
             var box = new Vector2(widthTiles, heightTiles);
@@ -242,6 +254,7 @@ namespace LastSanctuary.Combat
                 box = new Vector2(box.y, box.x);
             return box;
         }
+#pragma warning restore IDE0051
 
         /// <summary>
         /// 매 프레임 주인이 부른다 — <b>아루가 때리는 적을 골렘도 때린다</b>(정의문).

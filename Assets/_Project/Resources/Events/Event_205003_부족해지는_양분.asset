@@ -1,0 +1,76 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65ad3cae191f5994a8004f1e5da8f97e, type: 3}
+  m_Name: Event_205003_부족해지는_양분
+  m_EditorClassIdentifier:
+  eventId: 205003
+  eventName: "부족해지는 양분"
+  eventType: 5001
+  value01: 120
+  value02: 10
+  scriptGroupId: 1003
+  eventDesc: "악마들의 기세가 조금 누그러진 듯 합니다.\n무엇 때문인지 알 수는 없으나 이 기회를 놓칠 수는 없습니다.\n(일시적으로 적들의 공격 속도가 감소합니다.)\n(일시적으로 적들의 이동 속도가 감소합니다.)"
+  startSwitch: 500001
+  endSwitch: 500005
+  eventBg: "bg_test"
+  cond: "wave_done"
+  condValue01: 0
+  condValue02: 0
+  lines:
+  - dialogueId: 300009
+    dialogue: "악마들의 기세가 조금 누그러진 듯 합니다."
+    dialogueStart: "active"
+    endSwitch: 0
+    nextDialogueId01: 300010
+    rewardProceedCond: ""
+    rewardProceedValue01: 0
+    rewardValue01: ""
+    rewardValue02: 0
+    nextDialogueId02: 0
+    rewardValue03: ""
+    rewardValue04: 0
+  - dialogueId: 300010
+    dialogue: "무엇 때문인지 알 수는 없으나 이 기회를 놓칠 수는 없습니다."
+    dialogueStart: ""
+    endSwitch: 0
+    nextDialogueId01: 300011
+    rewardProceedCond: "choice_proceed"
+    rewardProceedValue01: 0
+    rewardValue01: "enemy_atk_spd_durat_down"
+    rewardValue02: 5
+    nextDialogueId02: 300012
+    rewardValue03: "enemy_move_spd_durat_down"
+    rewardValue04: 5
+  - dialogueId: 300011
+    dialogue: "일시적으로 적들의 공격 속도가 감소합니다."
+    dialogueStart: "wave_done"
+    endSwitch: 500005
+    nextDialogueId01: 0
+    rewardProceedCond: ""
+    rewardProceedValue01: 0
+    rewardValue01: ""
+    rewardValue02: 0
+    nextDialogueId02: 0
+    rewardValue03: ""
+    rewardValue04: 0
+  - dialogueId: 300012
+    dialogue: "일시적으로 적들의 이동 속도가 감소합니다."
+    dialogueStart: "wave_done"
+    endSwitch: 500005
+    nextDialogueId01: 0
+    rewardProceedCond: ""
+    rewardProceedValue01: 0
+    rewardValue01: ""
+    rewardValue02: 0
+    nextDialogueId02: 0
+    rewardValue03: ""
+    rewardValue04: 0

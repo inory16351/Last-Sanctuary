@@ -1,0 +1,76 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65ad3cae191f5994a8004f1e5da8f97e, type: 3}
+  m_Name: Event_205002_솟구치는_혈류
+  m_EditorClassIdentifier:
+  eventId: 205002
+  eventName: "솟구치는 혈류"
+  eventType: 5001
+  value01: 120
+  value02: 5
+  scriptGroupId: 1002
+  eventDesc: "폭발하는 것처럼 성역의 붉은 땅이 불타는 것처럼 뜨겁습니다.\n지쳐있던 천사들이 마치 광기에 휩싸인 것처럼 폭주하기 시작합니다.\n(일시적으로 천사들의 공격 속도가 크게 증가합니다.)\n(일시적으로 천사들의 이동 속도가 크게 증가합니다.)"
+  startSwitch: 500001
+  endSwitch: 500005
+  eventBg: "bg_test"
+  cond: "wave_done"
+  condValue01: 0
+  condValue02: 0
+  lines:
+  - dialogueId: 300005
+    dialogue: "폭발하는 것처럼 성역의 붉은 땅이 불타는 것처럼 뜨겁습니다."
+    dialogueStart: "active"
+    endSwitch: 0
+    nextDialogueId01: 300006
+    rewardProceedCond: ""
+    rewardProceedValue01: 0
+    rewardValue01: ""
+    rewardValue02: 0
+    nextDialogueId02: 0
+    rewardValue03: ""
+    rewardValue04: 0
+  - dialogueId: 300006
+    dialogue: "지쳐있던 천사들이 마치 광기에 휩싸인 것처럼 폭주하기 시작합니다."
+    dialogueStart: ""
+    endSwitch: 0
+    nextDialogueId01: 300007
+    rewardProceedCond: "choice_proceed"
+    rewardProceedValue01: 0
+    rewardValue01: "char_atk_spd_durat_up"
+    rewardValue02: 10
+    nextDialogueId02: 300008
+    rewardValue03: "char_move_spd_durat_up"
+    rewardValue04: 10
+  - dialogueId: 300007
+    dialogue: "일시적으로 천사들의 공격 속도가 증가합니다."
+    dialogueStart: "wave_done"
+    endSwitch: 500005
+    nextDialogueId01: 0
+    rewardProceedCond: ""
+    rewardProceedValue01: 0
+    rewardValue01: ""
+    rewardValue02: 0
+    nextDialogueId02: 0
+    rewardValue03: ""
+    rewardValue04: 0
+  - dialogueId: 300008
+    dialogue: "일시적으로 천사들의 이동 속도가 증가합니다."
+    dialogueStart: "wave_done"
+    endSwitch: 500005
+    nextDialogueId01: 0
+    rewardProceedCond: ""
+    rewardProceedValue01: 0
+    rewardValue01: ""
+    rewardValue02: 0
+    nextDialogueId02: 0
+    rewardValue03: ""
+    rewardValue04: 0
