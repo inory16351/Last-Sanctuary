@@ -56,6 +56,11 @@ SKIN_SPEC_NAME = "_skin_spec.txt"
 #:   ⚠ 올리면 회복 이펙트의 연한 후광을 타고 흐름이 안으로 들어간다.
 BG_TOL = 30
 
+#: 알파가 이 값 미만이면 «투명 = 배경» 으로 본다 (:func:`load_sheet` 의 ★★).
+#: 8 인 이유는 :func:`crop_rgba` 가 이미 «알파 8 이하는 없는 픽셀» 로 다루기 때문이다 —
+#: 두 곳이 다른 기준을 쓰면 경계 한 줄이 서로 어긋난다.
+ALPHA_INK_MIN = 8
+
 #: 배경 흘려 채우기의 씨앗을 뿌릴 **안쪽 띠**(px). 시트를 감싼 테두리(검은 액자)가 있으면
 #: 맨 가장자리에는 배경이 없다 — :func:`background_mask` 의 ⚠⚠ 참조.
 SEED_INSET = 6
@@ -492,7 +497,32 @@ def load_sheet(path, box_borders=False):
     if not os.path.isfile(path):
         raise SystemExit("⚠ 원본이 없습니다: " + path)
 
-    arr = np.asarray(Image.open(path).convert("RGB")).astype(np.uint8).copy()
+    src = Image.open(path)
+
+    # ★★ 2026-08-20 — <b>알파가 있는 시트를 알파로 읽는다.</b>
+    #
+    #   유저가 아르세니아 시트를 <b>배경 없는 PNG</b>(RGBA)로 다시 내보냈다. 그때까지
+    #   이 함수는 무조건 `convert("RGB")` 로 알파를 <b>버리고</b> 흰 배경을 흘려 채워
+    #   찾았는데, 알파를 버리면 투명 픽셀의 RGB 가 그대로 남아 <b>시트 전체가 그림으로</b>
+    #   잡힌다(실측: 모든 줄이 «밴드 밖에 그림이 2154px» 로 나왔다 — 배경이 통째로 잉크였다).
+    #
+    #   그림 자체가 «어디까지가 그림인지» 를 알파로 이미 알려주고 있으므로, 있으면
+    #   <b>그쪽이 정본</b>이다 — 흘려 채우기보다 정확하고, 「갇힌 배경」 문제도 아예 없다
+    #   (다리 사이가 투명하게 그려져 오기 때문).
+    #
+    #   ⚠ 알파가 없는 옛 시트는 <b>한 줄도 안 바뀐다</b> — 아래 `has_alpha` 가 False 라
+    #     예전 경로를 그대로 탄다.
+    rgba = np.asarray(src.convert("RGBA")).astype(np.uint8)
+    alpha = rgba[:, :, 3]
+    has_alpha = bool(alpha.min() < 250)
+
+    if has_alpha:
+        # 투명한 곳을 흰색으로 깔아 둔다 — 라벨·테두리 판정이 «흰 배경» 을 전제한다.
+        arr = rgba[:, :, :3].copy()
+        arr[alpha < ALPHA_INK_MIN] = 255
+    else:
+        arr = np.asarray(src.convert("RGB")).astype(np.uint8).copy()
+
     bg = modal_background(arr)
 
     if box_borders:
@@ -503,7 +533,14 @@ def load_sheet(path, box_borders=False):
     a16 = arr.astype(np.int16)
     dist = np.abs(a16 - bg).sum(axis=2)
 
-    bg_mask = background_mask(dist)
+    if has_alpha:
+        # ★ 알파가 곧 배경 판정이다. 다만 <b>구획 테두리·제목 글자는 불투명</b>하므로
+        #   흰색 판정도 함께 건다 — 둘 중 하나라도 배경이면 배경이다.
+        bg_mask = (alpha < ALPHA_INK_MIN) | (dist <= BG_TOL)
+        print("  %s · 알파로 배경 판정 (투명 %d px)"
+              % (os.path.basename(path), int((alpha < ALPHA_INK_MIN).sum())))
+    else:
+        bg_mask = background_mask(dist)
     gray = ((a16.max(axis=2) - a16.min(axis=2)) < LABEL_SAT) & (a16.mean(axis=2) < LABEL_LUM)
 
     print("  원본 %s · 배경 %s · 배경 %d px / 그림 %d px"
@@ -1002,6 +1039,35 @@ def body_anchor(rgba):
     return (thick.min() + thick.max() + 1) / 2.0
 
 
+def body_extent(rgba):
+    """
+    이 프레임에서 <b>몸통만</b>의 (가로, 세로) 픽셀 크기. 앞으로 뻗은 이펙트는 뺀다.
+
+    ★★ 2026-08-20 신설 — 유저 지시: *"캐릭터의 크기는 유지하고 앞 공간에 이펙트가 나올
+    공간을 넣는 로직 … 이펙트의 크기도 실측해서 분리하고 딱 캐릭터의 크기는 유지되게"*.
+
+    <b>왜 상자 크기로는 못 재나</b> — 근접 공격 프레임은 «캐릭터 + 앞으로 뻗는 궤적» 이라
+    상자가 이펙트만큼 커진다. 그 값으로 «크기가 유지되는가» 를 판단하면 <b>전부 실패</b>로
+    나온다(실제로 카이론 근거리 상자는 대기보다 1.4배 넓다 — 몸은 같은데도).
+
+    그래서 :func:`body_anchor` 가 쓰는 <b>«두꺼운 열»</b> 판정을 그대로 쓴다: 세로로 두꺼운
+    열만 몸통으로 보고, 그 구간의 가로 폭과 <b>그 구간 안에서의</b> 세로 높이를 잰다.
+    궤적·연기는 얇게 퍼지므로 이 판정에서 빠진다.
+    """
+    th = column_thickness(rgba)
+    if th.max() <= 0:
+        return (0, 0)
+    thick = np.where(th > th.max() * BODY_STREAK_RATIO)[0]
+    if not len(thick):
+        return (0, 0)
+    x0, x1 = int(thick.min()), int(thick.max())
+    sub = rgba[:, x0:x1 + 1, 3] > 8
+    ys = np.where(sub.any(axis=1))[0]
+    if not len(ys):
+        return (x1 - x0 + 1, 0)
+    return (x1 - x0 + 1, int(ys[-1] - ys[0] + 1))
+
+
 def base_anchor(rgba):
     """이펙트의 **밑동** 가로 중심 — 땅에 박힌 구멍이 대상 발밑에 오게 한다."""
     solid = rgba[:, :, 3] > 0
@@ -1051,6 +1117,28 @@ def write_png(img, folder, name, ppu=PPU, filter_mode=FILTER_POINT):
     g = guid_for(rel)
     with open(path + ".meta", "w", encoding="utf-8", newline="\n") as f:
         f.write(META.format(guid=g, ppu=ppu, sprite_id=g[:32], filter=filter_mode))
+
+
+def clear_frames(folder):
+    """
+    ★★ 굽기 전에 폴더의 <b>옛 프레임을 지운다</b> (2026-08-20 신설).
+
+    <b>왜 필요했나</b> — 장수가 <b>줄어드는</b> 수정을 하면 옛 파일이 그대로 남는다.
+    실제로 베일에서 그랬다: 담배연기 칸을 빼서 12장 → 7장이 됐는데 폴더에는
+    ``Char_Skill2_Right_07`` ~ ``11`` 이 남아 있어서 <b>빼려던 연기가 계속 재생됐다.</b>
+    유니티 빌더는 폴더의 스프라이트를 <b>이름순으로 전부</b> 담으므로 이 잔재를 못 거른다.
+
+    ⚠ <b>``.png`` 와 그 ``.meta`` 만</b> 지운다 — 폴더 자체와 폴더 meta 는 남긴다
+      (폴더 guid 가 바뀌면 유니티가 폴더를 새로 만든 것으로 본다).
+    """
+    if not os.path.isdir(folder):
+        return 0
+    n = 0
+    for f in os.listdir(folder):
+        if f.endswith(".png") or f.endswith(".png.meta"):
+            os.remove(os.path.join(folder, f))
+            n += 1
+    return n
 
 
 def ensure_folder_meta(path):

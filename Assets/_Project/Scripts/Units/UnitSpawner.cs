@@ -277,12 +277,47 @@ namespace LastSanctuary.Units
         /// </summary>
         public void DestroySpawnedCharactersForRestore()
         {
+            // ★★ 2026-08-20 — <b>두 가지를 고쳤다</b> (유저 리포트: *"지금 이어하기 할때
+            //    없는 캐릭터들 로스터에 복사되는 버그"*).
+            //
+            //    ① <b>`Destroy` 는 프레임 끝에 처리된다.</b> 그래서 이 함수가 끝난 <b>직후</b>
+            //       이어서 도는 <c>SpawnRestored</c> 가 새 캐릭터를 만들면, 그 프레임 동안
+            //       <b>옛 캐릭터와 새 캐릭터가 둘 다 살아 있다</b> — 로스터는
+            //       <c>UnitRegistry.All</c> 을 훑으므로 그 순간을 그대로 그린다.
+            //       → <b>먼저 비활성화</b>해서 그 자리에서 등록을 끊는다
+            //         (<see cref="Combat.DamageableUnit.OnDisable"/> 이 Unregister 한다).
+            //         `DestroyImmediate` 는 플레이 중에 쓰면 안 되므로 이 방법이 맞다.
+            //
+            //    ② <b>이 목록에 없는 캐릭터도 지운다.</b> <see cref="SpawnedCharacters"/> 는
+            //       «이 스포너가 만든 것» 만 담는다 — 스킬이 부른 소환수(아루의 골렘)는
+            //       일부러 안 넣었고(<see cref="SpawnSummon"/>), 그 외 경로가 생기면 또 샌다.
+            //       불러오기는 <b>판을 갈아엎는</b> 것이므로 «남아 있는 캐릭터 전부» 가
+            //       기준이어야 한다. 그래서 레지스트리를 한 번 더 훑는다.
             for (int i = SpawnedCharacters.Count - 1; i >= 0; i--)
             {
                 CharacterUnit unit = SpawnedCharacters[i];
-                if (unit != null) Destroy(unit.gameObject);
+                if (unit != null) Retire(unit);
             }
             SpawnedCharacters.Clear();
+
+            // ② 목록 밖에 남은 것 쓸어담기 — 목록을 먼저 복사한다(Unregister 가 원본을 바꾼다).
+            _retireScratch.Clear();
+            var all = Combat.UnitRegistry.All;
+            for (int i = 0; i < all.Count; i++)
+                if (all[i] is CharacterUnit c) _retireScratch.Add(c);
+            for (int i = 0; i < _retireScratch.Count; i++)
+                Retire(_retireScratch[i]);
+            _retireScratch.Clear();
+        }
+
+        static readonly List<CharacterUnit> _retireScratch = new List<CharacterUnit>();
+
+        /// <summary>등록을 <b>즉시</b> 끊고 나서 파괴한다 (위 ①).</summary>
+        static void Retire(CharacterUnit unit)
+        {
+            if (unit == null) return;
+            unit.gameObject.SetActive(false);   // → OnDisable → UnitRegistry.Unregister
+            Destroy(unit.gameObject);
         }
 
         /// <summary>

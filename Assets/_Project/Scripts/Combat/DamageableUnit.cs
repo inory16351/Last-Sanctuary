@@ -576,9 +576,42 @@ namespace LastSanctuary.Combat
         }
 
         /// <summary>회복(정수). 재생 대기 시간에는 영향을 주지 않는다(힐러의 회복 등).</summary>
+        // ------------------------------------------------------------------
+        // ★★ 받는 회복 증폭 (2026-08-20 — 아르세니아 「성스러운 축복」 80029)
+        //
+        // 정의문: <i>"해당 공간에 있는 … 캐릭터는 자신이 <b>받는 회복 효과</b>가
+        // {value_03} 만큼 증폭됩니다"</i>. «주는 쪽» 이 아니라 <b>«받는 쪽»</b> 이 기준이라
+        // 회복을 <b>넣는 자리</b>(여기)에서 곱하는 것이 맞다 — 회복 경로가 여럿이기 때문이다
+        // (평타 치유 · 「희생」 · 「복수자」 · 체력 재생).
+        //
+        // ⚠ <b>여러 공간이 겹치면 더한다</b>(곱하지 않는다). 곱하면 두 겹만으로 44% 가 되어
+        //   표의 «20%» 라는 값이 뜻을 잃는다.
+        // ------------------------------------------------------------------
+
+        int _healReceivedPercent;
+
+        /// <summary>지금 받는 회복이 몇 % 늘어나는지. 0 이면 평소와 같다.</summary>
+        public int HealReceivedPercent => _healReceivedPercent;
+
+        /// <summary>증폭을 더한다. 뺄 때는 같은 값을 음수로 넣는다(겹침을 지우지 않기 위해).</summary>
+        public void AddHealReceivedPercent(int deltaPercent)
+        {
+            _healReceivedPercent = Mathf.Max(-100, _healReceivedPercent + deltaPercent);
+        }
+
+        /// <summary>증폭을 반영한 실제 회복량.</summary>
+        int AmplifiedHeal(int amount) =>
+            _healReceivedPercent == 0
+                ? amount
+                : Mathf.Max(0, Mathf.RoundToInt(amount * (100 + _healReceivedPercent) / 100f));
+
         public void Heal(int amount)
         {
             if (!IsAlive || amount <= 0) return;
+
+            // ★★ 받는 회복 증폭을 <b>여기서</b> 먹인다 (위 AmplifiedHeal 주석).
+            amount = AmplifiedHeal(amount);
+            if (amount <= 0) return;
 
             // ★ 실제로 찬 양을 재서 이벤트에 싣는다 — 요청량이 아니다(OnAnyHealed 주석 참조).
             int before = currentHp;

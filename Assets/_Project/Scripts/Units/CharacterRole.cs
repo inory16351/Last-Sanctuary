@@ -90,6 +90,35 @@ namespace LastSanctuary.Units
         }
 
         /// <summary>
+        /// ★ <b>한 유형을 빼고</b> 역산한다 (2026-08-20 — 아르세니아 「불안정성」 80028).
+        ///
+        /// 그 스킬이 <b>근거리 선택 자체를 막기</b> 때문에, 「가장 높은 공격 계열」을 그대로
+        /// 쓰면 근거리가 최고인 순간 갈 곳이 없어진다. 제외한 셋 중에서 다시 고른다 —
+        /// 규칙은 <see cref="ResolveAttackType"/> 과 같다(가장 높은 것).
+        /// </summary>
+        public static TacticalAttackType ResolveAttackExcluding(StatBlock stats,
+                                                               TacticalAttackType banned)
+        {
+            TacticalAttackType best = TacticalAttackType.Ranged;
+            int bestValue = int.MinValue;
+
+            void Consider(TacticalAttackType type, StatType stat)
+            {
+                if (type == banned) return;
+                int v = stats[stat];
+                if (v <= bestValue) return;
+                best = type;
+                bestValue = v;
+            }
+
+            Consider(TacticalAttackType.Melee, StatType.Attack);
+            Consider(TacticalAttackType.Ranged, StatType.RangedAttack);
+            Consider(TacticalAttackType.Magic, StatType.Magic);
+            Consider(TacticalAttackType.Heal, StatType.Cure);
+            return best;
+        }
+
+        /// <summary>
         /// 공격 유형과 맷집으로 전열 위치를 정한다.
         ///
         /// <b>치유가 중위인 이유</b> — 치유 유형의 이동은 <c>CharacterBehavior.TryPickHealSupportSpot</c>

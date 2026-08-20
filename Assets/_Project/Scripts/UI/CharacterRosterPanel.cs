@@ -117,6 +117,19 @@ namespace LastSanctuary.UI
             /// <summary>본 막대 <b>뒤</b>에 깔리는 잔상 막대. 방금 깎인 구간을 잠깐 남긴다.</summary>
             public Image HpGhost;
 
+            /// <summary>
+            /// ★★ 보호막 막대 (2026-08-20 — 유저 지시: *"체력바에 실드는 하얀색으로 표현"*).
+            ///
+            /// <b>본 막대 뒤·잔상 앞</b>에 깔린다. 채움은 <b>(체력 + 보호막) ÷ 최대체력</b> 이라
+            /// 체력 막대가 그 위를 덮고, <b>덮이지 않고 남은 흰 구간</b>이 곧 보호막이다.
+            /// 막대 하나를 더 그리는 대신 «겹쳐서 남는 부분» 으로 표현하는 이 방법이
+            /// <b>Unity 의 filled Image 로 중간부터 칠할 수 없다</b>는 제약을 피하는 정석이다.
+            ///
+            /// ⚠ 이 오브젝트는 <b>씬에 없다</b> — 행을 만들 때 잔상 막대를 복제해서 만든다
+            ///   (<see cref="EnsureShieldBar"/>). 행 모체를 손보지 않아도 모든 행에 생긴다.
+            /// </summary>
+            public Image HpShield;
+
             public TMP_Text HpPercentLabel;
 
             /// <summary>침식 게이지(막대 + 숫자). 하이라키에 없으면 조용히 비활성 상태로 남는다.</summary>
@@ -409,6 +422,7 @@ namespace LastSanctuary.UI
                 // 스프라이트가 비어 있으면 fillAmount 가 아예 무시되어 막대가 렉트 전체로
                 // 칠해진다(색만 바뀌고 길이는 안 변한다) — UiFillBar 문서 참조.
                 UiFillBar.Prepare(row.HpFill, row.HpGhost);
+                EnsureShieldBar(row);
             }
 
             // 침식 게이지는 체력바와 형제로 둔다(HpBack 아래) — 체력이 보이는 곳엔 침식도
@@ -467,6 +481,39 @@ namespace LastSanctuary.UI
             }
         }
 
+        /// <summary>보호막 막대의 색. 유저 지시로 <b>흰색</b>이다.</summary>
+        static readonly Color ShieldColor = new Color(1f, 1f, 1f, 0.92f);
+
+        /// <summary>
+        /// 보호막 막대를 <b>잔상 막대를 복제해서</b> 만든다 (없으면).
+        ///
+        /// <b>왜 씬에 안 만들고 복제하나</b> — 행은 모체 하나를 복제해 쓰는 구조라
+        /// (<see cref="rowTemplate"/>) 모체에 오브젝트를 하나 넣으면 될 것 같지만, 그러면
+        /// 씬 파일을 고쳐야 하고 <b>모체가 비활성</b>이라 MCP 로 찾기도 어렵다.
+        /// 잔상 막대는 이미 «본 막대 뒤에 깔린 같은 모양» 이라 복제 원본으로 딱 맞는다 —
+        /// 크기·앵커·스프라이트·fillMethod 가 전부 맞춰져 있다.
+        ///
+        /// 형제 순서: 잔상 → <b>보호막</b> → 본 막대. 뒤에서 앞으로 그려지므로 본 막대가
+        /// 보호막을 덮고, 체력을 넘는 구간만 흰색으로 남는다.
+        /// </summary>
+        void EnsureShieldBar(Row row)
+        {
+            if (row.HpShield != null || row.HpGhost == null || row.HpFill == null) return;
+
+            Image clone = Instantiate(row.HpGhost, row.HpGhost.transform.parent);
+            clone.name = "HpShield";
+            clone.color = ShieldColor;
+            clone.raycastTarget = false;
+            clone.fillAmount = 0f;
+
+            // 잔상 바로 뒤(= 위)에 두고, 본 막대는 그보다 앞에 있어야 한다.
+            clone.transform.SetSiblingIndex(row.HpGhost.transform.GetSiblingIndex() + 1);
+            if (row.HpFill.transform.GetSiblingIndex() <= clone.transform.GetSiblingIndex())
+                row.HpFill.transform.SetAsLastSibling();
+
+            row.HpShield = clone;
+        }
+
         /// <summary>지금 실제 체력 비율 그대로 막대 채움·색·숫자 %를 그린다.</summary>
         void ApplyDisplayedHp(Row row)
         {
@@ -480,6 +527,17 @@ namespace LastSanctuary.UI
             {
                 row.HpGhost.fillAmount = row.Ghost.Value;
                 row.HpGhost.color = ghostColor;
+            }
+
+            // ★ 보호막 — (체력 + 보호막) 까지 흰색으로 채운다. 본 막대가 그 위를 덮으므로
+            //   화면에는 «체력 끝에서 보호막 끝까지» 만 하얗게 남는다(위 EnsureShieldBar).
+            if (row.HpShield != null)
+            {
+                int shield = row.Unit != null ? row.Unit.Shield : 0;
+                int max = row.Unit != null ? row.Unit.MaxHp : 0;
+                row.HpShield.fillAmount = shield > 0 && max > 0
+                    ? Mathf.Clamp01(row.HpRatioTarget + (float)shield / max)
+                    : 0f;
             }
 
             // 막대 길이만으로는 몇 % 줄었는지 눈으로 정확히 재기 어렵다는 피드백 —

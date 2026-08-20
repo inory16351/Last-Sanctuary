@@ -1,7 +1,7 @@
 namespace LastSanctuary.Combat
 {
     /// <summary>
-    /// 패시브 스킬 27종의 <b>분기용 식별자</b>. 캐릭터 테이블 <c>Skill.skill_type</c> 문자열과 1:1 이다.
+    /// 패시브 스킬 33종의 <b>분기용 식별자</b>. 캐릭터 테이블 <c>Skill.skill_type</c> 문자열과 1:1 이다.
     ///
     /// <b>왜 enum 으로 한 번 더 옮기는가</b> — <c>PassiveSkillSO.skillType</c> 은 문자열이고
     /// (테이블의 enum 칸을 그대로 옮긴 것), 전투 로직에서 매 프레임 문자열을 비교하면
@@ -134,6 +134,42 @@ namespace LastSanctuary.Combat
         /// 근거리 공격력의 value04% 피해 + value05 초 동안 <b>방어력 value06% 감소</b>. 쿨타임.
         /// </summary>
         DivineWrath,
+
+        // ── 아르세니아 9010 (2026-08-20) ─────────────────────────────
+        /// <summary>
+        /// 불안정성 — <b>근거리 유형을 고를 수 없다</b>. 대신 회복·마법에도 명중률·크리티컬이
+        /// 걸린다(<see cref="Units.CharacterUnit.FullAccuracyAllowed"/>). 상시.
+        /// </summary>
+        Instability,
+
+        /// <summary>
+        /// 성스러운 축복 — 가장 전방의 아군 자리에 반지름 value01 의 공간을 value02 초 만든다.
+        /// 그 안의 적은 <b>초당</b> value03% 피해, 아군은 <b>받는 회복</b>이 value03% 늘어난다.
+        /// </summary>
+        SacredBlessing,
+
+        /// <summary>
+        /// 완성되지 못한 고귀함 — 반경 value01 안의 적이 value02 이상이면 반경 value03 에
+        /// value04% 피해. 쓰고 나면 value05 초 <b>행동 불능</b>(정신 이상 해제로 못 푼다).
+        /// </summary>
+        UnfinishedNobility,
+
+        // ── 불칸 9011 (2026-08-20) ───────────────────────────────────
+        /// <summary>
+        /// 타오르는 분노 — 공격이 value01% 확률로 <b>화상</b>. 초당 공격력 value02% 를
+        /// value03 초 동안. 상시.
+        /// </summary>
+        BlazingAnger,
+
+        /// <summary>
+        /// 현자의 지혜 — 마법 +value01 · 공격속도 +value02 <b>영구</b>. 상한을 초월한다.
+        /// </summary>
+        TheWisdomOfASage,
+
+        /// <summary>
+        /// 화염 세례 — 공격 중인 대상 자리에 거대 화염구. 반경 value01 에 value02% 피해. 쿨타임.
+        /// </summary>
+        FlameBlast,
     }
 
     public static class PassiveSkillTypes
@@ -182,6 +218,14 @@ namespace LastSanctuary.Combat
                 //   여기서 이미 ToLowerInvariant 를 거치므로 자동으로 그렇게 된다.
                 case "celestial_shield":        return PassiveSkillType.CelestialShield;
                 case "divine_wrath":            return PassiveSkillType.DivineWrath;
+
+                // ── 아르세니아 9010 · 불칸 9011 (2026-08-20) ──
+                case "instability":             return PassiveSkillType.Instability;
+                case "sacred_blessing":         return PassiveSkillType.SacredBlessing;
+                case "unfinished_nobility":     return PassiveSkillType.UnfinishedNobility;
+                case "blazing_anger":           return PassiveSkillType.BlazingAnger;
+                case "the_wisdom_of_a_sage":    return PassiveSkillType.TheWisdomOfASage;
+                case "flame_blast":             return PassiveSkillType.FlameBlast;
                 default:                return PassiveSkillType.None;
             }
         }

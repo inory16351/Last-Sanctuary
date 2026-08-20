@@ -119,8 +119,6 @@ MonoBehaviour:
   - {fileID: 21300000, guid: d460facfba79166751ec6307b9d771e7, type: 3}
   - {fileID: 21300000, guid: b7eea3dd77f3a51bcdef5c4e6e1a4f20, type: 3}
   - {fileID: 21300000, guid: ab280aa5dd80a50b1065741848f2bafb, type: 3}
-  - {fileID: 21300000, guid: 242d5db95100ef828ae8e170ff9ecbde, type: 3}
-  - {fileID: 21300000, guid: 6caf9a65348c86f0002468868d1b1392, type: 3}
   skill1Left:
   - {fileID: 21300000, guid: f70e6b2e4c4952f6352c5ce4163c6425, type: 3}
   - {fileID: 21300000, guid: d433c5fe451749c298716199e799253c, type: 3}
@@ -133,8 +131,6 @@ MonoBehaviour:
   - {fileID: 21300000, guid: 8d7ab4af1c236a5743d5102add1c80d3, type: 3}
   - {fileID: 21300000, guid: 68dd79a0a2a1f7314b4eba40e79b34ff, type: 3}
   - {fileID: 21300000, guid: 2a819099488d76b648ba0edbdb3f1be3, type: 3}
-  - {fileID: 21300000, guid: 00236d38acac3fa13adb3a1074ab3e1c, type: 3}
-  - {fileID: 21300000, guid: 6ec424902101998cdaaa39aa2aab1572, type: 3}
   skill2Right:
   - {fileID: 21300000, guid: ca9fb301190ba576f6952f6d99800809, type: 3}
   - {fileID: 21300000, guid: 1436ff7e7885173125b3e070e78760a6, type: 3}
@@ -143,11 +139,6 @@ MonoBehaviour:
   - {fileID: 21300000, guid: bf64dd141609f7648a0a01f1515b5b70, type: 3}
   - {fileID: 21300000, guid: c9d2f224374cc0ab0824f2b55bf358e8, type: 3}
   - {fileID: 21300000, guid: eade108907de27781c249e8dbcea5a8f, type: 3}
-  - {fileID: 21300000, guid: 2d270560faefcbc43be70d4407683f37, type: 3}
-  - {fileID: 21300000, guid: f407d42e4ab29cdb665401dbf1fedb4e, type: 3}
-  - {fileID: 21300000, guid: 47209f22a3b238e8cab97df404bcd71f, type: 3}
-  - {fileID: 21300000, guid: ae6be26a453d4b0bf7b793e7d5bfdab5, type: 3}
-  - {fileID: 21300000, guid: 351e041cacc48ad110e299eba67f0915, type: 3}
   skill2Left:
   - {fileID: 21300000, guid: 527d1a68bc56e0398df77b6c4281d76d, type: 3}
   - {fileID: 21300000, guid: b8ff3125f8cc81fb93c729e65d2a30c9, type: 3}
@@ -156,11 +147,6 @@ MonoBehaviour:
   - {fileID: 21300000, guid: 738fdf9b545d05cfccf7945e3c506cbd, type: 3}
   - {fileID: 21300000, guid: aff7e75c8079bea17d7c92c38493aefb, type: 3}
   - {fileID: 21300000, guid: 79566f718339e67d69d10e1949aaad55, type: 3}
-  - {fileID: 21300000, guid: ab4ed3ee73e6056499964eba3b176adf, type: 3}
-  - {fileID: 21300000, guid: 65de61b9467e62dd4dfce6640f333742, type: 3}
-  - {fileID: 21300000, guid: 37b7815e447da0e16ad6367caa8a68dc, type: 3}
-  - {fileID: 21300000, guid: 546bba630a1bd03e882df1560cb325fb, type: 3}
-  - {fileID: 21300000, guid: bb6e94fefacda19311acb53bde3f2272, type: 3}
   skill3Right: []
   skill3Left: []
   skill1Fx: []

@@ -98,6 +98,8 @@ from skin_sheet import (  # noqa: F401
     load_sheet, cells_by_clusters, boxes_for, crop_rgba,
     body_anchor, base_anchor, compose, write_png, ensure_folder_meta,
     shadow_in_box, sharpen_rgba,
+    resample_rgba,
+    clear_frames,
 )
 
 SRC_BODY = os.path.join(VAULT, "리소스", "sprites", "Bale_asset_01.png")
@@ -151,12 +153,67 @@ ROWS = [
     #   못 가른다 — 그래서 y0 를 글자 아래로 **직접 내려 잡았다**(실측: 제목이
     #   Skill1 560~577 · Skill2 706~730). 담뱃대 끝이 몇 px 잘리지만 글자가 프레임에
     #   섞여 들어가는 것보다 낫다.
-    ("Skill1",       "body", 586, 688,  10, 1523, "body"),
-    ("Skill2",       "body", 732, 815,  10, 1523, "body"),
+    # ★★ 2026-08-20 — <b>밴드를 위로 다시 잡았다</b> (유저: *"지금도 이펙트 짤리는거 같은데 베일"*).
+    #   예전 값(586 · 732)은 «제목이 섮이느니 안전하게» 내려 잡은 것이고, 그만큼
+    #   <b>들어올린 담배대와 연기 기둥의 윗부분이 잘려</b> 있었다. 실측:
+    #
+    #       담배대 줄   번호 560~577 · <b>그림 578</b>~688   → 예전에 8줄 잘림
+    #       담배연기 줄 번호 706~721 · <b>그림 722</b>~815   → 예전에 10줄 잘림
+    #
+    #   ⚠ 이 두 줄은 번호가 <b>그림 바로 위</b>에 붙어 있어 여유가 거의 없다 —
+    #     다시 재지 않고 숫자만 옮기지 말 것.
+    ("Skill1",       "body", 578, 688,  10, 1523, "body"),
+    ("Skill2",       "body", 722, 815,  10, 1523, "body"),
     # ★ 투사체만 다른 판본 (맨 위 ★). 오른쪽의 반원형 이펙트를 안 먹게 x 를 막는다.
     #   ⚠ 이 판본은 라벨(896~904)이 그림(925~963)과 **떨어져** 있어 그대로 잘라내면 된다.
     ("Projectile",   "proj", 925, 963,  10,  755, "fx"),
 ]
+
+#: ★★ <b>줄 안에서 «몸통» 칸만 골라낸다</b> (2026-08-20 · 유저 리포트 그대로 고친 것)
+#:
+#:   *"베일 스킬 쓰면 베일에게서 담배연기가 나가는게 아니라 베일이 담배연기 자체가
+#:   되어 버리던데"* — 원인은 <b>패턴 두 줄이 몸통과 연기를 한 줄에 담고 있다</b>는 것이다.
+#:   칸을 세어 전부 모션으로 구웠더니 재생 중간에 <b>몸이 사라지고 연기만</b> 남았다.
+#:
+#:   어느 칸이 몸통인지는 <b>어두운 픽셀의 비율</b>로 갈린다(실측 · 광도 70 미만):
+#:
+#:       담배연기 줄  0~3번 56~59%(몸통) · 4~8번 <b>6~23%</b>(연기) · 9~11번 42~59%(몸통)
+#:       담뱃대 줄    6번 <b>3.3%</b> · 9번 <b>10.3%</b> 만 이펙트, 나머지는 몸통
+#:
+#:   베일은 <b>검은 갑옷</b>이고 연기는 연보라라서 이 값이 두 배 넘게 갈린다. 다만
+#:   <b>자동 판정에 맡기지 않고</b> 실측한 번호를 여기 박는다 — 원화가 바뀌면 다시 재야 한다
+#:   (카이론·불칸도 같은 방식으로 처리했다 · `char_sheet.Row.keep`).
+CELL_KEEP = {
+    "Skill1": [0, 1, 2, 3, 4, 5, 7, 8, 10, 11, 12],
+    "Skill2": [0, 1, 2, 3, 9, 10, 11],
+}
+
+#: 버리는 칸을 <b>따로 구워 두는</b> 폴더 — 원화를 잃지 않기 위해서다.
+#: ⚠ ``Unused_`` 라 유니티 빌더가 스킨 칸으로 읽지 않는다.
+CELL_SPILL = {
+    "Skill1": "Unused_Skill1Fx",
+    "Skill2": "Unused_Skill2Smoke",
+}
+
+#: ★★ <b>해상도를 3배로 굽는다</b> (2026-08-20 · 유저 리포트: *"베일 너무 이미지 깨짐"*).
+#:
+#:   원인은 <b>원화가 작은데 게임에서 크게 그린다</b>는 것이다 — 실측:
+#:
+#:       원화 대기 110 x 87 px  ·  게임 크기 <b>15 x 10 타일</b>(보스 중 가장 크다)
+#:       → 배율 약 <b>7.4배</b>. 다른 보스는 11 x 7.5 타일이라 5.8배다.
+#:
+#:   필터가 Point 라 7.4배로 늘리면 <b>7px 짜리 계단</b>이 그대로 보인다. 그래서
+#:   ① 프레임을 Lanczos 로 <b>3배</b>로 키워 굽고 ② ppu 도 3배(64 → 192)로 올린다.
+#:   둘을 같이 올리므로 <b>게임 안의 크기는 한 픽셀도 안 바뀌고</b> 텍스처만 촘촘해진다
+#:   (크기는 ``contentSizeTiles`` = 픽셀 ÷ ppu 로 정해지기 때문이다).
+#:   ③ 필터도 <b>Bilinear</b> 로 바꾼다 — 베일 원화는 픽셀아트가 아니라 손그림이라
+#:      남은 2.5배 확대는 부드럽게 늘리는 편이 맞다.
+#:
+#:   ⚠ <b>없던 디테일이 생기지는 않는다.</b> 계단이 곡선으로 바뀌는 것이지 해상도가
+#:     진짜로 오르는 것이 아니다 — 더 선명하게 하려면 <b>원화를 크게 다시</b> 받아야 한다.
+SUPERSAMPLE = 3
+from skin_sheet import PPU as _PPU, FILTER_BILINEAR
+BAKE_PPU = _PPU * SUPERSAMPLE
 
 #: 한 장짜리 이펙트 — 칸을 가를 것이 없다. (폴더, 원본, y0, y1, x0, x1)
 #:
@@ -201,15 +258,19 @@ def drop_stale_folders():
 
 def write_group(images, name):
     folder = os.path.join(DST_ROOT, name)
+    gone = clear_frames(folder)
+    if gone:
+        print('      ㈛ 예전 프레임 %d개 지움 (%s)' % (gone, name))
+    kw = {"ppu": BAKE_PPU, "filter_mode": FILTER_BILINEAR}
     n = 0
     for i, img in enumerate(images):
-        if name in NO_DIRECTION:
-            write_png(img, folder, "Char_%s_%02d" % (name, i))
+        if name in NO_DIRECTION or name.startswith("Unused_"):
+            write_png(img, folder, "Char_%s_%02d" % (name, i), **kw)
             n += 1
         else:
-            write_png(img, folder, "Char_%s_Right_%02d" % (name, i))
+            write_png(img, folder, "Char_%s_Right_%02d" % (name, i), **kw)
             write_png(img.transpose(Image.FLIP_LEFT_RIGHT), folder,
-                      "Char_%s_Left_%02d" % (name, i))
+                      "Char_%s_Left_%02d" % (name, i), **kw)
             n += 2
     ensure_folder_meta(folder)
     return n
@@ -232,15 +293,39 @@ def build(sheets):
             sheet["mask"] &= ~shadow
 
         boxes = [b for b in boxes_for(sheet["mask"], cells, y0, y1) if b is not None]
-        frames = [sharpen_rgba(crop_rgba(sheet, b), SHARPEN_AMOUNT, SHARPEN_RADIUS,
-                               SHARPEN_THRESHOLD)
-                  for b in boxes]
+
+        # ★★ 몸통 칸만 남긴다. 버리는 칸은 잃지 않게 따로 굽는다 (위 CELL_KEEP).
+        keep = CELL_KEEP.get(name)
+        spill = []
+        if keep is not None:
+            if max(keep) >= len(boxes):
+                raise SystemExit(
+                    "⚠ %s: 칸이 %d개인데 CELL_KEEP 이 %d번을 가리킵니다 — "
+                    "원화가 바뀌었으면 어두운 픽셀 비율을 다시 재세요." % (name, len(boxes), max(keep)))
+            spill = [b for i, b in enumerate(boxes) if i not in keep]
+            boxes = [boxes[i] for i in keep]
+
+        def bake(bs):
+            fr = [sharpen_rgba(crop_rgba(sheet, b), SHARPEN_AMOUNT, SHARPEN_RADIUS,
+                               SHARPEN_THRESHOLD) for b in bs]
+            if SUPERSAMPLE != 1:
+                fr = [resample_rgba(f, float(SUPERSAMPLE)) for f in fr]
+            return fr
+
+        frames = bake(boxes)
         anchor = body_anchor if kind == "body" else base_anchor
         images, w, h = compose(frames, [anchor(f) for f in frames])
 
         made += write_group(images, name)
         print("  %-13s (%s) %3d x %3d · %2d장  폭 %s"
               % (name, src, w, h, len(images), [e - s + 1 for s, e in cells]))
+
+        if spill:
+            sf = bake(spill)
+            si, sw, sh = compose(sf, [base_anchor(f) for f in sf])
+            made += write_group(si, CELL_SPILL[name])
+            print("  %-13s      %3d x %3d · %2d장  (배선 안 함 — 원화 보존)"
+                  % (CELL_SPILL[name], sw, sh, len(si)))
 
     for name, src, y0, y1, x0, x1 in SINGLE_FX:
         sheet = sheets[src]
@@ -249,6 +334,8 @@ def build(sheets):
             raise SystemExit("⚠ %s: 그림을 못 찾았습니다" % name)
         rgba = sharpen_rgba(crop_rgba(sheet, box), SHARPEN_AMOUNT, SHARPEN_RADIUS,
                             SHARPEN_THRESHOLD)
+        if SUPERSAMPLE != 1:
+            rgba = resample_rgba(rgba, float(SUPERSAMPLE))
         images, w, h = compose([rgba], [base_anchor(rgba)])
         made += write_group(images, name)
         print("  %-13s (%s) %3d x %3d ·  1장" % (name, src, w, h))

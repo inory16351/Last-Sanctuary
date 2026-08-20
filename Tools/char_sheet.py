@@ -44,8 +44,8 @@ from skin_sheet import (
     SKIN_SPEC_NAME, write_skin_spec,
     load_sheet, cells_by_labels, cells_by_gaps, cells_by_clusters, cells_by_span,
     boxes_for, boxes_dominant, crop_rgba, body_anchor, base_anchor, compose,
-    write_png, ensure_folder_meta, shadow_in_box, enclosed_background,
-    resample_rgba, head_pixels,
+    write_png, ensure_folder_meta, clear_frames, shadow_in_box, enclosed_background,
+    resample_rgba, head_pixels, body_extent,
 )
 
 
@@ -132,6 +132,49 @@ def report_tilt(name, frames):
     v = float(np.mean(vals)) if vals else 0.0
     print("    %-18s 머리−발 %+6.1f px  (양수 = 오른쪽)" % (name, v))
     return v
+
+
+#: 몸통 크기가 대기와 이만큼 넘게 다르면 경고한다(비율).
+BODY_TOLERANCE = 0.08
+
+
+def report_body_size(spec, cut_rows):
+    """
+    ★★ <b>줄마다 «몸통» 크기를 재서 대기와 비교한다</b> (2026-08-20 신설).
+
+    유저 지시: *"캐릭터의 크기는 유지하고 앞 공간에 이펙트가 나올 공간을 넣는 로직 …
+    딱 캐릭터의 크기는 유지되게"*. 앞 공간(캔버스 폭)은 :func:`skin_sheet.compose` 가
+    이미 <b>몸통 중심 기준 좌우 같은 폭</b>으로 잡아 준다 — 피벗이 몸통에 고정되므로
+    이펙트가 아무리 앞으로 뻗어도 캐릭터는 제자리다.
+
+    남는 문제는 «몸통이 줄마다 같은 크기로 그려졌는가» 하나뿐인데, <b>상자 크기로는
+    그걸 못 본다</b>(이펙트가 상자를 늘린다). 그래서 :func:`skin_sheet.body_extent` 로
+    <b>몸통만</b> 재서 대기와 견준다. 어긋나면 원화가 정말 다른 크기이거나 밴드가
+    잘린 것이다 — 어느 쪽인지는 사람이 보고 정한다(그래서 경고만 한다).
+    """
+    sizes = {}
+    for row, frames in cut_rows:
+        if row.kind != "body":
+            continue
+        ext = [body_extent(f) for f in frames]
+        ext = [e for e in ext if e[1] > 0]
+        if ext:
+            sizes[row.name] = (float(np.median([e[0] for e in ext])),
+                               float(np.median([e[1] for e in ext])))
+
+    ref = sizes.get(spec.scale_reference)
+    print("  [몸통 크기] 이펙트를 뺀 «몸» 만 잰 값 — 대기와 같아야 한다")
+    for name, (w, h) in sorted(sizes.items()):
+        if ref and ref[1] > 0:
+            d = h / ref[1] - 1.0
+            # ⚠ 이 값은 <b>자세에도 움직인다</b> — 달리는 원화는 웅크려서 20~30% 짧게
+            #   나온다(카이론 이동 −27%). 그것은 <b>연출이지 크기 오류가 아니다.</b>
+            #   그래서 «확인» 으로만 적고, 판단은 사람이 같은 발 높이로 겹쳐 보고 한다.
+            flag = "" if abs(d) <= BODY_TOLERANCE else "  ← 확인 (대기와 %+.0f%% · 자세일 수 있다)" % (d * 100)
+        else:
+            flag = ""
+        print("    %-18s 몸통 %3.0f x %-3.0f px%s" % (name, w, h, flag))
+    return sizes
 
 
 def measure_scale(spec, collected):
@@ -288,6 +331,18 @@ def cut(spec, sheets):
 
 
 def bake(spec, cut_rows, factors):
+    # ★★ 굽기 전에 폴더를 비운다 — 장수가 줄어드는 수정에서 <b>옛 프레임이 남아</b>
+    #   빼려던 그림이 계속 재생되는 사고가 실제로 있었다(:func:`skin_sheet.clear_frames`).
+    #   ⚠ 한 폴더에 두 줄을 합쳐 굽는 경우(``Walk`` 의 좌/우)가 있으므로 <b>한 번만</b> 비운다.
+    wiped = set()
+    for row, _frames in cut_rows:
+        folder = os.path.join(spec.dst_root, row.folder)
+        if folder not in wiped:
+            n = clear_frames(folder)
+            if n:
+                print("  옛 프레임 %d개 지움: %s" % (n, row.folder))
+            wiped.add(folder)
+
     made = 0
     for row, frames in cut_rows:
         factor = factors.get(row.name, 1.0) * spec.supersample
@@ -358,6 +413,7 @@ def run(spec):
         if row.kind == "body":
             report_tilt(row.name, frames)
 
+    report_body_size(spec, cut_rows)
     factors = measure_scale(spec, collected)
     made = bake(spec, cut_rows, factors)
 

@@ -216,9 +216,33 @@ namespace LastSanctuary.Units
         /// 그 외 유형은 100%(= 절대 안 빗나감)이라 <c>TakeDamageFrom</c> 의 명중 판정이 통째로 생략된다.
         /// </summary>
         public override float HitChancePercent =>
-            Balance != null && AttackTypeOf() == TacticalAttackType.Ranged
+            Balance != null && (AttackTypeOf() == TacticalAttackType.Ranged || FullAccuracyAllowed)
                 ? Balance.HitChancePercent(EffectiveStat(StatType.Accuracy))
                 : 100f;
+
+        // ------------------------------------------------------------------
+        // ★★ 「모든 유형에 명중·크리」 예외 (2026-08-20 — 아르세니아 「불안정성」 80028)
+        //
+        // 정의문: <i>"아르세니아는 <b>회복과 마법 공격에도</b> 명중률과 크리티컬 확률의
+        // 영향을 받습니다"</i>. 위 ★ 규칙(원거리 전용)의 <b>두 번째 예외</b>다 —
+        // 첫 번째는 히스톤 「선봉장」의 근거리 크리티컬(<see cref="MeleeCriticalAllowed"/>).
+        //
+        // <b>왜 「선봉장」 칸을 같이 쓰지 않나</b> — 그쪽은 <b>근거리만</b> 열고 <b>크리티컬만</b>
+        // 연다. 이쪽은 <b>모든 유형</b>에 <b>명중까지</b> 연다. 한 칸으로 합치면 두 스킬이
+        // 서로의 범위를 넓혀 버린다(히스톤이 갑자기 회복에도 크리가 뜬다).
+        // ------------------------------------------------------------------
+
+        int _fullAccuracyGrants;
+
+        /// <summary>지금 «모든 유형에 명중·크리» 예외가 걸려 있는가.</summary>
+        public bool FullAccuracyAllowed => _fullAccuracyGrants > 0;
+
+        /// <summary>예외를 더한다. 해제할 때 같은 값을 음수로 넣는다.</summary>
+        public void AddFullAccuracyGrant(int delta)
+        {
+            if (delta == 0) return;
+            _fullAccuracyGrants = Mathf.Max(0, _fullAccuracyGrants + delta);
+        }
 
         /// <summary>
         /// 크리티컬 확률 능력치 → 치명타 확률(%). <b>원거리일 때만</b>, 그리고
@@ -234,6 +258,9 @@ namespace LastSanctuary.Units
         {
             TacticalAttackType type = AttackTypeOf();
             if (type == TacticalAttackType.Ranged) return true;
+
+            // 예외 ② — 「불안정성」(아르세니아 80028)은 <b>모든 유형</b>을 연다.
+            if (FullAccuracyAllowed) return true;
 
             // 예외 — 「선봉장」(히스톤 80013)이 근거리 크리티컬을 열어준다.
             return type == TacticalAttackType.Melee && MeleeCriticalAllowed;

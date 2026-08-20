@@ -163,8 +163,44 @@ namespace LastSanctuary.Combat
         // 값이 안 바뀌었으면 Apply 를 건너뛴다 — 같은 버튼을 다시 눌러도 AI 가
         // 목적지를 다시 뽑느라 캐릭터가 흠칫하지 않게 하려는 것.
 
+        // ------------------------------------------------------------------
+        // ★★ 근거리 금지 (2026-08-20 — 아르세니아 「불안정성」 80028)
+        //
+        // 정의문 첫 문장: <i>"아르세니아는 <b>근거리 공격 유형을 선택할 수 없습니다</b>"</i>.
+        // 원화에도 근거리 공격 줄이 <b>아예 없다</b> — 그림이 없는 유형을 고를 수 있으면
+        // 공격 모션이 원거리로 폴백해 «칼도 없이 근접해서 때리는» 그림이 된다.
+        //
+        // <b>왜 「역할 잠금」(RoleLocked) 을 쓰지 않나</b> — 그쪽은 <b>한 값으로 못박는</b>
+        // 것이고(히스톤 = 근거리·전방 고정), 이쪽은 <b>한 값만 막는</b> 것이다.
+        // 아르세니아는 원거리·마법·회복 중 자유롭게 고를 수 있어야 한다.
+        // ------------------------------------------------------------------
+
+        /// <summary>이 캐릭터가 고를 수 없는 공격 유형(없으면 <c>null</c>).</summary>
+        public TacticalAttackType? BannedAttackType { get; private set; }
+
+        /// <summary>근거리 금지를 걸거나 푼다. 걸 때 이미 근거리면 <b>즉시 옮긴다</b>.</summary>
+        public void SetAttackTypeBan(TacticalAttackType? banned)
+        {
+            BannedAttackType = banned;
+            if (banned == null || order.attackType != banned.Value) return;
+
+            // ⚠ 금지된 값에 이미 서 있으면 어디로 옮길지 정해야 한다 —
+            //   능력치 역산(CharacterRole)이 고르는 값을 그대로 쓴다. 그것이
+            //   «이 캐릭터에게 가장 맞는 유형» 이라는 이 프로젝트의 기준이다(82-8절).
+            var unit = GetComponent<Units.CharacterUnit>();
+            TacticalAttackType next = unit != null
+                ? Units.CharacterRole.ResolveAttackExcluding(unit.Stats, banned.Value)
+                : TacticalAttackType.Ranged;
+            order.attackType = next;
+            Apply();
+        }
+
         public void SetAttackType(TacticalAttackType v)
         {
+            // ★ 금지된 유형은 받지 않는다 (위 ★★). UI 도 버튼을 잠그지만 여기서도 막는다 —
+            //   «막는 곳을 한 군데만 두면 다른 경로로 새어 들어온다» 는 이 파일의 규칙이다.
+            if (BannedAttackType.HasValue && v == BannedAttackType.Value) return;
+
             if (RoleLocked) return;               // 「선봉장」 — 근거리 고정
             if (order.attackType == v) return;
             order.attackType = v; Apply();

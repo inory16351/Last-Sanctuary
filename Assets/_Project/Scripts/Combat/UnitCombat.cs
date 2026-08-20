@@ -878,6 +878,70 @@ namespace LastSanctuary.Combat
             if (amount > 0) _self.ApplyDamage(amount);
         }
 
+        // ------------------------------------------------------------------
+        // ★★ 화상 (2026-08-20 — 불칸 「타오르는 분노」 80031)
+        //
+        // <b>중독과 무엇이 다른가</b> — 기준이 다르다:
+        //     중독  <b>맞는 쪽</b>의 최대 체력 %      (베일 「담배 연기」)
+        //     화상  <b>때린 쪽</b>의 공격력 %          (불칸 「타오르는 분노」)
+        //
+        // 그래서 «퍼센트» 로는 표현할 수 없다 — 걸 때 <b>계산이 끝난 정수</b>를 받는다.
+        // 두 개를 한 칸에 합치지 않은 이유도 같다: 합치면 어느 기준인지 잃어버리고,
+        // 둘이 동시에 걸렸을 때 한쪽이 다른 쪽을 덮는다.
+        //
+        // ⚠ 걸린 값은 <b>더 큰 쪽</b>으로 둔다(중독과 같은 규칙) — 약한 화상이 강한 화상을
+        //   덮어 깎으면 «불이 도중에 약해진다» 는 사고가 난다.
+        // ------------------------------------------------------------------
+
+        int _burnPerSecond;
+        float _burnUntil;
+        float _burnNextTickAt;
+        string _burnLabel;
+
+        /// <summary>지금 불타고 있는지.</summary>
+        public bool IsBurning => Time.time < _burnUntil;
+
+        /// <summary>화상의 화면 표시 이름(로스터·상세 카드가 쓴다).</summary>
+        public string BurnLabel => _burnLabel;
+
+        /// <summary>
+        /// <paramref name="damagePerSecond"/> 만큼을 <paramref name="seconds"/> 초 동안
+        /// <b>초당 한 번</b> 입힌다. 계산은 <b>거는 쪽</b>이 끝내서 넣는다(위 ★★).
+        /// </summary>
+        public void ApplyBurn(int damagePerSecond, float seconds, string label = null)
+        {
+            if (damagePerSecond <= 0 || seconds <= 0f) return;
+
+            bool fresh = !IsBurning;
+            _burnPerSecond = Mathf.Max(_burnPerSecond, damagePerSecond);
+            _burnUntil = Mathf.Max(_burnUntil, Time.time + seconds);
+            if (!string.IsNullOrEmpty(label)) _burnLabel = label;
+
+            // 새로 붙을 때만 시계를 찍는다 — 매 프레임 갱신하면 «다음 1초» 가 계속 밀려
+            // <b>불 속에 있는 동안 한 대도 안 맞는다</b>(중독에서 이미 겪은 함정).
+            if (fresh) _burnNextTickAt = Time.time + 1f;
+        }
+
+        /// <summary>화상을 즉시 끈다.</summary>
+        public void ClearBurn()
+        {
+            _burnUntil = 0f;
+            _burnPerSecond = 0;
+        }
+
+        void TickBurn()
+        {
+            if (!IsBurning)
+            {
+                _burnPerSecond = 0;
+                return;
+            }
+            if (Time.time < _burnNextTickAt) return;
+
+            _burnNextTickAt = Time.time + 1f;
+            if (_burnPerSecond > 0) _self.ApplyDamage(_burnPerSecond);
+        }
+
         /// <summary>「허약」을 즉시 푼다 (구속으로 넘어갈 때).</summary>
         public void ClearWeaken()
         {
@@ -1021,6 +1085,7 @@ namespace LastSanctuary.Combat
             //     벽에 끼거나 구속된 동안 <b>독이 멈춘다</b> — 중독은 «행동» 이 아니라
             //     «몸» 에 걸린 상태라 행동을 못 하는 것과 아무 관계가 없다.
             TickPoison();
+            TickBurn();
             if (!_self.IsAlive) { _state = CombatState.Dead; return; }   // 독으로 죽었다
 
             // 벽 안에 갇혀 있으면 이동 판정이 전부 실패해 영구히 멈춘다. 먼저 빼낸다.

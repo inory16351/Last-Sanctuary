@@ -64,7 +64,20 @@ namespace LastSanctuary.Combat
         /// <summary>「천상의 방패」의 도발이 끝나 <b>피해가 터지는</b> 시각. 0 이면 예약 없음.</summary>
         float _shieldBurstAt;
 
+        /// <summary>「불안정성」이 지금 걸어둔 «모든 유형 명중·크리» 예외 수(0/1).</summary>
+        int _appliedFullAccuracy;
+
+        /// <summary>「현자의 지혜」가 지금 걸어둔 고정 보정 (마법, 공격속도). 되돌릴 때 그대로 뺀다.</summary>
+        int _appliedSageMagic;
+        int _appliedSageSpeed;
+
+        /// <summary>「완성되지 못한 고귀함」의 행동 불능이 끝나는 시각. 0 이면 예약 없음.</summary>
+        float _nobilityStunUntil;
+
         // 쿨타임 — 본체의 _sacrificeReadyAt 들과 같은 방식이다.
+        float _sacredBlessingReadyAt;
+        float _nobilityReadyAt;
+        float _flameBlastReadyAt;
         float _arrowRainReadyAt;
         float _fallenBodyReadyAt;
         float _celestialReadyAt;
@@ -91,6 +104,7 @@ namespace LastSanctuary.Combat
         void ApplyAlwaysOnNewcomers()
         {
             SyncHeightenedSenses();
+            ApplyAlwaysOnLatecomers();
 
             // ── 한발에 두마리 : 원거리 평타가 동시에 때리는 적 수 ──
             PassiveSkillSO multi = Find(PassiveSkillType.TwoOnOneLeg);
@@ -129,6 +143,53 @@ namespace LastSanctuary.Combat
             _appliedSenseRange = want;
         }
 
+        /// <summary>
+        /// 아르세니아 「불안정성」(80028) · 불칸 「현자의 지혜」(80032) — 둘 다 <b>상시</b>다.
+        ///
+        /// ★ 「불안정성」은 <b>두 가지를 동시에</b> 한다:
+        ///   ① 근거리 유형 <b>금지</b> — 원화에 근거리 줄이 아예 없다(그림 없는 유형을 고르면
+        ///      평타가 원거리로 폴백해 «맨손으로 붙어 때리는» 그림이 된다).
+        ///   ② 회복·마법에도 <b>명중률·크리티컬</b> 적용
+        ///      (<see cref="Units.CharacterUnit.AddFullAccuracyGrant"/>).
+        ///
+        /// ⚠ 정의문의 마지막 문장(«데미지와 회복량 추가 공식은 공격 데미지와 똑같은 가산 값»)은
+        ///   <b>여기서 구현하지 않았다</b> — 회복량 공식 자체를 바꾸는 이야기라
+        ///   `BalanceConfigSO` 의 치유 공식을 건드려야 하고, 그건 다른 캐릭터의 회복까지
+        ///   같이 움직인다. 표의 공식 시트가 확정되면 그때 한 곳에서 바꾸는 것이 맞다.
+        ///
+        /// ★ 「현자의 지혜」는 <b>상한을 초월</b>한다(정의문). 그래서 퍼센트가 아니라
+        ///   <see cref="Units.CharacterUnit.AddFlatStatBonus"/> 를 쓴다 — 그 함수가
+        ///   «상한을 적용한 뒤에 더한다» 는 규칙을 이미 갖고 있다(로 아이아스·광란과 같은 칸).
+        /// </summary>
+        void ApplyAlwaysOnLatecomers()
+        {
+            // ── 불안정성 ──
+            bool wantUnstable = Find(PassiveSkillType.Instability) != null;
+            int wantGrant = wantUnstable ? 1 : 0;
+            if (wantGrant != _appliedFullAccuracy)
+            {
+                _unit.AddFullAccuracyGrant(wantGrant - _appliedFullAccuracy);
+                _appliedFullAccuracy = wantGrant;
+            }
+            if (_tactics != null)
+                _tactics.SetAttackTypeBan(wantUnstable ? TacticalAttackType.Melee : (TacticalAttackType?)null);
+
+            // ── 현자의 지혜 ──
+            PassiveSkillSO sage = Find(PassiveSkillType.TheWisdomOfASage);
+            int wantMagic = sage != null ? Mathf.RoundToInt(sage.value01) : 0;
+            int wantSpeed = sage != null ? Mathf.RoundToInt(sage.value02) : 0;
+            if (wantMagic != _appliedSageMagic)
+            {
+                _unit.AddFlatStatBonus(StatType.Magic, wantMagic - _appliedSageMagic);
+                _appliedSageMagic = wantMagic;
+            }
+            if (wantSpeed != _appliedSageSpeed)
+            {
+                _unit.AddFlatStatBonus(StatType.AttackSpeed, wantSpeed - _appliedSageSpeed);
+                _appliedSageSpeed = wantSpeed;
+            }
+        }
+
         /// <summary>사라질 때 <b>남에게·자기에게 걸어둔 것을 전부 되돌린다</b>(본체 OnDisable 규칙).</summary>
         void ClearNewcomerEffects()
         {
@@ -142,6 +203,23 @@ namespace LastSanctuary.Combat
                 _combat?.SetRangedMultiShot(1);
                 _appliedMultiShot = 1;
             }
+
+            if (_appliedFullAccuracy != 0)
+            {
+                _unit.AddFullAccuracyGrant(-_appliedFullAccuracy);
+                _appliedFullAccuracy = 0;
+            }
+            if (_appliedSageMagic != 0)
+            {
+                _unit.AddFlatStatBonus(StatType.Magic, -_appliedSageMagic);
+                _appliedSageMagic = 0;
+            }
+            if (_appliedSageSpeed != 0)
+            {
+                _unit.AddFlatStatBonus(StatType.AttackSpeed, -_appliedSageSpeed);
+                _appliedSageSpeed = 0;
+            }
+            _tactics?.SetAttackTypeBan(null);
 
             // ★ 골렘은 <b>같이 사라진다</b> — 아루가 없는데 골렘만 남으면 «주인 없는 아군» 이
             //   되고, 쿨타임을 세는 주체도 사라져 다시는 소환되지 않는다.
@@ -161,6 +239,21 @@ namespace LastSanctuary.Combat
             TickChannel();
             TickShieldBurst();
             TickGolemLifetime();
+            TickNobilityStun();
+        }
+
+        /// <summary>
+        /// 「완성되지 못한 고귀함」의 행동 불능이 끝났는지 본다.
+        ///
+        /// ★ 구속 자체는 <see cref="UnitCombat.ApplyBind"/> 가 시각으로 관리하므로 여기서
+        ///   풀 것이 없다 — <b>탈진 모션의 크기 상자</b>만 되돌리면 된다
+        ///   (<see cref="CharacterAnimator.EndStunMotion"/> · 누운 자세는 2x1 로 그린다).
+        /// </summary>
+        void TickNobilityStun()
+        {
+            if (_nobilityStunUntil <= 0f || Time.time < _nobilityStunUntil) return;
+            _nobilityStunUntil = 0f;
+            _animator?.EndStunMotion();
         }
 
         // ------------------------------------------------------------------
@@ -559,6 +652,214 @@ namespace LastSanctuary.Combat
             int hits = DamageEnemiesInRadius(transform.position, radius, percent);
             UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName, $"반격 {hits}명"),
                           UI.HudLogKind.Good);
+        }
+
+        // ------------------------------------------------------------------
+        // 아르세니아 9010
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// 성스러운 축복 — <b>가장 전방의 아군</b>에게 물약을 던져 그 자리에 공간을 만든다.
+        ///
+        /// «가장 전방» 은 <b>적에게 가장 가까운 아군</b>으로 읽는다 — 이 게임에 «전방» 이라는
+        /// 좌표축이 따로 없고(맵이 사방으로 열려 있다), 전술의 «전방 포지션» 은 <b>지침</b>이지
+        /// 지금 위치가 아니다. 정의문이 <i>"현재 전투 중인 가장 전방의 아군"</i> 이라 했으므로
+        /// <b>싸우고 있는 아군</b> 중에서 고른다.
+        ///
+        /// ⚠ 싸우는 아군이 없으면 <b>발동하지 않는다</b> — 허공에 던지면 쿨타임만 날린다
+        ///   (「애로우 레인」과 같은 판단).
+        /// </summary>
+        bool TrySacredBlessing()
+        {
+            PassiveSkillSO so = Find(PassiveSkillType.SacredBlessing);
+            if (so == null || Time.time < _sacredBlessingReadyAt) return false;
+
+            float radius = Mathf.Max(0f, so.value01);
+            float seconds = Mathf.Max(0f, so.value02);
+            int percent = Mathf.RoundToInt(so.value03);
+            if (radius <= 0f || seconds <= 0f) return false;
+
+            DamageableUnit front = FindFrontMostFightingAlly();
+            if (front == null) return false;
+
+            _sacredBlessingReadyAt = Time.time + Mathf.Max(0f, so.coolTime);
+            Vector3 center = front.transform.position;
+
+            SacredZone.Spawn(_unit, center, radius, seconds, percent, percent);
+
+            _animator?.PlaySkillMotion(1, 0.6f, center);
+            Sprite[] fx = _animator != null && _animator.Skin != null ? _animator.Skin.SkillFx(1) : null;
+            if (fx != null)
+                CombatProjectileFx.PlayArea(fx, center, new Vector2(radius * 2f, radius * 2f),
+                                            0f, null, seconds);
+
+            UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName,
+                                              $"{front.DisplayName} 자리 · {seconds:0.#}초"),
+                          UI.HudLogKind.Good);
+            return true;
+        }
+
+        /// <summary>
+        /// 싸우고 있는 아군 캐릭터 중 <b>적에게 가장 가까운</b> 하나. 없으면 null.
+        /// </summary>
+        DamageableUnit FindFrontMostFightingAlly()
+        {
+            DamageableUnit best = null;
+            float bestDist = float.MaxValue;
+
+            var all = UnitRegistry.All;
+            for (int i = 0; i < all.Count; i++)
+            {
+                DamageableUnit u = all[i];
+                if (u == null || !u.IsAlive) continue;
+                if (u.Faction != _unit.Faction || u.Kind != UnitKind.Character) continue;
+                if (!u.IsInCombat) continue;
+
+                float d = NearestEnemyDistance(u);
+                if (d >= bestDist) continue;
+                bestDist = d;
+                best = u;
+            }
+            return best;
+        }
+
+        /// <summary>그 아군에게서 가장 가까운 적까지의 거리. 적이 없으면 <c>float.MaxValue</c>.</summary>
+        float NearestEnemyDistance(DamageableUnit ally)
+        {
+            float best = float.MaxValue;
+            Vector3 p = ally.transform.position;
+            var all = UnitRegistry.All;
+            for (int i = 0; i < all.Count; i++)
+            {
+                DamageableUnit u = all[i];
+                if (u == null || !u.IsAlive || u.Faction == _unit.Faction) continue;
+                float d = ((Vector2)(u.transform.position - p)).sqrMagnitude;
+                if (d < best) best = d;
+            }
+            return best;
+        }
+
+        /// <summary>
+        /// 완성되지 못한 고귀함 — <b>적이 충분히 몰렸을 때만</b> 터진다(정의문의 조건).
+        /// 쓰고 나면 value05 초 <b>행동 불능</b>이 되고, 그동안 누운 모션을 돌린다.
+        ///
+        /// ⚠ 정의문: <i>"이 행동 불능 상태는 해로운 정신 상태 이상을 해제하는 효과로
+        ///   해제할 수 없습니다"</i>. 그래서 정신 이상 경로가 아니라
+        ///   <see cref="UnitCombat.ApplyBind"/>(구속)로 건다 — 「정신 안정」(피올로)이
+        ///   푸는 것은 <b>정신 이상</b>이지 구속이 아니다.
+        /// </summary>
+        bool TryUnfinishedNobility()
+        {
+            PassiveSkillSO so = Find(PassiveSkillType.UnfinishedNobility);
+            if (so == null || Time.time < _nobilityReadyAt) return false;
+            if (_nobilityStunUntil > 0f) return false;          // 이미 뻗어 있다
+
+            float watch = Mathf.Max(0f, so.value01);
+            int need = Mathf.RoundToInt(so.value02);
+            float radius = Mathf.Max(0f, so.value03);
+            int percent = Mathf.RoundToInt(so.value04);
+            float stun = Mathf.Max(0f, so.value05);
+            if (watch <= 0f || radius <= 0f || percent <= 0) return false;
+
+            if (CountEnemiesInRadius(transform.position, watch) < need) return false;
+
+            _nobilityReadyAt = Time.time + Mathf.Max(0f, so.coolTime);
+
+            Sprite[] fx = _animator != null && _animator.Skin != null ? _animator.Skin.SkillFx(2) : null;
+            if (fx != null)
+                CombatProjectileFx.PlayArea(fx, transform.position,
+                                            new Vector2(radius * 2f, radius * 2f), 0f, null, FxSeconds);
+
+            int hits = DamageEnemiesInRadius(transform.position, radius, percent);
+
+            // ── 행동 불능 ──
+            if (stun > 0f)
+            {
+                _combat?.ApplyBind(stun, "탈진");
+                _nobilityStunUntil = Time.time + stun;
+                _animator?.PlayStunMotion(stun);
+            }
+
+            UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName,
+                                              $"{hits}명 · 탈진 {stun:0.#}초"), UI.HudLogKind.Good);
+            return true;
+        }
+
+        /// <summary>반경 안의 <b>적</b> 수.</summary>
+        int CountEnemiesInRadius(Vector3 center, float radius)
+        {
+            float sqr = radius * radius;
+            int n = 0;
+            var all = UnitRegistry.All;
+            for (int i = 0; i < all.Count; i++)
+            {
+                DamageableUnit u = all[i];
+                if (u == null || !u.IsAlive || u.Faction == _unit.Faction) continue;
+                if (((Vector2)(u.transform.position - center)).sqrMagnitude <= sqr) n++;
+            }
+            return n;
+        }
+
+        // ------------------------------------------------------------------
+        // 불칸 9011
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// 타오르는 분노 — 때릴 때마다 value01% 확률로 <b>화상</b>을 붙인다.
+        ///
+        /// 정의문: <i>"초당 한번 (불칸이 선택한 공격유형 공격력)<b>(회복 제외)</b>*{value_02}%
+        /// 데미지로 {value_03}초 동안"</i>. «회복 제외» 는 <b>회복 유형일 때는 화상을 안 붙인다</b>
+        /// 로 읽는다 — 회복 공격력으로 적을 태운다는 말이 성립하지 않기 때문이다.
+        ///
+        /// ⚠ 화상은 <b>맞는 쪽 최대 체력</b>이 아니라 <b>때린 쪽 공격력</b>이 기준이라
+        ///   중독(<see cref="UnitCombat.ApplyPoison"/>)을 쓸 수 없다. 그래서
+        ///   <see cref="UnitCombat.ApplyBurn"/> 을 새로 만들었다(그 함수의 ★★ 주석).
+        /// </summary>
+        void OnAttackingNewcomers(DamageableUnit target)
+        {
+            PassiveSkillSO so = Find(PassiveSkillType.BlazingAnger);
+            if (so == null || target == null || target.Faction == _unit.Faction) return;
+            if (_combat != null && _combat.AttackType == TacticalAttackType.Heal) return;
+
+            if (Random.value * 100f >= Mathf.Max(0f, so.value01)) return;
+
+            int perSecond = Mathf.RoundToInt(_unit.AttackStat * so.value02 * 0.01f);
+            if (perSecond <= 0) return;
+
+            var tc = target.GetComponent<UnitCombat>();
+            tc?.ApplyBurn(perSecond, Mathf.Max(0f, so.value03), "화상");
+        }
+
+        /// <summary>
+        /// 화염 세례 — 공격 중인 대상 자리에 거대 화염구. 반경 value01 에 value02% 피해.
+        /// 「애로우 레인」과 같은 짜임이다(현재 대상이 없으면 발동하지 않는다).
+        /// </summary>
+        bool TryFlameBlast()
+        {
+            PassiveSkillSO so = Find(PassiveSkillType.FlameBlast);
+            if (so == null || Time.time < _flameBlastReadyAt) return false;
+
+            DamageableUnit target = _combat != null ? _combat.Target : null;
+            if (target == null || !target.IsAlive || target.Faction == _unit.Faction) return false;
+
+            float radius = Mathf.Max(0f, so.value01);
+            int percent = Mathf.RoundToInt(so.value02);
+            if (radius <= 0f || percent <= 0) return false;
+
+            _flameBlastReadyAt = Time.time + Mathf.Max(0f, so.coolTime);
+            Vector3 center = target.transform.position;
+
+            _animator?.PlaySkillMotion(0, 0.5f, center);
+
+            Sprite[] fx = _animator != null && _animator.Skin != null ? _animator.Skin.SkillFx(0) : null;
+            if (fx != null)
+                CombatProjectileFx.PlayArea(fx, center, new Vector2(radius * 2f, radius * 2f),
+                                            0f, null, FxSeconds);
+
+            int hits = DamageEnemiesInRadius(center, radius, percent);
+            UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName,
+                                              $"반경 {radius:0.#}타일 · {hits}명"), UI.HudLogKind.Good);
+            return true;
         }
 
         // ==================================================================

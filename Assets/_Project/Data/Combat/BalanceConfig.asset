@@ -15,8 +15,8 @@ MonoBehaviour:
   statMin: 1
   statMax: 100
   monsterHpStatMax: 0
-  monsterAttackStatMax: 60
-  bossAttackStatMax: 120
+  monsterAttackStatMax: 40
+  bossAttackStatMax: 150
   initialStatMin: 1
   initialStatMax: 10
   hpBase: 40
@@ -29,11 +29,11 @@ MonoBehaviour:
   regenTickSeconds: 10
   regenPerStat: 1
   outOfCombatRegenDelay: 5
-  accuracyBasePercent: 85
-  accuracyPerStat: 0.3
+  accuracyBasePercent: 40
+  accuracyPerStat: 0.6
   accuracyMaxPercent: 100
   criticalPerStat: 0.8
-  criticalMaxPercent: 60
+  criticalMaxPercent: 100
   criticalDamageMultiplier: 1.5
   attacksPerSecondBase: 0.6
   attacksPerSecondHalfStat: 50

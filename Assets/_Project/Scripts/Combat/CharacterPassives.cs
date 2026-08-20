@@ -172,6 +172,10 @@ namespace LastSanctuary.Combat
             PassiveSkillType.ArrowRain, PassiveSkillType.Dawn,
             PassiveSkillType.FallenBody, PassiveSkillType.CelestialShield,
             PassiveSkillType.DivineWrath,
+
+            // ── 아르세니아 9010 · 불칸 9011 (2026-08-20) ──
+            PassiveSkillType.SacredBlessing, PassiveSkillType.UnfinishedNobility,
+            PassiveSkillType.FlameBlast,
         };
 
         /// <summary>이 캐릭터가 그 패시브를 지금 쓸 수 있는지 (해금 + 표에 있는 종류).</summary>
@@ -236,9 +240,28 @@ namespace LastSanctuary.Combat
             //   강화로 슬롯이 늦게 열려도 그 순간부터 잠기고, 스킬이 없는 캐릭터에서는
             //   잠금을 <b>푼다</b> — 걸어둔 채 두면 다른 캐릭터가 이 컴포넌트를 물려받는
             //   구조는 아니지만, 「걸었으면 반드시 되돌린다」 는 이 파일의 규칙이다.
+            //
+            // ★★ 2026-08-20 — <b>2번 슬롯이 해금된 뒤부터</b> 잠근다 (유저 리포트:
+            //    *"시그리드 두번째 스킬 열리기도 전에 5% 로 후퇴기준 고정되는 버그도 있음
+            //    2번째 스킬이 해금되었을때부터 잠겨야돼"*).
+            //
+            //    <b>왜 버그였나</b> — 후퇴 기준을 잠그는 값(`value_05`)은 <b>1번 스킬</b>
+            //    「가학증」에 적혀 있고 1번은 <b>생성 즉시</b> 열린다. 그래서 시그리드는
+            //    태어나자마자 «체력 5% 까지 안 물러나는» 캐릭터가 됐다 — 그런데 그 무모함을
+            //    받쳐 주는 것은 3번 「통제할 수 없는 쾌락」(저체력 무적)이고, 그 앞에
+            //    2번 「고통의 기쁨」(공속 증가)이 먼저 열린다. <b>받쳐 주는 것이 하나도
+            //    없는 구간</b>에서 후퇴만 막히니 그냥 죽는다.
+            //
+            //    <b>슬롯 번호로 판단한다</b> — 「가학증을 가졌는가」가 아니라
+            //    <b>「2번 슬롯이 열렸는가」</b>를 본다. 그래야 다른 캐릭터가 같은 구조를
+            //    쓰더라도 규칙이 그대로 성립한다(스킬 이름에 매달지 않는다).
             PassiveSkillSO sadism = Find(PassiveSkillType.Sadism);
-            if (sadism != null) _tactics?.SetRetreatHpLock(Mathf.RoundToInt(sadism.value05));
-            else _tactics?.ClearRetreatHpLock();
+            bool slot2Open = _unit != null && _unit.Definition != null &&
+                             _unit.Definition.IsPassiveUnlocked(1, _unit.UpgradeCount);
+            if (sadism != null && slot2Open)
+                _tactics?.SetRetreatHpLock(Mathf.RoundToInt(sadism.value05));
+            else
+                _tactics?.ClearRetreatHpLock();
 
             // ── 신규 캐릭터 3인의 상시 효과 (CharacterPassives.Newcomers.cs) ──
             ApplyAlwaysOnNewcomers();
@@ -352,6 +375,9 @@ namespace LastSanctuary.Combat
                     PassiveSkillType.FallenBody => TryFallenBody(),
                     PassiveSkillType.CelestialShield => TryCelestialShield(),
                     PassiveSkillType.DivineWrath => TryDivineWrath(),
+                    PassiveSkillType.SacredBlessing => TrySacredBlessing(),
+                    PassiveSkillType.UnfinishedNobility => TryUnfinishedNobility(),
+                    PassiveSkillType.FlameBlast => TryFlameBlast(),
                     _ => false,
                 };
                 if (fired) return;   // 한 프레임에 하나만 (BossSkillCaster.Update 와 같은 규칙)
@@ -884,6 +910,9 @@ namespace LastSanctuary.Combat
                 cost = Mathf.Min(cost, Mathf.Max(0, _unit.CurrentHp - 1));
                 if (cost > 0) _unit.ApplyDamage(cost);
             }
+
+            // ── 타오르는 분노(불칸): 확률로 화상 (CharacterPassives.Newcomers.cs) ──
+            OnAttackingNewcomers(target);
 
             // ── 부식: 맞은 적의 방어력 −value01, value02초. 중첩 불가 ──
             PassiveSkillSO corrosion = Find(PassiveSkillType.Corrosion);
