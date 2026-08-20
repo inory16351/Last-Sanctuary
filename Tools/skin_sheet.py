@@ -564,6 +564,9 @@ def load_sheet(path, box_borders=False):
         "arr": arr, "bg": bg, "dist": dist, "gray": gray,
         "lum": a16.mean(axis=2), "sat": a16.max(axis=2) - a16.min(axis=2),
         "bg_mask": bg_mask,
+        # ★★ 2026-08-20 — <b>원화가 가진 알파를 그대로 실어 보낸다</b>(없으면 None).
+        #   :func:`crop_rgba` 가 이것을 곱해 굽는다 — 그 함수의 ⚠⚠ 주석 참조.
+        "src_alpha": alpha if has_alpha else None,
         # ★ 「그림」 마스크. 그림자를 지울 때마다 여기서 뺀다.
         "mask": ~bg_mask,
     }
@@ -1017,12 +1020,41 @@ def alpha_for(opaque, dist):
 
 
 def crop_rgba(sheet, box):
-    """상자를 RGBA 로 굽고 알파 경계까지 다시 죈다."""
+    """상자를 RGBA 로 굽고 알파 경계까지 다시 죈다.
+
+    ⚠⚠ **원화에 알파가 있으면 그 알파를 곱한다** (2026-08-20 실사고 · 아루 새 시트).
+
+    :func:`alpha_for` 는 «배경에 닿는 한 겹만» 깎고 <b>안쪽은 통째로 255</b> 로 만든다.
+    잉크/배경을 색으로 가려내던 옛 시트에서는 그것이 맞았다 — 배경은 흰색 한 가지였고
+    그림 안에 «반투명» 이라는 개념이 없었다.
+
+    그런데 <b>알파 PNG 는 그림 자체가 반투명 구역을 갖고 있다.</b> 새 세대 시트 넷은
+    전부 <b>알파 8~63 인 픽셀이 15만 장 안팎</b>이다(아루 189k · 카이론 147k) — 인물을
+    감싼 <b>부드러운 잔광·그림자</b>다. :data:`ALPHA_INK_MIN` 이 8 이므로 그것이 전부
+    «잉크» 로 잡히고, ``alpha_for`` 가 안쪽을 255 로 채워 <b>불투명한 갈색 테두리</b>가
+    된다. 실제로 그렇게 나왔다 — 아루 대기 프레임을 4배로 늘려 보면 인물 실루엣 바깥에
+    <b>올리브색 판때기</b>가 한 겹 둘러 있다(카이론·아르세니아·불칸도 옅게 같은 증상).
+
+    ★ 고치는 방법은 «원화가 이미 답을 갖고 있다» 는 것이다 — <b>화가가 그린 알파</b>가
+      어디까지가 그림인지 말해 준다. 그래서 두 알파를 <b>곱한다</b>:
+
+      * ``alpha_for``   — 배경 판정(제목 딱지·옆 칸 조각을 지운 결과)
+      * ``src_alpha``   — 화가가 그린 부드러움
+
+      ⚠ 상자를 다시 죄는 기준(``alpha > 0``)은 <b>바뀌지 않는다</b> — ``mask`` 가
+        ``alpha >= 8`` 의 부분집합이므로 곱해도 0 이 되는 픽셀이 새로 생기지 않는다.
+        즉 <b>프레임 크기·피벗은 한 픽셀도 안 움직인다</b>(재보고 확인했다).
+      ⚠ 알파 없는 옛 시트(몬스터 대부분)는 ``src_alpha`` 가 ``None`` 이라
+        <b>예전 경로를 그대로 탄다</b>.
+    """
     bx0, bx1, by0, by1 = box
     sl = (slice(by0, by1 + 1), slice(bx0, bx1 + 1))
     rgb = sheet["arr"][sl]
-    alpha = alpha_for(sheet["mask"][sl], sheet["dist"][sl])
-    rgba = np.dstack([rgb, alpha]).astype(np.uint8)
+    alpha = alpha_for(sheet["mask"][sl], sheet["dist"][sl]).astype(np.float32)
+    src = sheet.get("src_alpha")
+    if src is not None:
+        alpha *= src[sl].astype(np.float32) / 255.0
+    rgba = np.dstack([rgb, np.clip(alpha, 0, 255).astype(np.uint8)]).astype(np.uint8)
 
     solid = rgba[:, :, 3] > 0
     if not solid.any():

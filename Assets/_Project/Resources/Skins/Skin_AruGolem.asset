@@ -115,6 +115,7 @@ MonoBehaviour:
   - {fileID: 21300000, guid: 784a46d157594dd33d260d9aa1852db5, type: 3}
   - {fileID: 21300000, guid: 1c4299f9a877bcc5f31eee7305fc7e07, type: 3}
   - {fileID: 21300000, guid: 1401ba3c60208b518ab60450efddbb02, type: 3}
+  shieldFrames: []
   stunRight: []
   stunLeft: []
   skill1Right: []

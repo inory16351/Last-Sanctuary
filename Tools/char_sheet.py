@@ -86,7 +86,7 @@ class Spec(object):
                  erase=(), no_direction=(), original_side=None, default_side="Right",
                  scale_reference="Idle", scale_metric="head",
                  dominant_join=0.06, pocket=(60, 60), ppu=None, filter_mode=None,
-                 supersample=1.0, sharpen=0.0):
+                 supersample=1.0, sharpen=0.0, fx_target_height=None):
         self.title = title
         self.sources = sources          # {"01": path, …}
         self.dst_root = dst_root
@@ -106,6 +106,16 @@ class Spec(object):
         self.sharpen = sharpen
         self.ppu = ppu
         self.filter_mode = filter_mode
+        #: ★ 이펙트 줄의 <b>목표 높이(px)</b> — ``{줄 이름: 높이}``.
+        #:
+        #:   <b>왜 배율이 아니라 높이인가</b> — 몸통은 «대기 대비» 로 잴 수 있지만
+        #:   이펙트는 견줄 기준이 없다. 그리고 <b>별지에서 오는 줄</b>은 원화가 아예 다른
+        #:   크기로 그려져 있다(아루 회복 별지는 639px — 그대로 구우면 PPU 64 기준
+        #:   <b>10타일</b> 짜리 그림이 아군 발밑에 깔린다).
+        #:   그때 «몇 배» 는 사람이 알 수 없고 «몇 px» 는 알 수 있으므로 이쪽을 받는다.
+        #:
+        #:   ⚠ :data:`supersample` 과 곱해진다 — 굽는 해상도를 올려도 게임 안 크기는 그대로다.
+        self.fx_target_height = dict(fx_target_height or {})
 
 
 SCALE_MIN, SCALE_MAX = 0.60, 1.90
@@ -359,7 +369,15 @@ def bake(spec, cut_rows, factors):
 
     made = 0
     for row, frames in cut_rows:
-        factor = factors.get(row.name, 1.0) * spec.supersample
+        factor = factors.get(row.name, 1.0)
+        if row.name in spec.fx_target_height:
+            # ★ 이펙트는 «대기 대비» 로 못 재므로 목표 높이로 배율을 낸다
+            #   (:data:`Spec.fx_target_height` 의 긴 주석).
+            tall = max(f.shape[0] for f in frames)
+            factor = spec.fx_target_height[row.name] / float(tall)
+            print("    %-18s 원본 높이 %dpx → 목표 %dpx (x%.3f)"
+                  % (row.name, tall, spec.fx_target_height[row.name], factor))
+        factor *= spec.supersample
         if abs(factor - 1.0) > 0.002:
             frames = [resample_rgba(f, factor) for f in frames]
         if spec.sharpen > 0:
@@ -403,8 +421,14 @@ def bake(spec, cut_rows, factors):
     return made
 
 
-def run(spec):
-    """분해 한 번. 각 캐릭터 스크립트의 ``main()`` 은 이 한 줄이면 된다."""
+def run(spec, fx_target_height=None):
+    """분해 한 번. 각 캐릭터 스크립트의 ``main()`` 은 이 한 줄이면 된다.
+
+    ``fx_target_height`` 는 :data:`Spec.fx_target_height` 를 덮어쓴다 — 좌표표와 함께
+    스크립트 아래쪽에 적어 두는 편이 읽기 좋은 경우가 있어 둘 다 받는다.
+    """
+    if fx_target_height:
+        spec.fx_target_height = dict(fx_target_height)
     sys.stdout.reconfigure(encoding="utf-8")
     print("[%s 모션 시트 분해]" % spec.title)
 

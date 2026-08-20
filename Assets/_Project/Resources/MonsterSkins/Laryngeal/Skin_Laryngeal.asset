@@ -89,6 +89,7 @@ MonoBehaviour:
   summonLeft: []
   deathRight: []
   deathLeft: []
+  shieldFrames: []
   stunRight: []
   stunLeft: []
   skill1Right:
