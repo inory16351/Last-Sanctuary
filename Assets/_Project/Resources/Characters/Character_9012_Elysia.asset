@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bacf4f16746e56b4da254173d578cf4e, type: 3}
+  m_Name: Character_9012_Elysia
+  m_EditorClassIdentifier:
+  characterId: 9012
+  nameKey: 'character_name_9012'
+  characterName: '엘리시아'
+  characterNameEn: 'Elysia'
+  titleKey: 'character_title_9012'
+  title: '무너지지 않는 방패'
+  illustName: 'illust_Elysia'
+  skinAssetName: 'Skin_Elysia'
+  stats:
+    hp: 9
+    attack: 4
+    defense: 8
+    regen: 7
+    rangedAttack: 2
+    magic: 6
+    cure: 12
+    accuracy: 4
+    critical: 1
+    attackSpeed: 3
+    moveSpeed: 6
+    resistance: 96
+  attackPreset: 0
+  positionPreset: 0
+  passives:
+  - {fileID: 11400000, guid: 2df5e2937f105e77a62d26d0cb0acf30, type: 2}
+  - {fileID: 11400000, guid: 9b16a9318e9e7768be53507fa958e209, type: 2}
+  - {fileID: 11400000, guid: 5084d02641296c333c3afedb7f53fafd, type: 2}
+  narrative: ''

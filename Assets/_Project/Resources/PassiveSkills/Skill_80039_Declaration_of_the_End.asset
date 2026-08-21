@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21498a0a43b4e824ea7e6db210ef2e29, type: 3}
+  m_Name: Skill_80039_Declaration_of_the_End
+  m_EditorClassIdentifier:
+  skillId: 80039
+  nameKey: 'skill_name_80039'
+  flavorKey: 'skill_explain_80039'
+  detailKey: 'skill_detail_80039'
+  effectKey: 'skill_type_desc_Declaration_of_the_End'
+  skillName: '종말의 선언'
+  skillType: 'Declaration_of_the_End'
+  value01: 6
+  value02: 2
+  value03: 110
+  value04: 3
+  value05: 0
+  value06: 0
+  coolTime: 120
+  iconName: ''
+  flavorText: '세라피엘이 방아쇠를 당기는 순간, 그 앞의 모든 것에 끝이 선고됩니다.'
+  detailText: '전방의 직사각형 범위에 집중 포격을 퍼부어, 일정 시간 동안 그 안의 모든 적에게 초당 원거리 피해를 입힙니다.'
+  effectTemplate: '전방에 집중 포격을 가합니다. 세라피엘의 전방{value_01}(가로) * {value_02}(세로) 타일 범위에 존재하는 모든 적에게 초당 세라피엘의 원거리 공격력 * {value_03}의 피해를 {value_04}초 동안 입힙니다.'

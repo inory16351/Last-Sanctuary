@@ -101,6 +101,7 @@ from skin_sheet import (  # noqa: F401
     load_sheet, cells_by_clusters, cells_by_gaps, boxes_for, crop_rgba,
     body_anchor, base_anchor, compose, write_png, ensure_folder_meta,
     shadow_in_box, sharpen_rgba, resample_rgba, clear_frames, runs,
+    enclosed_background, reflood_background,
     FILTER_BILINEAR,
 )
 
@@ -112,6 +113,13 @@ DST_ROOT = os.path.join(PROJECT, "Assets", "_Project", "Art", "Char_Asset",
 #: 선명도 보정 — 베일과 같은 값(그쪽 :data:`SHARPEN_AMOUNT` 주석에 네 단계 비교가 있다).
 #: 레기미아도 같은 대역이다: 원화가 손그림이고 콜라이더 15x10 으로 6배 넘게 확대된다.
 #: ⚠ threshold 6 이 핵심 — 평탄한 검은 몸통은 건드리지 않고 <b>경계만</b> 조인다.
+#: ★ 갇힌 배경 판정 (`drop_pockets`). 기본값(300 / 40)보다 <b>둘 다 느슨하게</b> 잡았다 —
+#:   레기미아는 촉수 사이 웅덩이가 작은 것도 많고(100px 대) 테두리가 <b>검은 촉수</b>라
+#:   광도가 매우 낮다(실측: 하위 5% 가 10~30). 몸의 흰 문양은 <b>붉은 살</b>(광도 60~110)에
+#:   둘러싸여 있어 55 로 자르면 갈린다.
+POCKET_MIN_AREA = 80
+POCKET_RING_LUM = 55
+
 SHARPEN_AMOUNT = 0.40
 SHARPEN_RADIUS = 1.2
 SHARPEN_THRESHOLD = 6
@@ -234,6 +242,43 @@ def drop_shadow(sheet, boxes):
     for b in boxes:
         shadow |= shadow_in_box(sheet, b)
     sheet["mask"] &= ~shadow
+    # ★ 그림자가 막고 있던 바깥 배경을 배경으로 편입한다 — 촉수 사이의 웅덩이가
+    #   그림자로 바깥과 끊겨 있으면 «흰 천» 으로 남는다(바리올라와 같은 경우).
+    return reflood_background(sheet, shadow)
+
+
+def drop_pockets(sheet, boxes, label):
+    """
+    ★★ <b>갇힌 배경</b>을 지운다 (2026-08-21 · 유저 리포트: *"레기미아 인게임 스프라이트가
+    누끼가 제대로 안따지고 흰색이 자꾸 보여"*).
+
+    <b>왜 남았나</b> — 이 시트는 알파가 없는 <b>흰 배경 RGB</b>다. `background_mask` 는
+    배경을 «시트 테두리에서 흘려 닿는 곳» 으로 정의하는데, 레기미아는 <b>촉수가 여러 개</b>
+    라서 촉수와 촉수 사이의 흰 구역이 <b>바깥과 완전히 끊긴다</b>. 끊긴 배경은 배경으로
+    안 잡히므로 <b>불투명한 흰 판때기</b>로 구워졌다(실측: 프레임마다 흰 화소가 불투명
+    영역의 <b>3~5%</b> · 화면에서 어깨·다리 사이에 흰 천이 붙은 것처럼 보인다).
+
+    ★ 119-6절이 시카리아·아루·카이론에서 겪은 <b>같은 사고</b>이고 도구도 그때 만들었다 —
+      `enclosed_background` 가 «갇힌 덩어리 중 <b>테두리가 먹선</b>인 것» 만 되돌린다.
+      그 조건이 있어서 <b>몸에 그려진 흰 하이라이트</b>(가슴의 흰 문양·눈)는 살아남는다.
+
+    ⚠ <b>칸 단위로 돈다</b> — 시트 전체에서 갇힌 덩어리를 세면 수천 개가 나와 몇 분이 걸린다.
+    ⚠ <b>지운 화소 수를 반드시 본다</b> — 프레임당 수백~수천이 정상이고, 수만이면 배경
+      판정이 무너진 것이다(그때는 `ring_lum` 을 낮춘다).
+    """
+    total = 0
+    for b in boxes:
+        pocket = enclosed_background(sheet, b[2], b[3], b[0], b[1],
+                                     min_area=POCKET_MIN_AREA,
+                                     ring_lum=POCKET_RING_LUM)
+        n = int(pocket.sum())
+        if n:
+            sheet["mask"] &= ~pocket
+            sheet["bg_mask"] |= pocket
+            total += n
+    if total:
+        print("      갇힌 배경 %6d px 지움 (%s)" % (total, label))
+    return total
 
 
 def bake(sheet, boxes):
@@ -272,7 +317,11 @@ def body_boxes(sheet, y0, y1, x0, x1, name):
     if not cells:
         raise SystemExit("⚠ %s: 칸을 하나도 못 찾았습니다 (y%d~%d)" % (name, y0, y1))
     rough = [b for b in boxes_for(sheet["mask"], cells, y0, y1) if b is not None]
-    drop_shadow(sheet, rough)
+    gained = drop_shadow(sheet, rough)
+    if gained:
+        print("      그림자가 막던 배경 %5d px 편입 (%s)" % (gained, name))
+    # ★★ 촉수 사이에 갇힌 흰 배경을 지운다 (아래 drop_pockets 의 ★★).
+    drop_pockets(sheet, rough, name)
     boxes = [b for b in boxes_for(sheet["mask"], cells, y0, y1) if b is not None]
     return cells, boxes
 
@@ -305,6 +354,8 @@ def build(sheet):
         cells = cells_by_gaps(sheet["mask"], y0, y1, x0, x1, min_len=FX_GAP_MIN)
         if not cells:
             raise SystemExit("⚠ %s: 칸을 하나도 못 찾았습니다 (y%d~%d)" % (name, y0, y1))
+        boxes = [b for b in boxes_for(sheet["mask"], cells, y0, y1) if b is not None]
+        drop_pockets(sheet, boxes, name)
         boxes = [b for b in boxes_for(sheet["mask"], cells, y0, y1) if b is not None]
         frames = bake(sheet, boxes)
         images, w, h = compose(frames, [base_anchor(f) for f in frames])

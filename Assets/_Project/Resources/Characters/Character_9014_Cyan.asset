@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bacf4f16746e56b4da254173d578cf4e, type: 3}
+  m_Name: Character_9014_Cyan
+  m_EditorClassIdentifier:
+  characterId: 9014
+  nameKey: 'character_name_9014'
+  characterName: '시안'
+  characterNameEn: 'Cyan'
+  titleKey: 'character_title_9014'
+  title: '여명의 수확자'
+  illustName: 'illust_Cyan'
+  skinAssetName: 'Skin_Cyan'
+  stats:
+    hp: 8
+    attack: 7
+    defense: 5
+    regen: 7
+    rangedAttack: 3
+    magic: 4
+    cure: 6
+    accuracy: 4
+    critical: 2
+    attackSpeed: 5
+    moveSpeed: 7
+    resistance: 66
+  attackPreset: 0
+  positionPreset: 0
+  passives:
+  - {fileID: 11400000, guid: 2a3a37e11dbad1fd365e5519f99c9cf9, type: 2}
+  - {fileID: 11400000, guid: 6fc171833e9fa2bfc4f5e9ff874d9c8e, type: 2}
+  - {fileID: 11400000, guid: ac49b62ad5d1c0117c24b1e6e80830a7, type: 2}
+  narrative: ''

@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bacf4f16746e56b4da254173d578cf4e, type: 3}
+  m_Name: Character_9013_Seraphiel
+  m_EditorClassIdentifier:
+  characterId: 9013
+  nameKey: 'character_name_9013'
+  characterName: '세라피엘'
+  characterNameEn: 'Seraphiel'
+  titleKey: 'character_title_9013'
+  title: '침묵의 총성'
+  illustName: 'illust_Seraphiel'
+  skinAssetName: 'Skin_Seraphiel'
+  stats:
+    hp: 5
+    attack: 3
+    defense: 1
+    regen: 3
+    rangedAttack: 8
+    magic: 2
+    cure: 4
+    accuracy: 9
+    critical: 10
+    attackSpeed: 6
+    moveSpeed: 8
+    resistance: 43
+  attackPreset: 0
+  positionPreset: 0
+  passives:
+  - {fileID: 11400000, guid: a970ed655813f5e24adf001bcefca11f, type: 2}
+  - {fileID: 11400000, guid: 418b7cc9ce19e2ff0ceeedbf0c15e039, type: 2}
+  - {fileID: 11400000, guid: 539895abb2892b5a5c801e78f9281868, type: 2}
+  narrative: ''

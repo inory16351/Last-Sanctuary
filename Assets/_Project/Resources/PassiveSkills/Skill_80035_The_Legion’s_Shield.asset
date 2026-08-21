@@ -15,7 +15,7 @@ MonoBehaviour:
   skillId: 80035
   nameKey: 'skill_name_80035'
   flavorKey: 'skill_explain_80035'
-  detailKey: ''
+  detailKey: 'skill_detail_80035'
   effectKey: 'skill_type_desc_The_Legion’s_Shield'
   skillName: '군단의 방패'
   skillType: 'The_Legion’s_Shield'
@@ -28,5 +28,5 @@ MonoBehaviour:
   coolTime: 0
   iconName: ''
   flavorText: '그녀가 들어올리는 방패는 승리를 알리는 승전보와 같습니다.'
-  detailText: ''
-  effectTemplate: '엘리시아가 공격 받을때마다 엘리시아의 최대체력의 {value_01}% 만큼의 데미지를 공격 대상에게 준다.'
+  detailText: '공격받을 때마다 자신의 최대 체력에 비례하는 피해를 때린 적에게 그대로 되돌려 줍니다.'
+  effectTemplate: 'skill_type_desc_The_Legion’s_Shield'

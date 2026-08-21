@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21498a0a43b4e824ea7e6db210ef2e29, type: 3}
+  m_Name: Skill_80038_Sharpshooter
+  m_EditorClassIdentifier:
+  skillId: 80038
+  nameKey: 'skill_name_80038'
+  flavorKey: 'skill_explain_80038'
+  detailKey: 'skill_detail_80038'
+  effectKey: 'skill_type_desc_Sharpshooter'
+  skillName: '명사수'
+  skillType: 'Sharpshooter'
+  value01: 20
+  value02: 0
+  value03: 0
+  value04: 0
+  value05: 0
+  value06: 0
+  coolTime: 0
+  iconName: ''
+  flavorText: '세라피엘의 총성은 언제나 한 발이면 충분했습니다.'
+  detailText: '크리티컬 확률이 영구적으로 오릅니다. 이 값은 능력치 상한을 넘어설 수 있습니다.'
+  effectTemplate: '영구적으로 세라피엘이 {value_01}의 크리티컬 확률을 획득합니다. 이 값은 스탯 한계치를 초월할 수 있습니다. (120의 크리티컬 확률의 세라피엘의 원거리 공격은 100% 확률로 치명타로 적중합니다.)'

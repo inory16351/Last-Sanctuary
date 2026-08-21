@@ -118,6 +118,7 @@ namespace LastSanctuary.Combat
             // 안 그러면 비기오르가 죽은 뒤에도 동료 방어력이 영구히 +8 로 남는다.
             ClearDefenseAura();
             ClearNewcomerEffects();     // 신규 3인 (CharacterPassives.Newcomers.cs)
+            ClearTrioEffects();         // 신규 3인 2차 (CharacterPassives.Trio.cs)
         }
 
         /// <summary>
@@ -181,6 +182,14 @@ namespace LastSanctuary.Combat
             // ── 아르세니아 9010 · 불칸 9011 (2026-08-20) ──
             PassiveSkillType.SacredBlessing, PassiveSkillType.UnfinishedNobility,
             PassiveSkillType.FlameBlast,
+
+            // ── 신규 3인 2차 (2026-08-21) — 구현은 CharacterPassives.Trio.cs ──
+            //   ⚠ 여기 넣지 않으면 <b>쿨타임 표가 부르지 않아 영영 발동하지 않는다</b>
+            //     (위 주석의 «새 쿨타임 스킬을 추가하면 이 배열에도 넣을 것» 이 그 뜻이다).
+            //   ★ 「군단의 방패」·「명사수」·「영혼 흡수」·「사신의 낫」·「한계 돌파」는 <b>없다</b> —
+            //     쿨타임이 아니라 상시·이벤트로 도는 것들이다(Trio.cs 의 ★★ 참조).
+            PassiveSkillType.StrongMind, PassiveSkillType.BlessingOfFourWings,
+            PassiveSkillType.EvasiveManeuver, PassiveSkillType.DeclarationOfTheEnd,
         };
 
         /// <summary>이 캐릭터가 그 패시브를 지금 쓸 수 있는지 (해금 + 표에 있는 종류).</summary>
@@ -270,6 +279,7 @@ namespace LastSanctuary.Combat
 
             // ── 신규 캐릭터 3인의 상시 효과 (CharacterPassives.Newcomers.cs) ──
             ApplyAlwaysOnNewcomers();
+            ApplyAlwaysOnTrio();
         }
 
         /// <summary>
@@ -355,6 +365,7 @@ namespace LastSanctuary.Combat
             TickRageDecay(dt);
             TickUncontrollablePleasure();
             TickNewcomers(dt);          // 신규 3인 (CharacterPassives.Newcomers.cs)
+            TickTrio(dt);               // 신규 3인 2차 (CharacterPassives.Trio.cs)
             TickCooldownSkills();
         }
 
@@ -384,6 +395,12 @@ namespace LastSanctuary.Combat
                     PassiveSkillType.SacredBlessing => TrySacredBlessing(),
                     PassiveSkillType.UnfinishedNobility => TryUnfinishedNobility(),
                     PassiveSkillType.FlameBlast => TryFlameBlast(),
+
+                    // ── 신규 3인 2차 (2026-08-21) ──
+                    PassiveSkillType.StrongMind => TryStrongMind(),
+                    PassiveSkillType.BlessingOfFourWings => TryBlessingOfFourWings(),
+                    PassiveSkillType.EvasiveManeuver => TryEvasiveManeuver(),
+                    PassiveSkillType.DeclarationOfTheEnd => TryDeclarationOfTheEnd(),
                     _ => false,
                 };
                 if (fired) return;   // 한 프레임에 하나만 (BossSkillCaster.Update 와 같은 규칙)

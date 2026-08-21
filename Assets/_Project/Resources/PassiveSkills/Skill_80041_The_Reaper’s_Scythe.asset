@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21498a0a43b4e824ea7e6db210ef2e29, type: 3}
+  m_Name: Skill_80041_The_Reaper’s_Scythe
+  m_EditorClassIdentifier:
+  skillId: 80041
+  nameKey: 'skill_name_80041'
+  flavorKey: 'skill_explain_80041'
+  detailKey: 'skill_detail_80041'
+  effectKey: 'skill_type_desc_The_Reaper’s_Scythe'
+  skillName: '사신의 낫'
+  skillType: 'The_Reaper’s_Scythe'
+  value01: 20
+  value02: 2
+  value03: 75
+  value04: 0
+  value05: 0
+  value06: 0
+  coolTime: 0
+  iconName: ''
+  flavorText: '낫이 지나간 자리에는 비명조차 남지 않습니다.'
+  detailText: '근거리 공격에 일정 확률로 낫을 휘둘러 주위의 적을 함께 베어냅니다. 거둔 영혼이 많을수록 더 크게 베입니다.'
+  effectTemplate: 'skill_type_desc_The_Reaper’s_Scythe'

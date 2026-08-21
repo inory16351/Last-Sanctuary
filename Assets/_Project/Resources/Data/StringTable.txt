@@ -256,3 +256,45 @@ skill_type_desc_Rapid_Playback	폴리르의 현재 체력이 {value_01}%가 되�
 skill_type_desc_Dread	폴리르를 중심으로 폴리르 + {value_01} 지름 타일 범위에 적 최소 {value_02}명 에서 최대{value_03}명에게 현재 공격중인 적을 중심으로 적 + {value_04} 반지름 원형 타일 범위에 폴리르의 원거리 공격력 {value_05}% 만큼 공격한다. 맞은 적은 {value_06}초 동안 기절 상태에 걸린다 기절 상태는 부정적인 정신 이상 상태를 해제하는 효과로 해제 가능하다. 해당 공격은 동시에 한번만 타격 가능하다. 중첩되어 공격 받지 않는다.	
 epic_boss_title_1104	영원한 숙적	
 mon_name_1104	폴리르	
+character_name_9012	엘리시아	Elysia
+character_name_9013	세라피엘	Seraphiel
+character_name_9014	시안	Cyan
+character_title_9012	무너지지 않는 방패	The Unbreakable Shield
+character_title_9013	침묵의 총성	The Silent Gunshot
+character_title_9014	여명의 수확자	The Reaper of Dawn
+skill_detail_80034	체력이 크게 떨어지면 일정 시간에 걸쳐 최대 체력의 일부를 스스로 되찾습니다.	
+skill_detail_80035	공격받을 때마다 자신의 최대 체력에 비례하는 피해를 때린 적에게 그대로 되돌려 줍니다.	
+skill_detail_80036	네 날개를 펼쳐 주위의 적에게 마법 피해를 주고 잠시 기절시키며, 같은 범위의 아군을 함께 회복시킵니다.	
+skill_detail_80037	적이 가까이 붙으면 즉시 반대쪽으로 물러나며, 물러나는 그 자리에서 곧바로 원거리 공격을 되돌려 줍니다.	
+skill_detail_80038	크리티컬 확률이 영구적으로 오릅니다. 이 값은 능력치 상한을 넘어설 수 있습니다.	
+skill_detail_80039	전방의 직사각형 범위에 집중 포격을 퍼부어, 일정 시간 동안 그 안의 모든 적에게 초당 원거리 피해를 입힙니다.	
+skill_detail_80040	주위에서 적이 죽을 때마다 영혼을 거둡니다. 모인 수는 스킬 칸에 표시되며 다른 두 기술의 재료가 됩니다.	
+skill_detail_80041	근거리 공격에 일정 확률로 낫을 휘둘러 주위의 적을 함께 베어냅니다. 거둔 영혼이 많을수록 더 크게 베입니다.	
+skill_detail_80042	거둔 영혼이 일정 수에 이를 때마다 근거리 공격력이 영구적으로 오릅니다. 이 값은 능력치 상한을 넘어설 수 있습니다.	
+skill_explain_80034	엘리시아의 정신은 어떠한 상황에도 무너지지 않습니다.	
+skill_explain_80035	그녀가 들어올리는 방패는 승리를 알리는 승전보와 같습니다.	
+skill_explain_80036	성익의 가호를 받은 자들은 결코 두려움을 모릅니다.	
+skill_explain_80037	누구도 세라피엘을 사거리 안에 붙잡아 둔 적이 없습니다.	
+skill_explain_80038	세라피엘의 총성은 언제나 한 발이면 충분했습니다.	
+skill_explain_80039	세라피엘이 방아쇠를 당기는 순간, 그 앞의 모든 것에 끝이 선고됩니다.	
+skill_explain_80040	시안의 곁에서 죽은 것은 무엇도 온전히 떠나지 못합니다.	
+skill_explain_80041	낫이 지나간 자리에는 비명조차 남지 않습니다.	
+skill_explain_80042	거둬들인 죽음의 무게가 그대로 시안의 힘이 됩니다.	
+skill_name_80034	강인한 정신	Strong Mind
+skill_name_80035	군단의 방패	The Legion's Shield
+skill_name_80036	네 날개의 가호	Blessing of Four Wings
+skill_name_80037	회피 기동	Evasive Maneuver
+skill_name_80038	명사수	Sharpshooter
+skill_name_80039	종말의 선언	Declaration of the End
+skill_name_80040	영혼 흡수	Soul Absorption
+skill_name_80041	사신의 낫	The Reaper's Scythe
+skill_name_80042	한계 돌파	Breaking Through Limits
+skill_type_desc_Blessing_of_Four_Wings	엘리시아가 네 날개를 펼쳐 빛으로 적을 섬멸하고 기절시킵니다. 엘리시아 주변의 반지름{value_01} 반경의 적에게 엘리시아의 마법*{value_02}%만큼의 데미지를 주고, {value_03}초 동안 모든 행동을 막는 기절 상태를 부여합니다. 엘리시아 주변의 반지름 {value_01} 반경의 아군은 체력이 엘리시아의 최대 체력의 {value_04}% 만큼 회복됩니다.	
+skill_type_desc_Breaking_through_limits	시안이 획득한 영혼 {value_01}마다 시안의 근거리 공격력이 영구적으로 {value_02} 상승합니다. 해당 값은 스탯 상한을 초월할 수 있습니다.	
+skill_type_desc_Declaration_of_the_End	전방에 집중 포격을 가합니다. 세라피엘의 전방{value_01}(가로) * {value_02}(세로) 타일 범위에 존재하는 모든 적에게 초당 세라피엘의 원거리 공격력 * {value_03}의 피해를 {value_04}초 동안 입힙니다.	
+skill_type_desc_Evasive_maneuver	세라피엘의 근방 타일 범위 반지름 {value_01}범위 내에 적이 접근할 경우 즉시 {value_02} 타일만큼 적의 반대쪽으로 도약하며 {value_03}회 원거리 공격을 가합니다.	
+skill_type_desc_Sharpshooter	영구적으로 세라피엘이 {value_01}의 크리티컬 확률을 획득합니다. 이 값은 스탯 한계치를 초월할 수 있습니다. (120의 크리티컬 확률의 세라피엘의 원거리 공격은 100% 확률로 치명타로 적중합니다.)	
+skill_type_desc_Soul_Absorption	시안의 근처 반경 반지름 {value_01} 범위에서 적이 사망할 때마다 영혼을 획득합니다. 획득한 영혼은 해당 스킬 슬롯에 표기 됩니다.	
+skill_type_desc_Strong_mind	엘리시아의 체력이 최대체력의 {value_01}% 보다 낮아지면 엘리시아가 {value_02}초에 걸쳐 최대체력의 {value_03}%를 회복합니다.	
+skill_type_desc_The_Legion’s_Shield	엘리시아가 공격 받을때마다 엘리시아의 최대체력의 {value_01}% 만큼의 데미지를 공격 대상에게 준다.	
+skill_type_desc_The_Reaper’s_Scythe	시안이 근거리 공격을 할 때마다 {value_01}%의 확률로 낫을 휘둘러 시안의 반경 반지름{value_02}의 범위에 시안의 (근거리 공격력*{value_03}% +시안이 획득한 영혼) 만큼의 데미지를 입힙니다.	
