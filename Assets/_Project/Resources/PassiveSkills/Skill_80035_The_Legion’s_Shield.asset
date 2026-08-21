@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21498a0a43b4e824ea7e6db210ef2e29, type: 3}
+  m_Name: Skill_80035_The_Legion’s_Shield
+  m_EditorClassIdentifier:
+  skillId: 80035
+  nameKey: 'skill_name_80035'
+  flavorKey: 'skill_explain_80035'
+  detailKey: ''
+  effectKey: 'skill_type_desc_The_Legion’s_Shield'
+  skillName: '군단의 방패'
+  skillType: 'The_Legion’s_Shield'
+  value01: 3.5
+  value02: 0
+  value03: 0
+  value04: 0
+  value05: 0
+  value06: 0
+  coolTime: 0
+  iconName: ''
+  flavorText: '그녀가 들어올리는 방패는 승리를 알리는 승전보와 같습니다.'
+  detailText: ''
+  effectTemplate: '엘리시아가 공격 받을때마다 엘리시아의 최대체력의 {value_01}% 만큼의 데미지를 공격 대상에게 준다.'

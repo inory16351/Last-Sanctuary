@@ -22,10 +22,10 @@ MonoBehaviour:
   skinAssetName: 'Skin_Preyja'
   stats:
     hp: 6
-    attack: 11
+    attack: 7
     defense: 4
     regen: 2
-    rangedAttack: 4
+    rangedAttack: 7
     magic: 2
     cure: 3
     accuracy: 7

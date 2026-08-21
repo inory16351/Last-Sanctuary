@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21498a0a43b4e824ea7e6db210ef2e29, type: 3}
+  m_Name: Skill_80036_Blessing_of_Four_Wings
+  m_EditorClassIdentifier:
+  skillId: 80036
+  nameKey: 'skill_name_80036'
+  flavorKey: 'skill_explain_80036'
+  detailKey: ''
+  effectKey: 'skill_type_desc_Blessing_of_Four_Wings'
+  skillName: '네 날개의 가호'
+  skillType: 'Blessing_of_Four_Wings'
+  value01: 3
+  value02: 150
+  value03: 3
+  value04: 30
+  value05: 0
+  value06: 0
+  coolTime: 60
+  iconName: ''
+  flavorText: '성익의 가호를 받은 자들은 결코 두려움을 모릅니다.'
+  detailText: ''
+  effectTemplate: '엘리시아가 네 날개를 펼쳐 빛으로 적을 섬멸하고 기절시킵니다. 엘리시아 주변의 반지름{value_01} 반경의 적에게 엘리시아의 마법*{value_02}%만큼의 데미지를 주고, {value_03}초 동안 모든 행동을 막는 기절 상태를 부여합니다. 엘리시아 주변의 반지름 {value_01} 반경의 아군은 체력이 엘리시아의 최대 체력의 {value_04}% 만큼 회복됩니다.'
