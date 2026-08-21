@@ -232,10 +232,63 @@ namespace LastSanctuary.Combat
             HeroAwakeningService s = Instance;
             if (s == null) return HeroState.None;
 
-            // ★ <b>둘 중 하나만 채워도 «각성 가능»</b> 이다 — 처치의 길과 회복의 길.
-            bool byKill = k.Kills >= s.KillsNeededFor(k);
-            bool byHeal = s.trackHeals && k.Heals >= s.HealsNeededFor(k);
-            return byKill || byHeal ? HeroState.Ready : HeroState.None;
+            // ★★ <b>지금 포지션의 길만 본다</b> — 아래 <see cref="IsHealerNow"/> 의 ★★ 참조.
+            return s.ProgressOf(unit, k) >= s.GoalOf(unit, k) ? HeroState.Ready : HeroState.None;
+        }
+
+        // ==================================================================
+        //  ★★ <b>딜러의 길과 힐러의 길은 갈라져 있다</b> (2026-08-21 · 유저 지시:
+        //  *"피올로를 초반에 힐러로 설정하고 회복 스택이 쌓이는데 중간에 딜러로 바꿔버리면
+        //  딜러 킬수로 스택을 쌓아야 영웅각성 할 수 있게 … 즉 딜러와 힐러의 영웅각성 조건을
+        //  분리하고 … 다시 힐러로 포지션을 변경하면 다시 (100/200)으로"*)
+        //
+        //  <b>두 눈금은 각자 남는다.</b> 회복 100 을 쌓은 뒤 딜러로 바꾸면 처치 눈금
+        //  (0/50)이 보이고, 다시 힐러로 돌리면 회복 눈금(100/200)이 <b>그대로</b> 돌아온다.
+        //  기록은 <see cref="CharacterKills"/> 가 <b>둘 다</b> 들고 있으므로 지워지지 않는다.
+        //
+        //  ★ <b>세는 것과 판정하는 것을 갈랐다</b> — 처치와 회복은 <b>언제나</b> 쌓인다
+        //    (힐러가 어쩌다 막타를 쳐도 처치 눈금은 올라간다). 다만 «각성을 굴릴지» 와
+        //    «화면에 어느 눈금을 보여줄지» 는 <b>지금 공격 유형</b>이 정한다.
+        //    그래야 포지션을 바꿨을 때 «쌓아둔 것이 사라졌다» 가 되지 않는다.
+        //
+        //  ⚠ 판정 기준은 <b>전술 지침의 공격 유형</b>(<c>UnitCombat.AttackType</c>)이다 —
+        //    인물 이름이나 정의 에셋의 프리셋이 아니다. 유저가 전술 창에서 바꾸는 그 값이
+        //    곧 «지금 이 캐릭터가 무엇인가» 이기 때문이다.
+        // ==================================================================
+
+        /// <summary>지금 이 캐릭터가 <b>회복 유형</b>인가. 전술 지침의 공격 유형을 그대로 본다.</summary>
+        public static bool IsHealerNow(CharacterUnit unit)
+        {
+            if (unit == null) return false;
+            var combat = unit.GetComponent<UnitCombat>();
+            return combat != null && combat.AttackType == TacticalAttackType.Heal;
+        }
+
+        /// <summary>지금 포지션에서 <b>쌓인 눈금</b>. 힐러면 회복 수, 아니면 처치 수.</summary>
+        int ProgressOf(CharacterUnit unit, CharacterKills k) =>
+            trackHeals && IsHealerNow(unit) ? k.Heals : k.Kills;
+
+        /// <summary>지금 포지션에서 <b>필요한 눈금</b>. 힐러면 회복 목표, 아니면 처치 목표.</summary>
+        int GoalOf(CharacterUnit unit, CharacterKills k) =>
+            trackHeals && IsHealerNow(unit) ? HealsNeededFor(k) : KillsNeededFor(k);
+
+        /// <summary>
+        /// 지금 포지션의 각성 눈금 — UI 가 <c>(100/200)</c> 처럼 그리는 데 쓴다.
+        /// 서비스가 없으면 둘 다 0 이다.
+        /// </summary>
+        public static void ProgressFor(CharacterUnit unit, out int current, out int goal, out bool healer)
+        {
+            current = 0;
+            goal = 0;
+            healer = false;
+
+            CharacterKills k = CharacterKills.Of(unit);
+            HeroAwakeningService s = Instance;
+            if (k == null || s == null) return;
+
+            healer = s.trackHeals && IsHealerNow(unit);
+            current = healer ? k.Heals : k.Kills;
+            goal = healer ? s.HealsNeededFor(k) : s.KillsNeededFor(k);
         }
 
         /// <summary>다음 각성까지 필요한 처치 수. 이미 최대 각성이면 0.</summary>
@@ -246,23 +299,6 @@ namespace LastSanctuary.Combat
             if (k == null || s == null) return 0;
             if (k.Awakenings >= s.maxAwakenings) return 0;
             return Mathf.Max(0, s.KillsNeededFor(k) - k.Kills);
-        }
-
-        /// <summary>다음 각성까지 필요한 <b>회복</b> 수. 이미 최대 각성이거나 회복 길이 꺼져 있으면 0.</summary>
-        public static int HealsRemainingFor(CharacterUnit unit)
-        {
-            CharacterKills k = CharacterKills.Of(unit);
-            HeroAwakeningService s = Instance;
-            if (k == null || s == null || !s.trackHeals) return 0;
-            if (k.Awakenings >= s.maxAwakenings) return 0;
-            return Mathf.Max(0, s.HealsNeededFor(k) - k.Heals);
-        }
-
-        /// <summary>이 캐릭터의 회복 횟수. 기록이 없으면 0.</summary>
-        public static int HealsOf(CharacterUnit unit)
-        {
-            CharacterKills k = CharacterKills.Of(unit);
-            return k != null ? k.Heals : 0;
         }
 
         /// <summary>이 기록이 다음 각성을 굴리려면 몇 킬이 필요한가.</summary>
@@ -402,6 +438,11 @@ namespace LastSanctuary.Combat
 
             CharacterUnit unit = record.Unit;
             if (unit == null) return;
+
+            // ★★ <b>지금 힐러면 처치로는 각성하지 않는다</b> (위 ★★). 처치 눈금은 계속
+            //   쌓이지만(딜러로 돌아왔을 때 쓰인다) 굴리는 것은 회복 쪽이다.
+            if (trackHeals && IsHealerNow(unit)) return;
+
             if (unit.UpgradeCount < awakenMinLevel) return;
 
             if (Random.value * 100f >= awakenChancePercent) return;
@@ -450,6 +491,12 @@ namespace LastSanctuary.Combat
 
             CharacterUnit unit = record.Unit;
             if (unit == null) return;
+
+            // ★ 여기 오는 것 자체가 «회복 공격을 성공시켰다» 는 뜻이라 지금 힐러인 것이
+            //   사실상 보장되지만, 판정을 <b>명시</b>해 둔다 — 나중에 «회복하는 딜러» 가
+            //   생기면(패시브 등) 그때 이 줄이 규칙을 지킨다.
+            if (!IsHealerNow(unit)) return;
+
             if (unit.UpgradeCount < awakenMinLevel) return;
 
             if (Random.value * 100f >= awakenChancePerHealPercent) return;

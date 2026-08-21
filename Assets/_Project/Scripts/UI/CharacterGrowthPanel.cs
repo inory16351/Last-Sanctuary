@@ -84,14 +84,15 @@ namespace LastSanctuary.UI
         [SerializeField] string passiveNoneText = "이 캐릭터에는 지정된 스킬이 없습니다.";
         [SerializeField] string passiveNoSelectionText = "캐릭터를 선택하세요.";
 
-        [Header("문구 — 처치 수 · 영웅 각성")]
-        [Tooltip("레벨 옆에 붙는 처치 수. {0} = 인정된 처치 수")]
-        [SerializeField] string killCountFormat = " · 처치 {0}";
+        [Header("문구 — 각성 진행도 · 영웅 각성")]
+        [Tooltip("★ <b>딜러</b>일 때의 각성 눈금. {0} = 지금 처치 수 · {1} = 필요한 처치 수.\n" +
+                 "포지션이 회복이 아니면 이 줄이 보인다(2026-08-21)")]
+        [SerializeField] string killProgressFormat = " · 처치 {0}/{1}";
 
-        [Tooltip("★ 레벨 옆에 붙는 <b>회복 횟수</b>(힐러의 각성 진행도). {0} = 회복 횟수.\n" +
-                 "처치가 0 이고 회복만 쌓인 캐릭터는 이 줄만 보인다 — 힐러는 처치를 " +
-                 "거의 못 하므로 처치 수만 보여주면 진행도가 안 보인다(2026-08-21)")]
-        [SerializeField] string healCountFormat = " · 회복 {0}";
+        [Tooltip("★ <b>힐러</b>일 때의 각성 눈금. {0} = 지금 회복 수 · {1} = 필요한 회복 수.\n" +
+                 "공격 유형이 회복이면 이 줄이 보인다. 두 눈금은 각자 남으므로 포지션을 " +
+                 "되돌리면 쌓아둔 값이 그대로 다시 보인다")]
+        [SerializeField] string healProgressFormat = " · 회복 {0}/{1}";
 
         [Tooltip("각성 가능 상태(처치 수 <b>또는</b> 회복 수를 채웠다)일 때 덧붙이는 말")]
         [SerializeField] string heroReadyMark = " · 각성 가능";
@@ -541,15 +542,18 @@ namespace LastSanctuary.UI
         {
             string line = $"Lv.{unit.UpgradeCount}";
 
-            int kills = HeroAwakeningService.KillsOf(unit);
-            if (kills > 0 && !string.IsNullOrEmpty(killCountFormat))
-                line += string.Format(killCountFormat, kills);
-
-            // ★ 회복 횟수 — 힐러의 각성 진행도(2026-08-21). 0 이면 안 붙으므로
-            //   회복을 안 쓰는 캐릭터의 줄은 예전과 <b>글자 하나 다르지 않다</b>.
-            int heals = HeroAwakeningService.HealsOf(unit);
-            if (heals > 0 && !string.IsNullOrEmpty(healCountFormat))
-                line += string.Format(healCountFormat, heals);
+            // ★★ <b>지금 포지션의 눈금만 보여준다</b> (2026-08-21 · 유저 지시:
+            //   *"딜러와 힐러의 영웅각성 조건을 분리하고 … 회복에서 (100/200) 쌓다가
+            //   딜러로 변경하면 딜러 스택이 따로 존재해서 (0/200)"*).
+            //
+            //   두 눈금은 <b>각자 남는다</b> — 여기서 보여주지 않을 뿐이고, 포지션을 되돌리면
+            //   그 값이 그대로 다시 보인다(<see cref="HeroAwakeningService"/> 의 ★★).
+            HeroAwakeningService.ProgressFor(unit, out int now, out int goal, out bool healer);
+            if (goal > 0)
+            {
+                string fmt = healer ? healProgressFormat : killProgressFormat;
+                if (!string.IsNullOrEmpty(fmt)) line += string.Format(fmt, now, goal);
+            }
 
             switch (HeroAwakeningService.StateOf(unit))
             {
