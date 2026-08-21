@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65ad3cae191f5994a8004f1e5da8f97e, type: 3}
+  m_Name: Event_205003_비어버린_곳간
+  m_EditorClassIdentifier:
+  eventId: 205003
+  eventName: "비어버린 곳간"
+  triggerCond: "wave_end"
+  triggerValue: 0
+  weight: 12
+  repeatable: 1
+  choiceGroupId: 600003
+  eventBg: "bg_supply"
+  eventScript: "성역의 곳간이 바닥을 드러냈습니다.\n오래 싸운 대가입니다. 이대로라면 천사들은 굶주린 채로 다음 파도를 맞이해야 합니다."
+  choices:
+  - choiceId: 300005
+    choiceOrder: 1
+    choiceText: "남은 것을 다 긁어서 먹인다."
+    resultScript: "마지막 양분까지 천사들의 목으로 넘어갔습니다.\n곳간은 텅 비었지만 팔에는 힘이 돌아왔습니다."
+    resultEffect: "효과 : 에너지 −150 · 천사 전체 근거리 공격력 +8% (240초)"
+    rewardType01: "energy_loss"
+    rewardValue01: 150
+    rewardDuration01: 0
+    rewardType02: "char_melee_atk_durat_up"
+    rewardValue02: 8
+    rewardDuration02: 240
+  - choiceId: 300006
+    choiceOrder: 2
+    choiceText: "굶는 데 익숙해질 것이다."
+    resultScript: "천사들은 허리띠를 졸랐습니다.\n곳간에는 여유가 생겼고, 아무는 속도는 그만큼 늦어집니다."
+    resultEffect: "효과 : 천사 전체 회복력 −8% (240초) · 에너지 +150"
+    rewardType01: "char_heal_durat_down"
+    rewardValue01: 8
+    rewardDuration01: 240
+    rewardType02: "energy_gain"
+    rewardValue02: 150
+    rewardDuration02: 0

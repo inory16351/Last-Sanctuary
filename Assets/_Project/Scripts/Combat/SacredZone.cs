@@ -43,9 +43,25 @@ namespace LastSanctuary.Combat
         /// <summary>
         /// 공간 하나를 만든다. <paramref name="center"/> 는 물약이 맞은 자리다.
         /// </summary>
+        /// <param name="fx">
+        /// ★★ <b>이 공간을 그리는 원화</b> (2026-08-21). 넘기면 <b>공간이 그림의 주인</b>이 된다 —
+        /// 공간이 사라질 때 그림도 같이 지운다(<see cref="OnDestroy"/>).
+        ///
+        /// <b>왜 이 인자가 생겼나</b> — 유저 리포트: *"아르세니아가 없는데 아르세니아의 2번째
+        /// 스킬이 맵에 장식물처럼 구현되어있음"*. 예전에는 부르는 쪽
+        /// (<c>CharacterPassives.TrySacredBlessing</c>)이 <b>공간과 그림을 따로</b> 띄웠다:
+        /// <code>
+        ///   SacredZone.Spawn(...);                 // 8초 뒤 · 또는 주인이 죽으면 사라진다
+        ///   CombatProjectileFx.PlayArea(..., 8f);  // <b>자기 타이머로만</b> 사라진다
+        /// </code>
+        /// 수명이 <b>두 벌</b>이라 주인이 죽으면 공간만 없어지고 <b>마법진은 남았다</b> —
+        /// 실체 없는 그림, 즉 «장식물» 이다.
+        /// → 이제 <b>한 벌</b>이다. 그림의 수명이 공간의 수명이다.
+        /// </param>
         public static SacredZone Spawn(CharacterUnit owner, Vector3 center,
                                        float radius, float seconds,
-                                       int damagePercent, int healPercent)
+                                       int damagePercent, int healPercent,
+                                       Sprite[] fx = null)
         {
             if (owner == null || radius <= 0f || seconds <= 0f) return null;
 
@@ -58,8 +74,18 @@ namespace LastSanctuary.Combat
             z._damagePercent = damagePercent;
             z._healPercent = healPercent;
             z._nextTickAt = Time.time + TickSeconds;
+
+            // ★ 그림을 여기서 띄우고 <b>손잡이를 들고 있는다</b>. 지우는 것은 OnDestroy 다.
+            if (fx != null && fx.Length > 0)
+                z._fxHandle = CombatProjectileFx.PlayArea(
+                    fx, center, new Vector2(radius * 2f, radius * 2f),
+                    0f, owner, seconds);
+
             return z;
         }
+
+        /// <summary>띄워 둔 마법진의 취소용 손잡이. 0 이면 그림이 없다.</summary>
+        int _fxHandle;
 
         void Update()
         {
@@ -161,6 +187,25 @@ namespace LastSanctuary.Combat
             foreach (DamageableUnit u in _boosted)
                 if (u != null) u.AddHealReceivedPercent(-_healPercent);
             _boosted.Clear();
+
+            // ★★ <b>그림도 되돌린다</b> (2026-08-21) — 이 클래스의 «걸었으면 되돌린다» 규칙에
+            //   <b>마법진</b>을 포함시킨 것이다. 유저 리포트: *"아르세니아가 없는데
+            //   아르세니아의 2번째 스킬이 맵에 장식물처럼 구현되어있음"*.
+            //
+            //   예전에는 부르는 쪽이 공간과 그림을 <b>따로</b> 띄워 수명이 두 벌이었다.
+            //   주인이 죽으면 공간만 사라지고 마법진은 자기 타이머(8초)까지 남았고,
+            //   씬을 넘기면 <c>CombatProjectileFx</c> 가 <c>DontDestroyOnLoad</c> 라
+            //   <b>새 판까지 넘어갔다</b> — 아르세니아가 없는 판에 그 그림이 남은 이유다.
+            //
+            //   이 함수를 지나는 길이 <b>셋</b>이고 전부 같은 정리를 받는다:
+            //     · 지속시간이 끝났다              (Update 의 Time.time >= _endAt)
+            //     · <b>주인이 죽었다</b>            (Update 의 _owner == null)  ← 버그였던 길
+            //     · 씬이 바뀌어 오브젝트가 파괴됐다
+            if (_fxHandle != 0)
+            {
+                CombatProjectileFx.Cancel(_fxHandle);
+                _fxHandle = 0;
+            }
         }
     }
 }

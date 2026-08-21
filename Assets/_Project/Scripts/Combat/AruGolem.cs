@@ -15,7 +15,13 @@ namespace LastSanctuary.Combat
     /// <item><term>공격 유형·포지션</term><description><b>근접 / 전방 고정</b></description></item>
     /// <item><term>표적</term><description>아루가 공격 중인 대상을 <b>우선</b> 공격.
     ///   아루가 회복 유형이면 «가장 가까운 적»(= 평소 판단)</description></item>
-    /// <item><term>부대</term><description>아루가 부대에 있으면 <b>같이</b> 배정된다</description></item>
+    /// <item><term>부대</term><description>⚠ <b>배정할 수 없다</b> — 대신 <b>아루를 직접
+    ///   따라다닌다</b>. 정의문은 «아루가 부대에 있으면 같이 배정» 이었으나
+    ///   <b>2026-08-21 유저 지시로 바뀌었다</b>: *"골렘은 부대편성 불가능하게 만들고 아루를
+    ///   따라다니고"*. 막는 곳은 <see cref="LastSanctuary.Units.SquadService.CanAssign"/>,
+    ///   따라가는 곳은 <see cref="LastSanctuary.Units.CharacterBehavior.FollowOwner"/></description></item>
+    /// <item><term>탐험 설정</term><description><b>아루의 것을 그대로 따라간다</b>(탐험 유형·
+    ///   배회 범위) — 매 프레임 <see cref="SyncExpedition"/> 이 견준다</description></item>
     /// <item><term>로스터</term><description>표기된다 — <c>UnitRegistry</c> 를 훑으므로 저절로</description></item>
     /// <item><term>침식</term><description><b>일어나지 않는다</b></description></item>
     /// <item><term>전술</term><description><b>수정할 수 없다</b></description></item>
@@ -239,13 +245,18 @@ namespace LastSanctuary.Combat
                 tactics.SetTacticsLock(true);
             }
 
-            // ── 부대 : 아루가 부대에 있으면 같이 들어간다 ──
-            var squads = SquadService.Instance;
-            if (squads != null)
-            {
-                int squadId = squads.SquadIdOf(owner);
-                if (squadId > 0) squads.Assign(golem, squadId);
-            }
+            // ── 부대 : ★★ <b>들어가지 않는다</b> · 대신 <b>주인을 따라다닌다</b> ──
+            //
+            //   2026-08-21 유저 지시로 규칙이 <b>바뀌었다</b>:
+            //   *"골렘은 부대편성 불가능하게 만들고 아루를 따라다니고"*.
+            //
+            //   ⚠ 예전에는 «아루가 부대에 있으면 같이 배정» 이었다(「강림」 정의문의 한 줄).
+            //     그 줄은 이제 <b>따라가기로 대체된다</b> — 부대 대열과 «주인 옆» 이 둘 다
+            //     목적지를 잡으면 프레임마다 갈린다. 막는 것은
+            //     <see cref="SquadService.CanAssign"/> 한 곳이고, 여기서는 <b>넣지 않는다</b>.
+            var behavior = golem.GetComponent<CharacterBehavior>();
+            var ownerBehavior = owner.GetComponent<CharacterBehavior>();
+            if (behavior != null && ownerBehavior != null) behavior.SetFollowOwner(ownerBehavior);
 
             // ── 소환 모션 : 도는 동안은 싸우지 않는다 ──
             //    원화가 없으면 0 이 돌아오고, 그러면 바로 싸운다(연출이 없을 뿐이다).
@@ -322,6 +333,8 @@ namespace LastSanctuary.Combat
         {
             if (owner == null || golem == null || !golem.IsAlive) return;
 
+            SyncExpedition(owner, golem);
+
             var ownerCombat = owner.GetComponent<UnitCombat>();
             var golemCombat = golem.GetComponent<UnitCombat>();
             if (ownerCombat == null || golemCombat == null) return;
@@ -351,6 +364,31 @@ namespace LastSanctuary.Combat
                 return;
             }
             golemCombat.SetHuntTarget(target);
+        }
+
+        /// <summary>
+        /// ★★ <b>아루의 탐험 설정이 바뀌면 골렘도 그 자리에서 따라간다</b> (2026-08-21 ·
+        /// 유저 지시: *"탐색 변경은 아루 기준으로 골렘도 수정되게 로직 변경"*).
+        ///
+        /// <b>무엇이 어긋났나</b> — 골렘은 소환될 때 <b>배회 범위 한 칸만</b> 물려받고
+        /// (<see cref="ApplyRules"/>) 그 뒤로는 전술이 <b>잠긴다</b>. 그래서 아루의 탐험
+        /// 유형을 «사냥 → 탐색» 으로 바꿔도 골렘은 <b>계속 사냥</b>했다 — 아루는 중립을
+        /// 지나치는데 골렘만 달려드는, 눈에 바로 보이는 어긋남이다.
+        ///
+        /// → <see cref="SyncStats"/> 와 <b>같은 결</b>로 매 프레임 견준다: 값이 달라졌을
+        ///   때만 옮긴다. 「강림」의 능력치를 «시점이 아니라 상태» 로 읽은 것과 같은 생각이다.
+        ///
+        /// ★ 통로는 <see cref="CharacterTactics.MirrorSummonerExpedition"/> 하나다 —
+        ///   전술 잠금을 지나가되 <b>탐험 유형·배회 범위 둘만</b> 옮긴다(그 함수의 ⚠ 참조).
+        /// </summary>
+        static void SyncExpedition(CharacterUnit owner, CharacterUnit golem)
+        {
+            var ownerTactics = owner.GetComponent<CharacterTactics>();
+            var golemTactics = golem.GetComponent<CharacterTactics>();
+            if (ownerTactics == null || golemTactics == null) return;
+
+            golemTactics.MirrorSummonerExpedition(ownerTactics.Order.expeditionType,
+                                                  ownerTactics.Order.roamRange);
         }
 
         /// <summary>

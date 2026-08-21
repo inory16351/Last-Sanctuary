@@ -164,12 +164,13 @@ namespace LastSanctuary.UI
         /// 재로드가 가장 확실하고 짧다. <b>timeScale 을 먼저 되돌리는 것이 중요하다</b> — 0 인
         /// 상태로 새 씬이 시작되면 아무것도 움직이지 않는 채로 멈춘 게임이 된다.
         /// </summary>
-        public void Restart()
-        {
-            Time.timeScale = 1f;
-            Scene active = SceneManager.GetActiveScene();
-            SceneManager.LoadScene(active.buildIndex);
-        }
+        /// ★★ <b>2026-08-21 — 씬만 다시 열면 안 된다.</b> 유저 리포트:
+        ///   *"캐릭터가 죽으면 캐릭터 생성이 안되는 버그"*.
+        ///   «이미 등장한 인물» 기록은 <c>static</c> 이라 <b>씬을 다시 열어도 살아남는다</b> —
+        ///   여기서 비우지 않으면 인물 11명이 다 소진된 채 새 판이 시작되고,
+        ///   시작 캐릭터 3명조차 못 나오면서 「캐릭터 생성」이 영구히 죽는다.
+        ///   판을 비우는 순서는 <see cref="Save.RunResetService"/> 한 곳에 있다.
+        public void Restart() => Save.RunResetService.BeginNewRun();
 
         static int CountAliveCharacters()
         {

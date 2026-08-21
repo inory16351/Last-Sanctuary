@@ -198,6 +198,31 @@ namespace LastSanctuary.Units
                  "이만큼 뒤에 따라잡는다. 너무 짧으면 매 프레임 경로가 초기화된다")]
         [Min(0.2f)] [SerializeField] float squadFollowRepick = 1.5f;
 
+        // ------------------------------------------------------------------
+        // ★★ 소환수 — <b>주인을 따라다닌다</b> (2026-08-21 · 유저 지시:
+        //   *"골렘은 부대편성 불가능하게 만들고 아루를 따라다니고"*)
+        //
+        // <b>왜 부대 따라가기를 재사용하지 않았나</b> — 골렘은 이제 <b>부대에 못 들어간다</b>
+        // (<see cref="SquadService.CanAssign"/>). 그래서 <c>TryFollowSquad</c> 는
+        // 골렘에게 영원히 <c>false</c> 다. 대신 <b>같은 자리·같은 모양</b>으로 한 갈래를
+        // 더 뒀다 — 목적지·귀환 지점을 주인 기준으로 갈아끼우는 것이 전부다
+        // (집결지가 «귀환 지점만 갈아끼운다» 로 끝난 것과 같은 결).
+        //
+        // ⚠ <b>웨이브 방어 중에는 안 쓰인다</b> — 이 갈래는 «탐험» 임무에서만 지난다
+        //   (<see cref="PickExpeditionSpot"/>). 웨이브 때는 주인도 골렘도 넥서스·집결지를
+        //   지키므로 자연히 같은 구역에 모인다. 방어 임무까지 «주인 옆» 으로 끌면
+        //   골렘이 자기 포지션(전방)을 버리게 된다.
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// 이 유닛이 따라다닐 <b>주인</b>. 소환수만 값이 있다(<see cref="Combat.AruGolem"/> 가 넣는다).
+        /// 주인이 죽거나 사라지면 자동으로 무시된다 — 매 프레임 <c>null</c>·생존을 다시 본다.
+        /// </summary>
+        public CharacterBehavior FollowOwner { get; private set; }
+
+        /// <summary>따라다닐 주인을 지정한다. <c>null</c> 이면 혼자 움직인다.</summary>
+        public void SetFollowOwner(CharacterBehavior owner) => FollowOwner = owner;
+
         [Header("전방 포지션 — 적극 방어 (인터셉트)")]
         [Tooltip("전방 포지션 캐릭터가 '막으러 나가는' 판정 거리(타일). 구역 중심에서 이 거리 안에 " +
                  "웨이브 몬스터가 들어오면, 순찰을 멈추고 그 적과 구역 사이를 가로막는다. " +
@@ -1590,6 +1615,11 @@ namespace LastSanctuary.Units
             // ⚠ 배회 범위를 여기에는 걸지 않는다 — 협동 탐험은 부대가 <b>같이 움직인다</b>가
             //   목적이고, 기준원의 목적지는 이미 기준원 자신의 배회 범위로 묶여 있다.
             //   여기서 또 자르면 부대원만 뒤처져 "따로 논다"가 된다(73-4절의 그 문제).
+            // ★ 소환수는 <b>주인</b>을 따라간다 — 부대보다 먼저 본다(골렘은 부대에 못 들어가므로
+            //   실제로 둘이 겹치는 일은 없지만, 순서를 못박아 두면 나중에 «부대에 들어가는
+            //   소환수» 가 생겨도 주인 우선이라는 뜻이 코드에 남는다).
+            if (TryFollowOwner(scoutLeash)) return true;
+
             if (TryFollowSquad(scoutLeash)) return true;
 
             Vector3 nexus = NexusPosition();
@@ -1701,6 +1731,43 @@ namespace LastSanctuary.Units
         /// 몰려 서로 밀어낸다. 캐릭터마다 고정된 각도(<see cref="GetInstanceID"/> 기반)로
         /// 조금씩 어긋난 자리를 잡아, 매 프레임 흔들리지 않으면서 대열처럼 보이게 한다.
         /// </summary>
+        /// <summary>
+        /// ★★ <b>주인을 따라간다</b>(소환수 전용 · 2026-08-21). <see cref="FollowOwner"/> 참조.
+        ///
+        /// 짜임은 <see cref="TryFollowSquad"/> 와 <b>같다</b> — 주인의 «모일 지점»
+        /// (<see cref="SquadAnchorOf"/>)을 목적지로 삼고 귀환 지점을 그리로 옮긴다.
+        /// 그 함수를 그대로 쓰는 이유는, 주인이 <b>교전에 붙잡혔을 때 마지막 탐험
+        /// 목적지로 혼자 걸어가지 않게</b> 하는 판단이 이미 그 안에 들어 있기 때문이다
+        /// («따로 논다» 리포트를 고친 그 판단이다).
+        ///
+        /// ⚠ 주인이 죽었거나 사라졌으면 <b>false</b> — 그러면 아래의 안개 탐색·자유 배회로
+        ///   내려가 혼자 움직인다. 골렘은 주인이 죽으면 같이 죽지만
+        ///   (<see cref="Combat.AruGolem.Dismiss"/>), 그 한 프레임 사이에 여기가 먼저
+        ///   돌 수 있어 <c>null</c> 을 견뎌야 한다.
+        /// </summary>
+        bool TryFollowOwner(float leash)
+        {
+            CharacterBehavior owner = FollowOwner;
+            if (owner == null || owner == this) return false;
+
+            var ownerUnit = owner.GetComponent<CharacterUnit>();
+            if (ownerUnit == null || !ownerUnit.IsAlive) return false;
+
+            Vector3 target = SquadAnchorOf(owner);
+
+            if (squadFollowSpacing > 0f)
+            {
+                // 부대 대열과 같은 방식 — 고정된 각도라 자리가 매 프레임 흔들리지 않는다.
+                float angle = (Mathf.Abs(GetInstanceID()) % 360) * Mathf.Deg2Rad;
+                target += new Vector3(Mathf.Cos(angle), Mathf.Sin(angle), 0f) * squadFollowSpacing;
+            }
+
+            _destination = target;
+            _repickTime = Time.time + squadFollowRepick;
+            _combat.SetHome(_destination, leash + squadFollowSpacing);
+            return true;
+        }
+
         bool TryFollowSquad(float leash)
         {
             SquadService squads = SquadService.Instance;

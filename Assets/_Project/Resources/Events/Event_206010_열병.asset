@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65ad3cae191f5994a8004f1e5da8f97e, type: 3}
+  m_Name: Event_206010_열병
+  m_EditorClassIdentifier:
+  eventId: 206010
+  eventName: "열병"
+  triggerCond: "private_timer"
+  triggerValue: 0
+  weight: 10
+  repeatable: 1
+  choiceGroupId: 600038
+  eventBg: "bg_heat"
+  eventScript: "성역 전체의 온도가 오릅니다.\n열은 적을 태우는 무기이면서, 우리 몸을 태우는 불이기도 합니다."
+  choices:
+  - choiceId: 300075
+    choiceOrder: 1
+    choiceText: "더 태워라."
+    resultScript: "성역은 자기 체온을 끝까지 밀어 올렸습니다.\n적의 살이 익는 동안 천사들의 살도 같이 익습니다."
+    resultEffect: "효과 : 적 전체 화상 (초당 최대 체력 3%, 6초) · 천사 전체 체력 −8% (최대 체력 기준)"
+    rewardType01: "enemy_burn"
+    rewardValue01: 3
+    rewardDuration01: 6
+    rewardType02: "char_hp_percent_loss"
+    rewardValue02: 8
+    rewardDuration02: 0
+  - choiceId: 300076
+    choiceOrder: 2
+    choiceText: "열을 내린다."
+    resultScript: "온도가 내려가자 성역의 숨이 고르게 돌아옵니다.\n태우지 못한 적은 그대로 남아 있습니다."
+    resultEffect: "효과 : 천사 전체 회복력 +10% (180초) · 천사 전체 침식 −6"
+    rewardType01: "char_heal_durat_up"
+    rewardValue01: 10
+    rewardDuration01: 180
+    rewardType02: "char_all_erosion_down"
+    rewardValue02: 6
+    rewardDuration02: 0

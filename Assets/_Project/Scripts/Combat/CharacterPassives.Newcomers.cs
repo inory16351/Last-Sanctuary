@@ -786,13 +786,18 @@ namespace LastSanctuary.Combat
             _sacredBlessingReadyAt = Time.time + Mathf.Max(0f, so.coolTime);
             Vector3 center = front.transform.position;
 
-            SacredZone.Spawn(_unit, center, radius, seconds, percent, healPercent);
+            // ★★ <b>마법진을 공간에 맡긴다</b> (2026-08-21 · 유저 리포트: *"아르세니아가
+            //   없는데 아르세니아의 2번째 스킬이 맵에 장식물처럼 구현되어있음"*).
+            //
+            //   ⚠ 예전에는 여기서 <c>PlayArea</c> 를 <b>따로</b> 불렀다. 그러면 그림의 수명이
+            //     공간의 수명과 <b>갈린다</b> — 주인이 죽어 공간이 사라져도 마법진은 자기
+            //     타이머(8초)까지 남고, 그동안 «실체 없는 그림» 이 맵에 놓여 있었다.
+            //   ★ 이제 <see cref="SacredZone.Spawn"/> 이 그림까지 띄우고, 공간이 사라질 때
+            //     같이 지운다. 수명이 한 벌이 된다.
+            Sprite[] fx = _animator != null && _animator.Skin != null ? _animator.Skin.SkillFx(1) : null;
+            SacredZone.Spawn(_unit, center, radius, seconds, percent, healPercent, fx);
 
             _animator?.PlaySkillMotion(1, 0.6f, center);
-            Sprite[] fx = _animator != null && _animator.Skin != null ? _animator.Skin.SkillFx(1) : null;
-            if (fx != null)
-                CombatProjectileFx.PlayArea(fx, center, new Vector2(radius * 2f, radius * 2f),
-                                            0f, null, seconds);
 
             UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName,
                                               $"{front.DisplayName} 자리 · {seconds:0.#}초"),

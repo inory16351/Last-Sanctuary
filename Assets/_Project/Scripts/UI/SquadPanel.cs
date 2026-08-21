@@ -180,6 +180,12 @@ namespace LastSanctuary.UI
             if (_squads == null) _squads = SquadService.Instance;
             if (_squads == null) return false;
 
+            // ★ 부대에 못 들어가는 유닛(소환수)이면 <b>클릭을 먹지 않는다</b> (2026-08-21).
+            //   여기서 true 를 돌려주면 로스터가 «배정했다» 로 보고 선택을 바꾸지 않아,
+            //   골렘을 누를 때마다 <b>아무 일도 일어나지 않는</b> 것처럼 보인다.
+            //   false 를 돌려주면 로스터가 평소대로 «선택» 으로 처리한다.
+            if (!_squads.CanAssign(unit)) return false;
+
             _squads.Assign(unit, SelectedSquadId);
             return true;
         }

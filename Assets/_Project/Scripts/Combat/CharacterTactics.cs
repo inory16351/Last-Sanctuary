@@ -113,6 +113,43 @@ namespace LastSanctuary.Combat
         public void SetTacticsLock(bool locked) => TacticsLocked = locked;
 
         /// <summary>
+        /// ★★ <b>주인의 탐험 설정을 그대로 물려받는다</b>(소환수 전용 · 2026-08-21 · 유저 지시:
+        /// *"탐색 변경은 아루 기준으로 골렘도 수정되게 로직 변경"*).
+        ///
+        /// <b>왜 잠금을 지나가는가</b> — <see cref="TacticsLocked"/> 가 막는 것은
+        /// «<b>사람</b>이 골렘의 전술을 고치는 것» 이다(정의문: "전술을 수정할 수도 없습니다").
+        /// 주인의 값을 따라가는 것은 그 반대다 — 골렘이 <b>스스로 다른 지침을 갖지 않게</b>
+        /// 하는 일이므로, 잠금의 뜻과 어긋나지 않는다. 그래서 여기만 통로를 연다.
+        ///
+        /// ⚠ <b>탐험 유형과 배회 범위 둘만</b> 옮긴다. 공격 유형·포지션은 정의문이
+        ///   «근접 / 전방 고정» 이라고 못박았고(<see cref="RoleLocked"/>), 후퇴 기준도
+        ///   «후퇴하지 않는다» 로 잠겨 있다 — 그 셋까지 주인을 따라가면 정의문을 어긴다.
+        ///
+        /// ⚠ 값이 같으면 <b>아무것도 하지 않는다</b> — <see cref="Apply"/> 는
+        ///   <c>OnAnyOrderChanged</c> 를 쏘므로 매 프레임 부르면 UI 가 계속 다시 그려진다.
+        ///
+        /// ★ 배회 범위는 <see cref="ApplyRoamRangeLocal"/>(전파 없는 버전)로 넣는다 —
+        ///   골렘이 주인의 부대에 다시 전파하면 서로 밀어내는 고리가 생긴다.
+        /// </summary>
+        public void MirrorSummonerExpedition(TacticalExpeditionType type, TacticalRoamRange range)
+        {
+            bool changed = false;
+
+            if (order.expeditionType != type)
+            {
+                order.expeditionType = type;
+                changed = true;
+            }
+            if (order.roamRange != range)
+            {
+                order.roamRange = range;
+                changed = true;
+            }
+
+            if (changed) Apply();
+        }
+
+        /// <summary>
         /// 역할 잠금을 걸거나 푼다. 거는 순간 <b>잠긴 값으로 즉시 스냅</b>한다 —
         /// 스킬이 늦게 해금돼도(강화로 슬롯이 열리는 경우) 그 시점부터 정의문대로 맞춰진다.
         /// </summary>

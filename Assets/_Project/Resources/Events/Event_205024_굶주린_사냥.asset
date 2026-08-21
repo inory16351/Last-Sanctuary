@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65ad3cae191f5994a8004f1e5da8f97e, type: 3}
+  m_Name: Event_205024_굶주린_사냥
+  m_EditorClassIdentifier:
+  eventId: 205024
+  eventName: "굶주린 사냥"
+  triggerCond: "wave_end"
+  triggerValue: 0
+  weight: 10
+  repeatable: 1
+  choiceGroupId: 600024
+  eventBg: "bg_supply"
+  eventScript: "곳간이 비어 천사들이 성역 밖으로 눈을 돌립니다.\n종양은 살아 있는 양분이고, 살아 있는 것은 반격합니다."
+  choices:
+  - choiceId: 300047
+    choiceOrder: 1
+    choiceText: "나가서 물어와라."
+    resultScript: "천사들은 성역 밖의 살덩이를 물고 돌아왔습니다.\n곳간은 찼고, 이빨 자국은 그들의 몸에 남았습니다."
+    resultEffect: "효과 : 에너지 +350 · 천사 전체 체력 −10% (최대 체력 기준)"
+    rewardType01: "energy_gain"
+    rewardValue01: 350
+    rewardDuration01: 0
+    rewardType02: "char_hp_percent_loss"
+    rewardValue02: 10
+    rewardDuration02: 0
+  - choiceId: 300048
+    choiceOrder: 2
+    choiceText: "성역 안을 지킨다."
+    resultScript: "천사들은 문 안쪽에 자리를 잡았습니다.\n굶주림은 그대로지만, 시야와 벽은 두꺼워졌습니다."
+    resultEffect: "효과 : 천사 전체 방어력 +8% (240초) · 천사 전체 시야 +6% (240초)"
+    rewardType01: "char_def_durat_up"
+    rewardValue01: 8
+    rewardDuration01: 240
+    rewardType02: "char_vision_durat_up"
+    rewardValue02: 6
+    rewardDuration02: 240

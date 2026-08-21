@@ -1,28 +1,42 @@
 # -*- coding: utf-8 -*-
-"""이벤트 테이블(xlsx) → `EventDefinitionSO` 에셋 (2026-08-21 신설).
+"""이벤트 테이블(xlsx) → `EventDefinitionSO` 에셋.
 
-유저 지시: *"이벤트 테이블 적용 일단 임시 ui 로 구현"*.
+**Ver013 (2026-08-21 개정)** — 유저 지시: *"이벤트 테이블 수정된거 읽어보고 다시 인게임에
+구현"*. 표의 구조가 통째로 바뀌었다.
 
 원본
 ----
-``<볼트>/데이터 테이블/Last_Sanctuary_이벤트테이블_Ver012_파송송계란탁.xlsx``
+``<볼트>/데이터 테이블/Last_Sanctuary_이벤트테이블_Ver013.xlsx``
 
 시트 다섯 벌 중 <b>둘</b>만 에셋으로 옮긴다:
 
 | 시트 | 옮기나 | 이유 |
 |---|---|---|
-| ``Event``      | ○ | 이벤트 42개. 에셋 하나가 이 한 행이다 |
-| ``Dialogue``   | ○ | 대사 168행. <b>이벤트 에셋 안에</b> 넣는다(아래 ★) |
-| ``EventType``  | × | 타입이 셋뿐이고 값은 «발동 확률 80» 하나다 → `EventService` 인스펙터로 갔다 |
-| ``Switch``     | × | 스위치 id 의 <b>뜻</b>을 적은 사전이다. 코드가 숫자를 그대로 읽는다 |
-| ``Condition``  | × | 조건 enum 의 <b>설명</b>이다. 판정은 코드가 한다 |
-| ``RewardType`` | × | 보상 enum 의 <b>설명</b>이다. 적용은 `EventRewardService` 가 한다 |
+| ``Event``       | ○ | 이벤트 43개. 에셋 하나가 이 한 행이다 |
+| ``ChoiceGroup`` | ○ | 선택지 86행. <b>이벤트 에셋 안에</b> 넣는다(아래 ★) |
+| ``Info``        | × | 사람이 읽는 문서다 |
+| ``Condition``   | × | 조건 enum 의 <b>설명</b>이다. 판정은 코드가 한다 |
+| ``RewardType``  | × | 보상 enum 의 <b>설명</b>이다. 적용은 `EventRewardService` 가 한다 |
 
-★ **왜 대사를 이벤트 안에 넣나** — 대사 168행은 전부 ``dialogue_group_id`` 로 «어느
-이벤트의 것인지» 가 정해져 있다. 에셋을 168개 만들면 «이 이벤트의 대사» 를 찾는 일이
-매번 전수 검색이 된다. 그래서 <b>42개 에셋</b>에 각자의 대사만 담는다.
-⚠ 표에 그룹이 있는데 ``Event`` 시트에 행이 없으면 그 대사는 <b>버려진다</b> — 그때는
-  «고아 그룹» 으로 알려 준다(조용히 사라지면 «대사가 안 나온다» 를 못 찾는다).
+★ **왜 선택지를 이벤트 안에 넣나** — 선택지 86행은 전부 ``choice_group_id`` 로 «어느
+이벤트의 것인지» 가 정해져 있다(이벤트와 1:1). 에셋을 86개 만들면 «이 이벤트의 선택지» 를
+찾는 일이 매번 전수 검색이 된다. 그래서 <b>43개 에셋</b>에 각자의 선택지만 담는다.
+⚠ 표에 그룹이 있는데 ``Event`` 시트에 행이 없으면 그 선택지는 <b>버려진다</b> — 그때는
+  «고아 그룹» 으로 알려 준다(조용히 사라지면 «선택지가 안 나온다» 를 못 찾는다).
+
+**Ver012 에서 무엇이 바뀌었나** (Info 시트가 적어 둔 그대로)
+
+| Ver012 | Ver013 |
+|---|---|
+| ``Dialogue`` 시트 (대사 사슬 168행) | 지워짐 → ``Event.event_script`` 한 칸 |
+| ``EventType`` 시트 (5001/5002/5003) | 지워짐 → ``Event.trigger_cond`` enum 3종 |
+| ``Switch`` 시트 | 지워짐 → ``Event.repeatable`` 불리언 하나 |
+| ``event_value_01`` (타이머 길이) | 지워짐 — 코드가 아는 값이다 |
+| ``event_value_02`` (가중치) | ``weight`` |
+| 보상 = 타입 + 수치 | 보상 = 타입 + 수치 + <b>지속시간(초)</b> |
+
+⚠⚠ **지속시간이 «초» 가 된 것이 가장 큰 변화다.** 옛 표는 «이벤트가 끝날 때까지» 라는
+  상대값이었는데, 이벤트가 웨이브 <b>종료 시</b> 에 뜨게 바뀌면서 그 기준점이 사라졌다.
 
 ⚠ .asset YAML 에 **빈 줄을 넣으면 Unity 파서가 그 뒤 필드를 전부 무시한다**(진행상황 8절 3번).
   아래 :func:`yaml_str` 도 그래서 <b>줄바꿈을 이스케이프</b>한다 — 대사에 줄바꿈이 실제로
@@ -49,7 +63,7 @@ try:
 except Exception:
     pass
 
-XLSX = os.path.join(TABLE_DIR, "Last_Sanctuary_이벤트테이블_Ver012_파송송계란탁.xlsx")
+XLSX = os.path.join(TABLE_DIR, "Last_Sanctuary_이벤트테이블_Ver013.xlsx")
 OUT_DIR = os.path.join(PROJECT, "Assets", "_Project", "Resources", "Events")
 
 #: 표의 첫 세 줄은 «한글 제목 / 영문 키 / 자료형» 이다 — 값은 4행부터.
@@ -148,14 +162,14 @@ def main():
     wb = openpyxl.load_workbook(XLSX, data_only=True)
 
     events = read_sheet(wb, "Event")
-    dialogue = read_sheet(wb, "Dialogue")
+    choices = read_sheet(wb, "ChoiceGroup")
 
-    # 대사를 그룹별로 모은다 — 표의 등장 순서를 <b>그대로</b> 유지한다
-    # (첫 줄이 어느 것인지는 dialogue_start 로 알지만, 나머지 순서도 읽기 순서가 정본이다).
+    # 선택지를 그룹별로 모은다 — 표의 등장 순서를 <b>그대로</b> 유지한다
+    # (choice_order 로 다시 정렬하는 것은 코드가 한다 — EventDefinitionSO.OrderedChoices).
     by_group = {}
-    for d in dialogue:
-        gid = int(num(d[1]))
-        by_group.setdefault(gid, []).append(d)
+    for c in choices:
+        gid = int(num(c[0]))
+        by_group.setdefault(gid, []).append(c)
 
     os.makedirs(OUT_DIR, exist_ok=True)
 
@@ -169,62 +183,64 @@ def main():
     if dropped:
         print("  옛 에셋 %d개 지움" % dropped)
 
+    #: 표에 적힐 수 있는 발동 조건 — 오타를 여기서 잡는다.
+    #  ⚠ 코드(EventDefinitionSO.Trigger)도 같은 세 이름만 안다. 이름이 늘면 <b>두 곳</b>이다.
+    KNOWN_CONDS = ("wave_end", "private_timer", "habitat_contact")
+
     used_groups = set()
     made = 0
+    by_cond = {}
     for row in events:
         eid = int(num(row[0]))
         ename = text(row[1])
-        etype = int(num(row[2]))
-        v1 = int(num(row[3]))
-        v2 = int(num(row[4]))
-        gid = int(num(row[5]))
-        desc = text(row[6])
-        sw_start = int(num(row[7]))
-        sw_end = int(num(row[8]))
-        bg = text(row[9])
-        cond = text(row[10])
-        cv1 = int(num(row[11]))
-        cv2 = int(num(row[12]) if len(row) > 12 else 0)
+        cond = text(row[2])
+        tval = int(num(row[3]))
+        weight = int(num(row[4]))
+        repeatable = int(num(row[5]))
+        gid = int(num(row[6]))
+        bg = text(row[7])
+        script = text(row[8]) if len(row) > 8 else ""
 
-        lines = by_group.get(gid, [])
+        if cond not in KNOWN_CONDS:
+            # ⚠ 지어내지 않는다 — 코드가 못 읽는 조건이면 그 이벤트는 <b>안 뜬다</b>.
+            print("  ⚠ %s(%d) — 발동 조건 '%s' 은 코드가 모릅니다(%s). 이 이벤트는 안 뜹니다."
+                  % (ename, eid, cond, " / ".join(KNOWN_CONDS)))
+        by_cond[cond] = by_cond.get(cond, 0) + 1
+
+        rows = by_group.get(gid, [])
         used_groups.add(gid)
-        if not lines:
-            print("  ⚠ %s(%d) — 대사 그룹 %d 이 표에 없습니다. 빈 이벤트가 됩니다."
-                  % (ename, eid, gid))
+        if not rows:
+            print("  ⚠ %s(%d) — 선택지 그룹 %d 이 표에 없습니다. "
+                  "선택지가 없으면 창을 닫을 수 없어 <b>못 쓰는 정의</b>가 됩니다." % (ename, eid, gid))
 
         asset = "Event_%d_%s" % (eid, safe_name(ename))
         body = [HEADER.format(script_guid=guid, name=asset)]
         body.append("  eventId: %d\n" % eid)
         body.append("  eventName: %s\n" % yaml_str(ename))
-        body.append("  eventType: %d\n" % etype)
-        body.append("  value01: %d\n" % v1)
-        body.append("  value02: %d\n" % v2)
-        body.append("  scriptGroupId: %d\n" % gid)
-        body.append("  eventDesc: %s\n" % yaml_str(desc))
-        body.append("  startSwitch: %d\n" % sw_start)
-        body.append("  endSwitch: %d\n" % sw_end)
+        body.append("  triggerCond: %s\n" % yaml_str(cond))
+        body.append("  triggerValue: %d\n" % tval)
+        body.append("  weight: %d\n" % weight)
+        body.append("  repeatable: %d\n" % (1 if repeatable else 0))
+        body.append("  choiceGroupId: %d\n" % gid)
         body.append("  eventBg: %s\n" % yaml_str(bg))
-        body.append("  cond: %s\n" % yaml_str(cond))
-        body.append("  condValue01: %d\n" % cv1)
-        body.append("  condValue02: %d\n" % cv2)
+        body.append("  eventScript: %s\n" % yaml_str(script))
 
-        if lines:
-            body.append("  lines:\n")
-            for d in lines:
-                body.append("  - dialogueId: %d\n" % int(num(d[0])))
-                body.append("    dialogue: %s\n" % yaml_str(d[2]))
-                body.append("    dialogueStart: %s\n" % yaml_str(d[3]))
-                body.append("    endSwitch: %d\n" % int(num(d[4])))
-                body.append("    nextDialogueId01: %d\n" % int(num(d[5])))
-                body.append("    rewardProceedCond: %s\n" % yaml_str(d[6]))
-                body.append("    rewardProceedValue01: %d\n" % int(num(d[7])))
-                body.append("    rewardValue01: %s\n" % yaml_str(d[8]))
-                body.append("    rewardValue02: %d\n" % int(num(d[9])))
-                body.append("    nextDialogueId02: %d\n" % int(num(d[10])))
-                body.append("    rewardValue03: %s\n" % yaml_str(d[11] if len(d) > 11 else None))
-                body.append("    rewardValue04: %d\n" % int(num(d[12] if len(d) > 12 else None)))
+        if rows:
+            body.append("  choices:\n")
+            for c in rows:
+                body.append("  - choiceId: %d\n" % int(num(c[1])))
+                body.append("    choiceOrder: %d\n" % int(num(c[2])))
+                body.append("    choiceText: %s\n" % yaml_str(c[3]))
+                body.append("    resultScript: %s\n" % yaml_str(c[4]))
+                body.append("    resultEffect: %s\n" % yaml_str(c[5]))
+                body.append("    rewardType01: %s\n" % yaml_str(c[6]))
+                body.append("    rewardValue01: %d\n" % int(num(c[7])))
+                body.append("    rewardDuration01: %d\n" % int(num(c[8])))
+                body.append("    rewardType02: %s\n" % yaml_str(c[9] if len(c) > 9 else None))
+                body.append("    rewardValue02: %d\n" % int(num(c[10] if len(c) > 10 else None)))
+                body.append("    rewardDuration02: %d\n" % int(num(c[11] if len(c) > 11 else None)))
         else:
-            body.append("  lines: []\n")
+            body.append("  choices: []\n")
 
         path = os.path.join(OUT_DIR, asset + ".asset")
         with io.open(path, "w", encoding="utf-8", newline="\n") as f:
@@ -235,10 +251,11 @@ def main():
 
     orphan = sorted(set(by_group) - used_groups)
     if orphan:
-        print("  ⚠ 고아 대사 그룹 %d개 — Event 시트에 행이 없어 <b>버려진다</b>: %s"
+        print("  ⚠ 고아 선택지 그룹 %d개 — Event 시트에 행이 없어 <b>버려진다</b>: %s"
               % (len(orphan), orphan))
 
-    print("  이벤트 에셋 %d개 · 대사 %d행" % (made, len(dialogue)))
+    print("  이벤트 에셋 %d개 · 선택지 %d행" % (made, len(choices)))
+    print("  조건별: " + " · ".join("%s %d" % (k, v) for k, v in sorted(by_cond.items())))
     print("  다음: 유니티에서 Assets/Refresh")
 
 

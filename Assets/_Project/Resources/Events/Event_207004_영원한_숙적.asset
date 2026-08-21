@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65ad3cae191f5994a8004f1e5da8f97e, type: 3}
+  m_Name: Event_207004_영원한_숙적
+  m_EditorClassIdentifier:
+  eventId: 207004
+  eventName: "영원한 숙적"
+  triggerCond: "habitat_contact"
+  triggerValue: 1104
+  weight: 0
+  repeatable: 0
+  choiceGroupId: 600043
+  eventBg: "bg_habitat_1104"
+  eventScript: "성역의 가장 깊은 곳에 낡은 흉터가 있습니다.\n몇 번이고 도려냈으나 몇 번이고 같은 자리로 돌아온 것입니다.\n이번에도 그것은 천사들을 기억하고 있습니다."
+  choices:
+  - choiceId: 300085
+    choiceOrder: 1
+    choiceText: "이번에 끝을 낸다."
+    resultScript: "천사들은 오래된 흉터 앞에 마지막이라는 말을 걸었습니다.\n같은 자리를 다시 여는 손은 어디를 찢어야 하는지 압니다."
+    resultEffect: "효과 : 천사 전체 크리티컬 확률 +15% (300초) · 천사 전체 보호막 (최대 체력의 15%, 300초)"
+    rewardType01: "char_critical_durat_up"
+    rewardValue01: 15
+    rewardDuration01: 300
+    rewardType02: "char_shield_gain"
+    rewardValue02: 15
+    rewardDuration02: 300
+  - choiceId: 300086
+    choiceOrder: 2
+    choiceText: "흉터를 덮고 물러난다."
+    resultScript: "흉터는 다시 덮였고 성역은 그 위에 새 살을 깔았습니다.\n덮어둔 것은 언젠가 같은 자리에서 다시 열립니다."
+    resultEffect: "효과 : 에너지 +500 · 천사 전체 침식 +15"
+    rewardType01: "energy_gain"
+    rewardValue01: 500
+    rewardDuration01: 0
+    rewardType02: "char_all_erosion_up"
+    rewardValue02: 15
+    rewardDuration02: 0

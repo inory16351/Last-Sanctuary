@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65ad3cae191f5994a8004f1e5da8f97e, type: 3}
+  m_Name: Event_205023_고요한_회복기
+  m_EditorClassIdentifier:
+  eventId: 205023
+  eventName: "고요한 회복기"
+  triggerCond: "wave_end"
+  triggerValue: 0
+  weight: 12
+  repeatable: 1
+  choiceGroupId: 600023
+  eventBg: "bg_supply"
+  eventScript: "파도와 파도 사이의 고요입니다.\n성역은 이 짧은 틈에 스스로를 꿰맵니다."
+  choices:
+  - choiceId: 300045
+    choiceOrder: 1
+    choiceText: "몸을 꿰맨다."
+    resultScript: "찢어진 자리가 하나씩 붙었습니다.\n성역과 천사가 같이 숨을 돌렸습니다."
+    resultEffect: "효과 : 천사 전체 체력 회복 (최대 체력의 12%) · 성역 체력 +8%"
+    rewardType01: "char_hp_percent_heal"
+    rewardValue01: 12
+    rewardDuration01: 0
+    rewardType02: "nexus_percent_heal"
+    rewardValue02: 8
+    rewardDuration02: 0
+  - choiceId: 300046
+    choiceOrder: 2
+    choiceText: "무기를 벼린다."
+    resultScript: "쉬는 대신 쇠를 두드리는 소리가 성역을 채웠습니다.\n상처는 남았지만 칼은 예리해졌습니다."
+    resultEffect: "효과 : 천사 전체 근거리 공격력 +8% (240초) · 천사 전체 원거리 공격력 +8% (240초)"
+    rewardType01: "char_melee_atk_durat_up"
+    rewardValue01: 8
+    rewardDuration01: 240
+    rewardType02: "char_long_distance_atk_durat_up"
+    rewardValue02: 8
+    rewardDuration02: 240

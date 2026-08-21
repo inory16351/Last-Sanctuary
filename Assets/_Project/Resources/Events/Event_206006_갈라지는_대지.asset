@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65ad3cae191f5994a8004f1e5da8f97e, type: 3}
+  m_Name: Event_206006_갈라지는_대지
+  m_EditorClassIdentifier:
+  eventId: 206006
+  eventName: "갈라지는 대지"
+  triggerCond: "private_timer"
+  triggerValue: 0
+  weight: 8
+  repeatable: 1
+  choiceGroupId: 600034
+  eventBg: "bg_ground"
+  eventScript: "신성한 땅이 갈라지며 그 틈에서 검은 것이 올라옵니다.\n성역이 스스로를 공격하기 시작했습니다."
+  choices:
+  - choiceId: 300067
+    choiceOrder: 1
+    choiceText: "틈을 메운다."
+    resultScript: "곳간을 털어 갈라진 자리를 눌러 덮었습니다.\n비싸게 산 시간이지만 시간은 시간입니다."
+    resultEffect: "효과 : 에너지 −250 · 성역 체력 +5%"
+    rewardType01: "energy_loss"
+    rewardValue01: 250
+    rewardDuration01: 0
+    rewardType02: "nexus_percent_heal"
+    rewardValue02: 5
+    rewardDuration02: 0
+  - choiceId: 300068
+    choiceOrder: 2
+    choiceText: "그대로 둔다."
+    resultScript: "틈은 넓어졌고 검은 것은 계속 올라옵니다.\n성역은 자기 살이 무너지는 소리를 듣고 있습니다."
+    resultEffect: "효과 : 성역 체력 −12% · 천사 전체 침식 +8"
+    rewardType01: "nexus_percent_loss"
+    rewardValue01: 12
+    rewardDuration01: 0
+    rewardType02: "char_all_erosion_up"
+    rewardValue02: 8
+    rewardDuration02: 0

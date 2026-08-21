@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65ad3cae191f5994a8004f1e5da8f97e, type: 3}
+  m_Name: Event_205022_살찌는_적들
+  m_EditorClassIdentifier:
+  eventId: 205022
+  eventName: "살찌는 적들"
+  triggerCond: "wave_end"
+  triggerValue: 0
+  weight: 10
+  repeatable: 1
+  choiceGroupId: 600022
+  eventBg: "bg_fog"
+  eventScript: "물러간 악마들이 성역의 기운을 훔쳐 삼킨 듯합니다.\n다음에 올 놈들은 이번 놈들보다 클 것입니다."
+  choices:
+  - choiceId: 300043
+    choiceOrder: 1
+    choiceText: "살을 도로 뺏는다."
+    resultScript: "천사들은 물러가는 등에 칼을 꽂아 훔쳐간 것을 되받았습니다.\n뒤를 쫓는 일은 언제나 정신을 갉습니다."
+    resultEffect: "효과 : 적 전체 체력 −12% (최대 체력 기준) · 천사 전체 침식 +6"
+    rewardType01: "enemy_hp_percent_loss"
+    rewardValue01: 12
+    rewardDuration01: 0
+    rewardType02: "char_all_erosion_up"
+    rewardValue02: 6
+    rewardDuration02: 0
+  - choiceId: 300044
+    choiceOrder: 2
+    choiceText: "커지게 두고 목만 노린다."
+    resultScript: "커진 몸은 급소도 커집니다.\n천사들은 놈들이 부풀기를 기다리기로 했습니다."
+    resultEffect: "효과 : 적 전체 공격 속도 +8% (240초) · 천사 전체 크리티컬 확률 +12% (240초)"
+    rewardType01: "enemy_atk_spd_durat_up"
+    rewardValue01: 8
+    rewardDuration01: 240
+    rewardType02: "char_critical_durat_up"
+    rewardValue02: 12
+    rewardDuration02: 240

@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65ad3cae191f5994a8004f1e5da8f97e, type: 3}
+  m_Name: Event_206004_영웅의_자리
+  m_EditorClassIdentifier:
+  eventId: 206004
+  eventName: "영웅의 자리"
+  triggerCond: "private_timer"
+  triggerValue: 0
+  weight: 6
+  repeatable: 1
+  choiceGroupId: 600032
+  eventBg: "bg_formation"
+  eventScript: "전쟁터에는 언제나 영웅이 하나 태어납니다.\n그 영웅이 전쟁을 끝낼지, 비극으로만 남을지는 아직 정해지지 않았습니다."
+  choices:
+  - choiceId: 300063
+    choiceOrder: 1
+    choiceText: "앞에 세운다."
+    resultScript: "성역은 한 사람에게 기대를 걸었습니다.\n어깨에 실린 무게는 대개 힘으로 바뀝니다. 대개는 말입니다."
+    resultEffect: "효과 : 랜덤 천사 1명 처치 기록 +20 · 랜덤 천사 1명 능력치 1종 +2 (영구)"
+    rewardType01: "char_kill_grant"
+    rewardValue01: 20
+    rewardDuration01: 0
+    rewardType02: "char_upgrade"
+    rewardValue02: 2
+    rewardDuration02: 0
+  - choiceId: 300064
+    choiceOrder: 2
+    choiceText: "이름을 부르지 않는다."
+    resultScript: "아무도 앞에 서지 않았습니다.\n영웅이 없는 대열은 조용하고, 잃을 것도 적습니다."
+    resultEffect: "효과 : 천사 전체 침식 −6 · 에너지 +150"
+    rewardType01: "char_all_erosion_down"
+    rewardValue01: 6
+    rewardDuration01: 0
+    rewardType02: "energy_gain"
+    rewardValue02: 150
+    rewardDuration02: 0

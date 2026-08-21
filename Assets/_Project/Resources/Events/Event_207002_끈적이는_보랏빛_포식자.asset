@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65ad3cae191f5994a8004f1e5da8f97e, type: 3}
+  m_Name: Event_207002_끈적이는_보랏빛_포식자
+  m_EditorClassIdentifier:
+  eventId: 207002
+  eventName: "끈적이는 보랏빛 포식자"
+  triggerCond: "habitat_contact"
+  triggerValue: 1102
+  weight: 0
+  repeatable: 0
+  choiceGroupId: 600041
+  eventBg: "bg_habitat_1102"
+  eventScript: "보랏빛 점액이 성역의 살 사이를 파고들며 길을 만들었습니다.\n그 길의 끝에 몸을 반쯤 묻은 것이 천사들을 바라보고 있습니다."
+  choices:
+  - choiceId: 300081
+    choiceOrder: 1
+    choiceText: "점액을 태워 길을 끊는다."
+    resultScript: "타오르는 점액이 성역의 살에서 떨어져 나갑니다.\n길이 끊긴 자리마다 천사들의 몸에 얇은 막이 남았습니다."
+    resultEffect: "효과 : 천사 전체 보호막 (최대 체력의 15%, 300초) · 천사 전체 저항력 +10% (300초)"
+    rewardType01: "char_shield_gain"
+    rewardValue01: 15
+    rewardDuration01: 300
+    rewardType02: "char_resist_durat_up"
+    rewardValue02: 10
+    rewardDuration02: 300
+  - choiceId: 300082
+    choiceOrder: 2
+    choiceText: "길을 따라 안쪽까지 본다."
+    resultScript: "천사들은 점액의 길을 끝까지 따라갔습니다.\n성역의 안쪽이 어떻게 파먹혔는지 알게 된 값이 있습니다."
+    resultEffect: "효과 : 천사 전체 시야 +15% (300초) · 천사 전체 침식 +10"
+    rewardType01: "char_vision_durat_up"
+    rewardValue01: 15
+    rewardDuration01: 300
+    rewardType02: "char_all_erosion_up"
+    rewardValue02: 10
+    rewardDuration02: 0

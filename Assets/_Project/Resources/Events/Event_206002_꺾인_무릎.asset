@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65ad3cae191f5994a8004f1e5da8f97e, type: 3}
+  m_Name: Event_206002_꺾인_무릎
+  m_EditorClassIdentifier:
+  eventId: 206002
+  eventName: "꺾인 무릎"
+  triggerCond: "private_timer"
+  triggerValue: 0
+  weight: 12
+  repeatable: 1
+  choiceGroupId: 600030
+  eventBg: "bg_mind"
+  eventScript: "천사 하나가 무릎을 꺾었습니다.\n집으로 돌아갈 수 없다는 사실을 오늘 처음 이해한 얼굴입니다."
+  choices:
+  - choiceId: 300059
+    choiceOrder: 1
+    choiceText: "어깨를 붙들어준다."
+    resultScript: "누군가 그의 어깨를 잡고 한참을 서 있었습니다.\n무너지던 안쪽이 그 손자리에서 멈췄습니다."
+    resultEffect: "효과 : 천사 1명 침식 −40"
+    rewardType01: "char_erosion_down"
+    rewardValue01: 40
+    rewardDuration01: 0
+    rewardType02: ""
+    rewardValue02: 0
+    rewardDuration02: 0
+  - choiceId: 300060
+    choiceOrder: 2
+    choiceText: "대열에서 빼낸다."
+    resultScript: "그는 뒤로 옮겨졌고, 헝클어진 정신이 풀렸습니다.\n한 자리가 빈 대열은 그만큼 더 불안합니다."
+    resultEffect: "효과 : 천사 1명의 정신 이상 해제 · 천사 전체 침식 +5"
+    rewardType01: "char_mental_cure"
+    rewardValue01: 1
+    rewardDuration01: 0
+    rewardType02: "char_all_erosion_up"
+    rewardValue02: 5
+    rewardDuration02: 0

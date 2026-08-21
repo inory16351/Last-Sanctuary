@@ -30,15 +30,49 @@ namespace LastSanctuary.Events
     /// </summary>
     public static class EventRewardService
     {
-        /// <summary>지금 걸려 있는 보정 하나. 끝날 때 <b>정확히 이 값</b>을 뺀다.</summary>
+        /// <summary>
+        /// 지금 걸려 있는 보정 하나. 끝날 때 <b>정확히 이 값</b>을 뺀다.
+        ///
+        /// ★★ <b>Ver013 — <see cref="expiresAt"/> 이 생겼다</b> (2026-08-21). 옛 표는
+        /// 지속시간이 «이벤트가 끝날 때까지» 라는 <b>상대값</b>이라 <see cref="ClearAll"/>
+        /// 한 번으로 전부 걷었다. Ver013 은 <b>효과마다 초</b>를 적으므로
+        /// (<c>reward_duration_01/02</c>) 보정이 <b>각자 다른 시각에</b> 풀린다.
+        /// </summary>
         class Applied
         {
             public CharacterUnit unit;
             public StatType stat;
             public int delta;
+
+            /// <summary>이 보정이 풀리는 시각(<c>Time.time</c>). <b>0 이면 시간으로는 안 풀린다</b>.</summary>
+            public float expiresAt;
         }
 
         static readonly List<Applied> _live = new List<Applied>();
+
+        /// <summary>
+        /// ★★ <b>지속시간이 다 된 보정을 되돌린다</b> (Ver013 · <see cref="EventService"/> 가
+        /// 매 프레임 부른다).
+        ///
+        /// <b>왜 이 함수가 생겼나</b> — Info 시트: *"지속시간을 «이벤트가 끝날 때까지» 같은
+        /// 상대값으로 두지 않고 초로 못박은 이유 — 이제 이벤트가 웨이브 «종료 시» 에 뜨기
+        /// 때문에 «이벤트 종료» 라는 기준점이 사라졌습니다"*. 즉 <b>창을 닫아도 효과는 남고</b>,
+        /// 각자의 초가 지나면 하나씩 풀린다.
+        ///
+        /// ⚠ <b>뒤에서부터</b> 지운다 — 앞에서 지우면 인덱스가 밀려 하나를 건너뛴다.
+        /// </summary>
+        public static void Tick()
+        {
+            float now = Time.time;
+            for (int i = _live.Count - 1; i >= 0; i--)
+            {
+                Applied a = _live[i];
+                if (a.expiresAt <= 0f || now < a.expiresAt) continue;
+
+                if (a.unit != null) a.unit.AddFlatStatBonus(a.stat, -a.delta);
+                _live.RemoveAt(i);
+            }
+        }
 
         /// <summary>표의 보상 타입 → 어느 능력치인가 · 올리는가 내리는가.</summary>
         static readonly Dictionary<string, (StatType stat, int sign)> StatRewards =
@@ -70,16 +104,100 @@ namespace LastSanctuary.Events
         /// 보상 하나를 건다. 돌려주는 문자열은 <b>전투 로그에 찍을 한 줄</b>이고,
         /// 빈 문자열이면 «아무 일도 하지 않았다» 는 뜻이다.
         /// </summary>
-        public static string Apply(string rewardType, int value)
+        public static string Apply(string rewardType, int value) => Apply(rewardType, value, 0);
+
+        /// <summary>
+        /// 보상 하나를 <paramref name="durationSeconds"/> 초 동안 건다 (Ver013).
+        /// 0 이면 «시간으로는 안 풀린다» — 즉시 효과이거나 <see cref="ClearAll"/> 만 걷는다.
+        /// </summary>
+        public static string Apply(string rewardType, int value, int durationSeconds)
         {
             if (string.IsNullOrWhiteSpace(rewardType)) return "";
 
             // ── 능력치 계열 : 지속 보정 ──
             if (StatRewards.TryGetValue(rewardType, out var spec))
-                return ApplyStat(spec.stat, spec.sign * Mathf.Abs(value));
+                return ApplyStat(spec.stat, spec.sign * Mathf.Abs(value), durationSeconds);
 
             switch (rewardType)
             {
+                // ── 체력 % (즉시) ──
+                case "char_hp_percent_heal":
+                case "char_hp_percent_loss":
+                {
+                    bool heal = rewardType == "char_hp_percent_heal";
+                    int touched = 0;
+                    var all = UnitRegistry.All;
+                    for (int i = 0; i < all.Count; i++)
+                    {
+                        if (!(all[i] is CharacterUnit c) || !c.IsAlive) continue;
+                        int amount = Mathf.Max(1, Mathf.RoundToInt(c.MaxHp * Mathf.Abs(value) * 0.01f));
+                        if (heal) c.Heal(amount);
+                        else
+                        {
+                            // ⚠ 표: *"이 피해로는 사망하지 않습니다(체력 1 에서 멈춤)"*.
+                            //   ApplyDamage 를 그대로 쓰면 죽으므로 <b>체력 1 을 남기고</b> 깎는다.
+                            int safe = Mathf.Min(amount, Mathf.Max(0, c.CurrentHp - 1));
+                            if (safe > 0) c.ApplyDamage(safe);
+                        }
+                        touched++;
+                    }
+                    if (touched == 0) return "";
+                    return heal ? $"체력 +{value}% ({touched}명)" : $"체력 −{value}% ({touched}명)";
+                }
+
+                // ── 침식 (즉시 · 절대값) ──
+                case "char_erosion_up":
+                case "char_erosion_down":
+                case "char_all_erosion_up":
+                case "char_all_erosion_down":
+                {
+                    bool up = rewardType.EndsWith("_up");
+                    bool everyone = rewardType.StartsWith("char_all_");
+                    float delta = up ? Mathf.Abs(value) : -Mathf.Abs(value);
+
+                    var targets = new List<CharacterUnit>();
+                    var all = UnitRegistry.All;
+                    for (int i = 0; i < all.Count; i++)
+                        if (all[i] is CharacterUnit c && c.IsAlive && !c.IsSummoned) targets.Add(c);
+                    if (targets.Count == 0) return "";
+
+                    if (!everyone)
+                    {
+                        // 표: *"랜덤 캐릭터 1명"*
+                        CharacterUnit one = targets[Random.Range(0, targets.Count)];
+                        targets.Clear();
+                        targets.Add(one);
+                    }
+
+                    int hit = 0;
+                    for (int i = 0; i < targets.Count; i++)
+                    {
+                        var er = CharacterErosion.Of(targets[i]);
+                        if (er == null) continue;
+                        er.AddErosion(delta);
+                        hit++;
+                    }
+                    if (hit == 0) return "";
+                    return up ? $"침식 +{Mathf.Abs(value)} ({hit}명)" : $"침식 −{Mathf.Abs(value)} ({hit}명)";
+                }
+
+                // ── 처치 기록 부여 (즉시) ──
+                case "char_kill_grant":
+                {
+                    var pool = new List<CharacterUnit>();
+                    var all = UnitRegistry.All;
+                    for (int i = 0; i < all.Count; i++)
+                        if (all[i] is CharacterUnit c && c.IsAlive && !c.IsSummoned) pool.Add(c);
+                    if (pool.Count == 0) return "";
+
+                    CharacterUnit pick = pool[Random.Range(0, pool.Count)];
+                    var kills = CharacterKills.EnsureOn(pick);
+                    if (kills == null) return "";
+                    int n = Mathf.Max(1, Mathf.Abs(value));
+                    for (int i = 0; i < n; i++) kills.AddKill();
+                    return $"{pick.DisplayName} 처치 기록 +{n}";
+                }
+
                 case "energy_gain":
                     ResourceManager.Instance?.AddEnergy(Mathf.Abs(value));
                     return $"에너지 +{Mathf.Abs(value)}";
@@ -118,9 +236,13 @@ namespace LastSanctuary.Events
             }
         }
 
-        static string ApplyStat(StatType stat, int percent)
+        static string ApplyStat(StatType stat, int percent, int durationSeconds)
         {
             if (percent == 0) return "";
+
+            // ★ 지속시간이 0 이면 <b>시간으로는 안 풀린다</b> — ClearAll 만 걷는다.
+            //   («판을 갈아엎을 때» 는 여전히 한꺼번에 되돌려야 한다.)
+            float expiresAt = durationSeconds > 0 ? Time.time + durationSeconds : 0f;
 
             int touched = 0;
             var all = UnitRegistry.All;
@@ -135,13 +257,16 @@ namespace LastSanctuary.Events
                 if (delta == 0) delta = percent > 0 ? 1 : -1;
 
                 c.AddFlatStatBonus(stat, delta);
-                _live.Add(new Applied { unit = c, stat = stat, delta = delta });
+                _live.Add(new Applied { unit = c, stat = stat, delta = delta, expiresAt = expiresAt });
                 touched++;
             }
 
             if (touched == 0) return "";
             string name = StatBlock.DisplayName(stat);
-            return percent > 0 ? $"{name} +{percent}% ({touched}명)" : $"{name} {percent}% ({touched}명)";
+            string span = durationSeconds > 0 ? $" {durationSeconds}초" : "";
+            return percent > 0
+                ? $"{name} +{percent}%{span} ({touched}명)"
+                : $"{name} {percent}%{span} ({touched}명)";
         }
 
         /// <summary>

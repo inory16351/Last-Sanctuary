@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65ad3cae191f5994a8004f1e5da8f97e, type: 3}
+  m_Name: Event_205010_곪은_자리
+  m_EditorClassIdentifier:
+  eventId: 205010
+  eventName: "곪은 자리"
+  triggerCond: "wave_end"
+  triggerValue: 0
+  weight: 12
+  repeatable: 1
+  choiceGroupId: 600010
+  eventBg: "bg_wound"
+  eventScript: "아무리 씻어도 아물지 않는 자리가 있습니다.\n적의 것이 천사의 몸에 남아, 조용히 자라고 있습니다."
+  choices:
+  - choiceId: 300019
+    choiceOrder: 1
+    choiceText: "살을 잘라내라."
+    resultScript: "곪은 살이 통째로 떨어져 나갔습니다.\n아프지만, 성역 안에서 남의 것이 그만큼 줄었습니다."
+    resultEffect: "효과 : 천사 전체 체력 −10% (최대 체력 기준) · 천사 전체 침식 −12"
+    rewardType01: "char_hp_percent_loss"
+    rewardValue01: 10
+    rewardDuration01: 0
+    rewardType02: "char_all_erosion_down"
+    rewardValue02: 12
+    rewardDuration02: 0
+  - choiceId: 300020
+    choiceOrder: 2
+    choiceText: "덮어두고 계속 싸운다."
+    resultScript: "천사들은 붕대로 자리를 가렸습니다.\n통증은 분노로 바뀌었고, 자라는 것은 계속 자랍니다."
+    resultEffect: "효과 : 천사 전체 침식 +10 · 천사 전체 근거리 공격력 +7% (240초)"
+    rewardType01: "char_all_erosion_up"
+    rewardValue01: 10
+    rewardDuration01: 0
+    rewardType02: "char_melee_atk_durat_up"
+    rewardValue02: 7
+    rewardDuration02: 240

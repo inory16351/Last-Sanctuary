@@ -259,20 +259,11 @@ namespace LastSanctuary.UI
         /// ⚠ 배속·일시정지로 <c>timeScale</c> 이 0 이나 8 일 수 있다. 씬을 넘겨도 유지되므로
         ///   반드시 되돌린다(<see cref="HandleSaveAndLobby"/> 와 같은 함정).
         /// </summary>
-        void RestartRun()
-        {
-            EventRewardService.ClearAll();                 // ①
-            if (EventService.Instance != null) EventService.Instance.EndCurrent("게임 재시작");
-
-            CharacterDefinitionRegistry.ResetRun();        // ②
-            NeutralKillTally.ResetRun();
-
-            SaveService.Delete();                          // ③
-            SaveService.PendingLoad = null;                //    ⚠ 남아 있으면 새 판이 그걸 덮어쓴다
-
-            Time.timeScale = 1f;                           // ④
-            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
-        }
+        /// ★★ <b>2026-08-21 — 이 순서가 <see cref="Save.RunResetService"/> 로 옮겨졌다.</b>
+        ///   위에 적힌 ①~④ 가 그대로 그 클래스에 있다. 옮긴 이유는 «새 판을 시작하는»
+        ///   경로가 <b>넷</b>인데 이 셋(패배·승리·로비)이 ② 를 빠뜨리고 있었기 때문이다 —
+        ///   그것이 «캐릭터가 죽으면 생성이 안 되는» 버그였다(그 클래스의 맨 위 주석).
+        void RestartRun() => Save.RunResetService.BeginNewRun();
 
         bool TrySave()
         {

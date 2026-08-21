@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65ad3cae191f5994a8004f1e5da8f97e, type: 3}
+  m_Name: Event_205009_전열의_재편
+  m_EditorClassIdentifier:
+  eventId: 205009
+  eventName: "전열의 재편"
+  triggerCond: "wave_end"
+  triggerValue: 0
+  weight: 10
+  repeatable: 1
+  choiceGroupId: 600009
+  eventBg: "bg_formation"
+  eventScript: "전위의 천사들이 너무 많이 상했습니다.\n뒤에 선 손이 앞으로 나와야 할지, 앞이 조금 더 버텨야 할지 정할 시간입니다."
+  choices:
+  - choiceId: 300017
+    choiceOrder: 1
+    choiceText: "앞을 더 두껍게 세워라."
+    resultScript: "방패를 든 천사들이 어깨를 붙이고 벽이 됐습니다.\n두꺼워진 벽은 그만큼 느리게 움직입니다."
+    resultEffect: "효과 : 천사 전체 방어력 +10% (240초) · 천사 전체 이동 속도 −6% (240초)"
+    rewardType01: "char_def_durat_up"
+    rewardValue01: 10
+    rewardDuration01: 240
+    rewardType02: "char_move_spd_durat_down"
+    rewardValue02: 6
+    rewardDuration02: 240
+  - choiceId: 300018
+    choiceOrder: 2
+    choiceText: "뒤에서 더 멀리 쏜다."
+    resultScript: "천사들은 사거리를 벌려 적을 먼 데서 끊기로 했습니다.\n대신 앞줄은 그만큼 얇아졌습니다."
+    resultEffect: "효과 : 천사 전체 공격 사거리 +10% (240초) · 천사 전체 방어력 −6% (240초)"
+    rewardType01: "char_range_durat_up"
+    rewardValue01: 10
+    rewardDuration01: 240
+    rewardType02: "char_def_durat_down"
+    rewardValue02: 6
+    rewardDuration02: 240

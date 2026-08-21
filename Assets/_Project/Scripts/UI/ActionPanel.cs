@@ -43,6 +43,11 @@ namespace LastSanctuary.UI
         [Header("문구")]
         [SerializeField] string createFormat = "캐릭터 생성 {0}";
         [SerializeField] string createAtLimit = "인원 상한";
+
+        [Tooltip("★ 등장할 인물이 남지 않았을 때. 인원 상한과 <b>다른 상태</b>다 — " +
+                 "정원은 비어 있는데 «표에 남은 인물» 이 없는 것이라, 같은 문구를 쓰면 " +
+                 "유저가 «누굴 죽여야 하나» 로 잘못 읽는다")]
+        [SerializeField] string createOutOfCandidates = "등장할 인물 없음";
         [SerializeField] string tacticsIdle = "전술 지침";
         [SerializeField] string tacticsOpen = "전술 지침 닫기";
         [SerializeField] string squadIdle = "부대 설정";
@@ -77,6 +82,7 @@ namespace LastSanctuary.UI
         // 마지막으로 화면에 반영한 값. 바뀔 때만 갱신한다.
         int _shownCost = int.MinValue;
         bool _shownCanCreate;
+        bool _shownOutOfCandidates;
         bool _shownTacticsOpen;
         int _shownSquadState = int.MinValue;
         int _shownSubjugateState = int.MinValue;
@@ -314,15 +320,28 @@ namespace LastSanctuary.UI
             bool atLimit = _creation.AtLimit;
             int cost = _creation.CurrentCost;
             bool can = _creation.CanCreate;
+            bool noCandidates = _creation.OutOfCandidates;
 
-            if (!force && cost == _shownCost && can == _shownCanCreate) return;
+            if (!force && cost == _shownCost && can == _shownCanCreate &&
+                noCandidates == _shownOutOfCandidates) return;
             _shownCost = cost;
             _shownCanCreate = can;
+            _shownOutOfCandidates = noCandidates;
 
             createButton.interactable = can;
             if (createBackground != null) createBackground.color = can ? buttonNormal : buttonOff;
             if (createLabel != null)
-                createLabel.text = atLimit ? createAtLimit : string.Format(createFormat, cost);
+                // ★★ <b>«더 나올 인물이 없다» 를 화면에 적는다</b> (2026-08-21).
+                //   ⚠ 예전에는 이 상태에서도 «캐릭터 생성 170» 이 그대로 떠 있고 버튼만
+                //     회색이 됐다. 그리고 <c>interactable = false</c> 라 클릭이 안 되므로
+                //     <c>CharacterCreationService.TryCreate</c> 안의 설명 로그
+                //     («더 등장할 인물이 없습니다»)에 <b>도달할 방법이 없었다</b> —
+                //     즉 이 상태를 유저에게 알리는 통로가 <b>하나도</b> 없었다.
+                //   ★ 판정은 서비스에 그대로 두고 여기서는 <b>읽기만</b> 한다
+                //     (인원 상한 <c>createAtLimit</c> 과 같은 모양).
+                createLabel.text = noCandidates ? createOutOfCandidates
+                                 : atLimit ? createAtLimit
+                                 : string.Format(createFormat, cost);
         }
     }
 }

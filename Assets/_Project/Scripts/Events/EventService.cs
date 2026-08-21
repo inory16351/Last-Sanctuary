@@ -105,15 +105,38 @@ namespace LastSanctuary.Events
         [Tooltip("주사위를 굴린 결과를 콘솔에 남긴다 (확률을 조정할 때 켜면 편하다)")]
         [SerializeField] bool logRolls = true;
 
+        [Tooltip("★ 같은 이벤트가 다시 후보가 되기까지 <b>건너뛸 추첨 횟수</b>. " +
+                 "표(Info 시트) 기준 2 — «같은 이벤트는 발생 후 2회의 쿨타임을 갖습니다». " +
+                 "0 이면 쿨타임 없음(바로 다시 뽑힐 수 있다)")]
+        [Min(0)] [SerializeField] int eventCooldownRounds = 2;
+
         // ──────────────────────────────────────────────────────────────
 
         readonly List<EventDefinitionSO> _wave = new List<EventDefinitionSO>();
         readonly List<EventDefinitionSO> _private = new List<EventDefinitionSO>();
-        readonly List<EventDefinitionSO> _raid = new List<EventDefinitionSO>();
+        readonly List<EventDefinitionSO> _habitat = new List<EventDefinitionSO>();
 
         WaveManager _waveManager;
         bool _hooked;
         float _privateNextAt;
+
+        /// <summary>
+        /// ★★ <b>직전 웨이브 단계</b> — <c>wave_end</c> 판정에 쓴다 (Ver013).
+        ///
+        /// 표가 못박은 정의: *"광폭화(Enrage)까지 모두 종료되어 <b>정비 시간으로 넘어가는
+        /// 프레임</b>"*. 즉 «Preparation 으로 들어왔다» 만으로는 부족하다 — 판이 처음
+        /// 시작될 때도 Preparation 이다. <b>어디서 왔는가</b> 를 봐야 한다.
+        /// </summary>
+        WavePhase _lastPhase = WavePhase.Idle;
+
+        /// <summary>
+        /// ★ <b>이벤트별 쿨타임</b> — Info 시트: *"같은 이벤트는 발생 후 2회의 쿨타임을
+        /// 갖습니다(그 두 번은 후보에서 빠집니다)"*. 값은 «앞으로 몇 번 더 건너뛸지» 다.
+        /// </summary>
+        readonly Dictionary<int, int> _cooldown = new Dictionary<int, int>();
+
+        /// <summary>이미 발동한 <c>habitat_contact</c> 이벤트 — 한 판에 서식지당 한 번뿐이다.</summary>
+        readonly HashSet<int> _habitatFired = new HashSet<int>();
 
         /// <summary>지금 이벤트가 <b>시간으로</b> 끝나는 시각. 0 이면 «시간으로는 안 끝난다».</summary>
         float _endsAt;
@@ -131,13 +154,16 @@ namespace LastSanctuary.Events
         /// <summary>지금 화면에 떠 있는 이벤트. null 이면 없다.</summary>
         public EventDefinitionSO Current { get; private set; }
 
-        /// <summary>지금 보여주고 있는 대사 줄.</summary>
-        public EventLine CurrentLine { get; private set; }
+        /// <summary>
+        /// 유저가 고른 선택지. <b>null 이면 아직 본문 단계</b>(선택지 버튼을 보여주는 중)이고,
+        /// 값이 있으면 <b>결과창 단계</b>다. 창이 이 하나로 두 모습을 낸다.
+        /// </summary>
+        public EventChoice CurrentChoice { get; private set; }
 
-        /// <summary>이벤트가 열리거나(정의·줄) 닫힐 때(null) 알린다 — UI 가 구독한다.</summary>
-        public event System.Action<EventDefinitionSO, EventLine> OnEventChanged;
+        /// <summary>이벤트가 열리거나(정의·선택) 닫힐 때(null) 알린다 — UI 가 구독한다.</summary>
+        public event System.Action<EventDefinitionSO, EventChoice> OnEventChanged;
 
-        /// <summary>이 판에서 이미 끝난 이벤트(재수락 불가 <c>500002</c>). 다시 뽑지 않는다.</summary>
+        /// <summary>이 판에서 다시 뽑지 않는 이벤트 (<c>repeatable = 0</c>).</summary>
         readonly HashSet<int> _finished = new HashSet<int>();
 
         // ------------------------------------------------------------------
@@ -175,32 +201,42 @@ namespace LastSanctuary.Events
         {
             _wave.Clear();
             _private.Clear();
-            _raid.Clear();
+            _habitat.Clear();
 
+            int skipped = 0;
             var all = Resources.LoadAll<EventDefinitionSO>("Events");
             for (int i = 0; i < all.Length; i++)
             {
                 EventDefinitionSO def = all[i];
-                if (def == null || !def.IsUsable) continue;
-                switch (def.Kind)
+                if (def == null) continue;
+                if (!def.IsUsable)
                 {
-                    case EventKind.Wave: _wave.Add(def); break;
-                    case EventKind.Private: _private.Add(def); break;
-                    case EventKind.Raid: _raid.Add(def); break;
+                    // ⚠ 조용히 넘기지 않는다 — 표에 오타가 있으면 여기서만 보인다.
+                    skipped++;
+                    continue;
+                }
+                switch (def.Trigger)
+                {
+                    case EventTrigger.WaveEnd: _wave.Add(def); break;
+                    case EventTrigger.PrivateTimer: _private.Add(def); break;
+                    case EventTrigger.HabitatContact: _habitat.Add(def); break;
                 }
             }
-            Debug.Log($"[이벤트] 정의 로드 — 웨이브 {_wave.Count} · 비공개 {_private.Count} · 토벌 {_raid.Count}" +
-                      $" (웨이브 확률 {waveEventChancePercent}% · 비공개 {privateEventChancePercent}%" +
-                      $" · 지속시간 " + (useTableDuration
-                          ? "표 값"
-                          : $"인스펙터 웨이브 {waveEventDurationSeconds:0}초 · 그 밖 {privateEventDurationSeconds:0}초") + ")");
+            Debug.Log($"[이벤트] 정의 로드 — 웨이브종료 {_wave.Count} · 비공개타이머 {_private.Count}" +
+                      $" · 서식지접촉 {_habitat.Count}" + (skipped > 0 ? $" (⚠ 못 읽은 정의 {skipped}개)" : "") +
+                      $" (웨이브 확률 {waveEventChancePercent}% · 비공개 {privateEventChancePercent}%)");
         }
 
         void Update()
         {
             HookWave();
             TickPrivateTimer();
+            TickHabitatContact();
             TickDuration();
+
+            // ★ Ver013 — 효과마다 다른 «남은 초» 를 센다. 창이 닫혀도 계속 돈다
+            //   (표: 지속시간은 이벤트 종료와 무관한 절대 초다).
+            EventRewardService.Tick();
         }
 
         /// <summary>
@@ -223,7 +259,7 @@ namespace LastSanctuary.Events
             }
 
             if (Time.time < _endsAt) return;
-            EndCurrent($"지속시간 {CurrentDurationSeconds:0}초 경과");
+            CloseCurrent($"제한시간 {CurrentDurationSeconds:0}초 경과");
         }
 
         /// <summary>
@@ -233,8 +269,13 @@ namespace LastSanctuary.Events
         /// </summary>
         float DurationFor(EventDefinitionSO def)
         {
-            if (useTableDuration) return def != null ? def.DurationSeconds : 0f;
-            return def != null && def.Kind == EventKind.Wave
+            // ★★ Ver013 — 표에서 event_value_01(창이 떠 있는 시간)이 <b>사라졌다</b>.
+            //    지속시간은 이제 «효과마다»(reward_duration) 이고, 이 값은 «창을 얼마나
+            //    띄워 둘지» 만 뜻한다. 그래서 표를 볼 것이 없고 인스펙터 값만 쓴다.
+            //    ⚠ useTableDuration 을 켜 두면 «표 값이 없다» 는 뜻으로 0(무제한)이 된다 —
+            //      즉 유저가 답할 때까지 창이 남는다. 그것이 Ver013 의 기본 동작이다.
+            if (useTableDuration) return 0f;
+            return def != null && def.Trigger == EventTrigger.WaveEnd
                 ? waveEventDurationSeconds
                 : privateEventDurationSeconds;
         }
@@ -260,15 +301,88 @@ namespace LastSanctuary.Events
         /// </summary>
         void HandlePhase(WavePhase phase)
         {
-            if (phase == WavePhase.Battle)
+            WavePhase from = _lastPhase;
+            _lastPhase = phase;
+
+            // ★★ Ver013 — <b>웨이브가 완전히 끝난 순간</b>에 발동한다.
+            //    표(Condition 시트): *"웨이브가 완전히 끝난 순간(전투 → 광폭화까지 모두
+            //    종료되어 정비 시간으로 넘어가는 프레임)"*.
+            //
+            //    ⚠⚠ Ver012 구현은 <b>전투 단계 진입</b>(Battle)에 발동했다 — 그때의 표가
+            //      «웨이브 타이머 시작 시» 였기 때문이다. Ver013 이 그 조건을 뒤집었으므로
+            //      여기가 바뀌는 자리다.
+            //    ★ <b>어디서 왔는지</b> 를 본다 — 판이 처음 시작될 때도 Preparation 이라
+            //      «들어왔다» 만 보면 0웨이브에 이벤트가 뜬다.
+            if (phase == WavePhase.Preparation &&
+                (from == WavePhase.Battle || from == WavePhase.Enrage))
             {
-                TryRoll(_wave, waveEventChancePercent, "웨이브");
+                TryRoll(_wave, waveEventChancePercent, "웨이브종료");
                 return;
             }
 
-            if (phase == WavePhase.Preparation || phase == WavePhase.Marching ||
-                phase == WavePhase.Defeat || phase == WavePhase.Victory)
-                EndCurrent("웨이브 종료");
+            // 패배·승리에서는 창을 치운다 — 결과 화면 위에 이벤트가 겹치면 안 된다.
+            if (phase == WavePhase.Defeat || phase == WavePhase.Victory)
+                EndCurrent("판 종료");
+        }
+
+        /// <summary>
+        /// ★★ <c>habitat_contact</c> — <b>서식지에 처음 닿는 순간</b> 100% 발동 (Ver013 신설).
+        ///
+        /// 표(Condition 시트): *"trigger_value 에 적힌 중립 몬스터의 서식지 타일에 캐릭터가
+        /// <b>최초로</b> 인접한 순간 100% 발동합니다. 확률·가중치를 쓰지 않으며 한 판에
+        /// 서식지당 한 번만 발동합니다"*.
+        ///
+        /// <b>어떻게 «인접» 을 재나</b> — 서식지는 (중심 칸 · 반지름) 으로 완전히 결정되므로
+        /// (<see cref="Units.NeutralHabitat"/>), <b>중심에서 반지름 + 1타일</b> 안에 캐릭터가
+        /// 있으면 닿은 것으로 본다. 칸 목록을 훑지 않는 이유는 서식지가 수천 칸이고
+        /// 저장 코드도 같은 이유로 «칸을 담지 않는다» 를 택했기 때문이다.
+        ///
+        /// ⚠ <b>소환수는 세지 않는다</b> — «캐릭터가» 라는 표의 문장이고, 골렘이 먼저 닿아
+        ///   이벤트가 뜨면 «내가 안 갔는데» 가 된다.
+        /// ⚠ 이미 창이 떠 있으면 <b>미룬다</b>(발동 표시를 남기지 않는다) — 다음 프레임에
+        ///   다시 본다. 여기서 <see cref="_habitatFired"/> 에 넣어버리면 «한 번뿐» 이라
+        ///   그 이벤트를 영영 못 본다.
+        /// </summary>
+        void TickHabitatContact()
+        {
+            if (!eventsEnabled || _habitat.Count == 0 || Current != null) return;
+
+            var all = Combat.UnitRegistry.All;
+
+            for (int e = 0; e < _habitat.Count; e++)
+            {
+                EventDefinitionSO def = _habitat[e];
+                if (_habitatFired.Contains(def.eventId)) continue;
+                if (def.triggerValue == 0) continue;
+
+                // ① 그 종류의 중립 몬스터 중 서식지를 그린 개체를 찾는다.
+                for (int i = 0; i < all.Count; i++)
+                {
+                    if (!(all[i] is Units.NeutralMonsterUnit mon) || mon.Definition == null) continue;
+                    if (mon.Definition.monId != def.triggerValue) continue;
+
+                    var habitat = mon.GetComponent<Units.NeutralHabitat>();
+                    if (habitat == null || !habitat.HasPainted) continue;
+
+                    Vector3 center = habitat.transform.position;
+                    float reach = mon.Definition.habitatRadiusTiles + 1f;
+                    float reachSq = reach * reach;
+
+                    // ② 캐릭터가 그 안에 들어와 있는가.
+                    for (int c = 0; c < all.Count; c++)
+                    {
+                        if (!(all[c] is Units.CharacterUnit ch) || !ch.IsAlive || ch.IsSummoned) continue;
+                        if ((ch.transform.position - center).sqrMagnitude > reachSq) continue;
+
+                        _habitatFired.Add(def.eventId);
+                        if (logRolls)
+                            Debug.Log($"[이벤트] 서식지 접촉 — {mon.Definition.DisplayName}" +
+                                      $"(id {def.triggerValue}) 에 {ch.DisplayName} 이(가) 닿았다 → {def.eventName}");
+                        Begin(def);
+                        return;                 // 한 프레임에 하나만
+                    }
+                }
+            }
         }
 
         void TickPrivateTimer()
@@ -292,6 +406,11 @@ namespace LastSanctuary.Events
                 return;
             }
 
+            // ★ <b>«추첨 한 회» 는 여기다</b> — 쿨타임(표: «발생 후 2회») 을 이 자리에서 깎는다.
+            //   Begin 에서 깎으면 서식지 접촉으로 창이 떠도 웨이브 쿨타임이 줄어든다
+            //   («2회» 가 뜻하는 회차와 어긋난다).
+            TickCooldowns();
+
             int roll = Random.Range(0, 100);
             bool pass = alwaysTrigger || roll < chancePercent;
             if (logRolls)
@@ -303,99 +422,174 @@ namespace LastSanctuary.Events
             if (pick != null) Begin(pick);
         }
 
-        /// <summary>가중치(<c>event_value_02</c>) 비율로 하나 뽑는다. 끝난 이벤트는 제외한다.</summary>
+        /// <summary>
+        /// 가중치(<c>weight</c>) 비율로 하나 뽑는다.
+        ///
+        /// <b>후보에서 빠지는 것 둘</b> (Info 시트):
+        ///   · <see cref="_finished"/> — <c>repeatable = 0</c> 이라 한 판에 한 번뿐인 것
+        ///   · <see cref="_cooldown"/> — *"같은 이벤트는 발생 후 2회의 쿨타임을 갖습니다"*
+        /// </summary>
         EventDefinitionSO PickWeighted(List<EventDefinitionSO> pool)
         {
             int total = 0;
             for (int i = 0; i < pool.Count; i++)
-            {
-                if (_finished.Contains(pool[i].eventId)) continue;
-                total += pool[i].Weight;
-            }
+                if (Eligible(pool[i])) total += pool[i].Weight;
             if (total <= 0) return null;
 
             int r = Random.Range(0, total);
             for (int i = 0; i < pool.Count; i++)
             {
-                if (_finished.Contains(pool[i].eventId)) continue;
+                if (!Eligible(pool[i])) continue;
                 r -= pool[i].Weight;
                 if (r < 0) return pool[i];
             }
             return null;
         }
 
+        /// <summary>지금 뽑힐 수 있는 이벤트인가 (위 <see cref="PickWeighted"/> 의 둘).</summary>
+        bool Eligible(EventDefinitionSO def)
+        {
+            if (def == null || def.Weight <= 0) return false;
+            if (_finished.Contains(def.eventId)) return false;
+            return !_cooldown.TryGetValue(def.eventId, out int left) || left <= 0;
+        }
+
+        /// <summary>
+        /// 이벤트 하나가 끝났으니 <b>쿨타임을 매긴다</b>.
+        ///
+        /// ★ 쿨타임은 «앞으로 몇 번의 추첨에서 빠질지» 다(<see cref="eventCooldownRounds"/>).
+        ///   초로 재지 않는 이유 — 표가 «2회» 라고 <b>횟수</b>로 적었고, 웨이브 길이는
+        ///   판마다 다르기 때문이다.
+        /// ⚠ <c>repeatable = 0</c> 이면 쿨타임이 아니라 <b>영구 제외</b>다.
+        /// </summary>
+        void MarkUsed(EventDefinitionSO def)
+        {
+            if (def == null) return;
+
+            if (!def.repeatable)
+            {
+                _finished.Add(def.eventId);
+                return;
+            }
+            _cooldown[def.eventId] = Mathf.Max(0, eventCooldownRounds);
+        }
+
+        /// <summary>추첨을 한 번 돌렸으니 <b>모든 쿨타임을 하나씩 깎는다</b>.</summary>
+        void TickCooldowns()
+        {
+            if (_cooldown.Count == 0) return;
+            var keys = new List<int>(_cooldown.Keys);
+            for (int i = 0; i < keys.Count; i++)
+            {
+                int left = _cooldown[keys[i]] - 1;
+                if (left <= 0) _cooldown.Remove(keys[i]);
+                else _cooldown[keys[i]] = left;
+            }
+        }
+
         // ------------------------------------------------------------------
         //  진행
         // ------------------------------------------------------------------
 
-        /// <summary>이벤트를 시작한다 — 첫 줄(<c>active</c>)을 띄운다.</summary>
+        /// <summary>
+        /// 이벤트를 시작한다 — 배경 + 본문(<c>event_script</c>) + 선택지 버튼을 띄운다.
+        ///
+        /// ★ Ver013 부터 «첫 줄» 이라는 개념이 없다. 본문은 <b>한 묶음으로 한 번에</b> 나가고
+        ///   분기는 선택지가 담당한다(Info 시트 «화면 흐름» 2~3번).
+        /// </summary>
         public void Begin(EventDefinitionSO def)
         {
             if (def == null) return;
+
             Current = def;
-            CurrentLine = def.FirstLine();
+            CurrentChoice = null;               // 아직 아무것도 안 골랐다 = 본문 단계
             CurrentDurationSeconds = DurationFor(def);
             _endsAt = CurrentDurationSeconds > 0f ? Time.time + CurrentDurationSeconds : 0f;
+
+            MarkUsed(def);
+
             UI.HudLog.Add($"<b>[사건]</b> {def.eventName}", UI.HudLogKind.Good);
-            OnEventChanged?.Invoke(Current, CurrentLine);
-            ShowPanel(Current, CurrentLine);
+            OnEventChanged?.Invoke(Current, CurrentChoice);
+            ShowPanel();
         }
 
         /// <summary>
-        /// 지금 줄에서 <b>다음으로</b> 넘어간다.
-        /// <paramref name="choice"/> 는 선택지 번호(0 = 첫째 · 1 = 둘째)다.
-        /// 선택지가 없는 줄이면 <c>next_dialogue_id_01</c> 로 간다.
+        /// ★★ <b>선택지를 골랐다</b> — 보상을 걸고 <b>결과창</b>으로 넘어간다 (Ver013).
+        ///
+        /// <paramref name="index"/> 는 <c>choice_order</c> 순서의 번호다(0 = 첫째).
+        ///
+        /// <b>순서가 있다</b> (Info 시트 4번): ① 보상 적용 → ② 결과 대사·효과 요약 표시.
+        /// 보상을 먼저 걸어야 결과창의 «효과 요약» 과 실제로 걸린 것이 어긋나지 않는다.
+        ///
+        /// ⚠ 이벤트는 <b>여기서 끝나지 않는다</b> — 유저가 결과창을 닫을 때 끝난다
+        ///   (<see cref="CloseCurrent"/>). 표: *"결과창을 닫으면 이벤트가 종료됩니다"*.
+        /// ⚠ 이미 결과창이면 <b>다시 고를 수 없다</b> — 두 번 누르면 보상이 두 번 걸린다.
         /// </summary>
-        public void Advance(int choice)
+        public void Choose(int index)
         {
-            if (Current == null || CurrentLine == null) return;
+            if (Current == null || CurrentChoice != null) return;
 
-            EventLine line = CurrentLine;
+            EventChoice choice = Current.ChoiceAt(index);
+            if (choice == null) return;
 
-            // ★ 확률로 갈리는 줄은 <b>유저 입력을 안 본다</b> — 여기서 굴린다.
-            if (line.IsRandom)
-                choice = Random.Range(0, 100) < line.rewardProceedValue01 ? 0 : 1;
+            ApplyReward(choice.rewardType01, choice.rewardValue01, choice.rewardDuration01);
+            if (choice.HasSecondReward)
+                ApplyReward(choice.rewardType02, choice.rewardValue02, choice.rewardDuration02);
 
-            bool second = choice == 1 && line.nextDialogueId02 != 0;
-            string reward = second ? line.rewardValue03 : line.rewardValue01;
-            int value = second ? line.rewardValue04 : line.rewardValue02;
-
-            if (!string.IsNullOrWhiteSpace(reward))
-            {
-                string log = EventRewardService.Apply(reward, value);
-                if (!string.IsNullOrEmpty(log))
-                    UI.HudLog.Add($"[사건] {Current.eventName} — {log}", UI.HudLogKind.Good);
-            }
-
-            int nextId = second ? line.nextDialogueId02 : line.nextDialogueId01;
-            EventLine next = nextId != 0 ? Current.Find(nextId) : null;
-
-            if (next == null)
-            {
-                EndCurrent("대사 끝");
-                return;
-            }
-
-            CurrentLine = next;
-            OnEventChanged?.Invoke(Current, CurrentLine);
-            ShowPanel(Current, CurrentLine);
-
-            // 재수락 불가(500002)로 끝나는 줄이면 이 판에서 다시 뽑지 않는다.
-            if (next.Ends && next.endSwitch == 500002) _finished.Add(Current.eventId);
+            CurrentChoice = choice;
+            OnEventChanged?.Invoke(Current, CurrentChoice);
+            ShowPanel();
         }
 
-        /// <summary>창을 닫고 지속 보정을 되돌린다.</summary>
-        public void EndCurrent(string why)
+        void ApplyReward(string type, int value, int duration)
+        {
+            if (string.IsNullOrWhiteSpace(type)) return;
+
+            string log = EventRewardService.Apply(type, value, duration);
+            if (!string.IsNullOrEmpty(log))
+                UI.HudLog.Add($"[사건] {Current.eventName} — {log}", UI.HudLogKind.Good);
+        }
+
+        /// <summary>
+        /// 결과창을 닫아 <b>이벤트를 끝낸다</b>.
+        ///
+        /// ⚠⚠ <b>지속 효과는 걷지 않는다</b> — Ver013 의 가장 중요한 변화다. 효과마다
+        ///   «몇 초» 가 표에 적혀 있고(<c>reward_duration</c>), 그 시간은 <b>이벤트가 끝난
+        ///   뒤에도 계속 흐른다</b>(Info 시트: 웨이브 이벤트의 240초는 «두 웨이브 분량»).
+        ///   여기서 <c>ClearAll</c> 을 부르면 표가 적은 시간이 <b>전부 무의미해진다</b>.
+        ///   되돌리는 것은 <see cref="EventRewardService.Tick"/> 이 초로 한다.
+        /// </summary>
+        public void CloseCurrent(string why)
         {
             if (Current == null) return;
             if (logRolls) Debug.Log($"[이벤트] {Current.eventName} 종료 — {why}");
+
             Current = null;
-            CurrentLine = null;
+            CurrentChoice = null;
             _endsAt = 0f;
             CurrentDurationSeconds = 0f;
-            EventRewardService.ClearAll();
             OnEventChanged?.Invoke(null, null);
-            ShowPanel(null, null);
+            ShowPanel();
+        }
+
+        /// <summary>
+        /// 예전 이름 — «창을 치운다» 는 뜻으로 부르던 곳들을 위해 남긴다.
+        /// ⚠ 이제 지속 효과를 걷지 않는다(위 <see cref="CloseCurrent"/> 의 ⚠⚠).
+        /// </summary>
+        public void EndCurrent(string why) => CloseCurrent(why);
+
+        /// <summary>
+        /// ★ <b>판을 갈아엎을 때</b>만 쓰는 통로 — 지속 효과까지 전부 되돌린다.
+        /// 「게임 재시작」·로비 복귀가 부른다(<c>SettingsPanel.RestartRun</c>).
+        /// </summary>
+        public void ClearRun()
+        {
+            CloseCurrent("판 초기화");
+            EventRewardService.ClearAll();
+            _finished.Clear();
+            _cooldown.Clear();
+            _habitatFired.Clear();
+            _lastPhase = WavePhase.Idle;
         }
 
         /// <summary>
@@ -416,7 +610,7 @@ namespace LastSanctuary.Events
         ///   붙을 자리이고, 창을 직접 부르는 것과 성격이 다르다.
         /// ⚠ 창을 <b>캐시</b>한다(찾기는 비용이 있다). 파괴되면 다음 호출에 다시 찾는다.
         /// </summary>
-        void ShowPanel(EventDefinitionSO def, EventLine line)
+        void ShowPanel()
         {
             if (_panel == null)
                 _panel = Object.FindFirstObjectByType<UI.EventPanel>(FindObjectsInactive.Include);
@@ -429,7 +623,7 @@ namespace LastSanctuary.Events
                 return;
             }
 
-            _panel.Present(def, line);
+            _panel.Present(Current, CurrentChoice);
         }
 
         UI.EventPanel _panel;

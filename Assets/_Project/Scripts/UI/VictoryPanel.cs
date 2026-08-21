@@ -125,13 +125,12 @@ namespace LastSanctuary.UI
             HudLog.Add($"승리 — 웨이브 {_finalWave} 클리어", HudLogKind.Good);
         }
 
-        /// <summary>씬을 다시 로드해 처음부터 시작한다 (<see cref="DefeatPanel.Restart"/> 와 같은 이유).</summary>
-        public void Restart()
-        {
-            Time.timeScale = 1f;
-            Scene active = SceneManager.GetActiveScene();
-            SceneManager.LoadScene(active.buildIndex);
-        }
+        /// <summary>
+        /// 새 판을 시작한다 (<see cref="DefeatPanel.Restart"/> 와 같은 문을 지난다).
+        /// ★ 2026-08-21 — 씬만 다시 열던 것을 <see cref="Save.RunResetService"/> 로 바꿨다.
+        ///   이유는 그 클래스의 맨 위 주석(«캐릭터 생성이 안 되는» 버그).
+        /// </summary>
+        public void Restart() => Save.RunResetService.BeginNewRun();
 
         static int CountAliveCharacters()
         {

@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65ad3cae191f5994a8004f1e5da8f97e, type: 3}
+  m_Name: Event_205018_심장의_잡음
+  m_EditorClassIdentifier:
+  eventId: 205018
+  eventName: "심장의 잡음"
+  triggerCond: "wave_end"
+  triggerValue: 0
+  weight: 10
+  repeatable: 1
+  choiceGroupId: 600018
+  eventBg: "bg_nexus"
+  eventScript: "성역의 중심에서 고르지 못한 박동이 들립니다.\n넥서스가 이번 파도에 얼마나 상했는지를 스스로 알리고 있는 것입니다."
+  choices:
+  - choiceId: 300035
+    choiceOrder: 1
+    choiceText: "심장부터 돌봐라."
+    resultScript: "양분이 성역의 중심으로 흘러 들어갔습니다.\n박동이 다시 고르게 잡혔습니다."
+    resultEffect: "효과 : 성역 체력 +15% · 에너지 −150"
+    rewardType01: "nexus_percent_heal"
+    rewardValue01: 15
+    rewardDuration01: 0
+    rewardType02: "energy_loss"
+    rewardValue02: 150
+    rewardDuration02: 0
+  - choiceId: 300036
+    choiceOrder: 2
+    choiceText: "심장은 버틴다. 손발을 먹여라."
+    resultScript: "박동은 여전히 거칠지만 천사들의 상처가 메워졌습니다.\n지금 걸어야 하는 것은 손발이라는 판단입니다."
+    resultEffect: "효과 : 천사 전체 체력 회복 (최대 체력의 12%)"
+    rewardType01: "char_hp_percent_heal"
+    rewardValue01: 12
+    rewardDuration01: 0
+    rewardType02: ""
+    rewardValue02: 0
+    rewardDuration02: 0

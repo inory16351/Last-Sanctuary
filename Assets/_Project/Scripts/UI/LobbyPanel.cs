@@ -508,7 +508,17 @@ namespace LastSanctuary.UI
         /// </summary>
         void HandleNewGame()
         {
+            // ★★ 2026-08-21 — <b>판 전역 기록도 비운다</b>. 예전에는 저장만 지웠다.
+            //   «이미 등장한 인물»·«중립 사냥 수» 는 <c>static</c> 이라 씬을 넘겨도 남는다 —
+            //   로비를 거쳐 새로하기를 눌러도 <b>인물이 소진된 채</b> 새 판이 시작됐다.
+            //   그것이 «캐릭터가 죽으면 생성이 안 되는» 버그의 세 번째 경로였다
+            //   (<see cref="Save.RunResetService"/> 의 맨 위 표).
+            //   ⚠ 저장 삭제·씬 열기는 아래 LoadGame 이 하던 대로 둔다 — 로비는 «지금 씬» 이
+            //     아니라 <b>게임 씬</b>을 열어야 하므로 BeginNewRun 을 그대로 쓸 수 없다.
+            Save.RunResetService.ClearRunState();
+
             SaveService.Delete();
+            SaveService.PendingLoad = null;
             LoadGame();
         }
 

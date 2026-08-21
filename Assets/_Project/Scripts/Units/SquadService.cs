@@ -254,6 +254,24 @@ namespace LastSanctuary.Units
         }
 
         /// <summary>
+        /// ★★ <b>부대에 넣을 수 있는 유닛인가</b> (2026-08-21 · 유저 지시:
+        /// *"골렘은 부대편성 불가능하게 만들고 아루를 따라다니고"*).
+        ///
+        /// <b>소환수(아루의 골렘)는 못 들어간다.</b> 예전에는 «아루가 부대에 있으면 골렘도
+        /// 같이 배정» 이었는데(「강림」 정의문의 한 줄), 유저가 그 규칙을 <b>바꿨다</b> —
+        /// 골렘은 부대가 아니라 <b>주인을 직접 따라다닌다</b>
+        /// (<see cref="CharacterBehavior.FollowOwner"/>). 부대와 주인 따라가기가 <b>둘 다</b>
+        /// 목적지를 잡으면 «어느 쪽을 따라야 하는가» 가 프레임마다 갈린다.
+        ///
+        /// ★ 판정을 <b>여기 한 곳</b>에 둔다 — 배정 경로가 셋이다(전술 창 · 로스터 클릭 ·
+        ///   <see cref="Combat.AruGolem"/>). UI 에만 두면 다른 경로로 새어 들어온다
+        ///   (<see cref="CharacterTactics"/> 의 «잠금은 두 겹» 과 같은 원칙).
+        /// ★ <see cref="CharacterUpgradeService.CanUpgrade"/> 가 강화를 막는 것과 <b>같은 모양</b>
+        ///   이다 — 골렘을 «사람이 손대는 유닛» 목록에서 빼는 일이 이제 두 곳이다.
+        /// </summary>
+        public bool CanAssign(CharacterUnit unit) => unit != null && !unit.IsSummoned;
+
+        /// <summary>
         /// 캐릭터를 부대에 넣는다. <b>이미 다른 부대에 있으면 자동으로 빠져나온다</b> —
         /// 한 캐릭터가 두 부대에 동시에 속하면 "함께 이동"의 기준이 모순되기 때문이다.
         /// 같은 부대를 다시 지정하면 <b>배정을 해제</b>한다(토글) — 로스터를 다시 눌러 뺄 수 있게.
@@ -261,6 +279,7 @@ namespace LastSanctuary.Units
         public bool Assign(CharacterUnit unit, int squadId)
         {
             if (unit == null) return false;
+            if (!CanAssign(unit)) return false;      // 소환수(골렘) — 아래 ★★
 
             Squad target = Find(squadId);
             if (target == null) return false;

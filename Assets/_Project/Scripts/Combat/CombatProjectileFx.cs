@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace LastSanctuary.Combat
 {
@@ -106,6 +107,13 @@ namespace LastSanctuary.Combat
         /// </summary>
         const float MuzzleForwardRatio = 0.45f;
 
+        /// <summary>
+        /// 기준 유닛이 없는 <b>지면 연출</b>의 정렬 순서 (2026-08-21).
+        /// 음수라 <b>유닛보다 아래</b>(밟고 서는 그림이다)이고, 배경 타일보다는 위다.
+        /// ⚠ 0 으로 두면 타일맵과 같은 층이 되어 «맵에 붙은 장식» 처럼 보인다 — 그것이 버그였다.
+        /// </summary>
+        const int GroundFxSortingOrder = -5;
+
         /// <summary>시전 섬광이 머무는 시간(초).</summary>
         const float FlashSeconds = 0.12f;
 
@@ -155,10 +163,19 @@ namespace LastSanctuary.Combat
 
             /// <summary>여러 장짜리면 살아있는 시간에 맞춰 넘길 프레임 목록. 아니면 null.</summary>
             public Sprite[] Frames;
+
+            /// <summary>
+            /// ★★ <b>취소용 손잡이</b> (2026-08-21). 0 이면 «취소할 수 없는 한 방» 이다
+            /// (평타 탄환처럼 스스로 끝나는 것). <see cref="PlayArea"/> 가 돌려주는 번호와 같다.
+            /// </summary>
+            public int Handle;
         }
 
         readonly List<Shot> _live = new List<Shot>();
         readonly Stack<Transform> _pool = new Stack<Transform>();
+
+        /// <summary>다음에 발급할 손잡이 번호. 0 은 «없음» 이라 1 부터 쓴다.</summary>
+        int _nextHandle = 1;
 
         /// <summary>
         /// 씬에 아무것도 없어도 스스로 붙는다. 정적 이벤트를 쓰므로 도메인 리로드를 꺼도
@@ -213,8 +230,20 @@ namespace LastSanctuary.Combat
             return list.Count > 0 ? list.ToArray() : null;
         }
 
-        void OnEnable() => DamageableUnit.OnAnyAttack += HandleAttack;
-        void OnDisable() => DamageableUnit.OnAnyAttack -= HandleAttack;
+        // ★ 씬 전환도 같이 구독한다 (2026-08-21) — 이 오브젝트는 DontDestroyOnLoad 라
+        //   씬을 넘겨도 살아남으므로, 남아 있던 연출을 새 판으로 끌고 가지 않게 치운다
+        //   (<see cref="HandleSceneLoaded"/> 의 ★★).
+        void OnEnable()
+        {
+            DamageableUnit.OnAnyAttack += HandleAttack;
+            SceneManager.sceneLoaded += HandleSceneLoaded;
+        }
+
+        void OnDisable()
+        {
+            DamageableUnit.OnAnyAttack -= HandleAttack;
+            SceneManager.sceneLoaded -= HandleSceneLoaded;
+        }
 
         /// <summary>
         /// 한 유닛이 쏘는 탄환 한 벌. 스킨에서 읽거나, 스킨에 없으면 폴백에서 만든다.
@@ -423,13 +452,20 @@ namespace LastSanctuary.Combat
         /// 회전을 나중에 적용하므로 세로로 쏠 때 x·y 를 바꿔 넣으면 안 된다
         /// (<paramref name="angleDeg"/> 만 90 으로 주면 된다).
         /// </summary>
-        public static void PlayArea(Sprite[] frames, Vector3 center, Vector2 sizeTiles,
-                                    float angleDeg, DamageableUnit anchor, float seconds)
+        /// <returns>
+        /// ★★ <b>취소용 손잡이</b> (2026-08-21). 0 이면 «못 만들었다» 이거나 취소가 필요 없는
+        /// 경우다. 여러 초 동안 남는 연출은 이 번호를 들고 있다가
+        /// <see cref="Cancel"/> 로 <b>주인이 사라질 때 같이 지워야 한다</b> —
+        /// 안 그러면 «게임에 없는 캐릭터의 스킬 그림이 맵에 장식물처럼 남는다»
+        /// (유저 리포트 2026-08-21 · 아르세니아 「성스러운 축복」).
+        /// </returns>
+        public static int PlayArea(Sprite[] frames, Vector3 center, Vector2 sizeTiles,
+                                   float angleDeg, DamageableUnit anchor, float seconds)
         {
-            if (_instance == null || !HasFrames(frames)) return;
+            if (_instance == null || !HasFrames(frames)) return 0;
 
             Sprite first = frames[0];
-            if (first == null) return;
+            if (first == null) return 0;
 
             // 원화의 세계 크기(타일)로 나눠 목표 크기에 맞춘다. 범위 표시는 직사각형이라
             // 가로·세로를 따로 늘려도 된다 — 유닛 그림과 달리 비율이 의미를 갖지 않는다.
@@ -448,9 +484,36 @@ namespace LastSanctuary.Combat
                                                       first.bounds.center.y * scale.y, 0f);
             Vector3 at = center - pivotFix;
 
+            int handle = _instance._nextHandle++;
             _instance.Spawn(at, at, Mathf.Max(0.05f, seconds), anchor, first, scale,
                             frames: frames.Length > 1 ? frames : null,
-                            stationary: true, rotation: rotation);
+                            stationary: true, rotation: rotation, handle: handle);
+            return handle;
+        }
+
+        /// <summary>
+        /// ★★ <b>띄워 둔 연출을 지운다</b> (2026-08-21 신설).
+        ///
+        /// <b>왜 필요한가</b> — 유저 리포트: *"아르세니아가 없는데 아르세니아의 2번째 스킬이
+        /// 맵에 장식물처럼 구현되어있음"*. 원인은 이 클래스에 <b>취소 통로가 없었다</b>는 것이다:
+        /// <see cref="PlayArea"/> 로 띄운 8초짜리 마법진은 <b>자기 타이머로만</b> 사라지고,
+        /// 그 그림이 대신하는 실체(<c>SacredZone</c>)가 주인이 죽어 없어져도 <b>혼자 남았다</b>.
+        /// 그림과 실체의 수명이 <b>두 벌</b>이었던 것이 버그의 정체다.
+        ///
+        /// ★ 이제 주인이 <b>같은 손잡이로</b> 지운다 — 수명이 한 벌이 된다.
+        /// ⚠ 이미 사라진 손잡이를 넣어도 <b>안전하다</b>(아무 일도 안 한다) — 타이머가 먼저
+        ///   끝난 경우와 주인이 먼저 죽은 경우가 <b>둘 다</b> 정상이다.
+        /// </summary>
+        public static void Cancel(int handle)
+        {
+            if (_instance == null || handle == 0) return;
+
+            for (int i = _instance._live.Count - 1; i >= 0; i--)
+            {
+                if (_instance._live[i].Handle != handle) continue;
+                _instance.Retire(i);
+                return;
+            }
         }
 
         /// <summary>
@@ -592,7 +655,8 @@ namespace LastSanctuary.Combat
         /// </summary>
         void Spawn(Vector3 from, Vector3 to, float duration, DamageableUnit anchor,
                    Sprite sprite, Vector2 scale, Sprite[] frames = null,
-                   bool stationary = false, float delay = 0f, Quaternion? rotation = null)
+                   bool stationary = false, float delay = 0f, Quaternion? rotation = null,
+                   int handle = 0)
         {
             Transform tr = _pool.Count > 0 ? _pool.Pop() : NewProjectile();
             var sr = tr.GetComponent<SpriteRenderer>();
@@ -610,6 +674,21 @@ namespace LastSanctuary.Combat
                 sr.sortingLayerID = anchorSr.sortingLayerID;
                 sr.sortingOrder = anchorSr.sortingOrder + 20;
             }
+            else
+            {
+                // ★★ <b>기준 유닛이 없으면 정렬을 못박는다</b> (2026-08-21).
+                //
+                //   ⚠ 예전에는 여기서 <b>아무것도 하지 않았다</b> — 그래서 풀에서 꺼낸
+                //     오브젝트는 <b>지난번에 쓰던 레이어·순서를 그대로</b> 들고 나오고,
+                //     새로 만든 것은 «기본 레이어 · 순서 0» 즉 <b>타일맵 깊이</b>였다.
+                //     캐릭터 스킬의 범위 연출은 전부 <c>anchor: null</c> 로 부르므로
+                //     («맞는 쪽» 이 여럿이라 하나를 고를 수 없다) 그 그림이 <b>바닥 장식과
+                //     같은 층</b>에 깔렸다 — 유저가 «맵에 장식물처럼» 이라고 본 것의 절반이다.
+                //   ★ 지면 연출이므로 <b>유닛보다 아래</b>가 맞다(밟고 서는 그림이다).
+                //     그래서 order 를 음수로 두되, 배경 타일보다는 위로 올린다.
+                sr.sortingLayerID = SortingLayer.NameToID("Default");
+                sr.sortingOrder = GroundFxSortingOrder;
+            }
 
             tr.position = from;
             tr.localScale = new Vector3(scale.x, scale.y, 1f);
@@ -621,7 +700,7 @@ namespace LastSanctuary.Combat
                 Tr = tr, Renderer = sr, From = from, To = to,
                 Elapsed = 0f, Duration = Mathf.Max(0.01f, duration),
                 Stationary = stationary, Delay = Mathf.Max(0f, delay),
-                Frames = frames,
+                Frames = frames, Handle = handle,
             });
         }
 
@@ -658,10 +737,7 @@ namespace LastSanctuary.Combat
 
                 if (t >= 1f)
                 {
-                    s.Tr.gameObject.SetActive(false);
-                    s.Renderer.enabled = true;      // 풀에서 다시 꺼내 쓸 때를 위해 되돌린다
-                    _pool.Push(s.Tr);
-                    _live.RemoveAt(i);
+                    Retire(i);
                     continue;
                 }
 
@@ -690,6 +766,39 @@ namespace LastSanctuary.Combat
 
                 _live[i] = s;
             }
+        }
+
+        /// <summary>
+        /// 살아 있는 연출 하나를 <b>치우고 풀에 되돌린다</b>. 끝나는 길을 <b>한 곳</b>으로 모은
+        /// 것이다 — 타이머 만료(<see cref="Update"/>)와 취소(<see cref="Cancel"/>)가 같은
+        /// 정리를 지나야 «풀에 안 돌아간 오브젝트» 가 생기지 않는다.
+        /// </summary>
+        void Retire(int index)
+        {
+            Shot s = _live[index];
+            if (s.Tr != null)
+            {
+                s.Tr.gameObject.SetActive(false);
+                if (s.Renderer != null) s.Renderer.enabled = true;  // 다시 꺼내 쓸 때를 위해
+                _pool.Push(s.Tr);
+            }
+            _live.RemoveAt(index);
+        }
+
+        /// <summary>
+        /// ★★ <b>씬이 바뀌면 남아 있던 연출을 전부 치운다</b> (2026-08-21).
+        ///
+        /// <b>왜 필요한가</b> — 이 오브젝트는 <see cref="Object.DontDestroyOnLoad"/> 라
+        /// <b>씬을 넘겨도 살아남는다</b>. 그래서 «패배 → 다시하기» 로 새 판을 열면
+        /// <b>지난 판의 연출이 그대로 떠 있었다</b> — 아르세니아가 없는 새 판에
+        /// 아르세니아의 마법진이 남아 있는 것이 정확히 이 경로다.
+        ///
+        /// ★ <c>DamageNumberFx</c>(99-6절)가 «폴백은 자기가 태어난 씬과 생애를 같이 해야
+        ///   한다» 며 같은 문제를 고쳐 둔 것과 <b>같은 처리</b>다.
+        /// </summary>
+        void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            for (int i = _live.Count - 1; i >= 0; i--) Retire(i);
         }
     }
 }

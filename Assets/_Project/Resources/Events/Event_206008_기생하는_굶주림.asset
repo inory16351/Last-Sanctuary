@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65ad3cae191f5994a8004f1e5da8f97e, type: 3}
+  m_Name: Event_206008_기생하는_굶주림
+  m_EditorClassIdentifier:
+  eventId: 206008
+  eventName: "기생하는 굶주림"
+  triggerCond: "private_timer"
+  triggerValue: 0
+  weight: 8
+  repeatable: 1
+  choiceGroupId: 600036
+  eventBg: "bg_supply"
+  eventScript: "곳간의 양분이 아무도 먹지 않았는데 줄어들고 있습니다.\n성역 안에 우리 말고 무언가가 먹고 있습니다."
+  choices:
+  - choiceId: 300071
+    choiceOrder: 1
+    choiceText: "찾아내서 도려낸다."
+    resultScript: "곳간 벽을 뜯어내 붙어 있던 것을 긁어냈습니다.\n잃은 양분은 돌아오지 않지만 적의 몸에도 같은 자국이 남았습니다."
+    resultEffect: "효과 : 에너지 −150 · 적 전체 체력 −10% (최대 체력 기준)"
+    rewardType01: "energy_loss"
+    rewardValue01: 150
+    rewardDuration01: 0
+    rewardType02: "enemy_hp_percent_loss"
+    rewardValue02: 10
+    rewardDuration02: 0
+  - choiceId: 300072
+    choiceOrder: 2
+    choiceText: "먹는 만큼 더 벌어온다."
+    resultScript: "천사들은 도둑을 두고 밖으로 나가 더 물어왔습니다.\n곳간은 찼고, 안쪽의 것은 계속 자랍니다."
+    resultEffect: "효과 : 에너지 +250 · 천사 전체 침식 +6"
+    rewardType01: "energy_gain"
+    rewardValue01: 250
+    rewardDuration01: 0
+    rewardType02: "char_all_erosion_up"
+    rewardValue02: 6
+    rewardDuration02: 0

@@ -164,3 +164,4 @@ MonoBehaviour:
   projectileWidthTiles: 0.9
   impactWidthTiles: 1.4
   impactFlattenY: 1
+  bodyScaleAdjust: 1.035

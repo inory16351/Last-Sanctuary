@@ -314,10 +314,26 @@ namespace LastSanctuary.Combat
                 }
             }
 
-            if (colliderWidthTiles > 0f && colliderHeightTiles > 0f)
-                return Mathf.Min(colliderWidthTiles / art.x, colliderHeightTiles / art.y);
+            // ★★ 몸집 보정을 <b>마지막에</b> 곱한다 (2026-08-21 · 유저 지시
+            //   *"카이론, 아루, 불칸 3명 캐릭터를 프레이아를 표준으로 크기 맞춰줘"*).
+            //
+            //   «상자 높이» 는 이미 전원 같다(renderHeightTiles 2.15). 다른 것은 상자 안에
+            //   든 것이다 — 후광(아루)·지팡이(불칸)가 상자를 늘려 <b>사람 키</b>만 작아진다.
+            //   그 차이를 스킨마다 한 칸으로 메운다
+            //   (<see cref="CharacterSkinSO.bodyScaleAdjust"/> 의 긴 주석 참조).
+            //
+            //   ⚠ <b>탈진 구간(위 ★★)에는 안 걸린다</b> — 그쪽은 «누운 상자에 맞춰 넣는»
+            //     계산이라 목표가 상자이지 «사람 키» 가 아니다. 거기까지 곱하면 눕는 순간
+            //     크기가 튄다.
+            //   ⚠ 콜라이더 상자 경로(몬스터·골렘)에도 <b>같이</b> 걸린다 — 그 경로를 쓰는
+            //     스킨은 이 칸이 1 이므로 값이 변하지 않고, 나중에 몬스터에 보정이 필요해지면
+            //     같은 칸을 쓰는 것이 맞다(규칙이 두 벌로 갈리지 않는다).
+            float adjust = _skin.BodyScaleAdjust;
 
-            return renderHeightTiles > 0f ? renderHeightTiles / art.y : 0f;
+            if (colliderWidthTiles > 0f && colliderHeightTiles > 0f)
+                return Mathf.Min(colliderWidthTiles / art.x, colliderHeightTiles / art.y) * adjust;
+
+            return renderHeightTiles > 0f ? renderHeightTiles / art.y * adjust : 0f;
         }
 
         /// <summary>계산한 배율을 <b>균등</b>하게 건다(비율이 절대 안 깨진다).</summary>

@@ -77,7 +77,14 @@ namespace LastSanctuary.UI
                 var all = LastSanctuary.Combat.UnitRegistry.All;
                 int n = 0;
                 for (int i = 0; i < all.Count; i++)
-                    if (all[i] is CharacterUnit c && (c.IsAlive || c.IsRevivePending)) n++;
+                    // ★ <b>소환수(아루의 골렘)는 세지 않는다</b> (2026-08-21) —
+                    //   골렘도 <c>CharacterUnit</c> 이라 예전에는 <b>정원 한 칸을 먹었다</b>.
+                    //   골렘은 주인이 죽으면 같이 사라지므로, 캐릭터가 죽는 순간 인원수가
+                    //   둘씩 출렁여 «상한에 걸렸다/안 걸렸다» 가 흔들렸다.
+                    //   ⚠ 이 프로젝트의 다른 인원 집계 셋(WaveManager·DefeatPanel·VictoryPanel)은
+                    //     이미 <c>!IsSummoned</c> 를 쓰고 있었다 — 여기만 빠져 있었다.
+                    if (all[i] is CharacterUnit c && !c.IsSummoned &&
+                        (c.IsAlive || c.IsRevivePending)) n++;
                 return n;
             }
         }

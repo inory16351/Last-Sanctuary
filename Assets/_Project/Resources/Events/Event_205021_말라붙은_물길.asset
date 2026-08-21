@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65ad3cae191f5994a8004f1e5da8f97e, type: 3}
+  m_Name: Event_205021_말라붙은_물길
+  m_EditorClassIdentifier:
+  eventId: 205021
+  eventName: "말라붙은 물길"
+  triggerCond: "wave_end"
+  triggerValue: 0
+  weight: 10
+  repeatable: 1
+  choiceGroupId: 600021
+  eventBg: "bg_ground"
+  eventScript: "성역을 흐르던 붉은 물길이 말랐습니다.\n흐르지 않는 것은 반드시 썩습니다."
+  choices:
+  - choiceId: 300041
+    choiceOrder: 1
+    choiceText: "남은 것을 짜낸다."
+    resultScript: "마른 물길에서 마지막 한 줌이 나왔습니다.\n짜낸 만큼 성역의 살은 얇아졌습니다."
+    resultEffect: "효과 : 에너지 +220 · 천사 전체 체력 −12% (최대 체력 기준)"
+    rewardType01: "energy_gain"
+    rewardValue01: 220
+    rewardDuration01: 0
+    rewardType02: "char_hp_percent_loss"
+    rewardValue02: 12
+    rewardDuration02: 0
+  - choiceId: 300042
+    choiceOrder: 2
+    choiceText: "흐름을 되살린다."
+    resultScript: "곳간을 털어 물길을 다시 열었습니다.\n흐르기 시작한 자리마다 천사들의 걸음이 가벼워집니다."
+    resultEffect: "효과 : 에너지 −250 · 천사 전체 이동 속도 +10% (240초)"
+    rewardType01: "energy_loss"
+    rewardValue01: 250
+    rewardDuration01: 0
+    rewardType02: "char_move_spd_durat_up"
+    rewardValue02: 10
+    rewardDuration02: 240

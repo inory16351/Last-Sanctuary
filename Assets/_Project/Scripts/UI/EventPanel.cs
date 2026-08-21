@@ -37,16 +37,13 @@ namespace LastSanctuary.UI
         [Tooltip("대사가 비어 있을 때 — 표의 빈 칸을 화면에서 알아볼 수 있게 한다")]
         [SerializeField] string fallbackBody = "(대사 준비 중)";
 
-        [Tooltip("선택지 1 라벨 — 표에 선택지 문구 칸이 없어 여기서 정한다")]
+        [Tooltip("표의 choice_text 가 비어 있을 때 첫째 버튼에 넣을 문구")]
         [SerializeField] string choice0Label = "수락";
 
-        [Tooltip("선택지 2 라벨")]
+        [Tooltip("표의 choice_text 가 비어 있을 때 둘째 버튼에 넣을 문구")]
         [SerializeField] string choice1Label = "거절";
 
-        [Tooltip("선택지가 없는 줄에서 «다음으로» 넘기는 버튼의 라벨")]
-        [SerializeField] string continueLabel = "계속";
-
-        [Tooltip("마지막 줄에서 창을 닫는 버튼의 라벨")]
+        [Tooltip("결과창에서 창을 닫는 버튼의 라벨")]
         [SerializeField] string finishLabel = "확인";
 
         TMP_Text _title, _body, _choice0Label, _choice1Label, _closeLabel;
@@ -94,11 +91,11 @@ namespace LastSanctuary.UI
         /// ★ 서비스가 부르는 <b>유일한 입구</b>. <paramref name="def"/> 가 null 이면 닫는다.
         /// 비활성 상태에서 불려도 동작한다 — 그것이 이 함수의 존재 이유다(위 ★★).
         /// </summary>
-        public void Present(EventDefinitionSO def, EventLine line)
+        public void Present(EventDefinitionSO def, EventChoice choice)
         {
-            _presenting = def != null && line != null;
+            _presenting = def != null;
             Bind();                     // Awake 보다 먼저 불릴 수 있다 — 여러 번 불려도 안전하다
-            HandleChanged(def, line);
+            HandleChanged(def, choice);
         }
 
         void Bind()
@@ -127,9 +124,9 @@ namespace LastSanctuary.UI
 
         // ------------------------------------------------------------------
 
-        void HandleChanged(EventDefinitionSO def, EventLine line)
+        void HandleChanged(EventDefinitionSO def, EventChoice choice)
         {
-            if (def == null || line == null)
+            if (def == null)
             {
                 gameObject.SetActive(false);
                 return;
@@ -138,48 +135,97 @@ namespace LastSanctuary.UI
             // ★ 다른 창과 <b>배타</b>다 — 전술·성장 창처럼 겹쳐 뜨면 클릭이 섞인다(UI-23).
             HudExclusive.OpenOnly(this);
             gameObject.SetActive(true);
-            Refresh(def, line);
+            Refresh(def, choice);
         }
 
-        void Refresh(EventDefinitionSO def, EventLine line)
+        /// <summary>
+        /// ★★ <b>한 창이 두 모습을 낸다</b> (Ver013).
+        ///
+        /// <code>
+        ///   choice == null  →  «본문 단계» : event_script + 선택지 버튼 N개
+        ///   choice != null  →  «결과 단계» : result_script + result_effect + 확인 버튼
+        /// </code>
+        ///
+        /// ★ 창을 두 개 만들지 않은 이유 — 씬 오브젝트가 하나뿐이고(<c>HUD_Event</c>),
+        ///   두 모습이 <b>같은 자리에 같은 크기로</b> 뜨는 것이 맞다. 표의 흐름도
+        ///   «본문 → 고르기 → 결과 → 닫기» 로 한 줄이다.
+        /// </summary>
+        void Refresh(EventDefinitionSO def, EventChoice choice)
         {
             if (_title != null)
                 _title.text = string.IsNullOrWhiteSpace(def.eventName) ? fallbackTitle : def.eventName;
 
+            bool resultStage = choice != null;
+
+            // ── 본문 ──
             if (_body != null)
-                _body.text = string.IsNullOrWhiteSpace(line.dialogue) ? fallbackBody : line.dialogue;
+            {
+                string text = resultStage
+                    ? Join(choice.resultScript, choice.resultEffect)
+                    : def.eventScript;
+                _body.text = string.IsNullOrWhiteSpace(text) ? fallbackBody : text;
+            }
 
-            bool twoWay = line.IsChoice && line.nextDialogueId02 != 0;
-            bool goesOn = line.nextDialogueId01 != 0 || line.nextDialogueId02 != 0;
+            // ── 선택지 버튼 : 결과 단계에서는 <b>둘 다 감춘다</b> ──
+            var choices = def.OrderedChoices();
+            SetChoice(_choice0, _choice0Label, resultStage ? null : At(choices, 0), choice0Label);
+            SetChoice(_choice1, _choice1Label, resultStage ? null : At(choices, 1), choice1Label);
 
-            // 선택지 두 칸 — 표가 «choice_proceed» 라고 적은 줄에서만 둘이 된다.
-            if (_choice0 != null) _choice0.gameObject.SetActive(goesOn);
-            if (_choice1 != null) _choice1.gameObject.SetActive(twoWay);
+            // ★ 결과 단계에서만 «확인» — 본문 단계에서 닫기를 누르면 선택 없이 이벤트가
+            //   날아가므로, 그때는 라벨을 «닫기» 로 두어 «고르지 않고 물러난다» 를 분명히 한다.
+            if (_closeLabel != null) _closeLabel.text = resultStage ? finishLabel : "닫기";
+        }
 
-            if (_choice0Label != null) _choice0Label.text = twoWay ? choice0Label : continueLabel;
-            if (_choice1Label != null) _choice1Label.text = choice1Label;
+        static EventChoice At(System.Collections.Generic.List<EventChoice> list, int i) =>
+            list != null && i < list.Count ? list[i] : null;
 
-            // ★ 마지막 줄에서는 <b>닫기만</b> 남는다 — 결과 문장을 읽을 시간을 준다.
-            if (_closeLabel != null) _closeLabel.text = goesOn ? "닫기" : finishLabel;
+        /// <summary>버튼 한 칸을 표의 선택지에 맞춘다. <paramref name="choice"/> 가 null 이면 감춘다.</summary>
+        void SetChoice(Button button, TMP_Text label, EventChoice choice, string fallback)
+        {
+            if (button != null) button.gameObject.SetActive(choice != null);
+            if (label == null || choice == null) return;
+
+            label.text = string.IsNullOrWhiteSpace(choice.choiceText) ? fallback : choice.choiceText;
+        }
+
+        /// <summary>결과 대사와 효과 요약을 한 칸에 넣는다 — 빈 칸은 건너뛴다.</summary>
+        static string Join(string script, string effect)
+        {
+            bool a = !string.IsNullOrWhiteSpace(script);
+            bool b = !string.IsNullOrWhiteSpace(effect);
+            if (a && b) return script.Trim() + "\n\n" + effect.Trim();
+            return a ? script.Trim() : (b ? effect.Trim() : "");
         }
 
         void Answer(int choice)
         {
             _service ??= EventService.Instance;
-            _service?.Advance(choice);
+            _service?.Choose(choice);
         }
 
         // IExclusiveHudPanel — 다른 창이 열릴 때 이 창이 닫히는 통로.
         public bool IsOpen => gameObject.activeSelf;
 
         /// <summary>
-        /// 창만 닫는다 — <b>이벤트를 끝내지 않는다.</b> 표의 지속 효과는
-        /// «웨이브가 끝날 때까지» 이므로 창을 닫는 것으로 없어지면 안 된다.
+        /// ★★ <b>창을 닫으면 이벤트가 끝난다</b> (Ver013 · 표 «화면 흐름» 5번:
+        /// *"결과창을 닫으면 이벤트가 종료됩니다"*).
+        ///
+        /// ⚠ <b>지속 효과는 사라지지 않는다</b> — 효과마다 «몇 초» 가 표에 적혀 있고
+        ///   (<c>reward_duration</c>) 그 시간은 이벤트가 끝난 뒤에도 계속 흐른다
+        ///   (<see cref="LastSanctuary.Events.EventService.CloseCurrent"/> 의 ⚠⚠).
+        ///
+        /// ★ <b>서비스에 알려야 한다</b> — 예전에는 창만 껐다. 그러면 서비스의
+        ///   <c>Current</c> 가 남아 «이미 진행 중» 으로 보이고, <b>다음 이벤트가 영영 안 뜬다</b>.
+        /// ⚠ <c>HudExclusive</c> 가 다른 창을 열면서 이것을 부를 수도 있다 — 그때도
+        ///   이벤트를 끝내는 것이 맞다(창이 사라졌는데 이벤트가 살아 있으면 답할 방법이 없다).
         /// </summary>
         public void Close()
         {
             _presenting = false;
             gameObject.SetActive(false);
+
+            _service ??= EventService.Instance;
+            _service?.CloseCurrent("창 닫기");
         }
     }
 }

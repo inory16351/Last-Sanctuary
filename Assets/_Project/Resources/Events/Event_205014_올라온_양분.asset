@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65ad3cae191f5994a8004f1e5da8f97e, type: 3}
+  m_Name: Event_205014_올라온_양분
+  m_EditorClassIdentifier:
+  eventId: 205014
+  eventName: "올라온 양분"
+  triggerCond: "wave_end"
+  triggerValue: 0
+  weight: 12
+  repeatable: 1
+  choiceGroupId: 600014
+  eventBg: "bg_supply"
+  eventScript: "성역의 깊은 곳에서 양분이 올라왔습니다.\n넉넉하지는 않으나 굶주림을 달랠 만큼은 됩니다."
+  choices:
+  - choiceId: 300027
+    choiceOrder: 1
+    choiceText: "전부 먹여라."
+    resultScript: "천사들의 상처가 눈에 보이는 속도로 메워집니다.\n지금 채운 몸이 다음 파도를 받아낼 것입니다."
+    resultEffect: "효과 : 천사 전체 체력 회복 (최대 체력의 15%)"
+    rewardType01: "char_hp_percent_heal"
+    rewardValue01: 15
+    rewardDuration01: 0
+    rewardType02: ""
+    rewardValue02: 0
+    rewardDuration02: 0
+  - choiceId: 300028
+    choiceOrder: 2
+    choiceText: "곳간에 넣어라."
+    resultScript: "양분은 손대지 않은 채 곳간으로 옮겨졌습니다.\n배는 고프지만, 쓸 수 있는 것이 늘었습니다."
+    resultEffect: "효과 : 에너지 +300"
+    rewardType01: "energy_gain"
+    rewardValue01: 300
+    rewardDuration01: 0
+    rewardType02: ""
+    rewardValue02: 0
+    rewardDuration02: 0

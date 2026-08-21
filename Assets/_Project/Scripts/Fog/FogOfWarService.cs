@@ -335,6 +335,18 @@ namespace LastSanctuary.Fog
         public bool IsVisibleWorld(Vector3 worldPos) => IsVisible(WorldToCell(worldPos));
 
         /// <summary>
+        /// 월드 좌표 기준으로 <b>한 번이라도 밝혀진</b> 칸인지 (2026-08-21 신설).
+        ///
+        /// ★ <see cref="IsVisibleWorld"/> 와 <b>다르다</b> — 그쪽은 «지금 보이는가», 이쪽은
+        ///   «가 본 적이 있는가» 다. 토벌 목록(<c>EpicSubjugationService</c>)이 이 값을 쓴다:
+        ///   서식지는 움직이지 않으므로 <b>한 번 가 본 자리의 에픽</b>은 지금 아무도 보고
+        ///   있지 않아도 «어디 있는지 안다» 가 맞다.
+        /// ⚠ 칸 변환을 <see cref="WorldToCell"/> 한 곳에 맡긴다 — 좌표 규칙이 두 벌로
+        ///   갈리면 «목록엔 뜨는데 가 보면 없다» 가 된다.
+        /// </summary>
+        public bool IsExploredWorld(Vector3 worldPos) => IsExplored(WorldToCell(worldPos));
+
+        /// <summary>
         /// 아직 못 밝힌 칸 중 갈 만한 곳을 하나 고른다. 정찰 목표 선정용.
         /// 링을 넓혀가며 찾고, 같은 링에서는 무작위로 골라 여러 캐릭터가
         /// 한 곳으로 몰리지 않게 한다.

@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65ad3cae191f5994a8004f1e5da8f97e, type: 3}
+  m_Name: Event_205026_번지는_곰팡이
+  m_EditorClassIdentifier:
+  eventId: 205026
+  eventName: "번지는 곰팡이"
+  triggerCond: "wave_end"
+  triggerValue: 0
+  weight: 10
+  repeatable: 1
+  choiceGroupId: 600026
+  eventBg: "bg_wound"
+  eventScript: "성역의 그늘진 자리마다 흰 곰팡이가 피었습니다.\n마나를 다루는 천사들의 손끝에서 가장 먼저 번지기 시작했습니다."
+  choices:
+  - choiceId: 300051
+    choiceOrder: 1
+    choiceText: "그늘을 태워 없앤다."
+    resultScript: "곰팡이가 붙은 살까지 함께 태웠습니다.\n성역은 아파하면서도 자기 것을 되찾았습니다."
+    resultEffect: "효과 : 천사 전체 체력 −8% (최대 체력 기준) · 천사 전체 침식 −8"
+    rewardType01: "char_hp_percent_loss"
+    rewardValue01: 8
+    rewardDuration01: 0
+    rewardType02: "char_all_erosion_down"
+    rewardValue02: 8
+    rewardDuration02: 0
+  - choiceId: 300052
+    choiceOrder: 2
+    choiceText: "걷어내서 양분으로 삼는다."
+    resultScript: "곰팡이는 곳간으로 옮겨져 양분이 됐습니다.\n손끝에 남은 것은 아직 마르지 않았습니다."
+    resultEffect: "효과 : 에너지 +250 · 천사 전체 마법 공격력 −8% (240초)"
+    rewardType01: "energy_gain"
+    rewardValue01: 250
+    rewardDuration01: 0
+    rewardType02: "char_magic_atk_durat_down"
+    rewardValue02: 8
+    rewardDuration02: 240

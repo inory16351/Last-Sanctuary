@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65ad3cae191f5994a8004f1e5da8f97e, type: 3}
+  m_Name: Event_207003_얼금뱅이_소
+  m_EditorClassIdentifier:
+  eventId: 207003
+  eventName: "얼금뱅이 소"
+  triggerCond: "habitat_contact"
+  triggerValue: 1103
+  weight: 0
+  repeatable: 0
+  choiceGroupId: 600042
+  eventBg: "bg_habitat_1103"
+  eventScript: "성역의 표면이 곰보처럼 패였습니다.\n그 구덩이 하나하나가 숨을 쉬고 있으며, 가운데에 앉은 것이 그 숨의 주인입니다."
+  choices:
+  - choiceId: 300083
+    choiceOrder: 1
+    choiceText: "구덩이를 메우고 짓밟는다."
+    resultScript: "패인 자리가 하나씩 메워졌습니다.\n다시 평평해진 살 위에서 천사들의 발이 든든합니다."
+    resultEffect: "효과 : 천사 전체 방어력 +12% (300초) · 천사 전체 체력 회복 (최대 체력의 10%)"
+    rewardType01: "char_def_durat_up"
+    rewardValue01: 12
+    rewardDuration01: 300
+    rewardType02: "char_hp_percent_heal"
+    rewardValue02: 10
+    rewardDuration02: 0
+  - choiceId: 300084
+    choiceOrder: 2
+    choiceText: "구덩이에서 나오는 것을 받아 담는다."
+    resultScript: "천사들은 숨구멍에서 흘러나오는 것을 그릇에 받았습니다.\n곳간은 넘쳤고, 받아 든 손은 오래 씻어야 합니다."
+    resultEffect: "효과 : 에너지 +400 · 천사 전체 침식 +12"
+    rewardType01: "energy_gain"
+    rewardValue01: 400
+    rewardDuration01: 0
+    rewardType02: "char_all_erosion_up"
+    rewardValue02: 12
+    rewardDuration02: 0

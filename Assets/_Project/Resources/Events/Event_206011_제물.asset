@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65ad3cae191f5994a8004f1e5da8f97e, type: 3}
+  m_Name: Event_206011_제물
+  m_EditorClassIdentifier:
+  eventId: 206011
+  eventName: "제물"
+  triggerCond: "private_timer"
+  triggerValue: 0
+  weight: 6
+  repeatable: 1
+  choiceGroupId: 600039
+  eventBg: "bg_mind"
+  eventScript: "성역이 무언가를 요구합니다.\n말은 없지만 천사들은 그것이 무엇인지 알고 있습니다.\n한 사람의 몸이면 나머지가 며칠은 더 버틸 수 있습니다."
+  choices:
+  - choiceId: 300077
+    choiceOrder: 1
+    choiceText: "한 사람을 내준다."
+    resultScript: "성역은 받은 것을 곧바로 양분으로 바꿨습니다.\n대열에서 한 자리가 비었고, 아무도 그 이름을 부르지 않았습니다."
+    resultEffect: "효과 : 천사 1명 사망 (확률 100%) · 에너지 +400"
+    rewardType01: "char_die"
+    rewardValue01: 100
+    rewardDuration01: 0
+    rewardType02: "energy_gain"
+    rewardValue02: 400
+    rewardDuration02: 0
+  - choiceId: 300078
+    choiceOrder: 2
+    choiceText: "아무도 내주지 않는다."
+    resultScript: "성역의 요구는 거절당했습니다.\n대신 누군가 혼자서 그 몫을 앓기 시작했고, 심장의 박동이 얕아졌습니다."
+    resultEffect: "효과 : 천사 1명 침식 +30 · 성역 체력 −8%"
+    rewardType01: "char_erosion_up"
+    rewardValue01: 30
+    rewardDuration01: 0
+    rewardType02: "nexus_percent_loss"
+    rewardValue02: 8
+    rewardDuration02: 0

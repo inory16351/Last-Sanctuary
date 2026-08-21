@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65ad3cae191f5994a8004f1e5da8f97e, type: 3}
+  m_Name: Event_205001_식후_정리
+  m_EditorClassIdentifier:
+  eventId: 205001
+  eventName: "식후 정리"
+  triggerCond: "wave_end"
+  triggerValue: 0
+  weight: 12
+  repeatable: 1
+  choiceGroupId: 600001
+  eventBg: "bg_aftermath"
+  eventScript: "전장에 남은 것은 적들의 유해뿐입니다.\n속에서부터 올라오는 혐오감을 집어삼키며, 천사들은 시체를 한데 모읍니다.\n이 잔해를 어떻게 처리할지는 성역의 뜻에 달렸습니다."
+  choices:
+  - choiceId: 300001
+    choiceOrder: 1
+    choiceText: "모조리 불태워라!!"
+    resultScript: "유해가 타오르며 성역의 온도가 오릅니다.\n열기에 감화된 천사들의 손놀림이 눈에 띄게 빨라졌습니다."
+    resultEffect: "효과 : 천사 전체 공격 속도 +8% (240초)"
+    rewardType01: "char_atk_spd_durat_up"
+    rewardValue01: 8
+    rewardDuration01: 240
+    rewardType02: ""
+    rewardValue02: 0
+    rewardDuration02: 0
+  - choiceId: 300002
+    choiceOrder: 2
+    choiceText: "먹어치우자!!"
+    resultScript: "천사들은 유해를 삼켜 성역의 양분으로 바꿉니다.\n목을 넘긴 뒤의 뒷맛은 생각보다 오래 남습니다."
+    resultEffect: "효과 : 에너지 +200 · 천사 전체 침식 +5"
+    rewardType01: "energy_gain"
+    rewardValue01: 200
+    rewardDuration01: 0
+    rewardType02: "char_all_erosion_up"
+    rewardValue02: 5
+    rewardDuration02: 0

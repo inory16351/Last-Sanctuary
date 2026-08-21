@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 65ad3cae191f5994a8004f1e5da8f97e, type: 3}
+  m_Name: Event_205015_낯선_합류자
+  m_EditorClassIdentifier:
+  eventId: 205015
+  eventName: "낯선 합류자"
+  triggerCond: "wave_end"
+  triggerValue: 0
+  weight: 6
+  repeatable: 1
+  choiceGroupId: 600015
+  eventBg: "bg_aftermath"
+  eventScript: "유해 사이에서 천사 하나가 몸을 일으킵니다.\n우리 편의 얼굴을 하고 있습니다. 다만 언제부터 저기 있었는지 아무도 기억하지 못합니다."
+  choices:
+  - choiceId: 300029
+    choiceOrder: 1
+    choiceText: "받아들인다."
+    resultScript: "성역은 그를 우리로 세었습니다.\n숫자는 늘었고, 밤마다 확인해야 할 얼굴도 하나 늘었습니다."
+    resultEffect: "효과 : 천사 1명 합류 (확률 100%) · 천사 전체 침식 +10"
+    rewardType01: "char_join"
+    rewardValue01: 100
+    rewardDuration01: 0
+    rewardType02: "char_all_erosion_up"
+    rewardValue02: 10
+    rewardDuration02: 0
+  - choiceId: 300030
+    choiceOrder: 2
+    choiceText: "베어버린다."
+    resultScript: "칼이 먼저 움직였습니다.\n남은 것은 익숙한 형태의 양분이었고, 대열의 의심은 사라졌습니다."
+    resultEffect: "효과 : 에너지 +150 · 천사 전체 침식 −5"
+    rewardType01: "energy_gain"
+    rewardValue01: 150
+    rewardDuration01: 0
+    rewardType02: "char_all_erosion_down"
+    rewardValue02: 5
+    rewardDuration02: 0
