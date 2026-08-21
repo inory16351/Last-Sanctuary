@@ -19,8 +19,8 @@ MonoBehaviour:
   minEnergy: 600
   maxEnergy: 800
   attackStat: 0
-  hpStat: 50
-  defenseStat: 15
+  hpStat: 410
+  defenseStat: 40
   regenStat: 1
   detectRange: 6
   attackRange: 1.2
@@ -43,7 +43,7 @@ MonoBehaviour:
   habitatTileAsset: PolyirHabitat
   titleKey: epic_boss_title_1104
   hpPercent: 100
-  rangedAttackStat: 9
+  rangedAttackStat: 220
   magicStat: 0
   cureStat: 0
   accuracyStat: 50

@@ -18,9 +18,9 @@ MonoBehaviour:
   template: {fileID: 0}
   minEnergy: 400
   maxEnergy: 600
-  attackStat: 25
-  hpStat: 45
-  defenseStat: 10
+  attackStat: 150
+  hpStat: 352
+  defenseStat: 35
   regenStat: 10
   detectRange: 6
   attackRange: 1.2
