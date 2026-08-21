@@ -108,8 +108,7 @@ namespace LastSanctuary.Combat
         /// </summary>
         static CharacterDefinitionSO BuildDefinition(CharacterUnit owner, PassiveSkillSO so)
         {
-            int baseStat = owner.EffectiveStat(owner.AttackStatType);
-            int value = Mathf.Max(1, Mathf.RoundToInt(baseStat * so.value01 * 0.01f));
+            int value = StatValueFor(owner, so);
 
             var def = ScriptableObject.CreateInstance<CharacterDefinitionSO>();
             def.name = "Character_Summon_AruGolem";
@@ -124,17 +123,61 @@ namespace LastSanctuary.Combat
             def.attackPreset = RoleAttackPreset.Melee;      // 정의문 "근접 / 전방으로 고정"
             def.positionPreset = RolePositionPreset.Front;
 
-            def.stats = new StatBlock
-            {
-                hp = value, attack = value, defense = value, regen = value,
-                rangedAttack = value, magic = value, cure = value,
-                accuracy = value, critical = value,
-                attackSpeed = value, moveSpeed = value,
-                // ⚠ 저항력만 예외다 — 침식이 <b>아예 없는</b> 유닛이라 이 값이 쓰일 곳이 없다.
-                //   0 으로 두면 로스터의 저항 칸이 «0» 으로 뜨므로 기준값 50 을 넣는다.
-                resistance = 50,
-            };
+            def.stats = StatsOf(value);
             return def;
+        }
+
+        /// <summary>
+        /// 「강림」의 능력치 값 — <b>아루가 지금 쓰는 공격 능력치의 value01%</b>.
+        /// <see cref="BuildDefinition"/> 과 <see cref="SyncStats"/> 가 <b>같은 한 줄</b>을 쓰게
+        /// 따로 뺐다(규칙이 두 벌이면 소환 직후와 성장 뒤의 값이 어긋난다).
+        /// </summary>
+        static int StatValueFor(CharacterUnit owner, PassiveSkillSO so)
+        {
+            int baseStat = owner.EffectiveStat(owner.AttackStatType);
+            return Mathf.Max(1, Mathf.RoundToInt(baseStat * so.value01 * 0.01f));
+        }
+
+        /// <summary>한 값을 <b>모든 칸에</b> 넣은 능력치 묶음(정의문: «모든 능력치»).</summary>
+        static StatBlock StatsOf(int value) => new StatBlock
+        {
+            hp = value, attack = value, defense = value, regen = value,
+            rangedAttack = value, magic = value, cure = value,
+            accuracy = value, critical = value,
+            attackSpeed = value, moveSpeed = value,
+            // ⚠ 저항력만 예외다 — 침식이 <b>아예 없는</b> 유닛이라 이 값이 쓰일 곳이 없다.
+            //   0 으로 두면 로스터의 저항 칸이 «0» 으로 뜨므로 기준값 50 을 넣는다.
+            resistance = 50,
+        };
+
+        /// <summary>
+        /// ★★ <b>아루가 성장하면 골렘도 그 자리에서 같이 성장한다</b> (2026-08-21 · 유저 지시:
+        /// *"아루가 성장할 때 마다 골렘도 실시간으로 성장(지금은 골렘이 죽고 아루가 성장한
+        /// 상태에서 다시 골렘이 리스폰되면 골렘도 성장한 채로 나옴)"*).
+        ///
+        /// <b>무엇이 어긋났나</b> — 골렘의 능력치는 <see cref="Summon"/> 시점에 <b>한 번</b>
+        /// 계산해 정의 에셋에 구워 넣는 값이었다. 그래서 아루를 강화해도 <b>이미 서 있는
+        /// 골렘은 그대로</b>였고, 죽고 다시 소환될 때만 새 값으로 나왔다.
+        ///
+        /// → 매 프레임 <b>같은 식</b>(<see cref="StatValueFor"/>)을 다시 계산해서 값이 달라졌을
+        ///   때만 덮어쓴다. 강화뿐 아니라 <b>능력치 보정·패시브·정신 이상</b>으로 아루의 값이
+        ///   변할 때도 저절로 따라간다 — «아루가 사용하는 능력치의 value01%» 라는 정의문을
+        ///   시점이 아니라 <b>상태</b>로 읽은 것이다.
+        ///
+        /// ★ <see cref="CharacterUnit.ApplyStats"/> 를 쓴다 — <b>체력 비율을 유지</b>하는
+        ///   경로다(성장 시스템이 쓰는 것과 같은 함수). 반쯤 다친 골렘이 아루의 강화로
+        ///   갑자기 만피가 되지 않는다.
+        /// ⚠ 값이 같으면 <b>아무것도 하지 않는다</b> — 매 프레임 <c>ApplyStats</c> 를 부르면
+        ///   반올림 때문에 체력이 1 씩 흔들린다.
+        /// </summary>
+        public static void SyncStats(CharacterUnit owner, CharacterUnit golem, PassiveSkillSO so)
+        {
+            if (owner == null || golem == null || so == null || !golem.IsAlive) return;
+
+            int value = StatValueFor(owner, so);
+            if (golem.Stats.attack == value) return;      // 이미 그 값이다
+
+            golem.ApplyStats(StatsOf(value));
         }
 
         /// <summary>
@@ -143,18 +186,19 @@ namespace LastSanctuary.Combat
         /// </summary>
         static void ApplyRules(CharacterUnit owner, CharacterUnit golem, PassiveSkillSO so)
         {
-            // ── 크기 : 가로 value02 · 세로 value03 타일 ──
-            //
-            // ★★ 2026-08-21 — <b>표 값을 그대로 쓴다</b> (유저 지시: *"골렘 크기 테이블
-            //   값대로 적용 안됐음 테이블 스킬 타입 스트링 키 다시 읽어보고 맞는 방향으로
-            //   수정해줘"*). 정의문은 <b>"골렘의 크기는 타일 기준 {value_02}(가로) *
-            //   {value_03}(세로) 입니다"</b> 라고 <b>어느 쪽이 가로인지 못박고 있다.</b>
-            //   그래서 <see cref="OrientBoxToArt"/> 의 «원화가 서 있으면 상자를 세운다» 는
-            //   해석을 <b>버렸다</b> — 그것은 표를 코드가 뒤집는 일이었다.
-            //   ⚠ 그 함수의 긴 주석은 «왜 그렇게 했었는지» 의 기록으로 남겨 둔다.
+            // ── 크기 : 가로 value02 · 세로 value03 타일 (아래 <see cref="FillBoxHeight"/>) ──
             var anim = golem.GetComponent<CharacterAnimator>();
             if (anim != null && so.value02 > 0f && so.value03 > 0f)
-                anim.SetColliderBoxTiles(so.value02, so.value03);
+            {
+                float height = FillBoxHeight(anim, so.value02, so.value03);
+                if (height > 0f)
+                {
+                    // ⚠ <b>순서가 있다</b> — 콜라이더 상자가 남아 있으면
+                    //   <see cref="CharacterAnimator.ResolveScale"/> 가 그쪽(contain)을 먼저 본다.
+                    anim.SetColliderBoxTiles(0f, 0f);
+                    anim.SetRenderHeightTiles(height);
+                }
+            }
 
             // ── 침식이 일어나지 않는다 : 컴포넌트를 아예 끈다 ──
             //    (템플릿에 붙어 있으므로 «안 붙이기» 가 아니라 «끄기» 가 맞다.
@@ -165,6 +209,17 @@ namespace LastSanctuary.Combat
             var tactics = golem.GetComponent<CharacterTactics>();
             if (tactics != null)
             {
+                // ── 배회 범위 : 주인의 값을 물려받는다 (2026-08-21) ──
+                //
+                // ★ 골렘의 지침은 <b>템플릿 기본값</b>으로 시작한다 — 배회 범위도 «근방» 이다.
+                //   그런데 골렘은 <b>아루 옆</b>에 나타나므로, 아루가 «전역»으로 멀리 나가 있으면
+                //   골렘은 <b>태어난 순간부터 자기 배회 한계 밖</b>이다. 그 상태에서는
+                //   <c>CharacterBehavior.IsBeyondRoamLimit</c> 이 <b>새 사냥감을 물지 못하게</b>
+                //   막으므로(먼저 돌아오라는 규칙), 눈앞의 중립 몬스터를 그냥 지나친다.
+                // ⚠ 주인의 값을 <b>잠그기 전에</b> 넣는다 — 잠근 뒤에는 이 통로도 막힌다.
+                var ownerTactics = owner.GetComponent<CharacterTactics>();
+                if (ownerTactics != null) tactics.SetRoamRange(ownerTactics.Order.roamRange);
+
                 // ── 후퇴하지 않는다 : 기준을 0% 로 두고 <b>잠근다</b> ──
                 //    「가학증」이 쓰는 잠금과 같은 통로다(값만 다르다) — 잠긴 칸은 UI 로도
                 //    코드로도 못 바꾼다(CharacterTactics.SetRetreatHpPercent 의 첫 줄).
@@ -203,56 +258,52 @@ namespace LastSanctuary.Combat
         }
 
         /// <summary>
-        /// ★★ <b>상자를 원화 방향에 맞춘다</b> (2026-08-20 · 유저 리포트
-        /// *"아루 스킨 골렘 크기도 지금 안 맞음 그것도 고쳐"*).
+        /// ★★ <b>표의 상자를 «꽉 채우는» 세로 크기(타일)</b> — 골렘이 실제로 그려질 키다.
         ///
         /// <b>무엇이 어긋났나</b> — 표의 골렘 상자는 <b>3(가로) x 2(세로)</b>, 즉 <b>눕힌 상자</b>다.
         /// 그런데 원화는 <b>서 있는 골렘</b>이라 세로가 길다(실측 1.469 x 2.078 · 비율 0.71).
-        /// <see cref="CharacterAnimator"/> 는 «상자 <b>안에</b> 들어가는 최대 배율»(contain)로
-        /// 맞추므로, 선 그림을 눕힌 상자에 넣으면 <b>세로에 걸려</b> 배율이 0.962 가 된다:
+        /// <see cref="CharacterAnimator"/> 의 콜라이더 상자는 «상자 <b>안에</b> 들어가는 최대
+        /// 배율»(contain)이라, 선 그림을 눕힌 상자에 넣으면 <b>세로에 걸려</b> 배율이 0.962 가 되고
+        /// 골렘이 <b>1.41 x 2.00 타일</b> — 즉 <b>소환한 사람보다 작아진다</b>(아루 1.82 x 2.15).
+        ///
+        /// ★★ <b>유저 확정 (2026-08-21)</b> — 유저 리포트 *"아루 골렘 크기가 3x2 타일 크기로
+        ///   아마 내가 설정했을 텐데 <b>여전히 캐릭터 크기랑 동일함</b>"*. 세 안을 숫자로 놓고
+        ///   물었고 유저가 <b>「상자를 꽉 채운다」</b> 를 골랐다:
         ///
         /// <code>
-        ///   골렘  1.41 x 2.00 타일     ← 지금 (세로에 걸렸다)
-        ///   아루  2.07 x 2.15 타일     ← 캐릭터는 renderHeightTiles 2.15 로 그려진다
+        ///   캐릭터        1.82 x 2.15 타일
+        ///   contain       1.41 x 2.00 타일   ← 캐릭터보다 작다 (원래 버그)
+        ///   상자 돌리기   2.00 x 2.83 타일   ← 2026-08-20 의 보정. 32% 크지만 «같아 보인다»
+        ///   ★ cover      3.00 x 4.24 타일   ← 지금. <b>표의 «가로 3타일» 을 그대로 지킨다</b>
         /// </code>
         ///
-        /// 즉 <b>소환한 골렘이 소환한 사람보다 작다.</b> 그것이 «크기가 안 맞는» 정체였다.
+        /// 그래서 배율을 <b>두 변 중 더 넉넉한 쪽</b>으로 잡는다(cover):
+        /// <c>배율 = max(가로 ÷ 원화가로, 세로 ÷ 원화세로)</c>. 3x2 · 1.469x2.078 이면
+        /// <c>max(2.042, 0.962) = 2.042</c> → 3.00 x 4.24.
         ///
-        /// ★ 고치는 방법 — <b>상자를 원화 방향으로 돌린다.</b> 표의 두 값은 «골렘이 차지하는
-        ///   두 변» 이고 <b>어느 쪽이 가로인지는 원화가 정한다</b>고 읽는 것이 맞다.
-        ///   이 프로젝트에는 이미 같은 판단이 있다 — 탈진 구간에서 «누운 그림이면 상자도
-        ///   눕힌다»(<see cref="CharacterAnimator"/> 의 <c>ResolveScale</c> 안 ★★ 주석).
-        ///   여기서는 그 반대편(선 그림이면 상자도 세운다)이다.
+        /// ★ <b>왜 콜라이더 상자가 아니라 세로 크기로 돌려주나</b> — 콜라이더 상자 경로는
+        ///   구조적으로 contain 이고, 그 규칙은 <b>몬스터 전원</b>이 쓴다(«그림이 판정 밖으로
+        ///   삐져나가지 않게»). 골렘 하나를 위해 그 규칙을 흔들 이유가 없다. 캐릭터는 원래
+        ///   <c>renderHeightTiles</c>(세로 전용) 경로로 그려지므로, <b>같은 문으로</b>
+        ///   더 큰 키를 넣어 주는 것이 이 프로젝트의 결에 맞는다.
+        ///   ⚠ 그래도 <b>«보이는 몸집 = 판정 몸집»</b> 은 지켜진다 —
+        ///   <see cref="CharacterAnimator.ColliderSizeTiles"/> 가 <b>그려진 크기</b>를 돌려주기 때문이다.
         ///
-        /// 결과: 상자 2 x 3 → 배율 1.362 → 골렘 <b>2.00 x 2.83 타일</b>.
-        /// 아루와 <b>같은 폭에 1.3배 키</b> — 「강림」한 골렘다운 몸집이 된다.
-        ///
-        /// ⚠ <b>표를 고치지 않는다.</b> 표의 3x2 는 사람이 적은 값이고, 기획이 그 문장을
-        ///   바꾸면 이 규칙이 저절로 따라가야 한다. 여기서 돌리는 것은 <b>원화가 서서
-        ///   그려져 왔기 때문</b>이며, 원화가 눕는 날에는 저절로 안 돌아간다.
-        /// ⚠ 원화 실측값이 없으면(스킨 미배선) <b>표 값을 그대로</b> 쓴다 — 지어내지 않는다.
-        ///
-        /// ⚠⚠ <b>2026-08-21 — 이 함수는 더 이상 쓰지 않는다.</b> 정의문이
-        ///   *"{value_02}(가로) * {value_03}(세로)"* 로 <b>축을 못박고</b> 있어서, 상자를
-        ///   돌리는 것은 «표를 코드가 뒤집는» 일이었다(유저 지시로 되돌렸다).
-        ///   기록으로 남긴다 — 골렘이 아루보다 작아 보이는 것이 문제라면 <b>표의 3x2 를
-        ///   기획이 고치는</b> 것이 맞는 방향이다.
+        /// ⚠ <b>표를 고치지 않는다.</b> 표의 3x2 는 기획이 적는 값이고, 그 문장이 바뀌면
+        ///   이 계산이 저절로 따라가야 한다.
+        /// ⚠ 원화 실측값이 없으면(스킨 미배선) <b>0</b> 을 돌려준다 — 부르는 쪽이 크기를
+        ///   건드리지 않고 템플릿 값(2.15)을 그대로 쓴다. 지어내지 않는다.
         /// </summary>
-#pragma warning disable IDE0051     // 기록용으로 남긴 함수 — 위 ⚠⚠
-        static Vector2 OrientBoxToArt(CharacterAnimator anim, float widthTiles, float heightTiles)
+        static float FillBoxHeight(CharacterAnimator anim, float widthTiles, float heightTiles)
         {
-            var box = new Vector2(widthTiles, heightTiles);
             CharacterSkinSO skin = anim.Skin;
-            if (skin == null) return box;
+            if (skin == null) return 0f;
 
             Vector2 art = skin.contentSizeTiles;
-            if (art.x <= 0.0001f || art.y <= 0.0001f) return box;
+            if (art.x <= 0.0001f || art.y <= 0.0001f) return 0f;
 
-            bool artStanding = art.y > art.x;      // 원화가 서 있다
-            bool boxLying = box.x > box.y;         // 상자가 누워 있다
-            if (artStanding == boxLying)           // 방향이 어긋난다 → 상자를 돌린다
-                box = new Vector2(box.y, box.x);
-            return box;
+            float scale = Mathf.Max(widthTiles / art.x, heightTiles / art.y);
+            return scale * art.y;
         }
 #pragma warning restore IDE0051
 
@@ -280,7 +331,23 @@ namespace LastSanctuary.Combat
             DamageableUnit target = ownerCombat.Target;
             if (target == null || !target.IsAlive || target.Faction == owner.Faction)
             {
-                golemCombat.ClearHuntTarget();
+                // ★★ 2026-08-21 — <b>주인이 표적을 놓았다고 골렘의 «자기 사냥» 까지 놓으면 안 된다</b>
+                //    (유저 리포트: *"아루의 골렘이 비전투 상황일 때 중립몹은 공격 안 하는 문제"*).
+                //
+                //    <b>무엇이 어긋났나</b> — 이 함수는 <b>매 프레임</b> 불린다. 그래서 아루가
+                //    싸우지 않는 동안 «무조건 ClearHuntTarget» 은 골렘이 스스로 문 사냥감을
+                //    <b>문 프레임에 바로 다시 뱉게</b> 만들었다: 골렘의 <c>CharacterBehavior</c> 가
+                //    중립을 찾아 <c>SetHuntTarget</c> 을 해도 다음 프레임에 여기서 지워지고,
+                //    <c>ClearHuntTarget</c> 은 타겟까지 비우므로(그 함수) <b>한 대도 못 때린다.</b>
+                //
+                //    ★ 그래서 <b>주인에게서 물려받은 표적만</b> 놓는다. 구분은 <b>진영</b>으로 한다 —
+                //      골렘이 <b>스스로</b> 무는 사냥감은 언제나 중립이고(<c>TryFindHuntPrey</c> 는
+                //      <c>Faction.Neutral</c> 만 고른다), 그 밖의 사냥감은 여기서 넣은 것밖에 없다
+                //      (골렘은 침식을 끄므로 「혼란」이 잡는 사냥감도 없다 — <see cref="ApplyRules"/>).
+                //    ⚠ 물려받은 것이 <b>중립</b>이었으면 그대로 둔다 — 골렘이 원래 사냥할 상대이고,
+                //      죽거나 너무 멀리 도망가면 <c>UnitCombat</c> 이 스스로 놓는다(추격 한계).
+                DamageableUnit hunted = golemCombat.HuntTarget;
+                if (hunted != null && hunted.Faction != Faction.Neutral) golemCombat.ClearHuntTarget();
                 return;
             }
             golemCombat.SetHuntTarget(target);

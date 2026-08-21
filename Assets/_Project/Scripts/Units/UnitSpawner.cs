@@ -244,7 +244,23 @@ namespace LastSanctuary.Units
             // 캐릭터 테이블에 정의된 인물이 있으면 그 중 하나로 만든다.
             // 정의가 하나도 없으면(에셋 미배치 등) 예전처럼 능력치를 무작위로 굴린다 —
             // 이 폴백이 있어야 정의 에셋을 못 읽어도 게임이 그냥 돌아간다.
+            //
+            // ★★ 2026-08-21 — <b>«다 나왔다» 와 «정의가 없다» 를 가른다</b>
+            //   (유저 지시: *"같은 캐릭터 중복 생성 안되게 설정"*).
+            //   재등장 금지를 켠 뒤로는 <see cref="CharacterDefinitionRegistry.Pick"/> 이
+            //   <b>인물을 다 써서</b> null 을 줄 수 있다. 그때 아래 폴백으로 떨어지면
+            //   <b>이름도 스킨도 없는 «무작위 능력치» 캐릭터</b>가 태어난다 — 중복을 막으려고
+            //   켠 규칙이 «무명 캐릭터 양산» 으로 새는 셈이다. 그래서 그 경우에는
+            //   <b>만들지 않고 되돌린다</b>(부르는 쪽이 비용을 환불한다).
             CharacterDefinitionSO def = CharacterDefinitionRegistry.Pick(_rng);
+            if (def == null && CharacterDefinitionRegistry.Exhausted)
+            {
+                Debug.LogWarning("[UnitSpawner] 등장할 인물이 남지 않아 생성을 취소했습니다.", this);
+                Destroy(unit.gameObject);
+                _usedCells.Remove(cell);
+                return null;
+            }
+
             if (def != null)
             {
                 unit.InitializeFrom(def, balance);

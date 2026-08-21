@@ -1,0 +1,58 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 18e202102e9bc194dbbe06c73ec9a070, type: 3}
+  m_Name: NeutralMonster_8
+  m_EditorClassIdentifier:
+  monId: 1104
+  nameKey: mon_name_1104
+  displayName: NeutralMonster_8
+  template: {fileID: 0}
+  minEnergy: 600
+  maxEnergy: 800
+  attackStat: 0
+  hpStat: 50
+  defenseStat: 15
+  regenStat: 1
+  detectRange: 6
+  attackRange: 1.2
+  attacksPerSecond: 0.822
+  moveSpeedTiles: 2.389
+  leashRangeTiles: 6
+  spawnRangeMinTiles: 200
+  spawnRangeMaxTiles: 320
+  maxAlive: 1
+  respawnSeconds: 800
+  attackType: 1
+  groupMaking: 0
+  groupMember: 0
+  packRetaliate: 0
+  epic: 1
+  colliderHeightTiles: 10
+  colliderWidthTiles: 14
+  illustName: Polyir_illust
+  skinAssetName: Polyir
+  habitatTileAsset: PolyirHabitat
+  titleKey: epic_boss_title_1104
+  hpPercent: 100
+  rangedAttackStat: 9
+  magicStat: 0
+  cureStat: 0
+  accuracyStat: 50
+  criticalStat: 0
+  resistanceStat: 50
+  habitatRadiusTiles: 14
+  habitatChaseTiles: 8
+  habitatIdleSlackTiles: 1
+  skillIds:
+  - 2007
+  - 2008
+  - 2009

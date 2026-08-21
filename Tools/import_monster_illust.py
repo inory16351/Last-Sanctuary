@@ -85,6 +85,11 @@ ILLUSTS = [
     # ★ 웨이브 보스 베일(120005) — 2026-08-20. 원본 이름이 표(wave_top_boss.illust =
     #   `Bale_illust`)와 같아서 바로잡을 것이 없다.
     (os.path.join("monster_cancer", "Bale_illust.png"),                      "Bale_illust"),
+    # ★ 중립 에픽 폴리르(1104) — 2026-08-21. 원본 이름이 표(`mon_illust` = `Polyir_illust`)와
+    #   같아서 바로잡을 것이 없다.
+    #   ⚠ 폴더는 `epic_boss` 가 아니라 <b>`neutrality nomal monster`</b> 다 — 에픽인데도
+    #     그쪽에 들어 있다(작가가 넣은 자리 그대로 읽는다 · 원본을 옮기지 않는다).
+    (os.path.join("neutrality nomal monster", "Polyir_illust.png"),          "Polyir_illust"),
 ]
 
 #: 초상화용 임포트 설정. `Resources/Illust/illust_*.png.meta` 와 같은 값이다

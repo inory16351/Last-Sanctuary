@@ -1,0 +1,47 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5dbe527860d1cbe42a3efae9fd5cb4b2, type: 3}
+  m_Name: Monster_Legimia
+  m_EditorClassIdentifier:
+  monsterId: 120006
+  nameKey: monster_name_120006
+  displayName: Monster_Legimia
+  titleKey: boss_title_120006
+  tier: 2
+  template: {fileID: 0}
+  hpStat: 174
+  attackStat: 20
+  defenseStat: 30
+  regenStat: 3
+  rangedAttackStat: 15
+  magicStat: 0
+  cureStat: 0
+  accuracyStat: 50
+  criticalStat: 5
+  resistanceStat: 50
+  hpPercent: 100
+  attackType: 0
+  detectRange: 10
+  attackRange: 2.0
+  attacksPerSecond: 0.822
+  moveSpeedTiles: 2.25
+  footprintTiles: 1
+  bodyWidthTiles: 2
+  bodyHeightTiles: 3
+  spriteScale: 0.75
+  renderHeightTiles: 0
+  colliderWidthTiles: 15
+  colliderHeightTiles: 10
+  bossSkillIds:
+  - 130011
+  - 130012
+  illustName: Legimia_illust

@@ -22,6 +22,7 @@ MonoBehaviour:
   value03: 3
   value04: 0
   value05: 0
+  value06: 0
   erosionValue: 0
   coolTime: 20
   castSeconds: 2

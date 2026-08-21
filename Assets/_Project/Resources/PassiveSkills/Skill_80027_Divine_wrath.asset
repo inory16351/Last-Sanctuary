@@ -25,7 +25,7 @@ MonoBehaviour:
   value04: 150
   value05: 5
   value06: 20
-  coolTime: 67
+  coolTime: 60
   iconName: 'icon_lightning_strike'
   flavorText: '천상에서 쫓겨난 자가 내리는 천벌이야말로 가장 무겁습니다.'
   detailText: '정신을 집중한 뒤 직사각형 범위의 적을 내리칩니다. 맞은 적은 잠시 방어력이 낮아집니다.'

@@ -161,6 +161,11 @@ namespace LastSanctuary.Combat
             EnsureReady();
             if (service == null || _self == null || !_self.IsAlive) return;
 
+            // ★ 소환수는 침식하지 않는다 — 부르는 쪽(<see cref="ErosionService"/>)이 이미
+            //   걸러내지만, 다른 경로가 생겼을 때도 규칙이 지켜지도록 여기서도 막는다.
+            //   («일어나지 않는다» 는 정의문이므로 한 곳만 지키는 것으로 두지 않는다.)
+            if (_character != null && _character.IsSummoned) return;
+
             TickActiveState(service, dt);
 
             if (!service.EnableErosion) return;

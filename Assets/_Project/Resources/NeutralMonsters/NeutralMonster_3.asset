@@ -48,3 +48,4 @@ MonoBehaviour:
   illustName: TumorMole_illust
   skinAssetName: TumorMole
   habitatTileAsset: 
+  hpPercent: 100

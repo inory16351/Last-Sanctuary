@@ -123,6 +123,20 @@ namespace LastSanctuary.Units
         [Tooltip("저항력 (resistance). 표시용 — 중립은 침식을 받지 않는다")]
         [Min(0)] public int resistanceStat = 50;
 
+        [Header("체력 배율 (표 hp_percent) — 에픽/보스형 전용 손잡이")]
+        [Tooltip("★ 2026-08-21 신설 (유저 지시: 중립 몬스터에게도 체력 배율 추가 · 특히 보스 " +
+                 "몬스터 칼럼 추가하고 테이블에도 추가). " +
+                 "체력 = hp 능력치 x 이 값(%) 을 치환 공식에 넣는다. 100 이면 예전과 같다. " +
+                 "<b>왜 필요한가</b> — 중립은 <b>웨이브 배율을 받지 않는다</b>(설계). " +
+                 "그래서 에픽 보스의 체력을 키우려면 표의 hp 칸을 계속 키워야 하는데, " +
+                 "그 칸은 <b>다른 종과 같은 척도</b>라 «40 vs 4000» 처럼 벌어지면 표를 읽기 " +
+                 "어려워진다. 배율 칸을 따로 두면 «이 종은 기본 체력의 몇 배인가» 를 한눈에 본다. " +
+                 "⚠ 웨이브 몬스터의 같은 이름 칸(MonsterDefinitionSO.hpPercent)은 " +
+                 "<b>더 이상 쓰지 않는다</b> — 그쪽은 능력치 상한을 우회하려던 칸이었고 " +
+                 "상한이 없어져 필요가 사라졌다. 이 칸은 <b>상한이 아니라 척도</b> 문제를 " +
+                 "푸는 것이므로 성격이 다르다.")]
+        [Min(1)] public int hpPercent = 100;
+
         // ==================================================================
         // ★ 무리 (테이블 group_making / group_member / atk_take) — 2026-08-15 재정의
         //
@@ -359,24 +373,58 @@ namespace LastSanctuary.Units
         }
 
         /// <summary>
-        /// 웨이브 배율 없이 그대로 쓰는 능력치 묶음.
+        /// 웨이브 배율 없이 쓰는 능력치 묶음 — <b>체력 배율</b>(<see cref="hpPercent"/>)과
+        /// <b>사냥 성장 배율</b>만 반영한다.
         ///
         /// ★ 2026-08-15 부터 <b>12칸을 전부</b> 채운다 — 예전에는 hp/attack/defense/regen
         /// 네 칸만 채워서, 표에 <c>accuracy</c>·<c>critical</c> 이 적혀 있어도 게임에
         /// 반영되지 않았고 원거리 종(1002)은 <c>ranged_atk</c> 칸이 아예 없었다.
+        ///
+        /// ★★ 2026-08-21 — <paramref name="growth"/> (사냥 성장 · <see cref="NeutralKillTally"/> ·
+        /// 수치는 <b>하이라키 GameSystems ▸ NeutralGrowthService</b>).
+        /// <b>어디에 걸고 어디에 안 거는가</b>를 웨이브 몬스터와 <b>같은 규칙</b>으로 맞췄다
+        /// (유저 지시: *"체력 말고는 상한값 웨이브 몬스터와 동일하게"*):
+        ///
+        /// <list type="bullet">
+        /// <item><b>체력</b> — 배율을 걸고 <b>상한 없이</b> 오른다
+        ///       (<see cref="BalanceConfigSO.monsterHpStatMax"/> 는 기본 0 = 무제한)</item>
+        /// <item><b>공격 계열 4칸</b>(근거리·원거리·마법·회복) — 배율을 걸고
+        ///       <b>웨이브 몬스터와 같은 상한</b>으로 자른다
+        ///       (<see cref="BalanceConfigSO.AttackStatMaxFor"/> · 에픽은 보스 상한을 쓴다)</item>
+        /// <item><b>그 밖의 다섯 칸</b>(방어·재생·명중·치명·저항) — <b>배율을 걸지 않는다.</b>
+        ///       웨이브 배율도 이 칸들은 건드리지 않는다(<c>MonsterDefinitionSO.BuildStats</c>
+        ///       의 ⚠ 주석) — 두 곳의 규칙이 갈리면 «어느 쪽이 맞나» 를 매번 다시 물어야 한다</item>
+        /// </list>
+        ///
+        /// ⚠ <paramref name="balance"/> 가 null 이면 <b>상한이 없다</b> — 표를 안 쓰는 옛 경로·
+        ///   테스트에서 값이 조용히 달라지지 않게 «예전 동작» 을 기본으로 둔 것이다
+        ///   (웨이브 쪽 <c>BuildStats</c> 와 같은 판단).
         /// </summary>
-        public StatBlock BuildStats() => new StatBlock
+        public StatBlock BuildStats(float growth = 1f, BalanceConfigSO balance = null)
         {
-            hp           = Mathf.Max(1, hpStat),
-            attack       = Mathf.Max(0, attackStat),
-            rangedAttack = Mathf.Max(0, rangedAttackStat),
-            magic        = Mathf.Max(0, magicStat),
-            cure         = Mathf.Max(0, cureStat),
-            defense      = Mathf.Max(0, defenseStat),
-            regen        = Mathf.Max(0, regenStat),
-            accuracy     = Mathf.Max(0, accuracyStat),
-            critical     = Mathf.Max(0, criticalStat),
-            resistance   = Mathf.Max(0, resistanceStat),
-        };
+            float mul = growth > 0f ? growth : 1f;
+            int hpMax = balance != null ? balance.monsterHpStatMax : 0;
+            int atkMax = balance != null ? balance.AttackStatMaxFor(epic) : 0;
+
+            int Grown(int raw, int lowFloor, int cap) =>
+                Mathf.Max(lowFloor, BalanceConfigSO.CapStat(Mathf.RoundToInt(raw * mul), cap));
+
+            // 체력만 두 배율을 겹쳐 받는다 — 표의 hp_percent 는 «이 종의 척도», 성장은 «판의 진행».
+            int hpScaled = BalanceConfigSO.ScaleByPercent(Mathf.Max(1, hpStat), hpPercent);
+
+            return new StatBlock
+            {
+                hp           = Grown(hpScaled, 1, hpMax),
+                attack       = Grown(Mathf.Max(0, attackStat), 0, atkMax),
+                rangedAttack = Grown(Mathf.Max(0, rangedAttackStat), 0, atkMax),
+                magic        = Grown(Mathf.Max(0, magicStat), 0, atkMax),
+                cure         = Grown(Mathf.Max(0, cureStat), 0, atkMax),
+                defense      = Mathf.Max(0, defenseStat),
+                regen        = Mathf.Max(0, regenStat),
+                accuracy     = Mathf.Max(0, accuracyStat),
+                critical     = Mathf.Max(0, criticalStat),
+                resistance   = Mathf.Max(0, resistanceStat),
+            };
+        }
     }
 }

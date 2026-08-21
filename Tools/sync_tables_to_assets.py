@@ -768,8 +768,12 @@ def sync_neutral_skills():
         body += "  displayName: ''\n"
         body += '  skillType: %s\n' % (row.get('skill_type') or '')
         body += '  explainKey: %s\n' % (row.get('skill_explain') or '')
-        for i in range(1, 6):
-            body += '  value%02d: %s\n' % (i, num(row.get('value_%02d' % i)))
+        # ★★ 2026-08-21 — <b>value_06 까지</b> 옮긴다. 예전 주석(2026-08-19)은 «중립 시트에는
+        #   value_06 칸이 아예 없다» 고 적었지만 <b>지금은 있다</b> — 폴리르 「포화」(2009)가
+        #   그 칸을 <b>기절 초</b>로 쓴다(정의문: *"맞은 적은 {value_06}초 동안 기절"*).
+        #   ⚠ 칸이 없는 옛 표로도 돌아야 하므로 `num(..., 0)` 로 0 을 기본값으로 둔다.
+        for i in range(1, 7):
+            body += '  value%02d: %s\n' % (i, num(row.get('value_%02d' % i), 0))
         # ★ 2026-08-19 — 중립 Skill 시트에도 `mentalerror_damage` 칸이 생겼다.
         #   그전까지 이 값을 안 써서 중립 에픽의 침식은 <b>표에 없는 코드 기본값 0</b> 이었다.
         #   설계상 0 이 맞지만(29절: 중립 사냥은 침식을 올리지 않는다) 이제 <b>표가 그 0 을
@@ -791,14 +795,22 @@ def sync_neutral_skills():
                 f.write(ASSET_META.format(guid=guid_for(rel)))
 
         made.append(sid)
-        print('  %s: %s · v1~v5 %s/%s/%s/%s/%s · 쿨 %s초 · 시전 %s초 · %s'
+        print('  %s: %s · v1~v6 %s/%s/%s/%s/%s/%s · 쿨 %s초 · 시전 %s초 · %s'
               % (name, row.get('skill_type'),
                  num(row.get('value_01')), num(row.get('value_02')), num(row.get('value_03')),
                  num(row.get('value_04')), num(row.get('value_05')),
+                 num(row.get('value_06'), 0),
                  num(row.get('cool_time')), num(row.get('cast_time')),
                  row.get('range_type') or 'Line'))
 
-    # neutrality_mon 의 mon_skill_1·2 → 정의 에셋의 skillIds
+    # neutrality_mon 의 mon_skill_1·2·3 → 정의 에셋의 skillIds
+    #
+    # ★★ 2026-08-21 — <b>세 칸</b>이 됐다(폴리르 1104 가 2007·2008·2009 를 쓴다).
+    #   ⚠ 그때 표의 「스킬 3 id」 칼럼 <b>필드명이 `mon_skill_2` 로 중복</b>돼 있었다 —
+    #     `read_rows` 는 필드명으로 딕셔너리를 만들므로 `mon_skill_2` 가 <b>빈 뒤 칼럼으로
+    #     덮여</b> 에픽 중립 셋(1101~1103)의 <b>두 번째 스킬이 조용히 사라졌다</b>
+    #     (콘솔 «스킬 2종 준비» → «1종 준비»).
+    #     표는 `Tools/table_update_20260821_neutral_skill3_field.py` 로 고쳤다.
     folder_def = os.path.join(ASSETS, 'Resources', 'NeutralMonsters')
     for row in read_rows(XLSX_NEUTRAL, 'neutrality_mon'):
         mid = int(num(row.get('mon_id')))
@@ -806,7 +818,7 @@ def sync_neutral_skills():
         if asset is None:
             continue
 
-        ids = [int(num(row.get(k))) for k in ('mon_skill_1', 'mon_skill_2')
+        ids = [int(num(row.get(k))) for k in ('mon_skill_1', 'mon_skill_2', 'mon_skill_3')
                if int(num(row.get(k))) > 0]
         if not ids:
             continue                    # 스킬 없는 종은 건드리지 않는다
@@ -891,6 +903,7 @@ NEUTRAL_ASSET_BY_ID = {
     1101: 'NeutralMonster_4',      # 카르시노스 — 1004 에서 "에픽" 구간 1101 로 올라감
     1102: 'NeutralMonster_5',      # 아니사킬 — 1005 에서 "에픽" 구간 1102 로 올라감
     1103: 'NeutralMonster_7',      # ★ 바리올라 신규 (2026-08-19)
+    1104: 'NeutralMonster_8',      # ★ 폴리르 신규 (2026-08-21) — 원거리 에픽(드래곤)
 }
 
 # 표의 atk_type 문자열 → TacticalAttackType 의 <b>정수값</b>(YAML 은 enum 을 정수로 쓴다).
@@ -907,6 +920,10 @@ def attack_type_value(raw):
 # 중립 정의에 2026-08-15 로 새로 생긴 필드들 — 기존 에셋 YAML 에는 줄이 없으므로
 # `add_missing` 으로 넘겨야 첫 실행에 실제로 기록된다(patch_fields 주석 참조).
 NEUTRAL_NEW_FIELDS = (
+    # ★ 2026-08-21 — 체력 배율(표 first_Stat.hp_percent). 에픽 보스의 체력을 «기본 x 배율»
+    #   로 적을 수 있게 신설했다(유저 지시). 기존 에셋에는 줄이 없으므로 add_missing 이어야
+    #   첫 실행에 실제로 기록된다.
+    'hpPercent',
     'rangedAttackStat', 'magicStat', 'cureStat',
     'accuracyStat', 'criticalStat', 'resistanceStat',
     'attackType', 'groupMaking', 'groupMember', 'packRetaliate',
@@ -1091,6 +1108,9 @@ def sync_neutral_monsters():
         if st is not None:
             changes.update({
                 'hpStat': int(num(st.get('hp'), 1)),
+                # ★ 체력 배율(2026-08-21) — 표에 칸이 없으면 100(=배율 없음)으로 둔다.
+                #   «칸이 없다» 와 «100 이라고 적혀 있다» 가 같은 뜻이 되게 한 것이다.
+                'hpPercent': max(1, int(num(st.get('hp_percent'), 100))),
                 'attackStat': int(num(st.get('melee_atk'))),
                 'defenseStat': int(num(st.get('def'))),
                 'regenStat': int(num(st.get('hp_recovery'))),

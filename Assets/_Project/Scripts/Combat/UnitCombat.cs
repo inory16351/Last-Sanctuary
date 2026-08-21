@@ -561,6 +561,16 @@ namespace LastSanctuary.Combat
         public bool IsHunting => _huntOverrideTarget != null && _huntOverrideTarget.IsAlive;
 
         /// <summary>
+        /// 지금 쫓고 있는 사냥감. 살아 있지 않으면 <b>null</b> — <see cref="IsHunting"/> 과
+        /// 같은 판정을 쓴다(둘이 어긋나면 «사냥 중인데 사냥감이 없다» 가 생긴다).
+        ///
+        /// ★ 왜 필요한가 — «누가 이 사냥감을 물렸는지» 를 부르는 쪽이 구분해야 하는 일이 있다.
+        ///   첫 사용자는 <see cref="AruGolem.Follow"/> 다: 주인이 표적을 놓았을 때 <b>주인에게서
+        ///   물려받은 표적만</b> 놓고 골렘이 스스로 문 중립 사냥감은 남겨야 한다.
+        /// </summary>
+        public DamageableUnit HuntTarget => IsHunting ? _huntOverrideTarget : null;
+
+        /// <summary>
         /// 공격(또는 치유)을 실제로 한 번 수행한 순간. 공격 모션을 재생할 타이밍을
         /// <see cref="CharacterAnimator"/> 가 이걸로 받는다 — 애니메이터가 매 프레임 상태를
         /// 추측하는 대신 "지금 때렸다"는 사실 하나만 알면 되게 하려는 것.
@@ -1669,6 +1679,27 @@ namespace LastSanctuary.Combat
 
             DamageableUnit attacker = _self.LastAttacker;
             if (attacker == null || !attacker.IsAlive) return null;
+
+            // ★★ 2026-08-21 — <b>같은 진영에게는 반격하지 않는다</b> (유저 리포트:
+            //   *"혼란 상태에서 캐릭터 끼리 전투가 일어나면 혼란이 풀리더라도 몬스터가
+            //   오기 전까진 계속해서 둘이서 전투를 하는 버그"*).
+            //
+            //   <b>왜 «혼란이 풀려도» 계속 싸웠나</b> — 「혼란」은 아군을 때리는 상태를
+            //   <c>SetForcedHuntTarget</c> 으로 구현하고, 풀릴 때 그 잠금과 타겟을 정확히
+            //   놓는다(<c>CharacterErosion.ClearActive</c> → <c>ClearForcedHuntTarget</c>).
+            //   그래서 <b>혼란에 걸린 쪽은 제대로 멈춘다.</b> 문제는 <b>맞은 쪽</b>이었다 —
+            //   여기서 «나를 때린 상대» 를 <b>진영을 보지 않고</b> 돌려줘서, 맞은 아군이
+            //   때린 아군을 반격했다. 그 반격이 다시 상대의 <c>LastAttacker</c> 를 갱신하니
+            //   <b>서로가 서로의 «방금 나를 때린 상대» 가 되어</b> 8초 기억
+            //   (<see cref="retaliateMemorySeconds"/>)이 영원히 갱신됐다.
+            //   진짜 적이 나타나면 그쪽이 먼저 잡히므로(반격은 <b>못 찾았을 때만</b> 본다)
+            //   «몬스터가 오기 전까지» 라는 리포트가 정확히 그 구조를 가리킨다.
+            //
+            //   ★ 같은 판정이 <b>동료 구원 쪽에는 이미 있었다</b>(<see cref="AttackerOf"/> 의
+            //     «혼란으로 아군이 때린 경우») — 두 경로 중 한 곳에만 있었던 것이다.
+            //   ⚠ 「혼란」에 걸린 쪽의 공격은 이 함수를 지나지 않는다(강제 사냥 타겟이다) —
+            //     즉 이 한 줄이 <b>혼란의 효과를 약화시키지 않는다.</b>
+            if (attacker.Faction == _self.Faction) return null;
 
             // ★ 안 보이는 상대에게는 반격하지 않는다 (유저 지시 2026-08-13:
             //   "시야 밖에 있는 적은 공격 못하게").

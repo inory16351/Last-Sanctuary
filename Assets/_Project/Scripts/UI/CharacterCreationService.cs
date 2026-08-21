@@ -108,12 +108,24 @@ namespace LastSanctuary.UI
         /// <summary>인원 상한에 걸렸는지.</summary>
         public bool AtLimit => maxCharacters > 0 && AliveCount >= maxCharacters;
 
+        /// <summary>
+        /// 인원 상한(0 이면 제한 없음). 로스터 제목의 «8/12» 분모가 이 값이다
+        /// (2026-08-21 · <see cref="CharacterRosterPanel"/>).
+        /// </summary>
+        public int MaxCharacters => maxCharacters;
+
+        /// <summary>
+        /// ★ 더 나올 <b>인물</b>이 없는지 (2026-08-21 · 재등장 금지를 켠 뒤로 생겼다).
+        /// 인원 상한과 <b>다른 벽</b>이다 — 자리가 남아도 인물이 없으면 만들 수 없다.
+        /// </summary>
+        public bool OutOfCandidates => CharacterDefinitionRegistry.Exhausted;
+
         /// <summary>지금 만들 수 있는지 (스포너가 있고, 상한 미만이고, 에너지가 충분한지).</summary>
         public bool CanCreate
         {
             get
             {
-                if (_spawner == null || AtLimit) return false;
+                if (_spawner == null || AtLimit || OutOfCandidates) return false;
                 ResourceManager resources = ResourceManager.Instance;
                 return resources != null && resources.CanAfford(CurrentCost);
             }
@@ -135,6 +147,14 @@ namespace LastSanctuary.UI
             if (AtLimit)
             {
                 HudLog.Add($"인원 상한 {maxCharacters} 명에 도달했습니다", HudLogKind.Warn);
+                return null;
+            }
+
+            // ★ 인물 소진 — 자리는 남았지만 <b>같은 인물을 두 번 낼 수 없다</b>(재등장 금지).
+            //   비용을 깎기 <b>전에</b> 막는다: 환불 경로를 타면 로그가 두 줄 나와 헷갈린다.
+            if (OutOfCandidates)
+            {
+                HudLog.Add("더 등장할 인물이 없습니다", HudLogKind.Warn);
                 return null;
             }
 

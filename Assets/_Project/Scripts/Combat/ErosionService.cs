@@ -151,6 +151,19 @@ namespace LastSanctuary.Combat
                 var character = all[i] as CharacterUnit;
                 if (character == null || !character.IsAlive) continue;
 
+                // ★★ 2026-08-21 — <b>소환수(아루의 골렘)는 침식하지 않는다</b>
+                //   (「강림」 정의문: *"침식이 일어나지 않습니다"* · 유저 리포트:
+                //   *"아루의 골렘에게 침식이 적용 안되도록"*).
+                //
+                //   ⚠ <b>왜 컴포넌트를 꺼두는 것으로는 안 됐나</b> — <see cref="AruGolem"/> 가
+                //     <c>erosion.enabled = false</c> 로 껐지만, 이 루프는 <c>EnsureOn</c> +
+                //     <c>Tick</c> 을 <b>직접</b> 부른다. <c>Update</c> 를 쓰지 않는 구조라
+                //     («왜 캐릭터마다 Update 를 돌리지 않는가» 클래스 주석) <b>enabled 가
+                //     아무것도 막지 못한다</b> — 그래서 골렘에게 침식이 그대로 쌓였다.
+                //   → 판정을 <b>여기</b> 둔다. 켜고 끄는 곳(스킬)과 도는 곳(서비스)이 다르면
+                //     또 새므로, «누가 침식하는가» 는 도는 쪽이 정하는 것이 맞다.
+                if (character.IsSummoned) continue;
+
                 CharacterErosion erosion = CharacterErosion.EnsureOn(character);
                 if (erosion != null) erosion.Tick(this, dt);
             }

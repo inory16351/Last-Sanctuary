@@ -183,6 +183,20 @@ namespace LastSanctuary.UI
 
         float _nextRefresh;
 
+        /// <summary>
+        /// 제목 칸(<c>Title</c>). <b>인원/상한</b>을 여기에 붙인다 (2026-08-21 · 유저 지시:
+        /// *"캐릭터그리드에 캐릭터 뽑은 개수에 비례하여 8/12 이런식으로 표기"*).
+        ///
+        /// ★ 씬의 원래 문구(«캐릭터»)를 <b>지우지 않고 뒤에 숫자만 붙인다</b> —
+        ///   <see cref="_titleBase"/> 에 첫 프레임의 문구를 담아 두고 매 갱신에 «{문구} n/상한»
+        ///   으로 다시 만든다. 문구를 코드에 적으면 씬에서 이름을 바꿀 수 없게 된다.
+        /// </summary>
+        TMP_Text _titleLabel;
+        string _titleBase;
+
+        /// <summary>상한을 아는 쪽. 없으면 숫자만(«n») 쓴다 — 지어낸 상한을 그리지 않는다.</summary>
+        CharacterCreationService _creation;
+
         void Start()
         {
             _selector = UnitSelector.Instance;
@@ -206,9 +220,40 @@ namespace LastSanctuary.UI
             rowTemplate.gameObject.SetActive(false);
             BindScrollRect();
 
+            // 제목 — 첫 문구를 기억해 두고 뒤에 «인원/상한» 만 붙인다(위 _titleLabel 주석).
+            _titleLabel = transform.Find("Title")?.GetComponent<TMP_Text>();
+            _titleBase = _titleLabel != null ? _titleLabel.text : null;
+
             if (_waveManager != null) _waveManager.OnWaveEnded += HandleWaveEnded;
 
             AppendNewCharacters();
+            RefreshTitle();
+        }
+
+        /// <summary>
+        /// 제목을 «{문구} 인원/상한» 으로 다시 쓴다 (2026-08-21).
+        ///
+        /// ★ <b>세는 값은 «지금 자리를 차지한 인원»</b>(<see cref="CharacterCreationService.AliveCount"/>)
+        ///   이다 — 상한을 막는 값과 <b>같은 값</b>이어야 «12/12 인데 왜 못 만드나» 가 안 생긴다.
+        ///   그래서 로스터의 행 수(죽은 카드까지 남아 있다)를 쓰지 않는다.
+        /// ⚠ 생성 서비스가 씬에 없으면 <b>분모를 그리지 않는다</b> — 상한을 지어내지 않는다.
+        /// </summary>
+        void RefreshTitle()
+        {
+            if (_titleLabel == null) return;
+            if (_creation == null) _creation = CharacterCreationService.Instance;
+
+            string head = string.IsNullOrEmpty(_titleBase) ? string.Empty : _titleBase + " ";
+            if (_creation == null)
+            {
+                _titleLabel.text = head.TrimEnd();
+                return;
+            }
+
+            int max = _creation.MaxCharacters;
+            _titleLabel.text = max > 0
+                ? $"{head}{_creation.AliveCount}/{max}"
+                : $"{head}{_creation.AliveCount}";
         }
 
         /// <summary>
@@ -277,6 +322,7 @@ namespace LastSanctuary.UI
             AppendNewCharacters();
             RefreshValues();
             ReorderRows();
+            RefreshTitle();
         }
 
         // ------------------------------------------------------------------
@@ -797,26 +843,38 @@ namespace LastSanctuary.UI
         }
 
         /// <summary>
-        /// 화면에 보이는 행 순서를 "체력 % 낮은 순(사망은 맨 아래)"으로 다시 맞춘다.
-        /// <see cref="Row"/> 와 캐릭터의 매칭(구독·데이터)은 그대로 두고 <c>SetSiblingIndex</c>
-        /// 로 <see cref="listRoot"/> 안의 표시 순서만 바꾼다 — <c>VerticalLayoutGroup</c> 이
-        /// 형제 인덱스 순으로 배치하므로 이것만으로 목록이 다시 정렬된다.
+        /// 화면에 보이는 행 순서를 <b>생성순으로 고정</b>한다. <see cref="Row"/> 와 캐릭터의
+        /// 매칭(구독·데이터)은 그대로 두고 <c>SetSiblingIndex</c> 로 <see cref="listRoot"/> 안의
+        /// 표시 순서만 바꾼다 — <c>VerticalLayoutGroup</c> 이 형제 인덱스 순으로 배치하므로
+        /// 이것만으로 목록이 다시 정렬된다.
         ///
-        /// HP 비율은 새로 계산하지 않고 <see cref="Row.HpFill"/> 의 <c>fillAmount</c> 를 그대로
-        /// 읽는다 — <see cref="ApplyHp"/> 가 이미 그 값을 최신 체력 비율로 유지하고 있어서
-        /// 중복 계산이 필요 없다. 동률(같은 %)일 때는 <c>GetInstanceID()</c> 로 순서를 고정해서,
-        /// 매 갱신마다 동률 캐릭터들의 순서가 이유 없이 뒤바뀌며 깜빡이는 것을 막는다.
+        /// ★★ <b>2026-08-21 — 체력순 정렬을 없앴다</b> (유저 지시: *"생성순대로 캐릭터 그리드
+        /// 위치 고정"*). 예전에는 «체력 % 낮은 순, 사망은 맨 아래» 였다 — 지금 신경 쓸 캐릭터를
+        /// 위로 올린다는 뜻이었는데, <b>맞을 때마다 카드가 자리를 바꿔</b> 방금 누르려던 카드가
+        /// 손 밑에서 사라졌다. «누구의 카드가 어디에 있는지» 를 외울 수 있는 편이 낫다.
+        ///
+        /// ★ 순서의 근거는 <see cref="_characters"/> <b>목록의 순번</b>이다 —
+        ///   <see cref="AppendNewCharacters"/> 가 새 캐릭터를 <b>뒤에만</b> 붙이므로 그 자체가
+        ///   생성순이고, 죽어도 빠지지 않는다(<see cref="HandleWaveEnded"/> 에서만 정리).
+        ///   즉 <b>죽은 캐릭터도 자기 자리에 그대로 남는다</b> — «위치 고정» 의 뜻이 그것이다.
+        /// ⚠ 목록에 없는 행(있을 수 없지만 방어)은 맨 뒤로 보낸다.
         /// </summary>
         void ReorderRows()
         {
             var active = _rows.Where(r => r.Root.activeSelf)
-                              .OrderBy(r => r.IsDead ? 1 : 0)                                   // 산 사람 먼저
-                              .ThenBy(r => r.IsDead ? 0f : (r.HpFill != null ? r.HpFill.fillAmount : 0f))
-                              .ThenBy(r => r.Unit != null ? r.Unit.GetInstanceID() : 0)         // 동률 순서 고정
+                              .OrderBy(r => CreationIndexOf(r.Unit))
                               .ToList();
 
             for (int i = 0; i < active.Count; i++)
                 active[i].Root.transform.SetSiblingIndex(i);
+        }
+
+        /// <summary>생성 순번. 목록에 없으면 맨 뒤(<see cref="int.MaxValue"/>).</summary>
+        int CreationIndexOf(CharacterUnit unit)
+        {
+            if (unit == null) return int.MaxValue;
+            int i = _characters.IndexOf(unit);
+            return i < 0 ? int.MaxValue : i;
         }
 
         /// <summary>

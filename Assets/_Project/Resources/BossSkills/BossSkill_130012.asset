@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8cfff604944a8cb4785987042ebd72c4, type: 3}
+  m_Name: BossSkill_130012
+  m_EditorClassIdentifier:
+  skillId: 130012
+  nameKey: skill_name_130012
+  displayName: ''
+  skillType: Forced_supply
+  explainKey: 
+  value01: 50
+  value02: 2
+  value03: 15
+  value04: 0
+  value05: 0
+  value06: 0
+  erosionValue: 0
+  coolTime: 60
+  castSeconds: 1
+  rangeType: 
+  statusNameKey: 

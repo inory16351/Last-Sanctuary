@@ -151,7 +151,8 @@ MonoBehaviour:
   skill3Right: []
   skill3Left: []
   skill1Fx: []
-  skill2Fx: []
+  skill2Fx:
+  - {fileID: 21300000, guid: 33fe8ae7c580c0964009eb0a8f1ebd45, type: 3}
   skill3Fx: []
   skill1Projectile: []
   skill2Projectile: []

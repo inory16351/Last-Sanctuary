@@ -121,11 +121,6 @@ MonoBehaviour:
   deathLeft: []
   shieldFrames:
   - {fileID: 21300000, guid: b890a161d7f9a6424aaec7022bb0817b, type: 3}
-  - {fileID: 21300000, guid: e598fb8c92e9c8d7bfcd1a716719afbd, type: 3}
-  - {fileID: 21300000, guid: ab88e7731affe8b2f67c1ccf41f0afd5, type: 3}
-  - {fileID: 21300000, guid: 2368822e60391856d352f6024fda98bf, type: 3}
-  - {fileID: 21300000, guid: 00945b1b7d4ea22edacc0f5e578a8a8d, type: 3}
-  - {fileID: 21300000, guid: 9d504dda3827e661ea0aa0489cd78b22, type: 3}
   stunRight: []
   stunLeft: []
   skill1Right:

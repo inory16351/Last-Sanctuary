@@ -53,41 +53,59 @@ namespace LastSanctuary.UI
         Button _choice0, _choice1, _close;
 
         EventService _service;
-        bool _wired;
+        bool _bound;
+
+        /// <summary>
+        /// 지금 <see cref="Present"/> 로 열리는 중인가. <see cref="Awake"/> 가 창을 다시
+        /// 닫아버리는 것을 막는 데만 쓴다 (아래 ★★ 참조).
+        /// </summary>
+        bool _presenting;
 
         // ------------------------------------------------------------------
 
-        void Awake()
-        {
-            Bind();
-            gameObject.SetActive(false);
-        }
+        /// <summary>
+        /// ★★ <b>2026-08-21 — 이 창은 «스스로 구독» 할 수 없다.</b>
+        ///
+        /// <b>왜 이벤트가 떠도 창이 안 보였나</b> (유저 리포트: *"이벤트 지금 적용 되어도
+        /// 시각적으로 확인이 불가"*) — 씬의 <c>HUD_Event</c> 는 <b>비활성</b>으로 저장돼 있다.
+        /// 유니티는 비활성 오브젝트의 <c>Awake</c>·<c>OnEnable</c>·<c>Update</c> 를
+        /// <b>한 번도 부르지 않는다</b>. 그래서 예전 구조(매 프레임 <c>Hook()</c> 으로
+        /// <c>OnEventChanged</c> 를 구독)는 <b>영원히 실행되지 않았다</b> — 확률·표·대사·보상은
+        /// 전부 정상으로 돌고 있었고(콘솔에 «비공개 주사위 … → 발생» 이 찍혔다),
+        /// <b>화면에 나오는 통로 하나만</b> 죽어 있었다.
+        ///
+        /// → <b>서비스가 밀어 넣는다</b>(<see cref="EventService"/> 가
+        ///   <see cref="Present"/> 를 부른다). 비활성 오브젝트도 <b>참조로는</b> 부를 수 있으므로
+        ///   이 방향이면 «창이 꺼져 있어도 열 수 있다» 가 성립한다.
+        ///
+        /// ⚠ <b>Awake 에서 창을 닫지 않는다</b> — 처음 활성화되는 순간이 곧 «열릴 때» 이므로,
+        ///   그때 <c>SetActive(false)</c> 를 하면 열자마자 닫힌다. 씬 값이 이미 비활성이라
+        ///   닫아 둘 필요도 없고, 누가 켜 둔 채 저장했을 때만 <see cref="Start"/> 가 정리한다.
+        /// </summary>
+        void Awake() => Bind();
 
-        void OnEnable() => Hook();
-        void Update() => Hook();
-
-        void OnDisable()
+        void Start()
         {
-            if (_service != null) _service.OnEventChanged -= HandleChanged;
-            _wired = false;
+            // 씬에 켜진 채로 저장된 경우만 닫는다 — 열려 있는 중이면 건드리지 않는다.
+            if (!_presenting) gameObject.SetActive(false);
         }
 
         /// <summary>
-        /// ⚠ <b>서비스가 늦게 생긴다</b> — <see cref="EventService"/> 는
-        /// <c>RuntimeInitializeOnLoadMethod</c> 로 붙을 수 있어 이 창의 <c>Awake</c> 보다
-        /// 늦을 수 있다. 그래서 매 프레임 «아직 안 이었나» 만 확인한다(비교 한 번이라 비용이 없다).
+        /// ★ 서비스가 부르는 <b>유일한 입구</b>. <paramref name="def"/> 가 null 이면 닫는다.
+        /// 비활성 상태에서 불려도 동작한다 — 그것이 이 함수의 존재 이유다(위 ★★).
         /// </summary>
-        void Hook()
+        public void Present(EventDefinitionSO def, EventLine line)
         {
-            if (_wired) return;
-            _service = EventService.Instance;
-            if (_service == null) return;
-            _service.OnEventChanged += HandleChanged;
-            _wired = true;
+            _presenting = def != null && line != null;
+            Bind();                     // Awake 보다 먼저 불릴 수 있다 — 여러 번 불려도 안전하다
+            HandleChanged(def, line);
         }
 
         void Bind()
         {
+            if (_bound) return;         // onClick 을 두 번 붙이면 선택지가 두 번 눌린다
+            _bound = true;
+
             _title = Find("Title");
             _body = Find("Body");
 
@@ -158,6 +176,10 @@ namespace LastSanctuary.UI
         /// 창만 닫는다 — <b>이벤트를 끝내지 않는다.</b> 표의 지속 효과는
         /// «웨이브가 끝날 때까지» 이므로 창을 닫는 것으로 없어지면 안 된다.
         /// </summary>
-        public void Close() => gameObject.SetActive(false);
+        public void Close()
+        {
+            _presenting = false;
+            gameObject.SetActive(false);
+        }
     }
 }

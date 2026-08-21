@@ -47,3 +47,4 @@ MonoBehaviour:
   accuracyStat: 55
   criticalStat: 10
   resistanceStat: 50
+  hpPercent: 100

@@ -405,8 +405,10 @@ namespace LastSanctuary.UI
 
             float tiles = (taken ? takenTiles : dealtTiles) * (critical ? criticalScale : 1f);
 
-            Show(victim, critical ? $"{amount}!" : amount.ToString(),
-                 color, tiles, PopupStyle.Float, lifeSeconds);
+            // ★ 2026-08-21 — <b>치명타에 느낌표를 붙이지 않는다</b> (유저 지시:
+            //   *"크리티컬 데미지 이펙트옆에 ! 빼기"*). 치명타는 <b>색과 크기</b>로만 구분한다
+            //   (criticalColor · criticalScale) — 숫자 옆의 기호는 자리만 넓히고 읽기를 방해했다.
+            Show(victim, amount.ToString(), color, tiles, PopupStyle.Float, lifeSeconds);
         }
 
         /// <summary>
@@ -426,7 +428,9 @@ namespace LastSanctuary.UI
             //   판정값은 이벤트 처리 중에만 유효하다(<see cref="DamageableUnit.PendingHealCritical"/>).
             if (unit.PendingHealCritical)
             {
-                Show(unit, $"+{amount}!", healColor, healTiles * criticalScale,
+                // ⚠ 느낌표는 <b>피해 쪽과 같이</b> 뺐다(위 ★) — 한쪽만 남기면 «회복 치명타만
+                //   기호가 붙는» 어긋난 표시가 된다. 치명타는 크기로만 보인다.
+                Show(unit, $"+{amount}", healColor, healTiles * criticalScale,
                      PopupStyle.Float, lifeSeconds);
                 return;
             }

@@ -74,6 +74,22 @@ namespace LastSanctuary.UI
 
             CharacterErosion erosion = CharacterErosion.Of(unit);
 
+            // ★★ 2026-08-21 — <b>소환수(아루의 골렘)는 침식 칸을 «해당 없음» 으로 둔다</b>
+            //   (유저 지시: *"ui에도 아루의 골렘에겐 침식 수치가 보이지 않거나 항상 0으로
+            //   고정되게"*). 골렘은 침식이 <b>일어나지 않는</b> 유닛이므로(「강림」 정의문),
+            //   «0» 이라는 숫자보다 «칸이 없다» 는 표시가 사실에 가깝다 — 0 은 «아직 안 쌓였다»
+            //   로 읽히고, 그러면 «곧 쌓이겠구나» 라는 잘못된 기대를 준다.
+            if (unit != null && unit.IsSummoned)
+            {
+                if (_fill != null) _fill.fillAmount = 0f;
+                if (_label != null)
+                {
+                    _label.text = "침식 -";
+                    _label.color = HudTheme.TextDim;
+                }
+                return;
+            }
+
             if (unit == null || erosion == null)
             {
                 if (_fill != null) _fill.fillAmount = 0f;

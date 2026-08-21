@@ -77,6 +77,37 @@ namespace LastSanctuary.UI
                  "(FocusOn) — 먼 거리를 클릭했을 때 어디로 가는지 눈으로 따라갈 수 있다")]
         [SerializeField] bool snapCamera = true;
 
+        // ══════════════════════════════════════════════════════════════
+        // ★★ 카메라 시야 사각형 (2026-08-21 · 유저 지시: *"미니맵 클릭시 사각형범위생성"*)
+        //
+        //   미니맵을 눌러 카메라를 옮겨도 <b>화면이 지도의 어디를 보고 있는지</b> 알 수 없었다.
+        //   RTS 미니맵의 기본 장치인 «시야 상자» 를 그린다 — 클릭한 자리로 상자가 옮겨가므로
+        //   «지금 여기를 보고 있다» 가 눈에 남는다.
+        //
+        //   ★ 상자의 크기는 <b>지어내지 않는다</b> — 출력 카메라의 실제 직교 크기
+        //     (orthographicSize · aspect)로 계산한다. 줌을 바꾸면 상자도 같이 커지고 작아진다.
+        // ══════════════════════════════════════════════════════════════
+
+        [Header("카메라 시야 사각형 (2026-08-21)")]
+        [Tooltip("지금 화면이 보고 있는 구역을 미니맵에 <b>사각형 테두리</b>로 그린다")]
+        [SerializeField] bool showCameraViewRect = true;
+
+        [Tooltip("끄면 <b>클릭한 직후에만</b> 잠깐 보인다(아래 강조 시간). " +
+                 "켜면 항상 보인다 — RTS 미니맵의 기본 동작이다")]
+        [SerializeField] bool cameraViewAlwaysVisible = true;
+
+        [Tooltip("테두리 두께(픽셀 = 타일)")]
+        [Min(1)] [SerializeField] int cameraViewThickness = 1;
+
+        [Tooltip("미니맵을 누른 직후 이 시간 동안 <b>강조색</b>으로 그린다. 0 이면 강조 없음")]
+        [Min(0f)] [SerializeField] float cameraViewFlashSeconds = 0.7f;
+
+        [Tooltip("평소 테두리 색")]
+        [SerializeField] Color cameraViewColor = new Color(1f, 1f, 1f, 1f);
+
+        [Tooltip("클릭 직후 강조색")]
+        [SerializeField] Color cameraViewFlashColor = new Color(1f, 0.92f, 0.4f, 1f);
+
         MapGenerator _map;
         FogOfWarService _fog;
         WaveManager _wave;
@@ -94,6 +125,12 @@ namespace LastSanctuary.UI
 
         CameraRigController _camera;
         Canvas _canvas;
+
+        /// <summary>출력 카메라. 시야 사각형의 크기를 이 카메라에서 읽는다.</summary>
+        Camera _outputCamera;
+
+        /// <summary>이 시각까지는 시야 사각형을 강조색으로 그린다(클릭 직후).</summary>
+        float _viewFlashUntil;
 
         void Start()
         {
@@ -151,6 +188,9 @@ namespace LastSanctuary.UI
             DrawFog();
             DrawUnits();
             DrawSpawnAlerts();
+
+            // ★ 시야 사각형은 <b>맨 위</b>에 그린다 — 경보·유닛 점에 가려지면 쓸모가 없다.
+            DrawCameraViewRect();
 
             _texture.SetPixels32(_pixels);
             _texture.Apply(false);
@@ -336,6 +376,11 @@ namespace LastSanctuary.UI
         void MoveCameraTo(PointerEventData eventData)
         {
             if (!clickToMoveCamera || _camera == null || view == null || _map == null) return;
+
+            // ★ 누른 순간 시야 사각형을 강조한다 — «클릭시 사각형 범위 생성» 의 눈에 보이는
+            //   부분이다. 카메라가 실제로 옮겨지는 것은 아래이고, 상자는 다음 갱신에
+            //   그 자리로 옮겨 그려진다(DrawCameraViewRect 가 카메라를 읽는다).
+            _viewFlashUntil = Time.unscaledTime + Mathf.Max(0f, cameraViewFlashSeconds);
             if (_texture == null) return;                     // 아직 지형을 안 구웠다
             if (eventData.button != PointerEventData.InputButton.Left) return;
 
@@ -421,6 +466,65 @@ namespace LastSanctuary.UI
                 for (int dx = -radius; dx <= radius; dx++)
                     if (dx * dx + dy * dy <= rSqr)
                         SetPixel(center.x + dx, center.y + dy, color);
+        }
+
+        /// <summary>
+        /// ★★ <b>지금 화면이 보고 있는 구역</b>을 사각형 테두리로 그린다 (2026-08-21).
+        ///
+        /// 크기는 출력 카메라에서 읽는다 — <c>orthographicSize</c> 가 <b>세로 절반</b>이고
+        /// 가로 절반은 그것의 <c>aspect</c> 배다(직교 카메라의 정의). 그래서 줌을 바꾸면
+        /// 상자도 저절로 따라간다.
+        ///
+        /// ⚠ <see cref="Camera.main"/> 을 <b>매번 찾지 않는다</b> — 태그 검색이라 비용이 있다.
+        ///   한 번 찾아 들고 있고, 파괴되면(장면 전환) 그때 다시 찾는다.
+        /// ⚠ 픽셀 좌표로 바꾼 뒤 <b>지도 밖은 잘린다</b>(<see cref="SetPixel"/> 이 버린다) —
+        ///   맵 경계에서 카메라가 밖을 볼 때 상자의 일부만 보이는 것이 맞는 그림이다.
+        /// </summary>
+        void DrawCameraViewRect()
+        {
+            if (!showCameraViewRect || _map == null) return;
+
+            bool flashing = Time.unscaledTime < _viewFlashUntil;
+            if (!cameraViewAlwaysVisible && !flashing) return;
+
+            if (_outputCamera == null) _outputCamera = Camera.main;
+            if (_outputCamera == null || !_outputCamera.orthographic) return;
+
+            float halfH = _outputCamera.orthographicSize;
+            float halfW = halfH * Mathf.Max(0.01f, _outputCamera.aspect);
+            Vector3 c = _outputCamera.transform.position;
+
+            Vector2Int lo = WorldToLocal(new Vector3(c.x - halfW, c.y - halfH, 0f));
+            Vector2Int hi = WorldToLocal(new Vector3(c.x + halfW, c.y + halfH, 0f));
+
+            Color32 color = flashing ? (Color32)cameraViewFlashColor : (Color32)cameraViewColor;
+            DrawRectOutline(lo, hi, Mathf.Max(1, cameraViewThickness), color);
+        }
+
+        /// <summary>
+        /// 테두리만 있는 사각형. <paramref name="lo"/>·<paramref name="hi"/> 는 어느 쪽이
+        /// 크든 상관없다(들어온 값을 정렬한다) — 카메라가 뒤집힐 일은 없지만, 좌표계를
+        /// 바꿀 때 조용히 안 그려지는 것보다 낫다.
+        /// </summary>
+        void DrawRectOutline(Vector2Int lo, Vector2Int hi, int thickness, Color32 color)
+        {
+            int x0 = Mathf.Min(lo.x, hi.x), x1 = Mathf.Max(lo.x, hi.x);
+            int y0 = Mathf.Min(lo.y, hi.y), y1 = Mathf.Max(lo.y, hi.y);
+            int t = Mathf.Max(1, thickness);
+
+            for (int i = 0; i < t; i++)
+            {
+                for (int x = x0; x <= x1; x++)
+                {
+                    SetPixel(x, y0 + i, color);
+                    SetPixel(x, y1 - i, color);
+                }
+                for (int y = y0; y <= y1; y++)
+                {
+                    SetPixel(x0 + i, y, color);
+                    SetPixel(x1 - i, y, color);
+                }
+            }
         }
 
         /// <summary>테두리만 있는 원. 소환 경보에 쓴다 — 속을 채우면 지형이 안 보인다.</summary>

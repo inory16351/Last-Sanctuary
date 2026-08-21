@@ -173,6 +173,11 @@ namespace LastSanctuary.Combat
             PassiveSkillType.FallenBody, PassiveSkillType.CelestialShield,
             PassiveSkillType.DivineWrath,
 
+            // ★ 「도움의 손길」은 <b>표가 30초를 준 뒤에</b> 여기 들어왔다 (2026-08-21) —
+            //   그전에는 쿨타임이 0 이라 매 프레임 갈래(TickNewcomers)에 있었다.
+            //   상세는 `CharacterPassives.Newcomers` 의 `_helpingHandReadyAt` 주석.
+            PassiveSkillType.AHelpingHand,
+
             // ── 아르세니아 9010 · 불칸 9011 (2026-08-20) ──
             PassiveSkillType.SacredBlessing, PassiveSkillType.UnfinishedNobility,
             PassiveSkillType.FlameBlast,
@@ -375,6 +380,7 @@ namespace LastSanctuary.Combat
                     PassiveSkillType.FallenBody => TryFallenBody(),
                     PassiveSkillType.CelestialShield => TryCelestialShield(),
                     PassiveSkillType.DivineWrath => TryDivineWrath(),
+                    PassiveSkillType.AHelpingHand => TryHelpingHand(),
                     PassiveSkillType.SacredBlessing => TrySacredBlessing(),
                     PassiveSkillType.UnfinishedNobility => TryUnfinishedNobility(),
                     PassiveSkillType.FlameBlast => TryFlameBlast(),

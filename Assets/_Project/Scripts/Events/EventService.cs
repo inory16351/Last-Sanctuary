@@ -242,6 +242,7 @@ namespace LastSanctuary.Events
             CurrentLine = def.FirstLine();
             UI.HudLog.Add($"<b>[사건]</b> {def.eventName}", UI.HudLogKind.Good);
             OnEventChanged?.Invoke(Current, CurrentLine);
+            ShowPanel(Current, CurrentLine);
         }
 
         /// <summary>
@@ -281,6 +282,7 @@ namespace LastSanctuary.Events
 
             CurrentLine = next;
             OnEventChanged?.Invoke(Current, CurrentLine);
+            ShowPanel(Current, CurrentLine);
 
             // 재수락 불가(500002)로 끝나는 줄이면 이 판에서 다시 뽑지 않는다.
             if (next.Ends && next.endSwitch == 500002) _finished.Add(Current.eventId);
@@ -295,7 +297,44 @@ namespace LastSanctuary.Events
             CurrentLine = null;
             EventRewardService.ClearAll();
             OnEventChanged?.Invoke(null, null);
+            ShowPanel(null, null);
         }
+
+        /// <summary>
+        /// ★★ <b>화면에 띄운다</b> (2026-08-21 · 유저 리포트: *"이벤트 지금 적용 되어도
+        /// 시각적으로 확인이 불가"*).
+        ///
+        /// <b>왜 이벤트(<see cref="OnEventChanged"/>)만으로는 안 됐나</b> — 이벤트 창
+        /// (<c>UI_Root/HUD_Event</c>)은 씬에 <b>비활성</b>으로 저장돼 있다. 유니티는 비활성
+        /// 오브젝트의 <c>Awake</c>·<c>OnEnable</c>·<c>Update</c> 를 <b>부르지 않으므로</b>,
+        /// 창이 «스스로 구독» 하는 코드는 영원히 실행되지 않았다. 표·확률·보상은 전부 정상으로
+        /// 돌고 있었고 <b>보여주는 통로 하나만</b> 죽어 있었다.
+        ///
+        /// → 여기서 <b>밀어 넣는다</b>. 비활성 오브젝트도 <b>참조로는</b> 부를 수 있다.
+        ///   찾을 때 <see cref="FindObjectsInactive.Include"/> 를 반드시 켜야 한다 —
+        ///   기본값(Exclude)으로는 꺼진 창을 <b>못 찾는다</b>(이 버그의 두 번째 함정).
+        ///
+        /// ★ <see cref="OnEventChanged"/> 는 <b>그대로 남긴다</b> — 다른 구독자(로그·연출)가
+        ///   붙을 자리이고, 창을 직접 부르는 것과 성격이 다르다.
+        /// ⚠ 창을 <b>캐시</b>한다(찾기는 비용이 있다). 파괴되면 다음 호출에 다시 찾는다.
+        /// </summary>
+        void ShowPanel(EventDefinitionSO def, EventLine line)
+        {
+            if (_panel == null)
+                _panel = Object.FindFirstObjectByType<UI.EventPanel>(FindObjectsInactive.Include);
+
+            if (_panel == null)
+            {
+                if (logRolls)
+                    Debug.LogWarning("[이벤트] 이벤트 창(UI_Root/HUD_Event)을 찾지 못했습니다 — " +
+                                     "표는 정상으로 돌지만 화면에는 아무것도 안 뜹니다.", this);
+                return;
+            }
+
+            _panel.Present(def, line);
+        }
+
+        UI.EventPanel _panel;
 
         /// <summary>디버그용 — 확률을 무시하고 웨이브 이벤트 하나를 띄운다(인스펙터 우클릭 메뉴).</summary>
         [ContextMenu("웨이브 이벤트 하나 발생시키기")]

@@ -48,3 +48,4 @@ MonoBehaviour:
   illustName: TumorSpider_illust
   skinAssetName: TumorSpider
   habitatTileAsset: 
+  hpPercent: 100

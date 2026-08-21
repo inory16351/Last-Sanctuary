@@ -25,7 +25,7 @@ MonoBehaviour:
   value04: 0
   value05: 0
   value06: 0
-  coolTime: 0
+  coolTime: 30
   iconName: 'icon_teal_portal'
   flavorText: '전장에서 구원을 바라는 것은 오만일지도 모릅니다.'
   detailText: '주변에 침식이 심하거나 후퇴 중인 동료가 있으면 자기 곁으로 끌어옵니다.'

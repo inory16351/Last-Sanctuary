@@ -172,9 +172,21 @@ namespace LastSanctuary.Combat
                 //     잡았다). 칸 번호가 아니라 <b>정의문</b>이 정본이라는 규칙의 실전 예다.
                 if (Type == BossSkillType.CreepyScar) return 0;
 
+                // ★ 2026-08-21 — 폴리르 「포화」(2009)는 피해가 <b>value_05</b> 다
+                //   (정의문: *"…적 + {value_04} 반지름 원형 타일 범위에 폴리르의 원거리
+                //   공격력 {value_05}% 만큼 공격한다"*). 앞 칸들이 지름·명수·반지름으로
+                //   다 쓰여서 뒤로 밀린 것이다 — 칸 번호가 아니라 정의문이 정본이다.
+                if (Type == BossSkillType.Dread) return Mathf.Max(0, Mathf.RoundToInt(value05));
+
+                // ★ 「급속 재생」(2008)은 <b>피해가 아예 없다</b> — 자기 회복 전용이다.
+                //   폴백(비면 100%)이 돌면 «회복 기술» 이 평타 한 대를 얹는 다른 기술이 된다.
+                if (Type == BossSkillType.RapidPlayback) return 0;
+
                 bool damageInValue02 = Type == BossSkillType.LureBlood
                                     || Type == BossSkillType.HugeThreat
-                                    || Type == BossSkillType.Screaming;
+                                    || Type == BossSkillType.Screaming
+                                    // ★ 화염 발사(2007) — "원거리 공격력 {value_02}% 로 공격"
+                                    || Type == BossSkillType.FlameEmission;
                 float raw = damageInValue02 ? value02 : value03;
 
                 // ★ <b>폴백이 없는 종류</b> — 표의 피해 칸이 <b>0 인 것이 뜻</b>인 스킬들.
@@ -330,6 +342,11 @@ namespace LastSanctuary.Combat
             {
                 if (Type == BossSkillType.BindingOrb) return Mathf.Max(0f, value06);
                 if (Type == BossSkillType.HugeThreat) return Mathf.Max(0f, value03);
+                // ★ 2026-08-21 — 폴리르 「포화」: *"맞은 적은 {value_06}초 동안 기절"*.
+                //   ⚠ 예전 주석은 «중립 시트에는 value_06 칸이 없다» 고 했지만 <b>지금은 있다</b>
+                //     (표가 늘었다 — `sync_tables_to_assets.py` 도 2026-08-21에 6번째 칸을
+                //     옮기게 고쳤다).
+                if (Type == BossSkillType.Dread) return Mathf.Max(0f, value06);
                 return 0f;
             }
         }
@@ -351,10 +368,15 @@ namespace LastSanctuary.Combat
         /// (*"반지름 {value_01}의 원형 범위"* · *"부채꼴의 반지름이 {value_01}"*).
         /// 반면 <b>바리올라의 두 스킬은 「지름」</b>이라 넣지 않는다 —
         /// 이 프로젝트에서 두 표기가 계속 섞여 들어오므로 <b>정의문을 읽고</b> 정할 것.
+        /// ★ 2026-08-21 — 폴리르 「화염 발사」도 정의문이 *"부채꼴의 <b>반지름</b>이
+        /// {value_01}"* 라 반지름 쪽이다(베일 「담배 연기」와 같은 문장). 반면 같은 캐릭터의
+        /// 「포화」는 *"폴리르 + {value_01} <b>지름</b> 타일 범위"* 라 <b>지름</b>이다 —
+        /// <b>한 캐릭터 안에서도 두 표기가 섞인다.</b> 정의문을 읽고 정할 것.
         public bool CircleValueIsRadius =>
             Type == BossSkillType.RoarDeath || Type == BossSkillType.HugeThreat
             || Type == BossSkillType.Screaming
-            || Type == BossSkillType.PipeStrike || Type == BossSkillType.PipeSmoke;
+            || Type == BossSkillType.PipeStrike || Type == BossSkillType.PipeSmoke
+            || Type == BossSkillType.FlameEmission;
 
         // ──────────────────────────────────────────────────────────────────
         // 베일 · 바리올라 (2026-08-20)
@@ -385,8 +407,45 @@ namespace LastSanctuary.Combat
         {
             BossSkillType.PipeStrike => Mathf.Max(0, Mathf.RoundToInt(value02)),
             BossSkillType.CreepyScar => Mathf.Max(0, Mathf.RoundToInt(value02)),
+            // ★ 2026-08-21 — 폴리르 「포화」는 <b>최대</b>가 value_03 이다
+            //   (value_02 는 «최소» — 아래 <see cref="MinTargets"/>).
+            BossSkillType.Dread      => Mathf.Max(0, Mathf.RoundToInt(value03)),
             _                        => 0,
         };
+
+        /// <summary>
+        /// ★ <b>이만큼도 없으면 시전하지 않는다</b> (2026-08-21 · 폴리르 「포화」).
+        ///
+        /// 정의문: *"…적 <b>최소 {value_02}명</b> 에서 <b>최대 {value_03}명</b>에게…"*.
+        /// «최소» 는 <b>발동 조건</b>으로 읽는다 — 그만큼 모이지 않았으면 쿨타임을 태우지
+        /// 않고 아낀다(허공에 쏘면 30초를 날린다).
+        /// ⚠ 다른 스킬은 0 이다(= 조건 없음) — 그러면 예전처럼 «한 명이라도 있으면» 이다.
+        /// </summary>
+        public int MinTargets => Type switch
+        {
+            BossSkillType.Dread => Mathf.Max(0, Mathf.RoundToInt(value02)),
+            _                   => 0,
+        };
+
+        /// <summary>
+        /// ★ 「포화」의 <b>낙뢰 하나가 덮는 반지름</b>(타일) — 정의문의
+        /// *"현재 공격중인 적을 중심으로 적 + {value_04} <b>반지름</b> 원형 타일 범위"*.
+        /// 다른 스킬은 0.
+        /// </summary>
+        public float SplashRadiusTiles =>
+            Type == BossSkillType.Dread ? Mathf.Max(0.5f, value04) : 0f;
+
+        /// <summary>
+        /// ★ 「급속 재생」의 <b>발동 문턱</b>(현재 체력 %). 다른 스킬은 0.
+        /// </summary>
+        public float SelfHealThresholdPercent =>
+            Type == BossSkillType.RapidPlayback ? Mathf.Clamp(value01, 0f, 100f) : 0f;
+
+        /// <summary>
+        /// ★ 「급속 재생」이 회복하는 양 — <b>최대 체력의 %</b>. 다른 스킬은 0.
+        /// </summary>
+        public float SelfHealMaxHpPercent =>
+            Type == BossSkillType.RapidPlayback ? Mathf.Max(0f, value02) : 0f;
 
         /// <summary>
         /// 「담배 연기」가 <b>바닥에 남아 있는 초</b>(정의문: *"연기를 {value_02}초간 생성"*).

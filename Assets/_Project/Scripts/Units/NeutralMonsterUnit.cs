@@ -140,20 +140,63 @@ namespace LastSanctuary.Units
         /// </summary>
         bool _animatorResolved;
 
-        /// <summary>처치 시 지급할 에너지를 이 범위에서 무작위로 뽑는다 (정의 테이블 min/max_energy).</summary>
-        public int RollEnergyReward() =>
-            definition != null ? Random.Range(definition.minEnergy, definition.maxEnergy + 1) : 0;
+        /// <summary>
+        /// ★★ <b>이 개체에 걸린 사냥 성장 배율</b> (2026-08-21 · <see cref="NeutralKillTally"/>).
+        /// <b>소환 순간에 굳는다</b> — 이미 서 있는 개체가 갑자기 세지지 않는다.
+        /// 능력치에 이미 반영돼 있고, 이 값을 따로 들고 있는 이유는 <b>보상 에너지</b>에도
+        /// 같은 배율을 걸어야 하기 때문이다(<see cref="RollEnergyReward"/>).
+        /// </summary>
+        public float GrowthMultiplier { get; private set; } = 1f;
+
+        /// <summary>
+        /// 처치 시 지급할 에너지를 이 범위에서 무작위로 뽑는다 (정의 테이블 min/max_energy).
+        ///
+        /// ★★ 2026-08-21 — <b>사냥 성장 배율을 곱한다</b> (유저 지시: *"중립 몬스터 성장
+        /// 배율에 자원값도 배율 적용 되어야 해"*). 강해진 개체가 같은 자원을 준다면
+        /// «잡기만 어렵고 이득은 같다» 가 되어 사냥할 이유가 줄어든다.
+        /// ⚠ 배율은 <b>이 개체가 태어난 시점</b>의 값이다 — 방금 잡은 한 마리가 자기 보상을
+        ///   올려주지 않는다(그러면 «마지막 한 마리만 이득» 이 되어 계단이 흐려진다).
+        /// ⚠ 끄는 손잡이: <see cref="BalanceConfigSO.neutralHuntGrowthScalesEnergy"/>.
+        /// </summary>
+        public int RollEnergyReward()
+        {
+            if (definition == null) return 0;
+
+            int rolled = Random.Range(definition.minEnergy, definition.maxEnergy + 1);
+            NeutralGrowthService cfg = NeutralGrowthService.Instance;
+            bool scales = cfg == null || cfg.ScaleEnergyReward;
+            if (!scales || GrowthMultiplier <= 1f) return rolled;
+
+            return Mathf.Max(rolled, Mathf.RoundToInt(rolled * GrowthMultiplier));
+        }
 
         /// <summary>스포너가 복제 직후 호출한다.</summary>
         public void Initialize(NeutralMonsterDefinitionSO def, BalanceConfigSO balance)
         {
             definition = def;
-            stats = def != null ? def.BuildStats() : new StatBlock { hp = 1 };
+
+            // ★ 사냥 성장 — 같은 종을 잡을수록 다음 개체가 강해진다(2026-08-21).
+            //   세는 곳은 아래 OnDeath · 수치는 <b>하이라키</b> GameSystems ▸ NeutralGrowthService.
+            GrowthMultiplier = def != null ? NeutralKillTally.MultiplierFor(def.monId) : 1f;
+
+            stats = def != null ? def.BuildStats(GrowthMultiplier, balance) : new StatBlock { hp = 1 };
             SetupHealth(balance);
+
+            NeutralGrowthService cfg = NeutralGrowthService.Instance;
+            if (cfg != null && cfg.LogGrowth && def != null)
+                Debug.Log($"[중립성장] {def.DisplayName}(id {def.monId}) · 처치 " +
+                          $"{NeutralKillTally.KillsOf(def.monId)}마리 · " +
+                          $"{NeutralKillTally.StepsOf(def.monId)}단계 · 배율 x{GrowthMultiplier:0.##} " +
+                          $"→ 체력 {MaxHp}", this);
         }
 
         protected override void OnDeath()
         {
+            // ★ 종별 처치 수를 센다 — 다음에 이 종이 소환될 때의 배율이 여기서 오른다.
+            //   ⚠ 보상 에너지보다 <b>뒤</b>에 세도 상관없다: 보상은 이 개체가 <b>태어날 때</b>
+            //     굳은 배율을 쓴다(위 RollEnergyReward). 즉 순서에 의존하지 않는다.
+            if (definition != null) NeutralKillTally.Record(definition.monId);
+
             // 에너지 지급은 여기서 직접 하지 않는다 — ResourceManager 가
             // DamageableUnit.OnAnyDied 를 구독해 처리한다(웨이브 몬스터와 같은 패턴).
             Destroy(gameObject);

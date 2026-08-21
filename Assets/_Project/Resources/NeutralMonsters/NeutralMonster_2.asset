@@ -48,3 +48,4 @@ MonoBehaviour:
   illustName: Tumorling_illust
   skinAssetName: Tumorling
   habitatTileAsset: 
+  hpPercent: 100

@@ -17,7 +17,7 @@ namespace LastSanctuary.Combat
     /// <item><see cref="ApplyAlwaysOnNewcomers"/> ← <c>ApplyAlwaysOn()</c></item>
     /// <item><see cref="TickNewcomers"/> ← <c>Tick(dt)</c></item>
     /// <item><c>TryArrowRain</c>·<c>TryDawn</c>·<c>TryFallenBody</c>·<c>TryCelestialShield</c>·
-    ///       <c>TryDivineWrath</c> ← <c>TickCooldownSkills()</c> 의 우선순위 표</item>
+    ///       <c>TryDivineWrath</c>·<c>TryHelpingHand</c> ← <c>TickCooldownSkills()</c> 의 우선순위 표</item>
     /// <item><see cref="ClearNewcomerEffects"/> ← <c>OnDisable()</c></item>
     /// </list>
     ///
@@ -36,13 +36,28 @@ namespace LastSanctuary.Combat
         /// <summary>「한발에 두마리」가 지금 걸어둔 다중 사격 수. 1 이면 안 걸린 것이다.</summary>
         int _appliedMultiShot = 1;
 
-        /// <summary>「도움의 손길」을 다음에 검사할 시각. 쿨타임이 0 이라 여기서 간격을 준다.</summary>
+        /// <summary>
+        /// 「도움의 손길」을 다음에 <b>검사</b>할 시각. 쿨타임과 <b>다른 것</b>이다 —
+        /// 아래 <see cref="HelpingHandInterval"/> 의 주석 참조.
+        /// </summary>
         float _helpingHandNextAt;
 
         /// <summary>
-        /// 「도움의 손길」의 자체 검사 간격(초). <b>표에 칸이 없다</b> — 정의문에 쿨타임이 없고
-        /// (<c>cool_time = 0</c>) 「조건이 맞으면 즉시」라고만 적혀 있다. 그렇다고 매 프레임
-        /// 돌리면 60번/초로 전 유닛을 훑게 되므로, «즉시» 로 느껴지는 가장 긴 간격을 둔다.
+        /// 「도움의 손길」의 <b>쿨타임</b>이 끝나는 시각 (표 <c>cool_time</c>).
+        ///
+        /// ★★ 2026-08-21 — <b>표에 30초가 들어와 있었는데 코드가 안 보고 있었다</b>
+        ///   (유저 지시: *"카이론 / 아루 스킬 쿨타임 적용"*). 표를 대조하니 어긋난 칸은
+        ///   <b>여기 하나</b>였다(80022 <c>cool_time</c> 표 30 · 에셋 0 — 카이론의 셋은
+        ///   60·30·67 로 이미 맞았다). 그래서 ① 에셋을 표에서 다시 굽고
+        ///   (<c>Tools/gen_character_assets.py</c>) ② 이 시각으로 <b>실제로 막는다</b>.
+        /// </summary>
+        float _helpingHandReadyAt;
+
+        /// <summary>
+        /// 「도움의 손길」이 <b>조건을 훑는</b> 간격(초). <b>쿨타임이 아니다</b> —
+        /// 쿨타임은 «쓴 뒤 다시 쓰기까지» 이고 이쪽은 «쓸 만한 동료가 있는지 보는» 간격이다.
+        /// 표에 칸이 없다: 매 프레임 전 유닛을 훑으면 60번/초가 되므로, 조건이 맞는
+        /// 순간을 «즉시» 로 느낄 만큼 짧게만 둔다.
         /// </summary>
         const float HelpingHandInterval = 0.5f;
 
@@ -235,7 +250,9 @@ namespace LastSanctuary.Combat
         void TickNewcomers(float dt)
         {
             SyncHeightenedSenses();     // 공격 유형이 바뀌었을 수 있다(위 주석)
-            TickHelpingHand();
+            // ★ 「도움의 손길」은 이제 <b>쿨타임 스킬</b>이라 여기서 부르지 않는다 —
+            //   `CharacterPassives.TickCooldownSkills` 가 «한 프레임에 하나» 규칙 안에서
+            //   `TryHelpingHand` 를 부른다(2026-08-21 · `_helpingHandReadyAt` 주석).
             TickChannel();
             TickShieldBurst();
             TickGolemLifetime();
@@ -315,23 +332,32 @@ namespace LastSanctuary.Combat
         /// 도움의 손길(+구원) — 반경 value01 안에서 <b>침식이 value02 이상</b>이거나
         /// <b>후퇴 중</b>인 동료를 즉시 아루 곁으로 옮긴다.
         ///
-        /// ⚠ 표의 쿨타임이 <b>0</b> 이라 이 스킬은 «쿨타임 스킬» 목록에 넣지 않았다 —
-        ///   그 목록은 «한 프레임에 하나만» 규칙을 강제하는데, 여기 걸리면 아루가 다른 스킬을
-        ///   쓰는 프레임에 구조가 밀린다. 대신 <see cref="HelpingHandInterval"/> 로 스스로 간격을 둔다.
+        /// ★★ <b>2026-08-21 — 쿨타임을 실제로 지킨다</b>(유저 지시 *"카이론 / 아루 스킬
+        ///   쿨타임 적용"*). 예전에는 표의 <c>cool_time</c> 이 0 이라 <b>쿨타임 자체가
+        ///   없었고</b>, 대신 0.5초마다 조건이 맞는 동료를 계속 끌어왔다. 표가 <b>30초</b>로
+        ///   바뀌었으므로 이제 «쿨타임 스킬» 이다 — 본체의 우선순위 표에 들어가고
+        ///   («한 프레임에 하나만» 규칙 안으로) 성공한 순간에만 쿨타임을 태운다.
+        ///
+        /// ⚠ <b>두 시각을 갈라 둔다</b> — <see cref="_helpingHandReadyAt"/>(쿨타임)와
+        ///   <see cref="_helpingHandNextAt"/>(훑는 간격). 끌어올 동료가 <b>없을 때</b>
+        ///   쿨타임을 태우면 «아무 일도 안 했는데 30초 못 쓰는» 스킬이 된다(「강림」이
+        ///   소환 실패에 쿨타임을 안 태우는 것과 같은 판단). 반대로 아무 간격도 없으면
+        ///   조건이 안 맞는 동안 <b>매 프레임 전 유닛을 훑는다</b>.
         ///
         /// ★ 「구원」(80023)이 붙어 있으면 옮겨진 아군은 <b>즉시 체력 재생 가능</b>이 된다.
         ///   정의문이 그 스킬을 «'구원의 손길'로 이송 되어진 아군» 이라고 <b>이 스킬에 매달아</b>
         ///   정의했으므로, 독립된 갈래를 만들지 않고 여기서 같이 처리한다.
         /// </summary>
-        void TickHelpingHand()
+        bool TryHelpingHand()
         {
             PassiveSkillSO so = Find(PassiveSkillType.AHelpingHand);
-            if (so == null) return;
-            if (Time.time < _helpingHandNextAt) return;
+            if (so == null) return false;
+            if (Time.time < _helpingHandReadyAt) return false;      // 쿨타임
+            if (Time.time < _helpingHandNextAt) return false;       // 훑는 간격
             _helpingHandNextAt = Time.time + HelpingHandInterval;
 
             float radius = Mathf.Max(0f, so.value01);
-            if (radius <= 0f) return;
+            if (radius <= 0f) return false;
             float erosionGate = so.value02;
 
             bool salvation = Has(PassiveSkillType.Salvation);
@@ -346,7 +372,7 @@ namespace LastSanctuary.Combat
                 if (ReferenceEquals(c, _unit)) continue;
                 if (((Vector2)(c.transform.position - myPos)).sqrMagnitude > sqr) continue;
 
-                // 이미 곁에 있으면 옮길 필요가 없다 — 매 0.5초 제자리로 순간이동시키면
+                // 이미 곁에 있으면 옮길 필요가 없다 — 제자리로 다시 순간이동시키면
                 // 그 동료는 <b>영영 걷지 못한다</b>(경로가 계속 지워진다).
                 if (((Vector2)(c.transform.position - myPos)).sqrMagnitude <= ArrivedSqr) continue;
 
@@ -359,7 +385,10 @@ namespace LastSanctuary.Combat
                 if (salvation) c.MakeRegenReady();
             }
 
-            if (moved <= 0) return;
+            // ★ 한 명도 못 옮겼으면 <b>쿨타임을 태우지 않는다</b>(위 ⚠).
+            if (moved <= 0) return false;
+
+            _helpingHandReadyAt = Time.time + Mathf.Max(0f, so.coolTime);
 
             Sprite[] fx = _animator != null && _animator.Skin != null ? _animator.Skin.SkillFx(0) : null;
             if (fx != null)
@@ -371,6 +400,7 @@ namespace LastSanctuary.Combat
             string label = salv != null ? $"{moved}명 이송 · 재생 해제" : $"{moved}명 이송";
             UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName, label),
                           UI.HudLogKind.Good);
+            return true;
         }
 
         /// <summary>이미 «곁» 으로 볼 거리의 제곱(타일²). 순환 순간이동을 막는 값이다.</summary>
@@ -479,7 +509,13 @@ namespace LastSanctuary.Combat
         void TickGolemLifetime()
         {
             if (_golem == null) return;
-            if (_golem.IsAlive) { AruGolem.Follow(_unit, _golem); return; }
+            if (_golem.IsAlive)
+            {
+                AruGolem.Follow(_unit, _golem);
+                // ★ 아루의 능력치가 달라졌으면 골렘도 그 자리에서 따라간다(2026-08-21).
+                AruGolem.SyncStats(_unit, _golem, Find(PassiveSkillType.Dawn));
+                return;
+            }
 
             PassiveSkillSO so = Find(PassiveSkillType.Dawn);
             _dawnReadyAt = Time.time + (so != null ? Mathf.Max(0f, so.coolTime) : 0f);
@@ -511,8 +547,19 @@ namespace LastSanctuary.Combat
             _fallenBodyReadyAt = Time.time + Mathf.Max(0f, so.coolTime);
             _unit.GrantShield(amount, seconds);
 
-            // ★ 슬롯 0 = 원화 시트의 「스킬 1」(보호막 획득). 표의 skill_01 과도 같은 번호다.
-            _animator?.PlaySkillMotion(0, seconds, transform.position + Vector3.right);
+            // ★★ <b>시전 모션을 재생하지 않는다</b> (2026-08-21 · 유저 리포트
+            //   *"현재 <b>앞을 보고 있는 프레임이 섞이고</b> … 깜빡거리는것처럼 보이고 정신
+            //   없음. 하나의 쉴드 이펙트를 <b>행동하는</b> 캐릭터에게 덧씌우는 로직으로"*).
+            //
+            //   예전에는 여기서 <c>PlaySkillMotion(0, seconds, …)</c> 로 「스킬 1」 원화를
+            //   <b>보호막이 도는 내내</b> 돌렸다. 그 원화는 ① <b>정면 자세</b>라 좌우 방향이
+            //   사라지고 ② 3·4번 칸에 구체가 <b>몸과 한 그림으로</b> 그려져 있어
+            //   겹쳐 그리는 구체와 <b>두 겹</b>이 되어 번쩍였다.
+            //
+            //   → 캐릭터는 <b>하던 행동을 그대로</b> 하고, 보호막은
+            //     <see cref="ShieldOverlayFx"/> 한 곳만 그린다(발동 «펑» 도 그쪽에 있다).
+            //   ⚠ 「스킬 1」 원화를 <b>버리는 것이 아니다</b> — 폴더에 그대로 있고,
+            //     정면 자세가 아닌 시전 원화가 오면 이 줄을 되살리면 된다.
 
             UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName,
                                               $"보호막 {amount} · {seconds:0.#}초"), UI.HudLogKind.Good);
@@ -526,8 +573,21 @@ namespace LastSanctuary.Combat
         /// 세 단계가 <b>시간으로 이어진다</b>. 그래서 여기서는 «정신집중 시작» 까지만 하고
         /// 나머지는 <see cref="TickChannel"/> · <see cref="TickShieldBurst"/> 가 이어받는다.
         /// </summary>
-        bool TryCelestialShield() => TryStartChannel(PassiveSkillType.CelestialShield,
-                                                     ref _celestialReadyAt);
+        bool TryCelestialShield()
+        {
+            // ★★ 2026-08-21 — <b>전투 중일 때만 시작한다</b> (유저 지시: *"카이론 2번 스킬
+            //   전투 중일 때만 발동하게 만들어줘"*).
+            //
+            //   시작 조건에는 «표적이 있을 것» 만 있었다(<see cref="TryStartChannel"/>).
+            //   그런데 <b>표적은 «쫓는 중» 에도 잡힌다</b> — 멀리 있는 적을 향해 걸어가는
+            //   동안 정신집중 2초가 돌고, 도발 반경이 <b>1.5타일</b>뿐이라 아무도 도발하지
+            //   못한 채 <b>쿨타임 30초</b>를 날렸다.
+            //   판정은 같은 캐릭터의 「타락한 육체」와 <b>같은 것</b>을 쓴다(새 규칙을 만들지 않는다).
+            // ⚠ 3번 「천벌」에는 걸지 않았다 — 지시가 2번이고, 천벌은 직사각형 원거리라
+            //   «붙기 전에 쏘는» 것이 낭비가 아니다. 그래서 공통 함수가 아니라 여기에 넣는다.
+            if (!_unit.IsInCombat) return false;
+            return TryStartChannel(PassiveSkillType.CelestialShield, ref _celestialReadyAt);
+        }
 
         /// <summary>
         /// 천벌 — value01 초 정신집중 → <b>가로 value02 x 세로 value03</b> 직사각형 안의 적에게
@@ -692,6 +752,21 @@ namespace LastSanctuary.Combat
         ///
         /// ⚠ 싸우는 아군이 없으면 <b>발동하지 않는다</b> — 허공에 던지면 쿨타임만 날린다
         ///   (「애로우 레인」과 같은 판단).
+        ///
+        /// ★★ <b>2026-08-21 — 표가 개정됐다</b> (유저: *"아르세니아 테이블에 스킬 조금
+        /// 수정 했는데 이거 반영해주고"*). 두 군데다:
+        ///
+        /// <list type="number">
+        /// <item><b>«자신을 중심으로 반지름 {value_05} 타일 범위 내»</b> 의 아군만 고른다.
+        ///       예전 문장에는 거리 제한이 없어서 <b>맵 반대편에서 싸우는 아군</b>에게도
+        ///       물약이 날아갔다 — 던지는 동작인데 사거리가 없었던 셈이다.</item>
+        /// <item>회복 증폭이 <b>{value_03} → {value_04}%</b> 로 갈라졌다. 예전에는 «몬스터가
+        ///       받는 초당 피해» 와 «아군이 받는 회복 증폭» 이 <b>같은 칸</b>이었는데
+        ///       (그래서 코드도 같은 값을 두 번 넘겼다), 이제 칸이 둘이다.</item>
+        /// </list>
+        /// ⚠ value_05 가 0 이면 <b>거리 제한 없음</b>으로 읽는다 — 표에 값이 안 들어간 옛
+        ///   에셋에서 스킬이 조용히 죽지 않게 하려는 것이다(0 = 무제한 규약은 이 프로젝트의
+        ///   다른 칸들과 같다).
         /// </summary>
         bool TrySacredBlessing()
         {
@@ -700,16 +775,18 @@ namespace LastSanctuary.Combat
 
             float radius = Mathf.Max(0f, so.value01);
             float seconds = Mathf.Max(0f, so.value02);
-            int percent = Mathf.RoundToInt(so.value03);
+            int percent = Mathf.RoundToInt(so.value03);        // 몬스터가 받는 초당 피해 %
+            int healPercent = Mathf.RoundToInt(so.value04);    // ★ 아군 회복 증폭 % (개정)
+            float pickRadius = Mathf.Max(0f, so.value05);      // ★ 아군을 찾는 반경 (개정)
             if (radius <= 0f || seconds <= 0f) return false;
 
-            DamageableUnit front = FindFrontMostFightingAlly();
+            DamageableUnit front = FindFrontMostFightingAlly(pickRadius);
             if (front == null) return false;
 
             _sacredBlessingReadyAt = Time.time + Mathf.Max(0f, so.coolTime);
             Vector3 center = front.transform.position;
 
-            SacredZone.Spawn(_unit, center, radius, seconds, percent, percent);
+            SacredZone.Spawn(_unit, center, radius, seconds, percent, healPercent);
 
             _animator?.PlaySkillMotion(1, 0.6f, center);
             Sprite[] fx = _animator != null && _animator.Skin != null ? _animator.Skin.SkillFx(1) : null;
@@ -725,11 +802,19 @@ namespace LastSanctuary.Combat
 
         /// <summary>
         /// 싸우고 있는 아군 캐릭터 중 <b>적에게 가장 가까운</b> 하나. 없으면 null.
+        ///
+        /// <paramref name="withinTiles"/> — <b>나(아르세니아)로부터</b> 이 거리 안에서만 고른다
+        /// (표 <c>value_05</c> · 2026-08-21 개정). <b>0 이면 제한 없음</b>.
+        /// ⚠ 이 값은 «적에게 가장 가까운» 판정과 <b>다른 기준점</b>을 쓴다 — 후보를 거르는 것은
+        ///   <b>내 위치</b>, 그중 누구를 고르는지는 <b>적과의 거리</b>다. 두 기준을 섞으면
+        ///   «내 옆의 아군» 과 «최전방» 중 무엇을 뽑는지가 흐려진다.
         /// </summary>
-        DamageableUnit FindFrontMostFightingAlly()
+        DamageableUnit FindFrontMostFightingAlly(float withinTiles = 0f)
         {
             DamageableUnit best = null;
             float bestDist = float.MaxValue;
+            float pickSqr = withinTiles > 0f ? withinTiles * withinTiles : float.MaxValue;
+            Vector3 myPos = transform.position;
 
             var all = UnitRegistry.All;
             for (int i = 0; i < all.Count; i++)
@@ -738,6 +823,7 @@ namespace LastSanctuary.Combat
                 if (u == null || !u.IsAlive) continue;
                 if (u.Faction != _unit.Faction || u.Kind != UnitKind.Character) continue;
                 if (!u.IsInCombat) continue;
+                if (((Vector2)(u.transform.position - myPos)).sqrMagnitude > pickSqr) continue;
 
                 float d = NearestEnemyDistance(u);
                 if (d >= bestDist) continue;

@@ -54,3 +54,4 @@ MonoBehaviour:
   skillIds:
   - 2003
   - 2004
+  hpPercent: 100

@@ -261,6 +261,70 @@ namespace LastSanctuary.Combat
         ///   <b>평타 피해에 얹는</b> 것이고 이쪽은 <b>그것만</b>이다(<c>value_03</c> = 0).
         /// </summary>
         DeadlyVenom,
+
+        // ──────────────────────────────────────────────────────────────
+        // 폴리르 (에픽 중립 보스 1104) — 2026-08-21 · 원거리 드래곤
+        //
+        // 스트링 테이블 정의문이 근거다. ★ 이 셋은 <b>칸의 뜻이 또 다르다</b>:
+        //   화염 발사   "부채꼴의 <b>반지름</b>이 {value_01} … <b>원거리 공격력 {value_02}%</b>"
+        //               → 반지름 쪽(베일과 같다) · 피해가 <b>value_02</b>
+        //   급속 재생   "현재 체력이 {value_01}% 가 되면 최대 체력의 {value_02}% 회복"
+        //               → <b>피해가 없다</b>. 대상도 없다(자기 자신)
+        //   포화        "폴리르 + {value_01} <b>지름</b> … 적 최소 {value_02}~최대 {value_03}명
+        //               … 적 + {value_04} <b>반지름</b> 원형 … {value_05}% … {value_06}초 기절"
+        //               → 지름 쪽(바리올라와 같다) · 피해가 <b>value_05</b> · 기절이 value_06
+        // ──────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// 화염 발사 (2007) — <b>가장 가까운 적</b>을 향해 <b>정면 부채꼴</b>(반지름
+        /// <c>value_01</c>) 안의 적 전부에게 <b>원거리 공격력의 <c>value_02</c>%</b>.
+        ///
+        /// ★ 베일 「담배 연기」가 만든 부채꼴 갈래(<see cref="BossSkillShape.SemiCircle"/>)를
+        ///   <b>그대로</b> 탄다 — 전용 분기가 없다. 다른 것은 «중독 대신 피해» 뿐이고,
+        ///   그 차이는 표의 칸(<c>value_02</c>)만으로 표현된다.
+        /// ⚠ 그래서 이 종류는 <see cref="BossSkillSO.CircleValueIsRadius"/>(반지름) ·
+        ///   <see cref="BossSkillSO.DamagePercent"/>(value_02) <b>두 곳</b>에만 이름이 오른다.
+        /// </summary>
+        FlameEmission,
+
+        /// <summary>
+        /// 급속 재생 (2008) — <b>자기 체력이 <c>value_01</c>% 이하로 떨어지면</b>
+        /// <b>최대 체력의 <c>value_02</c>%</b> 를 회복한다.
+        ///
+        /// ★★ <b>이 프로젝트의 첫 «조건부 자기 회복» 보스 스킬</b>이다. 지금까지 모든 보스
+        ///   스킬은 «쿨타임이 되면 범위에 피해» 였다 — 그래서 두 가지가 새로 필요했다:
+        ///   ① <b>대상이 없다</b>(<c>requireTarget</c> 을 건너뛴다)
+        ///   ② <b>조건이 안 맞으면 쿨타임을 태우지 않는다</b>(체력이 아직 높으면 «아낀다»)
+        ///
+        /// ⚠ 정의문은 *"현재 체력이 {value_01}%가 <b>되면</b>"* 이라 <b>문턱</b>이다 —
+        ///   «정확히 50%» 가 아니라 «50% 이하» 로 읽는다(한 프레임에 그 값을 정확히 지나갈
+        ///   보장이 없으므로 «정확히» 로 읽으면 <b>영영 안 터진다</b>).
+        /// ★ 쿨타임 600초라 판 하나에 한두 번이다 — «죽기 직전에 한 번 살아난다» 는 뜻이다.
+        /// </summary>
+        RapidPlayback,
+
+        /// <summary>
+        /// 포화 (2009) — 자기 중심 <b>지름 <c>value_01</c></b> 안에서 <b>최대
+        /// <c>value_03</c>명</b>을 골라, <b>그 적들 각자를 중심으로</b> 반지름
+        /// <c>value_04</c> 원형에 <b>원거리 공격력의 <c>value_05</c>%</b> +
+        /// <c>value_06</c>초 <b>기절</b>.
+        ///
+        /// ★★ <b>«낙뢰» 가 여럿 떨어지는 기술</b>이다 — 지금까지의 보스 스킬은 범위가
+        ///   <b>하나</b>였다(시전자 기준 또는 조준 방향). 이 스킬은 <b>범위가 N개</b>이고
+        ///   중심이 <b>각각 다른 적</b>이다. 그래서 전용 분기가 필요하다.
+        ///
+        /// ★ <b>최소 <c>value_02</c>명</b> — 그만큼도 없으면 <b>시전하지 않는다</b>(쿨타임을
+        ///   태우지 않는다). 정의문이 «최소 N명에서 최대 M명에게» 라고 범위를 적었으므로
+        ///   «한 명도 없는데 허공에 쏜다» 는 읽기가 될 수 없다.
+        ///
+        /// ★ <b>«중첩되어 공격 받지 않는다»</b> — 정의문의 마지막 문장이다. 낙뢰 범위가
+        ///   겹치는 적이 두 번 맞지 않게 <b>이미 맞은 유닛을 기억</b>하고 건너뛴다.
+        ///
+        /// ★ 기절은 <b>구속과 같은 상태</b>다(<see cref="UnitCombat.ApplyBind"/>) —
+        ///   아니사킬 「거대한 위협 포효」와 같은 판단이고, 정의문도 *"부정적인 정신 이상
+        ///   상태를 해제하는 효과로 해제 가능하다"* 라고 같은 규칙을 적어 두었다.
+        /// </summary>
+        Dread,
     }
 
     public static class BossSkillTypes
@@ -296,6 +360,11 @@ namespace LastSanctuary.Combat
                 // ── 바리올라 1103 (2026-08-20) ──
                 case "creepy_scar":    return BossSkillType.CreepyScar;
                 case "deadly_venom":   return BossSkillType.DeadlyVenom;
+
+                // ── 폴리르 1104 (2026-08-21) ──
+                case "flame_emission": return BossSkillType.FlameEmission;
+                case "rapid_playback": return BossSkillType.RapidPlayback;
+                case "dread":          return BossSkillType.Dread;
                 default:            return BossSkillType.None;
             }
         }

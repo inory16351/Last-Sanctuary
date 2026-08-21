@@ -380,6 +380,12 @@ namespace LastSanctuary.Combat
             //   전혀 다른 기술이 되므로 전용 갈래를 탄다(구속탄과 같은 이유).
             if (skill.Type == BossSkillType.PipeStrike) return TryCastPipeStrike(slot, skill);
 
+            // ★ 2026-08-21 — 폴리르. 둘 다 위 두 갈래의 전제를 깬다:
+            //   「급속 재생」 대상이 <b>자기 자신</b>이고 <b>피해가 없다</b>
+            //   「포화」     범위가 <b>여러 개</b>이고 중심이 <b>각각 다른 적</b>이다
+            if (skill.Type == BossSkillType.RapidPlayback) return TryCastRapidPlayback(slot, skill);
+            if (skill.Type == BossSkillType.Dread) return TryCastDread(slot, skill);
+
             // ── 부채꼴 범위 (2026-08-20 신설 · 베일 「담배 연기」) ────────
             //    ⚠ <b>표 값을 그대로 넘긴다</b>(<c>area</c> 가 아니다) — 아래 주석 참조.
             if (skill.Shape == BossSkillShape.SemiCircle) return TryCastSemiCircle(slot, skill);
@@ -695,6 +701,130 @@ namespace LastSanctuary.Combat
             return ApplyDamage(slot, skill, diameter, diameter, "구속탄 폭발");
         }
 
+        // ------------------------------------------------------------------
+        // 폴리르 「급속 재생」 — <b>조건부 자기 회복</b> (2026-08-21)
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// 자기 체력이 문턱 이하로 떨어졌을 때 <b>최대 체력의 %</b> 를 회복한다.
+        ///
+        /// ★★ <b>이 프로젝트의 보스 스킬 중 첫 «피해가 아닌» 스킬</b>이다. 그래서 두 가지가
+        ///   다르다:
+        ///   ① <b>대상이 없다</b> — <c>requireTarget</c>·<c>_scratch</c> 를 쓰지 않는다.
+        ///   ② <b>조건이 안 맞으면 <c>false</c></b> — 그래야 쿨타임을 태우지 않고 «아낀다».
+        ///      (<see cref="Update"/> 는 <c>false</c> 를 «대상이 없어 못 썼다» 로 읽어
+        ///      다음 순위 스킬로 넘어간다 — 그 뜻이 여기서도 정확히 맞다.)
+        ///
+        /// ⚠ <b>«{value_01}% 가 되면» 을 «이하» 로 읽는다</b> — 한 프레임에 정확히 그 값을
+        ///   지나갈 보장이 없어서 «정확히» 로 읽으면 영영 안 터진다.
+        /// ★ 연출은 <see cref="PlayFx"/> 가 <b>스킬 모션</b>(원화의 「급속 재생」 자세)을
+        ///   돌리는 것으로 충분하다 — 이 스킬에는 전용 이펙트 원화가 없다(시트가
+        ///   *"별도 모션 불필요"* 라고 적어 두었고, 그 한 장이 <b>초록 재생 오라</b>다).
+        /// </summary>
+        bool TryCastRapidPlayback(int slot, BossSkillSO skill)
+        {
+            float threshold = skill.SelfHealThresholdPercent;
+            float percent = skill.SelfHealMaxHpPercent;
+            if (threshold <= 0f || percent <= 0f) return false;
+
+            int max = _self.MaxHp;
+            if (max <= 0) return false;
+
+            float now = (float)_self.CurrentHp / max * 100f;
+            if (now > threshold) return false;              // 아직 아낀다
+
+            int amount = Mathf.RoundToInt(max * percent / 100f);
+            if (amount <= 0) return false;
+
+            _self.Heal(amount);
+
+            // 자기 자리에 모션만 돌린다 — 크기는 몸집 기준(표에 범위 칸이 없다).
+            float body = Mathf.Max(2f, SelfBodyRadiusTiles() * 2f);
+            PlayFx(slot, skill, transform.position, Vector2.right, body, body, null);
+
+            string line = UI.HudLog.SkillLine(_self.DisplayName, skill.DisplayName,
+                                              $"체력 +{amount}");
+            UI.HudLog.Add(line, UI.HudLogKind.Danger);
+            if (logCasts)
+                Debug.Log($"[보스스킬] {line} · 문턱 {threshold:0.#}% (지금 {now:0.#}%) · " +
+                          $"최대체력의 {percent:0.#}%", this);
+            return true;
+        }
+
+        // ------------------------------------------------------------------
+        // 폴리르 「포화」 — <b>범위가 여러 개</b>다 (2026-08-21)
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// 자기 중심 <b>지름 <c>value_01</c></b> 안에서 <b>가까운 순 최대 <c>value_03</c>명</b>을
+        /// 골라, <b>그 적들 각자를 중심으로</b> 반지름 <c>value_04</c> 원형에 피해 + 기절.
+        ///
+        /// ★ <b>왜 전용 갈래인가</b> — 기존 원형 갈래는 원의 중심이 언제나 <b>시전자</b>이고
+        ///   (구속탄 갈래는 <b>하나</b>의 대상 자리), 이 스킬은 중심이 <b>N개</b>다.
+        ///
+        /// ★ <b>최소 <c>value_02</c>명</b>이 모이지 않았으면 시전하지 않는다 — 쿨타임 30초를
+        ///   허공에 날리지 않는다(정의문이 «최소 N명에서» 라고 적은 것을 발동 조건으로 읽는다).
+        ///
+        /// ★★ <b>«중첩되어 공격 받지 않는다»</b>(정의문 마지막 문장) — 낙뢰 범위가 겹치면
+        ///   한 적이 두 번 맞을 수 있다. <see cref="_dreadHit"/> 로 <b>이미 맞은 유닛</b>을
+        ///   기억해 건너뛴다. ⚠ 이걸 빼면 세 낙뢰가 겹치는 자리에서 <b>피해가 3배</b>가 된다.
+        ///
+        /// ⚠ 판정 대상 목록(<see cref="_scratch"/>)은 <see cref="ApplyDamage"/> 가 쓰는
+        ///   <b>공용 버퍼</b>다 — 낙뢰마다 다시 채우므로, 중심 목록은 <b>따로</b>
+        ///   (<see cref="_dreadCenters"/>) 복사해 둔다. 같은 버퍼를 겹쳐 쓰면 첫 낙뢰가
+        ///   목록을 갈아치워 두 번째 중심을 잃는다.
+        /// </summary>
+        bool TryCastDread(int slot, BossSkillSO skill)
+        {
+            float seek = (skill.CircleValueIsRadius ? skill.value01 : skill.value01 * 0.5f)
+                       + SelfBodyRadiusTiles();
+            if (seek <= 0f) return false;
+
+            UnitRegistry.CollectEnemiesInRadius(transform.position, seek, _self.Faction, _scratch);
+            if (_scratch.Count < Mathf.Max(1, skill.MinTargets)) return false;
+
+            TrimToMaxTargets(skill);                       // 가까운 순 · 최대 value_03 명
+
+            _dreadCenters.Clear();
+            for (int i = 0; i < _scratch.Count; i++)
+                if (_scratch[i] != null && _scratch[i].IsAlive) _dreadCenters.Add(_scratch[i]);
+            if (_dreadCenters.Count == 0) return false;
+
+            float radius = skill.SplashRadiusTiles;
+            float diameter = radius * 2f;
+
+            _dreadHit.Clear();
+            int strikes = 0;
+            for (int i = 0; i < _dreadCenters.Count; i++)
+            {
+                DamageableUnit center = _dreadCenters[i];
+                if (center == null || !center.IsAlive) continue;
+
+                Vector3 at = center.transform.position;
+                PlayFx(slot, skill, at, Vector2.right, diameter, diameter, center);
+
+                UnitRegistry.CollectEnemiesInRadius(at, radius, _self.Faction, _scratch);
+
+                // 중첩 제거 — 이미 다른 낙뢰에 맞은 유닛은 뺀다(위 ★★).
+                for (int k = _scratch.Count - 1; k >= 0; k--)
+                    if (_scratch[k] == null || !_dreadHit.Add(_scratch[k])) _scratch.RemoveAt(k);
+                if (_scratch.Count == 0) continue;
+
+                ApplyDamage(slot, skill, diameter, diameter, $"포화 낙뢰 {i + 1}");
+                strikes++;
+            }
+
+            _dreadCenters.Clear();
+            _dreadHit.Clear();
+            return strikes > 0;
+        }
+
+        /// <summary>「포화」의 낙뢰 중심들 — <see cref="_scratch"/> 가 갈아치워지므로 따로 든다.</summary>
+        readonly List<DamageableUnit> _dreadCenters = new List<DamageableUnit>();
+
+        /// <summary>「포화」가 이번 시전에 <b>이미 때린</b> 유닛 — 중첩 피해를 막는다.</summary>
+        readonly HashSet<DamageableUnit> _dreadHit = new HashSet<DamageableUnit>();
+
         /// <summary>
         /// 이 슬롯의 <b>스킬 전용 탄환</b>을 <paramref name="from"/> → <paramref name="to"/> 로
         /// 흘려보낸다. 스킨에 그 칸이 비어 있으면 평타 탄환으로 떨어지고, 그것도 없으면
@@ -898,7 +1028,13 @@ namespace LastSanctuary.Combat
             // ★ <b>구속탄과 같은 상태를 쓴다</b>(UnitCombat.ApplyBind) — 다른 것은 <b>거는
             //   조건</b>뿐이다. 구속탄은 「허약 중에 또 맞으면」이고 이쪽은 <b>맞으면 바로</b>다.
             //   상태를 새로 만들면 해제 규칙(정신 안정)이 두 벌이 되어 한쪽이 새게 된다.
-            if (skill.Type == BossSkillType.HugeThreat && skill.BindSeconds > 0f)
+            // ★ 2026-08-21 — 폴리르 「포화」(2009)도 같은 쪽이다: *"맞은 적은 {value_06}초 동안
+            //   기절 상태에 걸린다 … 부정적인 정신 이상 상태를 해제하는 효과로 해제 가능하다"*.
+            //   문장이 「거대한 위협 포효」와 <b>거의 같아서</b> 같은 상태를 그대로 쓴다.
+            //   ⚠ 표의 `status_name` 칸이 <b>비어 있어서</b> 화면 문구는 «구속» 으로 떨어진다 —
+            //     «기절» 로 보이게 하려면 표의 그 칸에 스트링 키를 넣으면 된다(코드는 이미 읽는다).
+            if ((skill.Type == BossSkillType.HugeThreat || skill.Type == BossSkillType.Dread)
+                && skill.BindSeconds > 0f)
             {
                 var combat = target.GetComponent<UnitCombat>();
                 if (combat != null) Bind(combat, target, skill.BindSeconds, skill.StatusName);
