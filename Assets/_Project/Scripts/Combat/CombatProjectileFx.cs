@@ -107,12 +107,26 @@ namespace LastSanctuary.Combat
         /// </summary>
         const float MuzzleForwardRatio = 0.45f;
 
-        /// <summary>
-        /// 기준 유닛이 없는 <b>지면 연출</b>의 정렬 순서 (2026-08-21).
-        /// 음수라 <b>유닛보다 아래</b>(밟고 서는 그림이다)이고, 배경 타일보다는 위다.
-        /// ⚠ 0 으로 두면 타일맵과 같은 층이 되어 «맵에 붙은 장식» 처럼 보인다 — 그것이 버그였다.
-        /// </summary>
-        const int GroundFxSortingOrder = -5;
+        // ------------------------------------------------------------------
+        //  기준 유닛이 없는 <b>지면 연출</b>의 정렬 (2026-08-21)
+        //
+        //  씬의 정렬 레이어는 순서가 있다(ProjectSettings/TagManager):
+        //      Default → Background → <b>Floor</b> → <b>Object</b> → Overhead → VFX → WorldUI
+        //  실측한 타일맵 셋: 바닥 = Floor(0) · 벽·데코 = Object(0) · 배경 = Background(0).
+        //  유닛도 Object 레이어에 있다.
+        //
+        //  ★ 그래서 <b>Floor 레이어의 양수 순서</b>가 «바닥 타일 위 · 유닛 아래» 다.
+        //    레이어 순서가 Floor < Object 이므로 순서 값과 무관하게 유닛보다 아래로 간다 —
+        //    밟고 서는 마법진에는 그것이 맞다.
+        //  ⚠⚠ <b>Default 를 쓰면 안 된다</b> — 목록의 <b>맨 앞</b>이라 바닥 타일보다도
+        //    아래로 가서 <b>아예 안 보인다</b>.
+        // ------------------------------------------------------------------
+
+        /// <summary>지면 연출이 놓일 정렬 레이어 이름. 위 주석의 실측 근거를 따른다.</summary>
+        const string GroundFxSortingLayer = "Floor";
+
+        /// <summary>바닥 타일(Floor 0)보다 위로 올리는 순서. 같은 레이어 안에서만 의미가 있다.</summary>
+        const int GroundFxSortingOrder = 10;
 
         /// <summary>시전 섬광이 머무는 시간(초).</summary>
         const float FlashSeconds = 0.12f;
@@ -684,9 +698,9 @@ namespace LastSanctuary.Combat
                 //     캐릭터 스킬의 범위 연출은 전부 <c>anchor: null</c> 로 부르므로
                 //     («맞는 쪽» 이 여럿이라 하나를 고를 수 없다) 그 그림이 <b>바닥 장식과
                 //     같은 층</b>에 깔렸다 — 유저가 «맵에 장식물처럼» 이라고 본 것의 절반이다.
-                //   ★ 지면 연출이므로 <b>유닛보다 아래</b>가 맞다(밟고 서는 그림이다).
-                //     그래서 order 를 음수로 두되, 배경 타일보다는 위로 올린다.
-                sr.sortingLayerID = SortingLayer.NameToID("Default");
+                //   ★ 지면 연출이므로 <b>바닥 타일 위 · 유닛 아래</b>가 맞다(밟고 서는 그림이다).
+                //     레이어·순서를 고른 근거는 위 GroundFxSortingLayer 주석에 실측으로 적었다.
+                sr.sortingLayerID = SortingLayer.NameToID(GroundFxSortingLayer);
                 sr.sortingOrder = GroundFxSortingOrder;
             }
 
@@ -796,9 +810,34 @@ namespace LastSanctuary.Combat
         /// ★ <c>DamageNumberFx</c>(99-6절)가 «폴백은 자기가 태어난 씬과 생애를 같이 해야
         ///   한다» 며 같은 문제를 고쳐 둔 것과 <b>같은 처리</b>다.
         /// </summary>
-        void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
+        void HandleSceneLoaded(Scene scene, LoadSceneMode mode) => ClearAll();
+
+        /// <summary>
+        /// ★★ <b>지금 떠 있는 연출을 전부 치운다</b> (2026-08-21).
+        ///
+        /// <b>왜 필요한가</b> — 유저 리포트: *"아르세니아 이펙트가 중앙 건물 청크에 걸려서
+        /// 장식물처럼 안없어져"*.
+        ///
+        /// <see cref="Update"/> 는 <c>Time.deltaTime</c> 으로 센다 — 배속을 걸면 연출도 같이
+        /// 빨라져야 하므로 그것이 맞다. 그런데 <b>판이 끝나면 <c>timeScale</c> 이 0 으로
+        /// 고정된다</b>(<c>DefeatPanel</c>·<c>VictoryPanel</c>). 그러면:
+        ///
+        ///   · 살아 있던 연출의 타이머가 <b>영원히 안 흐른다</b> → 화면에 <b>그대로 굳는다</b>
+        ///   · 그것을 지워 줄 <c>SacredZone</c> 도 <c>Time.time</c> 으로 세므로 <b>같이 굳는다</b>
+        ///     → <see cref="SacredZone.OnDestroy"/> 가 영영 안 돌고 취소도 안 된다
+        ///
+        /// 패배는 <b>넥서스가 부서질 때</b> 일어나므로, 굳은 그림은 정확히 «중앙 건물 자리» 에
+        /// 남는다 — 유저가 본 그 «장식물» 이다.
+        ///
+        /// ★ <b>시간으로 우회하지 않았다</b>(<c>unscaledDeltaTime</c> 으로 바꾸는 것) —
+        ///   그러면 <b>일시정지 중에도 연출만 계속 흐른다</b>. 멈춘 화면에서 탄환이 혼자
+        ///   날아가는 것은 더 이상하다. 그래서 «판이 끝났다» 는 <b>사건</b>에 붙여
+        ///   그때 치우는 쪽을 골랐다.
+        /// </summary>
+        public static void ClearAll()
         {
-            for (int i = _live.Count - 1; i >= 0; i--) Retire(i);
+            if (_instance == null) return;
+            for (int i = _instance._live.Count - 1; i >= 0; i--) _instance.Retire(i);
         }
     }
 }

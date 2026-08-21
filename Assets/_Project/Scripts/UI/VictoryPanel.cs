@@ -120,6 +120,11 @@ namespace LastSanctuary.UI
             if (_restartTextLabel != null) _restartTextLabel.text = restartLabel;
 
             if (_body != null) _body.SetActive(true);
+
+            // ★★ 떠 있는 전투 연출을 <b>timeScale 을 0 으로 만들기 전에</b> 치운다 —
+            //   이유는 <see cref="DefeatPanel"/> 의 같은 자리에 적어 두었다(2026-08-21).
+            Combat.CombatProjectileFx.ClearAll();
+
             if (pauseGameOnVictory) Time.timeScale = 0f;
 
             HudLog.Add($"승리 — 웨이브 {_finalWave} 클리어", HudLogKind.Good);

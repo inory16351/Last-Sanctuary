@@ -149,6 +149,15 @@ namespace LastSanctuary.UI
 
             if (_body != null) _body.SetActive(true);
 
+            // ★★ <b>떠 있는 전투 연출을 먼저 치운다</b> (2026-08-21 · 유저 리포트:
+            //   *"아르세니아 이펙트가 중앙 건물 청크에 걸려서 장식물처럼 안없어져"*).
+            //
+            //   ⚠ <b>아래 timeScale = 0 보다 먼저여야 한다.</b> 0 이 되면 연출의 타이머도
+            //     그것을 지워 줄 <c>SacredZone</c> 도 <b>같이 굳어</b> 영영 안 사라진다.
+            //     패배는 넥서스가 부서질 때 일어나므로 굳은 그림은 정확히 «중앙 건물 자리» 에
+            //     남는다 — 유저가 본 그 «장식물» 이다.
+            Combat.CombatProjectileFx.ClearAll();
+
             // 멈추는 것은 화면을 띄우는 시점이다 — 넥서스가 부서지는 순간은 그대로 보여준다.
             if (pauseGameOnDefeat) Time.timeScale = 0f;
 
