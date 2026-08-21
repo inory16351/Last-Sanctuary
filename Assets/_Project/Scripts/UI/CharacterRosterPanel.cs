@@ -732,10 +732,25 @@ namespace LastSanctuary.UI
             row.Erosion.Clear();
         }
 
+        /// <summary>
+        /// 영웅 각성한 캐릭터인가 — 이름을 금색으로 그릴지 정한다.
+        /// ★ <see cref="UnitPortraitPanel"/> 과 <b>같은 판정</b>을 쓴다(각성 횟수 ≥ 1).
+        /// ⚠ <c>Of</c> 를 쓴다(<c>EnsureOn</c> 이 아니다) — 표시하는 쪽이 컴포넌트를
+        ///   <b>만들어서는</b> 안 된다. 없으면 «각성 안 함» 이 맞다.
+        /// </summary>
+        static bool IsHero(CharacterUnit unit)
+        {
+            if (unit == null) return false;
+            CharacterKills kills = CharacterKills.Of(unit);
+            return kills != null && kills.IsHero;
+        }
+
         /// <summary>행이 재활용될 때 이전 사망 표시(회색)를 지우고 정상 색으로 되돌린다.</summary>
         void ApplyAliveAppearance(Row row)
         {
             if (row.Background != null) row.Background.color = rowNormal;
+            // ⚠ 각성 색은 <see cref="RefreshValues"/> 가 매 프레임 다시 칠한다 — 여기서는
+            //   «재활용된 행의 회색을 지운다» 만 한다(그 함수의 ⚠ 참조).
             if (row.Name != null) row.Name.color = HudTheme.TextMain;
             if (row.Duty != null) row.Duty.color = HudTheme.TextDim;
             if (row.SelectButton != null) row.SelectButton.interactable = true;
@@ -841,7 +856,22 @@ namespace LastSanctuary.UI
 
                 CharacterUnit unit = row.Unit;
 
-                if (row.Name != null) row.Name.text = NameTextOf(unit);
+                if (row.Name != null)
+                {
+                    row.Name.text = NameTextOf(unit);
+
+                    // ★★ <b>영웅 각성한 캐릭터는 이름이 금색이다</b> (2026-08-21 · 유저 지시:
+                    //   *"왼쪽 위 캐릭터 그리드에도 영웅각성한 캐릭터 이름 황금색으로 변경"*).
+                    //
+                    //   ★ 판정과 색을 <b>상세 UI 와 공유</b>한다 — 판정은
+                    //     <see cref="Combat.CharacterKills.IsHero"/>, 색은
+                    //     <see cref="HudTheme.TextHero"/> 다. 두 창이 각자 정하면 한쪽만 바뀐다.
+                    //   ⚠ <b>매 프레임 여기서 다시 칠한다</b> — 행은 재활용되므로
+                    //     (<see cref="ApplyAliveAppearance"/> 가 TextMain 으로 되돌린다)
+                    //     각성 여부를 <b>갱신 때마다</b> 다시 반영해야 한다.
+                    //     각성은 판 중간에 일어나므로 «한 번 칠하고 끝» 이 성립하지 않는다.
+                    row.Name.color = IsHero(unit) ? HudTheme.TextHero : HudTheme.TextMain;
+                }
 
                 // HP 바는 여기서 건드리지 않는다 — ApplyHp(즉시)+AnimateHpBars(매 프레임)가 반영한다.
                 // 폴링과 애니메이션이 같은 값을 이중으로 쓰면 순서에 따라 잠깐 어긋나 보일 수 있다.
