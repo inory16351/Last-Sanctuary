@@ -170,8 +170,23 @@ namespace LastSanctuary.Units
                 for (int dx = -half; dx <= half; dx++)
                     _usedCells.Add(new Vector3Int(centerCell.x + dx, centerCell.y + dy, 0));
 
+            int before = SpawnedCharacters.Count;
             for (int i = 0; i < characterCount; i++)
                 SpawnCharacterAt(centerCell, i, characterCount);
+
+            // ★★ <b>시작 인원이 모자라면 «그렇다고» 말한다</b> (2026-08-21 · 유저 리포트:
+            //   *"가끔 게임 시작 시 캐릭터가 3마리가 생성이 안되고 캐릭터가 0개로 시작"*).
+            //
+            //   ⚠ 예전에는 실패가 <see cref="SpawnCharacterAt"/> 안에서 <b>한 명씩</b>
+            //     경고로만 남았고, «시작 캐릭터가 3명이 아니다» 라고 말하는 곳이 <b>없었다</b>.
+            //     그래서 이 증상이 로그에서 자기 이름을 못 밝히고 «가끔 0개» 로만 보였다.
+            //   ★ 여기서 죽이지 않는다 — 판은 계속되어야 하고, 원인은 로그가 말해 준다.
+            int made = SpawnedCharacters.Count - before;
+            if (made < characterCount)
+                Debug.LogError($"[UnitSpawner] 시작 캐릭터가 {characterCount}명이어야 하는데 " +
+                               $"{made}명만 생성됐습니다 — 남은 후보 " +
+                               $"{CharacterDefinitionRegistry.RemainingCount}명 " +
+                               $"(후보 소진 = {CharacterDefinitionRegistry.Exhausted}).", this);
         }
 
         /// <summary>

@@ -42,6 +42,18 @@ namespace LastSanctuary.UI
         /// <summary>정신 이상 상태 이름을 표시할 때의 글자색.</summary>
         public static readonly Color TextErosion    = new Color(0.84f, 0.64f, 1f, 1f);
 
+        /// <summary>
+        /// ★★ <b>영웅 각성한 캐릭터의 이름 색</b> (2026-08-21 · 유저 지시: *"영웅 각성 시
+        /// 캐릭터 상세 UI에 영웅 이름을 황금색으로 … 캐릭터 그리드에도 황금색으로"*).
+        ///
+        /// ★ 값이 <see cref="Combat.DamageNumberFx"/> 의 <c>heroAwakenColor</c>(1, 0.72, 0.22)와
+        ///   <b>같다</b> — 각성하는 순간 화면에 뜨는 «영웅 각성!» 글자와 그 뒤로 계속 남는
+        ///   이름 색이 <b>같은 금색</b>이어야 «그때 그 일» 과 «이 캐릭터» 가 이어져 보인다.
+        /// ⚠ 색을 여기 둔 이유는 <b>두 창이 쓰기</b> 때문이다(상세 UI · 로스터). 패널마다
+        ///   적으면 한쪽만 바뀐다 — 이 파일의 맨 위 규칙 그대로다.
+        /// </summary>
+        public static readonly Color TextHero       = new Color(1f, 0.72f, 0.22f, 1f);
+
         public static readonly Color ButtonNormal = new Color(0.13f, 0.17f, 0.22f, 0.95f);
         public static readonly Color ButtonHover  = new Color(0.18f, 0.26f, 0.32f, 0.98f);
         public static readonly Color ButtonOn     = new Color(0.16f, 0.42f, 0.38f, 0.98f);

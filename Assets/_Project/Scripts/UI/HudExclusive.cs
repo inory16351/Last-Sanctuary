@@ -95,6 +95,35 @@ namespace LastSanctuary.UI
             finally { _busy = false; }
         }
 
+        /// <summary>
+        /// ★ <b>지금 열려 있는 배타 창을 닫는다</b> (2026-08-21 · <see cref="HudHotkeys"/> 의 Esc).
+        ///
+        /// <returns>닫은 창이 있으면 <c>true</c>. 열린 창이 없었으면 <c>false</c>.</returns>
+        ///
+        /// ★ 목록을 <see cref="OpenOnly"/> 와 <b>공유</b>한다 — 창이 새로 생겨도
+        ///   <see cref="IExclusiveHudPanel"/> 만 구현하면 Esc 가 저절로 닫는다.
+        ///   («규칙을 한 곳에 모은다» 는 이 클래스의 존재 이유 그대로다.)
+        /// ⚠ 배타 창은 «동시에 하나» 가 규칙이라 하나만 닫으면 끝이지만, 혹시 둘이 열려
+        ///   있어도 <b>전부</b> 닫는다 — 한 번의 Esc 로 화면이 확실히 정리되는 편이 낫다.
+        /// </summary>
+        public static bool CloseOpenPanel()
+        {
+            EnsureScanned();
+
+            bool closed = false;
+            for (int i = 0; i < _panels.Count; i++)
+            {
+                IExclusiveHudPanel p = _panels[i];
+                if (p == null) continue;
+                if (p is Object o && o == null) continue;
+                if (!p.IsOpen) continue;
+
+                p.Close();
+                closed = true;
+            }
+            return closed;
+        }
+
         /// <summary>맵 클릭을 기다리는 모드를 전부 끊는다 (집결지 지정 · 건설 자리 지정).</summary>
         public static void CancelMapModes()
         {

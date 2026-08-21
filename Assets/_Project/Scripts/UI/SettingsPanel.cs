@@ -61,6 +61,7 @@ namespace LastSanctuary.UI
         [SerializeField] string saveButtonPath = "Body/SaveButton";
         [SerializeField] string lobbyButtonPath = "Body/LobbyButton";
         [SerializeField] string restartButtonPath = "Body/RestartButton";
+        [SerializeField] string quitButtonPath = "Body/QuitButton";
         [SerializeField] string closeButtonPath = "Header/CloseButton";
         [SerializeField] string statusPath = "Body/Status";
 
@@ -77,12 +78,19 @@ namespace LastSanctuary.UI
                  "창을 켜 둔 채 잊고 있다가 누르는 일을 막는다")]
         [Min(1f)] [SerializeField] float restartConfirmSeconds = 5f;
 
+        [Header("저장 없이 나가기")]
+        [Tooltip("한 번 눌렀을 때 뜨는 경고. 이 상태에서 한 번 더 눌러야 실제로 나간다. " +
+                 "★ 저장 «파일» 은 지우지 않는다 — 마지막 저장 이후의 진행만 버린다")]
+        [SerializeField] string quitConfirm =
+            "저장하지 않고 로비로 나갈까요? 한 번 더 누르면 실행됩니다 (마지막 저장 이후 진행이 사라집니다)";
+
         [Tooltip("로비 씬 이름. 빌드 세팅에 들어 있어야 한다")]
         [SerializeField] string lobbySceneName = "Lobby";
 
         Button _saveButton;
         Button _lobbyButton;
         Button _restartButton;
+        Button _quitButton;
         Button _closeButton;
         TMP_Text _status;
 
@@ -120,6 +128,7 @@ namespace LastSanctuary.UI
             _saveButton = FindComponent<Button>(saveButtonPath);
             _lobbyButton = FindComponent<Button>(lobbyButtonPath);
             _restartButton = FindComponent<Button>(restartButtonPath);
+            _quitButton = FindComponent<Button>(quitButtonPath);
             _closeButton = FindComponent<Button>(closeButtonPath);
             _status = FindComponent<TMP_Text>(statusPath);
 
@@ -144,6 +153,18 @@ namespace LastSanctuary.UI
                 // 이건 이번에 새로 만든 오브젝트라, 없다면 씬이 옛 버전이라는 뜻이다.
                 Debug.LogWarning($"[환경설정] '{restartButtonPath}' 을 찾지 못했습니다 — " +
                                  "Tools/scene_add_restart_button.py 를 돌렸는지 확인해주세요.", this);
+            }
+
+            if (_quitButton != null)
+            {
+                _quitButton.onClick.RemoveAllListeners();
+                _quitButton.onClick.AddListener(HandleQuitWithoutSaving);
+            }
+            else
+            {
+                // 재시작 버튼과 같은 이유로 조용히 넘기지 않는다 — 이번에 새로 만든 오브젝트다.
+                Debug.LogWarning($"[환경설정] '{quitButtonPath}' 을 찾지 못했습니다 — " +
+                                 "씬에 「저장 없이 나가기」 버튼이 있는지 확인해주세요.", this);
             }
 
             if (_closeButton != null)
@@ -264,6 +285,51 @@ namespace LastSanctuary.UI
         ///   경로가 <b>넷</b>인데 이 셋(패배·승리·로비)이 ② 를 빠뜨리고 있었기 때문이다 —
         ///   그것이 «캐릭터가 죽으면 생성이 안 되는» 버그였다(그 클래스의 맨 위 주석).
         void RestartRun() => Save.RunResetService.BeginNewRun();
+
+        /// <summary>
+        /// ★★ <b>저장 없이 나가기</b> (2026-08-21 · 유저 지시: *"재시작 밑에 저장 없이 나가기
+        /// 버튼 추가하고 기능 구현"*).
+        ///
+        /// <b>「저장하고 로비로 돌아가기」와 무엇이 다른가</b> — <b>저장을 하지 않는다</b>.
+        /// 그것뿐이다. 마지막 자동 저장(또는 손으로 누른 저장) 이후의 진행은 <b>버려진다</b>.
+        ///
+        /// ⚠⚠ <b>저장 파일을 «지우지» 는 않는다.</b> «나가기» 는 «이 판을 버린다» 가 아니라
+        ///   «지금 상태를 기록하지 않고 나간다» 다. 지워 버리면 유저가 <b>예전 저장까지</b>
+        ///   잃는다 — 그것은 「게임 재시작」이 하는 일이고(그쪽은 경고를 두 번 받는다),
+        ///   이 버튼의 뜻이 아니다. 로비에서 「이어하기」를 누르면 <b>마지막 저장</b>으로
+        ///   돌아간다.
+        ///
+        /// ⚠ <b>두 번 눌러야 실행된다</b> — 되돌릴 수 없고(진행이 사라진다) 「저장하고 로비로」
+        ///   바로 아래에 붙는 버튼이라, 한 번의 오조작으로 진행이 날아가면 안 된다.
+        ///   「게임 재시작」과 <b>같은 확인 통로</b>를 쓴다(<see cref="_restartArmedUntil"/> 는
+        ///   버튼마다 따로 두지 않고 «지금 무엇을 확인받는 중인가» 로 함께 관리한다).
+        ///
+        /// ⚠ <c>timeScale</c> 을 되돌린다 — 배속·일시정지 상태로 나가면 로비가 멈추거나
+        ///   8배속으로 지나간다(<see cref="HandleSaveAndLobby"/> 와 같은 함정).
+        /// ★ 이벤트의 지속 보정은 <b>여기서 걷는다</b> — 유닛이 살아 있을 때 거두는 편이
+        ///   «누가 무엇을 되돌렸는가» 가 분명하다(<see cref="Save.RunResetService"/> 의 ①).
+        ///   다만 판 전역 기록(등장 인물)은 <b>비우지 않는다</b> — 저장을 살려 두었으므로
+        ///   이어하기로 돌아올 수 있고, 그때 «같은 인물이 두 번» 이 되면 안 된다.
+        /// </summary>
+        void HandleQuitWithoutSaving()
+        {
+            if (Time.unscaledTime > _restartArmedUntil)
+            {
+                _restartArmedUntil = Time.unscaledTime + restartConfirmSeconds;
+                SetStatus(quitConfirm);
+                return;
+            }
+
+            _restartArmedUntil = 0f;
+
+            // 이벤트 지속 보정만 걷는다 (판 전역 기록은 그대로 — 위 ★).
+            if (EventService.Instance != null) EventService.Instance.ClearRun();
+            else EventRewardService.ClearAll();
+
+            SaveService.PendingLoad = null;     // ⚠ 남아 있으면 로비가 그것을 이어하기로 읽는다
+            Time.timeScale = 1f;
+            SceneManager.LoadScene(lobbySceneName);
+        }
 
         bool TrySave()
         {

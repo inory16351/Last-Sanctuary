@@ -49,11 +49,27 @@ namespace LastSanctuary.UI
         [Header("색")]
         [SerializeField] Color titleColor = new Color(0.84f, 0.64f, 1f, 1f);
 
+        [Tooltip("평소 이름 색. ★ 영웅 각성한 캐릭터는 이 값을 무시하고 " +
+                 "HudTheme.TextHero(금색)로 그린다 — 두 창이 같은 색을 쓰게 하려고 " +
+                 "각성 색은 인스펙터에 두지 않았다")]
+        [SerializeField] Color nameColor = new Color(0.88f, 0.92f, 0.94f, 1f);
+
         [Tooltip("잠긴 스킬의 <b>아이콘</b> 색 — 알파를 낮춰 '비활성' 으로 읽히게 한다")]
         [SerializeField] Color lockedIconColor = new Color(1f, 1f, 1f, 0.25f);
 
         [Tooltip("잠긴 스킬의 <b>글자</b> 색")]
         [SerializeField] Color lockedTextColor = new Color(0.45f, 0.49f, 0.55f, 1f);
+
+        [Header("문구 · 색 — 분노 게이지 (히스톤 「분노」)")]
+        [Tooltip("{0} = 지금 분노, {1} = 분노 상한(100). ★ 성장 창과 같은 형식으로 둔다 — " +
+                 "두 창이 다른 문구를 쓰면 «어느 쪽이 맞지» 가 된다")]
+        [SerializeField] string rageFormat = "분노 {0:0.#} / {1:0}";
+
+        [Tooltip("평소 분노 숫자 색")]
+        [SerializeField] Color rageTextColor = new Color(0.96f, 0.62f, 0.45f, 1f);
+
+        [Tooltip("분노가 가득 찼을 때(= 부활 준비) 숫자 색")]
+        [SerializeField] Color rageFullColor = new Color(1f, 0.42f, 0.36f, 1f);
 
         [Header("체력바 색 (보스·몬스터)")]
         [SerializeField] Color barHigh = new Color(0.40f, 0.85f, 0.52f, 1f);
@@ -89,6 +105,13 @@ namespace LastSanctuary.UI
         readonly Transform[] _skillSlots = new Transform[SkillSlots];
         readonly Image[] _skillIcons = new Image[SkillSlots];
         readonly TMP_Text[] _skillLabels = new TMP_Text[SkillSlots];
+
+        // ── 분노 게이지 (히스톤 「분노」 해금 시에만 켜진다) — 2026-08-21 ──────
+        //   하이라키: <c>Rage</c> ▸ <c>RageLabel</c>(글씨) + <c>RageBack</c> ▸ <c>RageFill</c>(바)
+        //   ★ 유저 지시대로 <b>글씨 아래에 바</b>가 온다.
+        Transform _rageRoot;
+        TMP_Text _rageLabel;
+        Image _rageFill;
 
         /// <summary>체력 묶음(보스·몬스터 전용).</summary>
         Transform _hpRoot;
@@ -322,7 +345,15 @@ namespace LastSanctuary.UI
             }
 
             // 이름은 <b>이름만</b> 적는다 — 레벨은 옆 칸(Level)이 따로 맡는다(2026-08-19 목업).
-            if (_nameText != null) _nameText.text = unit.DisplayName;
+            if (_nameText != null)
+            {
+                _nameText.text = unit.DisplayName;
+
+                // ★★ <b>영웅 각성한 캐릭터는 이름이 금색이다</b> (2026-08-21 · 유저 지시).
+                //   판정은 <see cref="Combat.CharacterKills.IsHero"/> 한 곳이다 — 각성 횟수가
+                //   1 이상인가. 로스터도 <b>같은 함수</b>를 본다(규칙이 두 벌이 되지 않게).
+                _nameText.color = IsHero(unit) ? HudTheme.TextHero : nameColor;
+            }
 
             if (_titleText != null)
             {
@@ -347,6 +378,82 @@ namespace LastSanctuary.UI
             if (_hpRoot != null) _hpRoot.gameObject.SetActive(character == null);
 
             RefreshVolatile();
+        }
+
+        /// <summary>
+        /// 영웅 각성한 캐릭터인가 — 이름을 금색으로 그릴지 정한다.
+        ///
+        /// ★ <see cref="CharacterKills.IsHero"/>(각성 횟수 ≥ 1)를 그대로 본다. 판정을
+        ///   여기서 새로 짜지 않는다 — 로스터도 <b>같은 것</b>을 봐야 두 창이 안 어긋난다.
+        /// ⚠ <see cref="CharacterKills.Of"/> 를 쓴다(<c>EnsureOn</c> 이 아니다) — 표시하는
+        ///   쪽이 컴포넌트를 <b>만들어서는</b> 안 된다. 없으면 «각성 안 함» 이 맞다.
+        /// </summary>
+        static bool IsHero(DamageableUnit unit)
+        {
+            if (unit is not CharacterUnit character) return false;
+            CharacterKills kills = CharacterKills.Of(character);
+            return kills != null && kills.IsHero;
+        }
+
+        // ------------------------------------------------------------------
+        //  ★★ 분노 게이지 (2026-08-21 · 유저 지시: *"히스톤 두번째 스킬 해방 시 분노가
+        //      차는 분노바가 캐릭터 성장창에는 실시간으로 보이는데 캐릭터 상세 UI …
+        //      에도 표기되면 좋겠어 분노 빨간색 바는 분노 글씨 아래에 넣어서"*)
+        //
+        //  ★ <b>성장 창과 같은 판정을 쓴다</b>(<c>CharacterGrowthPanel.ShowRageGauge</c>) —
+        //    「분노」(<c>rage_on</c>) 스킬이 <b>해금된</b> 캐릭터에게만 보인다.
+        //    ⚠ 인물 이름이나 슬롯 번호로 찾지 않는다 — 그 스킬이 어느 칸에 오는지는
+        //      캐릭터 정의가 정한다(82-8절의 원칙). «스킬 종류» 로만 판정한다.
+        //  ⚠ 캐릭터가 아니면(몬스터) 항상 끈다.
+        // ------------------------------------------------------------------
+
+        void RefreshRage()
+        {
+            if (_rageRoot == null) return;
+
+            bool show = false;
+            float rage = 0f;
+
+            if (_shown is CharacterUnit character && HasRageSkillUnlocked(character))
+            {
+                show = true;
+                // 성장 창의 RageOf 와 같은 방식 — 컴포넌트를 만들지 않고 있으면 읽는다.
+                var passives = character.GetComponent<CharacterPassives>();
+                rage = passives != null ? passives.Rage : 0f;
+            }
+
+            if (_rageRoot.gameObject.activeSelf != show) _rageRoot.gameObject.SetActive(show);
+            if (!show) return;
+
+            float ratio = Mathf.Clamp01(rage / CharacterPassives.RageMax);
+            if (_rageFill != null)
+            {
+                UiFillBar.Prepare(_rageFill);
+                _rageFill.fillAmount = ratio;
+            }
+            if (_rageLabel != null)
+            {
+                _rageLabel.text = string.Format(rageFormat, rage, CharacterPassives.RageMax);
+                _rageLabel.color = ratio >= 1f ? rageFullColor : rageTextColor;
+            }
+        }
+
+        /// <summary>
+        /// 이 캐릭터가 「분노」를 <b>해금했는가</b>. 성장 창과 같은 조건이다 —
+        /// 스킬 종류가 <c>rage_on</c> 이고 강화 횟수가 해금 기준을 넘었을 때.
+        /// </summary>
+        static bool HasRageSkillUnlocked(CharacterUnit character)
+        {
+            if (character == null || character.Definition == null) return false;
+
+            for (int slot = 0; slot < SkillSlots; slot++)
+            {
+                PassiveSkillSO skill = character.Definition.PassiveAt(slot);
+                if (skill == null) continue;
+                if (PassiveSkillTypes.Parse(skill.skillType) != PassiveSkillType.RageOn) continue;
+                return character.IsPassiveUnlocked(slot);
+            }
+            return false;
         }
 
         // ------------------------------------------------------------------
@@ -430,6 +537,10 @@ namespace LastSanctuary.UI
             if (!_shown.IsAlive) { Close(); return; }
 
             if (_stateText != null) _stateText.text = StateTextOf(_shown);
+
+            // ★ 분노는 <b>체력 칸보다 먼저</b> 갱신한다 — 아래 체력 칸은 캐릭터일 때
+            //   비활성이라 그 자리에서 return 하고, 그러면 분노가 영영 안 갱신된다.
+            RefreshRage();
 
             if (_hpRoot == null || !_hpRoot.gameObject.activeSelf) return;
 
@@ -529,6 +640,15 @@ namespace LastSanctuary.UI
             _hpRoot = transform.Find("Hp");
             _hpFill = FindOptional<Image>("Hp/HpBack/HpFill");
             _hpText = FindOptional<TMP_Text>("Hp/HpText");
+
+            // ── 분노 게이지 (히스톤 「분노」 전용) — 2026-08-21 ─────────────────
+            //   유저 지시: *"히스톤 두번째 스킬 해방 시 … 캐릭터 상세 UI에도 표기 …
+            //   분노 빨간색 바는 분노 글씨 아래에 넣어서"*.
+            //   ⚠ 위 ⚠ 와 같은 이유로 <b>없어도 죽지 않는다</b>.
+            _rageRoot = transform.Find("Rage");
+            _rageLabel = FindOptional<TMP_Text>("Rage/RageLabel");
+            _rageFill = FindOptional<Image>("Rage/RageBack/RageFill");
+            UiFillBar.Prepare(_rageFill);
         }
 
         T Find<T>(string path) where T : Component

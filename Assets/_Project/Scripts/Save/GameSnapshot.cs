@@ -153,10 +153,48 @@ namespace LastSanctuary.Save
             if (logAutoSave) HudLog.Add($"자동 저장 — {reason}", HudLogKind.Info);
         }
 
-        /// <summary>지금 상태를 파일에 쓴다. 환경 설정 창의 "저장하기" 도 이 경로를 쓴다.</summary>
+        /// <summary>
+        /// 지금 상태를 파일에 쓴다. 환경 설정 창의 "저장하기" 도 이 경로를 쓴다.
+        ///
+        /// ══════════════════════════════════════════════════════════════════
+        ///  ★★ <b>캐릭터가 0명인 판은 저장하지 않는다</b> (2026-08-21)
+        /// ══════════════════════════════════════════════════════════════════
+        /// 유저 리포트: *"가끔 게임 시작 시 캐릭터가 3마리가 생성이 안되고 캐릭터가 0개로
+        /// 시작하는 버그"*.
+        ///
+        /// <b>어떻게 그런 세이브가 만들어졌나</b> — <see cref="HandleAnyDied"/> 는 죽음
+        /// <b>그 순간</b>에 불린다(<c>OnAnyDied</c> 는 피해 처리 안에서 바로 발생한다).
+        /// 그런데 «전멸 패배» 는 <c>WaveManager.Update</c> 가 <b>다음 프레임에</b> 폴링해서
+        /// 정하고, 그것도 «에너지로 다시 뽑을 수 없을 때» 만 패배다. 그래서 마지막 캐릭터가
+        /// 죽는 프레임에는 <c>IsFinished</c> 가 <b>아직 false</b> 이고 위 ⚠ 의 가드를 통과한다
+        /// → <see cref="CaptureCharacters"/> 가 죽은 유닛을 전부 건너뛰어 <b>인원 0명짜리
+        /// 세이브</b>가 디스크에 쓰인다.
+        ///
+        /// 그 파일을 「이어하기」로 열면 <see cref="RestoreCharacters"/> 가 시작 캐릭터 3명을
+        /// <b>먼저 지우고</b> 저장된 0명을 세우려 하므로 — <b>0명으로 시작</b>한다.
+        ///
+        /// ★ <b>여기가 맞는 자리다</b> — <see cref="AutoSave"/> 와 환경 설정의 «저장하기»
+        ///   (<c>SettingsPanel.TrySave</c>)가 <b>둘 다</b> 이 함수를 지난다. 한 곳에서 막으면
+        ///   경로가 늘어도 규칙이 갈리지 않는다.
+        /// ★ 위의 <c>IsFinished</c> 가드는 <b>그대로 둔다</b> — 그것은 «결과가 확정된 판은
+        ///   저장하지 않는다» 는 <b>정책</b>이고, 이것은 «되돌릴 수 없는 세이브는 만들지
+        ///   않는다» 는 <b>유효성</b>이다. 뜻이 달라 합치지 않는다.
+        /// ⚠ 「저장하고 로비로 돌아가기」는 저장 실패 시 <b>씬을 넘기지 않는다</b> —
+        ///   그래서 이 가드가 걸리면 유저가 그 자리에서 «저장하지 못했습니다» 를 본다.
+        ///   그편이 «조용히 못 쓰는 세이브를 만들고 나가는» 것보다 낫다.
+        /// </summary>
         public bool SaveNow(string reason)
         {
             SaveData data = Capture(reason);
+
+            if (data.characters.Count == 0)
+            {
+                Debug.LogWarning($"[저장] 캐릭터가 0명이라 «{reason}» 저장을 건너뜁니다 — " +
+                                 "그 세이브를 불러오면 시작 캐릭터가 지워지고 0명으로 시작합니다.", this);
+                HudLog.Add("캐릭터가 없어 저장하지 않았습니다", HudLogKind.Warn);
+                return false;
+            }
+
             return SaveService.Write(data);
         }
 
@@ -217,6 +255,14 @@ namespace LastSanctuary.Save
             foreach (CharacterUnit unit in all)
             {
                 if (unit == null) continue;
+
+                // ★ <b>소환수(아루의 골렘)는 담지 않는다</b> (2026-08-21).
+                //   골렘도 <c>CharacterUnit</c> 이라 그대로 담기고 있었는데, 불러오면
+                //   <b>주인 없는 로스터 인원</b>으로 되살아난다(「강림」이 다시 부를 몸이 아니다).
+                //   ⚠ 이 프로젝트의 다른 인원 집계는 이미 전부 <c>!IsSummoned</c> 를 쓴다
+                //     (<c>WaveManager</c>·<c>DefeatPanel</c>·<c>VictoryPanel</c>·
+                //      <c>CharacterCreationService</c>) — 저장만 빠져 있었다.
+                if (unit.IsSummoned) continue;
 
                 // 쓰러진 채 부활을 기다리는 캐릭터는 <b>살아있는 것으로</b> 담는다 —
                 // 없어진 게 아니라 잠깐 누워 있는 것이다(CharacterUnit.IsRevivePending 주석).
@@ -468,7 +514,34 @@ namespace LastSanctuary.Save
         {
             if (_unitSpawner == null) return;
 
+            // ★★ <b>지울 것을 지우기 «전에» 넣을 것이 있는지 본다</b> (2026-08-21).
+            //
+            //   ⚠⚠ 순서가 전부다. 아래 <c>DestroySpawnedCharactersForRestore</c> 는 시작
+            //     캐릭터 3명을 <b>확실히</b> 지운다(레지스트리까지 훑는다). 그 뒤에 세울 것이
+            //     없으면 <b>0명으로 시작</b>한다 — 유저가 본 «가끔 캐릭터 0개» 다.
+            //
+            //   ★ <see cref="SaveNow"/> 가 0명짜리 세이브를 <b>더는 만들지 않지만</b>,
+            //     이미 디스크에 있는 파일은 그대로다. 그것을 열어도 판이 망가지지 않게
+            //     읽는 쪽에도 가드를 둔다(«두 겹» — 이 프로젝트가 잠금에 쓰는 방식과 같다).
+            //   ★ 여기서 <b>그냥 돌아간다</b> — 시작 캐릭터 3명이 살아 있는 채로 판이 이어진다.
+            //     못 쓰는 세이브 때문에 판을 못 하는 것보다 «불러오기만 실패» 가 낫다.
+            if (data.characters.Count == 0)
+            {
+                Debug.LogError("[불러오기] 저장에 캐릭터가 0명입니다 — 불러오기를 건너뜁니다. " +
+                               "시작 캐릭터를 그대로 둡니다(그러지 않으면 0명으로 시작한다).", this);
+                HudLog.Add("저장에 캐릭터가 없어 불러오지 않았습니다", HudLogKind.Warn);
+                return;
+            }
+
             _unitSpawner.DestroySpawnedCharactersForRestore();
+
+            // ★ <b>등장 인물 기록을 세이브 기준으로 다시 세운다</b> (2026-08-21).
+            //   위에서 시작 캐릭터 3명을 지웠는데, 그 셋이 뽑힐 때 «등장했다» 로 <b>기록은
+            //   남아 있다</b>(재등장 금지의 핵심이라 죽어도 안 지운다). 그대로 두면 이어하기
+            //   한 번에 후보가 3명씩 줄어들고, 인물 11명이라 몇 번이면 «등장할 인물 없음» 이 된다.
+            //   ⚠ 아래 루프가 <c>SpawnRestored</c> → <c>MarkAppeared</c> 로 <b>저장된 인원을
+            //     다시 표시</b>하므로, 여기서 비워도 재등장 금지는 그대로 지켜진다.
+            Units.CharacterDefinitionRegistry.ResetRun();
 
             SquadService squads = SquadService.Instance;
 
