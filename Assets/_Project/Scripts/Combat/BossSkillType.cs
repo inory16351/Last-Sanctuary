@@ -325,6 +325,57 @@ namespace LastSanctuary.Combat
         ///   상태를 해제하는 효과로 해제 가능하다"* 라고 같은 규칙을 적어 두었다.
         /// </summary>
         Dread,
+
+        // ──────────────────────────────────────────────────────────────
+        // 레기미아 (웨이브 최종보스 120006 · 30웨이브) — 2026-08-21
+        //
+        // ★★ <b>표에는 2026-08-21 이전부터 있었는데 이 enum 에 없었다.</b> 그래서
+        //   <see cref="BossSkillTypes.Parse"/> 가 <see cref="None"/> 으로 떨어뜨리고
+        //   <see cref="BossSkillSO.IsUsable"/> 가 false 가 되어 <b>스킬이 하나도 안 실렸다</b>
+        //   (콘솔 경고: *"BossSkill_130011 의 종류('Tumor_explosion')를 알아보지 못했습니다"*).
+        //   115-6절의 «Parse 에 없어 스킬을 하나도 안 싣는» 그 구멍과 같은 종류다.
+        // ──────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// 종양 폭발 (130011) — 자기 중심 <b>원형</b>. 스트링 테이블 그대로:
+        /// *"레기미아를 중심으로 레기미아 + {value_01} <b>지름</b> 타일 범위에 있는 모든 적에게
+        /// 레기미아의 근거리 공격력{value_02}% 만큼 공격한다"*.
+        ///
+        /// ★ <b>«지름» 이다</b> — 베일·카르시노스 계열의 «반지름» 과 반대다
+        /// (<see cref="BossSkillSO.CircleValueIsRadius"/> 에 넣지 않는다).
+        ///
+        /// ★★ <b>«레기미아 +» 를 반드시 더해야 한다</b> — 안 더하면 <b>아무도 못 맞힌다.</b>
+        ///   레기미아 콜라이더는 15 x 10 이라 <c>BodyRadiusTiles = min(15,10)/2 = 5.0타일</c>
+        ///   이고, 근접 캐릭터는 그 <b>몸 표면</b>(중심에서 5타일 밖)에 붙어 선다. 그런데
+        ///   표의 지름은 5 → 반지름 2.5 로, 원이 <b>레기미아 몸 속에서 끝난다.</b>
+        ///   베일 「담뱃대 강타」가 넉백이 한 번도 안 걸렸던 것과 <b>똑같은 계산</b>이다
+        ///   (<see cref="BossSkillCaster.SelfBodyRadiusTiles"/> 주석).
+        ///   → 판단은 <see cref="BossSkillSO.CircleAddsBodyRadius"/> 한 곳에 있다.
+        ///
+        /// ★ <b>피해가 <c>value_02</c> 다</b>(기본 갈래는 <c>value_03</c>) — 정의문이 가로·세로
+        ///   두 칸을 쓰지 않기 때문이다. 「이끌리는 혈취」·「거대한 위협 포효」와 같은 쪽이다.
+        /// </summary>
+        TumorExplosion,
+
+        /// <summary>
+        /// 강제 보급 (130012) — <b>조건부 자기 회복</b>. 스트링 테이블 그대로:
+        /// *"레기미아의 현재 체력이 {value_01}% 일 때, {value_02}초 동안 자신의 최대체력의
+        /// {value_03}% 만큼 체력을 회복한다."*
+        ///
+        /// ★ 성질은 폴리르 「급속 재생」(<see cref="RapidPlayback"/>)과 같다 — 대상이 없고,
+        ///   조건이 안 맞으면 쿨타임을 태우지 않는다. <b>다른 점이 하나</b>: 급속 재생은
+        ///   <b>즉시</b> 한 번에 회복하고, 이쪽은 <b><c>value_02</c>초에 걸쳐</b> 회복한다.
+        ///
+        /// ⚠ *"{value_02}초 동안 … {value_03}% 만큼"* 을 <b>그 시간 동안 합계 {value_03}%</b> 로
+        ///   읽는다. 이 표는 <b>초당</b>일 때 «<b>매 초</b>» 라고 못박는다(「담배 연기」의 중독:
+        ///   *"<b>매 초</b> 최대체력의 {value_05}%의 피해"*) — 그 말이 없으므로 합계다.
+        ///   초당으로 읽으면 2초에 30% 가 되어 표의 두 배가 된다.
+        ///
+        /// ⚠ *"체력이 {value_01}% <b>일 때</b>"* 는 <b>문턱(이하)</b>이다 — 「급속 재생」과 같은
+        ///   이유로 «정확히 50%» 로 읽으면 <b>영영 안 터진다</b>(한 프레임에 그 값을 정확히
+        ///   지나갈 보장이 없다).
+        /// </summary>
+        ForcedSupply,
     }
 
     public static class BossSkillTypes
@@ -365,6 +416,10 @@ namespace LastSanctuary.Combat
                 case "flame_emission": return BossSkillType.FlameEmission;
                 case "rapid_playback": return BossSkillType.RapidPlayback;
                 case "dread":          return BossSkillType.Dread;
+
+                // ── 레기미아 120006 (2026-08-21) ──
+                case "tumor_explosion": return BossSkillType.TumorExplosion;
+                case "forced_supply":   return BossSkillType.ForcedSupply;
                 default:            return BossSkillType.None;
             }
         }

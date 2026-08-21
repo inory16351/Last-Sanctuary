@@ -248,6 +248,15 @@ namespace LastSanctuary.Combat
         /// </summary>
         Vector2 ResolveArea(int slot, BossSkillSO skill)
         {
+            // ★ 2026-08-21 — <b>범위라는 개념이 없는 스킬</b>은 계산도 로그도 건너뛴다.
+            //   자기 회복(「급속 재생」·「강제 보급」)은 <c>_areaTiles</c> 를 <b>읽지 않는다</b>
+            //   (연출 크기를 몸집에서 잡는다 — <see cref="TryCastSelfHeal"/>).
+            //   ⚠ 그냥 두면 「강제 보급」의 <c>value_01</c>(= 발동 문턱 50)·<c>value_02</c>(= 2초)가
+            //     가로·세로로 읽혀 콘솔에 *"범위 표 50x2"* 라는 <b>없는 범위</b>가 찍힌다
+            //     (실제로 그렇게 찍혔다). 값을 안 쓰니 동작에는 영향이 없었지만, 표에 없는
+            //     숫자를 로그가 말하는 것 자체가 다음 사람을 속인다.
+            if (skill.SelfHealMaxHpPercent > 0f) return Vector2.one;
+
             // ★★ <b>원형 스킬은 상자가 정사각이다</b> (2026-08-19).
             //
             // ⚠ <c>WidthTiles</c> 는 <c>value_02</c> 인데, 원형 스킬에서 그 칸은 <b>세로가
@@ -383,8 +392,15 @@ namespace LastSanctuary.Combat
             // ★ 2026-08-21 — 폴리르. 둘 다 위 두 갈래의 전제를 깬다:
             //   「급속 재생」 대상이 <b>자기 자신</b>이고 <b>피해가 없다</b>
             //   「포화」     범위가 <b>여러 개</b>이고 중심이 <b>각각 다른 적</b>이다
-            if (skill.Type == BossSkillType.RapidPlayback) return TryCastRapidPlayback(slot, skill);
             if (skill.Type == BossSkillType.Dread) return TryCastDread(slot, skill);
+
+            // ★ 2026-08-21 — 레기미아 「강제 보급」(130012)이 「급속 재생」과 <b>같은 갈래</b>로
+            //   들어왔다(갈리는 것은 «즉시냐 몇 초에 걸쳐서냐» 하나뿐 — TryCastSelfHeal 의 ★).
+            //   ⚠ 「강제 보급」은 표의 `range_type` 이 <b>비어 있어</b> Shape 가 Line 으로 떨어진다 —
+            //     그대로 두면 직사각형 갈래가 `PickAim` 으로 <b>적을 찾다가 실패</b>해서
+            //     회복이 영영 안 돈다. 그래서 모양 판정보다 <b>먼저</b> 가른다.
+            if (skill.Type == BossSkillType.RapidPlayback
+             || skill.Type == BossSkillType.ForcedSupply) return TryCastSelfHeal(slot, skill);
 
             // ── 부채꼴 범위 (2026-08-20 신설 · 베일 「담배 연기」) ────────
             //    ⚠ <b>표 값을 그대로 넘긴다</b>(<c>area</c> 가 아니다) — 아래 주석 참조.
@@ -400,6 +416,14 @@ namespace LastSanctuary.Combat
                 //   그대로 반으로 나누면 포효의 실제 범위가 표의 절반이 된다.
                 //   판단은 BossSkillSO.CircleValueIsRadius 한 곳에 있다.
                 float radius = skill.CircleValueIsRadius ? length : length * 0.5f;
+
+                // ★★ 2026-08-21 — <b>몸 반지름을 더하는 스킬</b>(레기미아 「종양 폭발」).
+                //   정의문이 «레기미아 <b>+</b> {value_01} 지름» 이고, 안 더하면 원이
+                //   <b>레기미아 몸 속에서 끝나</b> 한 명도 못 맞힌다(몸 반지름 5.0 vs 반지름 2.5).
+                //   ⚠ 옵트인이다 — 기존 원형 스킬 다섯은 <c>false</c> 라 <b>한 픽셀도 안 바뀐다</b>
+                //     (BossSkillSO.CircleAddsBodyRadius 의 ⚠ 참조).
+                if (skill.CircleAddsBodyRadius) radius += SelfBodyRadiusTiles();
+
                 length = radius * 2f;                     // 아래 연출·로그는 지름을 쓴다
 
                 UnitRegistry.CollectEnemiesInRadius(transform.position, radius, _self.Faction, _scratch);
@@ -702,26 +726,36 @@ namespace LastSanctuary.Combat
         }
 
         // ------------------------------------------------------------------
-        // 폴리르 「급속 재생」 — <b>조건부 자기 회복</b> (2026-08-21)
+        // <b>조건부 자기 회복</b> — 폴리르 「급속 재생」(2008) · 레기미아 「강제 보급」(130012)
+        // (2026-08-21)
         // ------------------------------------------------------------------
 
         /// <summary>
         /// 자기 체력이 문턱 이하로 떨어졌을 때 <b>최대 체력의 %</b> 를 회복한다.
         ///
-        /// ★★ <b>이 프로젝트의 보스 스킬 중 첫 «피해가 아닌» 스킬</b>이다. 그래서 두 가지가
-        ///   다르다:
+        /// ★★ <b>이 프로젝트의 보스 스킬 중 «피해가 아닌» 갈래</b>다. 그래서 두 가지가 다르다:
         ///   ① <b>대상이 없다</b> — <c>requireTarget</c>·<c>_scratch</c> 를 쓰지 않는다.
         ///   ② <b>조건이 안 맞으면 <c>false</c></b> — 그래야 쿨타임을 태우지 않고 «아낀다».
         ///      (<see cref="Update"/> 는 <c>false</c> 를 «대상이 없어 못 썼다» 로 읽어
         ///      다음 순위 스킬로 넘어간다 — 그 뜻이 여기서도 정확히 맞다.)
         ///
-        /// ⚠ <b>«{value_01}% 가 되면» 을 «이하» 로 읽는다</b> — 한 프레임에 정확히 그 값을
+        /// ⚠ <b>«{value_01}% 가 되면/일 때» 를 «이하» 로 읽는다</b> — 한 프레임에 정확히 그 값을
         ///   지나갈 보장이 없어서 «정확히» 로 읽으면 영영 안 터진다.
-        /// ★ 연출은 <see cref="PlayFx"/> 가 <b>스킬 모션</b>(원화의 「급속 재생」 자세)을
-        ///   돌리는 것으로 충분하다 — 이 스킬에는 전용 이펙트 원화가 없다(시트가
-        ///   *"별도 모션 불필요"* 라고 적어 두었고, 그 한 장이 <b>초록 재생 오라</b>다).
+        ///
+        /// ★ <b>두 스킬이 한 함수를 쓴다</b> (2026-08-21 · 「강제 보급」이 들어오면서 합쳤다).
+        ///   갈리는 것은 <see cref="BossSkillSO.SelfHealSeconds"/> <b>하나뿐</b>이다:
+        /// <code>
+        ///   급속 재생 (2008)   0 초  → <b>즉시</b> 한 번에 회복
+        ///   강제 보급 (130012) 2 초  → 그 시간에 <b>걸쳐</b> 회복 (HealOverTime)
+        /// </code>
+        ///   ⚠ 두 벌로 두면 «문턱을 이하로 읽는다» 는 규칙이 두 곳에 생겨 어긋난다
+        ///     (중독을 <see cref="ApplyPoison"/> 한 곳에 모아둔 것과 같은 이유).
+        ///
+        /// ★ 연출은 <see cref="PlayFx"/> 가 <b>스킬 모션</b>을 돌리는 것으로 충분하다.
+        ///   레기미아는 전용 이펙트 원화가 있고(스킨 <c>skill2Fx</c> = 「회복 이펙트」 5장),
+        ///   폴리르는 없어 모션만 돈다.
         /// </summary>
-        bool TryCastRapidPlayback(int slot, BossSkillSO skill)
+        bool TryCastSelfHeal(int slot, BossSkillSO skill)
         {
             float threshold = skill.SelfHealThresholdPercent;
             float percent = skill.SelfHealMaxHpPercent;
@@ -736,9 +770,11 @@ namespace LastSanctuary.Combat
             int amount = Mathf.RoundToInt(max * percent / 100f);
             if (amount <= 0) return false;
 
-            _self.Heal(amount);
+            float seconds = skill.SelfHealSeconds;
+            if (seconds > 0f) StartCoroutine(HealOverTime(amount, seconds));
+            else _self.Heal(amount);
 
-            // 자기 자리에 모션만 돌린다 — 크기는 몸집 기준(표에 범위 칸이 없다).
+            // 자기 자리에 모션(+있으면 이펙트)을 돌린다 — 크기는 몸집 기준(표에 범위 칸이 없다).
             float body = Mathf.Max(2f, SelfBodyRadiusTiles() * 2f);
             PlayFx(slot, skill, transform.position, Vector2.right, body, body, null);
 
@@ -747,8 +783,45 @@ namespace LastSanctuary.Combat
             UI.HudLog.Add(line, UI.HudLogKind.Danger);
             if (logCasts)
                 Debug.Log($"[보스스킬] {line} · 문턱 {threshold:0.#}% (지금 {now:0.#}%) · " +
-                          $"최대체력의 {percent:0.#}%", this);
+                          $"최대체력의 {percent:0.#}%" +
+                          (seconds > 0f ? $" · {seconds:0.#}초에 걸쳐" : " · 즉시"), this);
             return true;
+        }
+
+        /// <summary>
+        /// 회복 <paramref name="total"/> 을 <paramref name="seconds"/> 초에 <b>나눠</b> 넣는다
+        /// (「강제 보급」 · 2026-08-21).
+        ///
+        /// ★ <b>왜 나누나</b> — 정의문이 *"{value_02}초 <b>동안</b> … 회복한다"* 라고 시간을
+        ///   적었다. 한 프레임에 다 넣으면 그 칸이 아무 뜻도 없어지고, 회복하는 동안 때려서
+        ///   끊는다는 플레이도 사라진다(「담배 연기」를 <see cref="LingerSmoke"/> 로 만든 것과
+        ///   같은 판단).
+        ///
+        /// ★ <b>반올림 오차를 마지막 틱이 흡수한다</b> — 매 틱 «지금까지 들어가야 할 누적량»
+        ///   에서 «이미 넣은 양» 을 빼서 넣는다. 그래야 합계가 <b>정확히</b>
+        ///   <paramref name="total"/> 이 된다(틱마다 total/n 을 반올림하면 몇 점씩 샌다).
+        ///
+        /// ⚠ 도중에 <b>죽으면 멈춘다</b> — 죽은 유닛을 회복시키면 시체가 되살아난다.
+        /// </summary>
+        System.Collections.IEnumerator HealOverTime(int total, float seconds)
+        {
+            const float Tick = 0.2f;                 // 초당 5번 — 눈에 «차오르는» 것이 보이는 최소치
+            float elapsed = 0f;
+            int given = 0;
+
+            while (elapsed < seconds)
+            {
+                yield return new WaitForSeconds(Tick);
+                if (_self == null || !_self.IsAlive) yield break;
+
+                elapsed += Tick;
+                int want = Mathf.RoundToInt(total * Mathf.Clamp01(elapsed / seconds));
+                int step = want - given;
+                if (step <= 0) continue;
+
+                _self.Heal(step);
+                given = want;
+            }
         }
 
         // ------------------------------------------------------------------

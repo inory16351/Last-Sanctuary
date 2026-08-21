@@ -180,13 +180,21 @@ namespace LastSanctuary.Combat
 
                 // ★ 「급속 재생」(2008)은 <b>피해가 아예 없다</b> — 자기 회복 전용이다.
                 //   폴백(비면 100%)이 돌면 «회복 기술» 이 평타 한 대를 얹는 다른 기술이 된다.
-                if (Type == BossSkillType.RapidPlayback) return 0;
+                // ★ 2026-08-21 — 레기미아 「강제 보급」(130012)도 <b>같은 성질</b>이다
+                //   (정의문에 «공격»·«피해» 라는 말이 아예 없다 · 자기 회복 전용).
+                //   ⚠ 이 스킬의 <c>value_03</c> 은 <b>회복량 %</b> 다 — 폴백을 태우면
+                //     그 15 가 «공격력 15%» 로 읽혀 <b>회복 기술이 광역 공격</b>이 된다.
+                if (Type == BossSkillType.RapidPlayback
+                 || Type == BossSkillType.ForcedSupply) return 0;
 
                 bool damageInValue02 = Type == BossSkillType.LureBlood
                                     || Type == BossSkillType.HugeThreat
                                     || Type == BossSkillType.Screaming
                                     // ★ 화염 발사(2007) — "원거리 공격력 {value_02}% 로 공격"
-                                    || Type == BossSkillType.FlameEmission;
+                                    || Type == BossSkillType.FlameEmission
+                                    // ★ 2026-08-21 — 종양 폭발(130011) — "…{value_01} 지름 타일
+                                    //   범위에 있는 모든 적에게 … 근거리 공격력{value_02}% 만큼"
+                                    || Type == BossSkillType.TumorExplosion;
                 float raw = damageInValue02 ? value02 : value03;
 
                 // ★ <b>폴백이 없는 종류</b> — 표의 피해 칸이 <b>0 인 것이 뜻</b>인 스킬들.
@@ -378,6 +386,28 @@ namespace LastSanctuary.Combat
             || Type == BossSkillType.PipeStrike || Type == BossSkillType.PipeSmoke
             || Type == BossSkillType.FlameEmission;
 
+        /// <summary>
+        /// ★★ <b>원의 반지름에 시전자의 <b>몸 반지름</b>을 더하는 스킬인가</b> (2026-08-21).
+        ///
+        /// 정의문이 *"&lt;보스&gt; <b>+</b> {value_01} …"* 라고 적은 스킬은 그 값이
+        /// <b>몸집에 더하는 값</b>이라는 뜻이다. 안 더하면 몸집이 큰 보스는 원이 <b>자기 몸 속에서
+        /// 끝나</b> 아무도 못 맞힌다 — 근접 캐릭터는 몸 <b>표면</b>에 붙어 서기 때문이다
+        /// (<see cref="BossSkillCaster.SelfBodyRadiusTiles"/> 의 계산 참조).
+        ///
+        /// <code>
+        ///   레기미아 콜라이더 15 x 10 → 몸 반지름 5.0타일
+        ///   종양 폭발 지름 5         → 반지름 2.5   ← 몸 속에서 끝난다(0명 피격)
+        ///   더하면                    → 반지름 7.5   ← 몸 표면 밖 2.5타일까지
+        /// </code>
+        ///
+        /// ⚠ <b>새 스킬만 넣는다(옵트인).</b> 이미 나가 있는 원형 스킬(죽음의 포효 · 거대한 위협
+        ///   포효 · 아우성 · 바리올라 두 종)에 소급하면 <b>범위가 커진다 = 밸런스 변경</b>이고
+        ///   그건 유저가 정할 일이다. 베일의 두 스킬이 전용 갈래에서 따로 더하고 있는 것과
+        ///   같은 판단이며, 여기 목록으로 옮겨 오는 것은 <b>일부러 하지 않았다</b>
+        ///   (그 갈래들은 <see cref="BossSkillShape.Circle"/> 를 타지 않는다).
+        /// </summary>
+        public bool CircleAddsBodyRadius => Type == BossSkillType.TumorExplosion;
+
         // ──────────────────────────────────────────────────────────────────
         // 베일 · 바리올라 (2026-08-20)
         //
@@ -436,16 +466,50 @@ namespace LastSanctuary.Combat
             Type == BossSkillType.Dread ? Mathf.Max(0.5f, value04) : 0f;
 
         /// <summary>
-        /// ★ 「급속 재생」의 <b>발동 문턱</b>(현재 체력 %). 다른 스킬은 0.
+        /// ★ <b>자기 회복 스킬의 발동 문턱</b>(현재 체력 %). 다른 스킬은 0.
+        ///
+        /// 두 스킬이 <b>같은 칸</b>(<c>value_01</c>)을 쓴다:
+        /// <code>
+        ///   급속 재생 (2008)   "현재 체력이 {value_01}%가 되면…"
+        ///   강제 보급 (130012) "레기미아의 현재 체력이 {value_01}% 일 때…"
+        /// </code>
+        /// ⚠ 둘 다 <b>«이하»</b> 로 읽는다 — «정확히» 로 읽으면 영영 안 터진다.
         /// </summary>
-        public float SelfHealThresholdPercent =>
-            Type == BossSkillType.RapidPlayback ? Mathf.Clamp(value01, 0f, 100f) : 0f;
+        public float SelfHealThresholdPercent => Type switch
+        {
+            BossSkillType.RapidPlayback => Mathf.Clamp(value01, 0f, 100f),
+            BossSkillType.ForcedSupply  => Mathf.Clamp(value01, 0f, 100f),
+            _                           => 0f,
+        };
 
         /// <summary>
-        /// ★ 「급속 재생」이 회복하는 양 — <b>최대 체력의 %</b>. 다른 스킬은 0.
+        /// ★ 자기 회복량 — <b>최대 체력의 %</b>. 다른 스킬은 0.
+        ///
+        /// ⚠ <b>칸이 다르다</b> — 정의문이 정본이다:
+        /// <code>
+        ///   급속 재생 (2008)   value_02  "…최대 체력의 {value_02}%를 회복"
+        ///   강제 보급 (130012) value_03  "…{value_02}초 동안 자신의 최대체력의 {value_03}% 만큼"
+        /// </code>
+        /// 강제 보급은 <c>value_02</c> 가 <b>지속 초</b>라 회복량이 한 칸 뒤로 밀렸다
+        /// (<see cref="SelfHealSeconds"/>).
         /// </summary>
-        public float SelfHealMaxHpPercent =>
-            Type == BossSkillType.RapidPlayback ? Mathf.Max(0f, value02) : 0f;
+        public float SelfHealMaxHpPercent => Type switch
+        {
+            BossSkillType.RapidPlayback => Mathf.Max(0f, value02),
+            BossSkillType.ForcedSupply  => Mathf.Max(0f, value03),
+            _                           => 0f,
+        };
+
+        /// <summary>
+        /// ★ 자기 회복이 <b>몇 초에 걸쳐</b> 들어가는지 (2026-08-21 · 「강제 보급」).
+        /// <b>0 이면 즉시</b> 한 번에 들어간다 — 「급속 재생」이 그 경우다.
+        ///
+        /// 정의문: *"…{value_02}초 동안 자신의 최대체력의 {value_03}% 만큼 체력을 회복한다."*
+        /// ⚠ 이 시간 동안 <b>합계</b> <see cref="SelfHealMaxHpPercent"/> 다(초당이 아니다) —
+        ///   이 표는 초당일 때 «<b>매 초</b>» 라고 못박는다(「담배 연기」의 중독).
+        /// </summary>
+        public float SelfHealSeconds =>
+            Type == BossSkillType.ForcedSupply ? Mathf.Max(0f, value02) : 0f;
 
         /// <summary>
         /// 「담배 연기」가 <b>바닥에 남아 있는 초</b>(정의문: *"연기를 {value_02}초간 생성"*).
