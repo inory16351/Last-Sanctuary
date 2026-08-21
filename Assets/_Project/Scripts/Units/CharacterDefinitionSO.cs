@@ -10,14 +10,13 @@ namespace LastSanctuary.Units
     /// 지금까지 캐릭터는 <see cref="StatBlock.Roll"/> 로 능력치를 무작위로 굴려 만들었지만,
     /// 이제 <b>정해진 인물</b>(엘린 · 비기오르 · 프레이야)을 뽑아 쓴다.
     ///
-    /// ⚠ <b>등장 규칙 (유저 확정 2026-08-11)</b>: 캐릭터는 <b>한 판에 한 번만 등장</b>한다 —
-    /// <b>사망하더라도 다시 등장할 수 없다.</b> "살아있는 인물 제외"가 아니라
-    /// "이 판에 한 번이라도 등장한 인물 제외"다. 캐릭터가 더 추가될 예정이라
-    /// 후보 풀이 커지면 이 규칙이 실제로 의미를 갖는다.
+    /// ⚠ <b>등장 규칙 (2026-08-21 개정)</b>: 같은 인물이 <b>동시에 둘</b> 있을 수 없다.
+    /// 즉 <b>«살아 있는(부활 대기 포함) 인물 제외»</b> 다 — <b>죽으면 다시 등장할 수 있다.</b>
     ///
-    /// 지금은 유저 지시대로 <b>무작위 등장(중복 허용)</b> 상태로 두고,
-    /// 규칙이 들어갈 자리는 <see cref="CharacterDefinitionRegistry"/> 한 곳에 모아뒀다 —
-    /// <c>preventReappearance</c> 를 켜기만 하면 동작한다.
+    /// ⚠ 예전(2026-08-11)에는 «이 판에 한 번이라도 등장한 인물 제외» 였다. 그러면 히스톤이
+    ///   죽은 뒤 히스톤을 다시 만들 수 없어서 유저가 버그로 리포트했다(2026-08-21).
+    ///   규칙과 판정은 <see cref="CharacterDefinitionRegistry"/> 한 곳에 있다 — 그 클래스의
+    ///   맨 위 ★★★ 주석이 두 지시를 어떻게 함께 만족시켰는지 적어 두었다.
     /// </summary>
     [CreateAssetMenu(menuName = "LastSanctuary/Units/Character Definition", fileName = "Character_")]
     public class CharacterDefinitionSO : ScriptableObject

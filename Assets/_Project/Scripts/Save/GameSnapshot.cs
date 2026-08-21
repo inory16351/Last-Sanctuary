@@ -536,13 +536,11 @@ namespace LastSanctuary.Save
 
             _unitSpawner.DestroySpawnedCharactersForRestore();
 
-            // ★ <b>등장 인물 기록을 세이브 기준으로 다시 세운다</b> (2026-08-21).
-            //   위에서 시작 캐릭터 3명을 지웠는데, 그 셋이 뽑힐 때 «등장했다» 로 <b>기록은
-            //   남아 있다</b>(재등장 금지의 핵심이라 죽어도 안 지운다). 그대로 두면 이어하기
-            //   한 번에 후보가 3명씩 줄어들고, 인물 11명이라 몇 번이면 «등장할 인물 없음» 이 된다.
-            //   ⚠ 아래 루프가 <c>SpawnRestored</c> → <c>MarkAppeared</c> 로 <b>저장된 인원을
-            //     다시 표시</b>하므로, 여기서 비워도 재등장 금지는 그대로 지켜진다.
-            Units.CharacterDefinitionRegistry.ResetRun();
+            // ★ 2026-08-21 — <b>등장 기록을 손댈 것이 없다.</b> 중복 금지의 기준이
+            //   «지금 살아 있는가» 로 바뀌면서 판 전역 <c>static</c> 기록이 아예 없어졌다
+            //   (<see cref="Units.CharacterDefinitionRegistry"/> 의 ★★).
+            //   위에서 시작 캐릭터 3명을 지웠으므로 그 셋은 저절로 후보로 돌아오고,
+            //   아래에서 세우는 저장 인원은 <b>살아 있다는 사실만으로</b> 후보에서 빠진다.
 
             SquadService squads = SquadService.Instance;
 

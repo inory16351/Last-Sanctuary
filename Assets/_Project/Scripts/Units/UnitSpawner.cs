@@ -380,7 +380,9 @@ namespace LastSanctuary.Units
                 //   정의의 <b>기본</b> 능력치를 넣기 때문에, 강화로 오른 값이 그대로 사라진다.
                 unit.InitializeFrom(def, balance);
                 unit.Initialize(stats, balance, upgrades);
-                CharacterDefinitionRegistry.MarkAppeared(def.characterId);
+                // ★ 2026-08-21 — <c>MarkAppeared</c> 를 부르지 않는다. 중복 금지의 기준이
+                //   «지금 살아 있는가» 로 바뀌었으므로, 복원된 이 캐릭터는 <b>존재 자체로</b>
+                //   다음 추첨에서 빠진다(<see cref="CharacterDefinitionRegistry"/> 의 ★★★).
             }
             else
             {

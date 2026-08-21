@@ -77,9 +77,19 @@ namespace LastSanctuary.Combat
 
             // ★ 그림을 여기서 띄우고 <b>손잡이를 들고 있는다</b>. 지우는 것은 OnDestroy 다.
             if (fx != null && fx.Length > 0)
+                // ⚠⚠ <b>기준 유닛을 넘기지 않는다</b>(anchor = null) — 2026-08-21 유저 리포트:
+                //   *"아르세니아 두번째 스킬의 이펙트가 캐릭터의 이미지랑 겹치면 캐릭터를 가림"*.
+                //
+                //   <c>PlayArea</c> 에 유닛을 넘기면 그 유닛의 정렬을 물려받고 <b>순서를
+                //   +20 올린다</b>(«탄환이 몸에 가려지지 않게» 라는 그쪽의 원래 목적이다).
+                //   그러면 이 마법진이 <b>모든 캐릭터 위에</b> 깔려 캐릭터를 덮는다.
+                //
+                //   ★ 이것은 <b>밟고 서는 지면 연출</b>이라 «유닛 아래» 가 맞다. null 을
+                //     넘기면 <c>GroundFxSortingLayer</c>(Floor · 순서 10) 로 떨어지고,
+                //     레이어 순서가 Floor &lt; Object 이므로 캐릭터보다 확실히 아래로 간다.
                 z._fxHandle = CombatProjectileFx.PlayArea(
                     fx, center, new Vector2(radius * 2f, radius * 2f),
-                    0f, owner, seconds);
+                    0f, null, seconds);
 
             return z;
         }

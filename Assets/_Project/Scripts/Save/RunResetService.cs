@@ -45,9 +45,10 @@ namespace LastSanctuary.Save
     /// 되고, 다음에 «새 판» 경로가 하나 더 생길 때 <b>또</b> 빠진다(이번이 정확히 그 일이다).
     /// 이 프로젝트가 반복해 택한 «규칙은 한 곳에» 원칙을 따라 <b>도착 지점을 하나로</b> 모았다.
     ///
-    /// ★ <b>이어하기는 이 문을 지나지 않는다</b> — 불러온 판은 저장된 인원을 다시 세우면서
-    ///   <c>MarkAppeared</c> 로 «등장했음» 을 되살린다. 여기서 비워 버리면 <b>같은 인물이
-    ///   두 번 나오는</b> 판이 된다(재등장 금지가 무너진다).
+    /// ★★ <b>2026-08-21 — 이 클래스의 원인 절반이 없어졌다.</b> 인물 중복 금지가
+    ///   «지금 살아 있는가» 기준으로 바뀌면서 <c>CharacterDefinitionRegistry</c> 의 판 전역
+    ///   <c>static</c> 기록이 사라졌다(그 클래스의 ★★★). 남은 것은 중립 사냥 수와
+    ///   이벤트 지속 효과 둘이고, 이 문은 그 둘을 위해 그대로 있다.
     /// </summary>
     public static class RunResetService
     {
@@ -68,7 +69,10 @@ namespace LastSanctuary.Save
             else EventRewardService.ClearAll();
 
             // ② 씬을 다시 열어도 살아남는 판 전역 기록.
-            CharacterDefinitionRegistry.ResetRun();
+            //   ★ 2026-08-21 — <c>CharacterDefinitionRegistry</c> 는 <b>여기서 빠졌다</b>.
+            //     중복 금지의 기준이 «지금 살아 있는가» 로 바뀌면서 그 클래스의 판 전역
+            //     <c>static</c> 기록이 아예 없어졌다 — 비울 것이 없다(그 클래스의 ★★).
+            //     이 클래스가 생긴 원인(«등장 기록이 씬을 넘어 살아남는다»)의 뿌리가 사라진 것이다.
             NeutralKillTally.ResetRun();
         }
 
