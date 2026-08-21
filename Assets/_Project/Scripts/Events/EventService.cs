@@ -26,6 +26,12 @@ namespace LastSanctuary.Events
     ///   안 되고, 표를 다시 생성하면 손으로 고친 값이 지워진다.
     ///   ⚠ 그래서 <b>표의 80 과 여기 기본값이 같아야 한다</b> — 갈리면 «표대로 안 나온다» 가 된다.
     ///
+    /// ══════════════════════════════════════════════════════════════════
+    ///  <b>지속시간</b> — 같은 인스펙터의 «이벤트 지속시간» 칸 (유저 지시 2026-08-21 3차)
+    /// ══════════════════════════════════════════════════════════════════
+    /// <c>useTableDuration</c> 을 켜면 표의 <c>event_value_01</c>(웨이브 120 · 비공개 180),
+    /// 끄면 그 아래 두 칸이 <b>전부를 덮는다</b>. 세는 것은 <see cref="TickDuration"/> 이다.
+    ///
     /// ⚠ 이 클래스는 <b>임시 UI</b>(<c>UI.EventPanel</c>)와 짝이다. 대사 흐름·선택지·보상까지
     ///   표대로 돌아가지만 <b>배경 이미지</b>(<c>event_bg</c>)와 <b>토벌 이벤트</b>
     ///   (ev_raid — «몬스터에 인접하면 발생») 는 아직 배선하지 않았다.
@@ -54,6 +60,41 @@ namespace LastSanctuary.Events
         [Tooltip("판이 시작되고 첫 비공개 타이머가 돌기까지의 시간(초)")]
         [Min(0f)] [SerializeField] float privateFirstDelaySeconds = 60f;
 
+        // ──────────────────────────────────────────────────────────────
+        //  ★★ 이벤트 <b>지속시간</b> — 여기서 조정한다 (유저 지시 2026-08-21 3차:
+        //      *"이벤트 타이머 지속시간 에딧에서 수정가능하게 게임 시스템 하이라키에서"*)
+        //
+        //  <b>어디를 만지나</b> — Hierarchy ▸ GameSystems ▸ Inspector ▸ Event Service
+        //  ▸ «이벤트 지속시간» 칸이다. 침식(<c>ErosionService</c>)·중립 사냥 성장
+        //  (<c>NeutralGrowthService</c>)이 있는 <b>같은 자리</b>다.
+        //
+        //  ⚠⚠ <b>지속시간은 지금까지 «있지만 안 도는» 값이었다.</b> 표의
+        //  <c>event_value_01</c>(웨이브 120 · 비공개 180)을
+        //  <see cref="EventDefinitionSO.DurationSeconds"/> 가 읽어 두기는 했는데
+        //  <b>아무도 쓰지 않았다</b> — 이벤트는 오직 «웨이브 단계가 바뀔 때»
+        //  (<see cref="HandlePhase"/>)만 끝났다. 그래서 비공개 이벤트는 웨이브가 넘어갈
+        //  때까지, 즉 <b>표가 적은 180초와 아무 상관 없이</b> 남아 있었다.
+        //  → <see cref="TickDuration"/> 이 실제로 센다. 값을 만지면 <b>정말로 바뀐다.</b>
+        // ──────────────────────────────────────────────────────────────
+
+        [Header("이벤트 지속시간")]
+        [Tooltip("켜면 표(event_value_01)에 적힌 길이를 쓴다 — 웨이브 120초 · 비공개 180초. " +
+                 "끄면 아래 두 칸의 값으로 <b>전부 덮어쓴다</b> (밸런싱 중에 한 번에 바꾸고 싶을 때)")]
+        [SerializeField] bool useTableDuration = true;
+
+        [Tooltip("웨이브 이벤트가 유지되는 시간(초). useTableDuration 을 껐을 때만 쓴다. " +
+                 "0 이면 «시간으로는 안 끝난다» — 웨이브가 넘어갈 때까지 남는다")]
+        [Min(0f)] [SerializeField] float waveEventDurationSeconds = 120f;
+
+        [Tooltip("비공개·토벌 이벤트가 유지되는 시간(초). useTableDuration 을 껐을 때만 쓴다. " +
+                 "0 이면 «시간으로는 안 끝난다»")]
+        [Min(0f)] [SerializeField] float privateEventDurationSeconds = 180f;
+
+        [Tooltip("★ 지속시간을 <b>창이 열려 있는 동안에는 세지 않는다</b>. 유저가 선택지를 " +
+                 "읽는 시간이 제한시간에서 깎이면 «읽다가 사라졌다» 가 된다. " +
+                 "끄면 창이 떠 있어도 시간이 흐른다(제한시간 연출을 원할 때)")]
+        [SerializeField] bool pauseWhilePanelOpen = true;
+
         [Header("스위치")]
         [Tooltip("끄면 이벤트가 하나도 뜨지 않는다. 다른 것을 검증할 때 쓴다")]
         [SerializeField] bool eventsEnabled = true;
@@ -73,6 +114,19 @@ namespace LastSanctuary.Events
         WaveManager _waveManager;
         bool _hooked;
         float _privateNextAt;
+
+        /// <summary>지금 이벤트가 <b>시간으로</b> 끝나는 시각. 0 이면 «시간으로는 안 끝난다».</summary>
+        float _endsAt;
+
+        /// <summary>지금 이벤트에 걸린 지속시간(초). 0 이면 무제한. 표시용으로 열어 둔다.</summary>
+        public float CurrentDurationSeconds { get; private set; }
+
+        /// <summary>
+        /// 지금 이벤트가 끝나기까지 남은 시간(초). 이벤트가 없거나 무제한이면 0.
+        /// ★ 나중에 «남은 시간» 을 화면에 그릴 때 쓰는 통로다 — 지금은 아무도 안 본다.
+        /// </summary>
+        public float RemainingSeconds =>
+            Current == null || _endsAt <= 0f ? 0f : Mathf.Max(0f, _endsAt - Time.time);
 
         /// <summary>지금 화면에 떠 있는 이벤트. null 이면 없다.</summary>
         public EventDefinitionSO Current { get; private set; }
@@ -136,13 +190,53 @@ namespace LastSanctuary.Events
                 }
             }
             Debug.Log($"[이벤트] 정의 로드 — 웨이브 {_wave.Count} · 비공개 {_private.Count} · 토벌 {_raid.Count}" +
-                      $" (웨이브 확률 {waveEventChancePercent}% · 비공개 {privateEventChancePercent}%)");
+                      $" (웨이브 확률 {waveEventChancePercent}% · 비공개 {privateEventChancePercent}%" +
+                      $" · 지속시간 " + (useTableDuration
+                          ? "표 값"
+                          : $"인스펙터 웨이브 {waveEventDurationSeconds:0}초 · 그 밖 {privateEventDurationSeconds:0}초") + ")");
         }
 
         void Update()
         {
             HookWave();
             TickPrivateTimer();
+            TickDuration();
+        }
+
+        /// <summary>
+        /// 지속시간이 다 되면 이벤트를 끝낸다 (위 «이벤트 지속시간» 의 ★★).
+        ///
+        /// ★ <b>창이 열려 있는 동안에는 밀어 준다</b>(<see cref="pauseWhilePanelOpen"/>) —
+        ///   시간을 세는 목적은 «지속 보정이 영원히 남는 것» 을 막는 것이지 유저를
+        ///   재촉하는 것이 아니다. 창을 닫은 순간부터 남은 시간이 다시 흐른다.
+        /// ⚠ <see cref="EndCurrent"/> 가 <see cref="EventRewardService.ClearAll"/> 을 부르므로
+        ///   지속 보정도 여기서 같이 걷힌다 — 시간과 효과가 갈리지 않는다.
+        /// </summary>
+        void TickDuration()
+        {
+            if (Current == null || _endsAt <= 0f) return;
+
+            if (pauseWhilePanelOpen && _panel != null && _panel.IsOpen)
+            {
+                _endsAt += Time.deltaTime;      // 읽는 동안은 안 깎인다
+                return;
+            }
+
+            if (Time.time < _endsAt) return;
+            EndCurrent($"지속시간 {CurrentDurationSeconds:0}초 경과");
+        }
+
+        /// <summary>
+        /// 이 이벤트에 걸릴 지속시간(초)을 정한다. 0 이면 «시간으로는 안 끝난다».
+        /// 표를 쓸지 인스펙터 값을 쓸지는 <see cref="useTableDuration"/> 하나가 정한다 —
+        /// 두 곳에서 반씩 정하면 «어느 쪽이 맞나» 를 매번 다시 물어야 한다.
+        /// </summary>
+        float DurationFor(EventDefinitionSO def)
+        {
+            if (useTableDuration) return def != null ? def.DurationSeconds : 0f;
+            return def != null && def.Kind == EventKind.Wave
+                ? waveEventDurationSeconds
+                : privateEventDurationSeconds;
         }
 
         void HookWave()
@@ -240,6 +334,8 @@ namespace LastSanctuary.Events
             if (def == null) return;
             Current = def;
             CurrentLine = def.FirstLine();
+            CurrentDurationSeconds = DurationFor(def);
+            _endsAt = CurrentDurationSeconds > 0f ? Time.time + CurrentDurationSeconds : 0f;
             UI.HudLog.Add($"<b>[사건]</b> {def.eventName}", UI.HudLogKind.Good);
             OnEventChanged?.Invoke(Current, CurrentLine);
             ShowPanel(Current, CurrentLine);
@@ -295,6 +391,8 @@ namespace LastSanctuary.Events
             if (logRolls) Debug.Log($"[이벤트] {Current.eventName} 종료 — {why}");
             Current = null;
             CurrentLine = null;
+            _endsAt = 0f;
+            CurrentDurationSeconds = 0f;
             EventRewardService.ClearAll();
             OnEventChanged?.Invoke(null, null);
             ShowPanel(null, null);

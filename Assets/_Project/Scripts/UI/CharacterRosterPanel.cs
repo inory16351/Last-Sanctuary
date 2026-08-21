@@ -319,11 +319,49 @@ namespace LastSanctuary.UI
                 if (_waveManager != null) _waveManager.OnWaveEnded += HandleWaveEnded;
             }
 
+            PurgeVanishedCharacters();   // ★ 새로 붙이기 «전에» 사라진 것을 뺀다 (아래 ★★)
             AppendNewCharacters();
             RefreshValues();
             ReorderRows();
             RefreshTitle();
         }
+
+        /// <summary>
+        /// ★★ <b>«죽지 않았는데 사라진» 캐릭터의 행을 지운다</b> (2026-08-21 3차 · 유저 리포트:
+        /// *"로비화면에서 저장하고 이어하기를 눌렀을 때 캐릭터 그리드에 아무런 상호작용이 되지
+        /// 않는 캐릭터 UI 3개가 나온다"*).
+        ///
+        /// <b>왜 3개인가</b> — 게임 씬은 열리자마자 <b>시작 캐릭터 3명</b>을 자동으로 세운다
+        /// (진행상황 80절). 이 패널의 <see cref="Start"/> 가 그 셋을 <see cref="_characters"/>
+        /// 에 담고 행을 만든다. 그 <b>다음 프레임</b>에 <c>GameSnapshot.RestoreNextFrame</c> 이
+        /// 돌면서 <c>UnitSpawner.DestroySpawnedCharactersForRestore()</c> 가 셋을
+        /// <b>통째로 파괴</b>하고 저장된 인원을 새로 세운다.
+        ///
+        /// 그런데 이 목록은 <b>죽어야만</b> 줄어든다(<see cref="HandleWaveEnded"/>) — 파괴된
+        /// 셋은 <see cref="DamageableUnit.OnDied"/> 를 <b>부르지 않고</b> 사라지므로
+        /// <see cref="_dead"/> 에도 안 들어간다. 그래서 셋은 목록에 영원히 남고,
+        /// <see cref="RefreshValues"/> 는 <c>row.Unit == null</c> 이라 <b>건너뛰기만</b> 한다 —
+        /// 마지막으로 그려진 이름·체력바가 <b>그대로 굳은</b> 행 세 개가 남는다. 눌러도
+        /// 아무 일이 없는 이유는 <see cref="Row.Unit"/> 이 파괴된 오브젝트라서다.
+        ///
+        /// → <b>파괴됐는데 <see cref="_dead"/> 에 없으면 «불러오기로 갈아엎힌 것»</b> 이다.
+        ///   그 하나로 «죽어서 회색으로 남겨둔 카드»(웨이브가 끝날 때까지 남아야 한다)와
+        ///   확실히 갈린다 — 죽은 캐릭터는 파괴되기 <b>전에</b> <see cref="_dead"/> 에 들어간다.
+        ///
+        /// ⚠ 불러오기 전용으로 만들지 않았다. «판을 갈아엎는» 경로가 또 생겨도(재시작 등)
+        ///   이 한 곳이 알아서 정리한다.
+        /// </summary>
+        void PurgeVanishedCharacters()
+        {
+            int before = _characters.Count;
+            _characters.RemoveAll(HasVanished);
+            if (_characters.Count == before) return;
+
+            ReassignAllRows();
+        }
+
+        /// <summary>파괴됐지만 <b>죽어서</b> 파괴된 것이 아닌가 (위 ★★).</summary>
+        bool HasVanished(CharacterUnit unit) => unit == null && !_dead.Contains(unit);
 
         // ------------------------------------------------------------------
         // 캐릭터 목록 — 죽어도 안 줄어든다. 웨이브 종료 때만 정리한다.

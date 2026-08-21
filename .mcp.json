@@ -1,12 +1,12 @@
 {
   "mcpServers": {
     "mcp-unity": {
-      "command": "C:/Program Files/nodejs/node.exe",
+      "command": "C:/Users/user/AppData/Local/hermes/node/node.exe",
       "args": [
         "Library/PackageCache/com.gamelovers.mcp-unity@0e9fdb65b3cc/Server~/build/index.js"
       ],
       "env": {
-        "MCP_UNITY_SETTINGS_PATH": "H:/c팀/Last-Sanctuary/ProjectSettings/McpUnitySettings.json"
+        "MCP_UNITY_SETTINGS_PATH": "C:/Project/Last-Sanctuary/ProjectSettings/McpUnitySettings.json"
       }
     }
   }

@@ -2,7 +2,9 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using LastSanctuary.Events;
 using LastSanctuary.Save;
+using LastSanctuary.Units;
 
 namespace LastSanctuary.UI
 {
@@ -16,6 +18,22 @@ namespace LastSanctuary.UI
     ///
     /// <b>게임 종료 버튼이 여기 없는 이유</b> — 유저 확정으로 종료는 <b>로비 화면</b>이 맡는다.
     /// 게임 중에는 "저장하고 로비로" 가 그 자리를 대신한다.
+    ///
+    /// ══════════════════════════════════════════════════════════════════
+    ///  <b>게임 재시작</b> (2026-08-21 3차 — 유저 지시: <i>"'저장하고 로비로 돌아가기' 아래에
+    ///  게임 재시작 버튼 하나 추가로 만들어서 그 버튼 누르면 게임이 처음으로 초기화"</i>)
+    /// ══════════════════════════════════════════════════════════════════
+    /// 버튼 실물은 씬에 있다 — <c>HUD_Settings/Body/RestartButton</c>
+    /// (<c>Tools/scene_add_restart_button.py</c> 가 옆 버튼을 복제해 만들었다. 유니티가
+    /// 꺼진 세션이라 MCP 를 못 써서 씬 YAML 에 직접 넣었다 — 그 파일의 ★★ 참조).
+    ///
+    /// <b>"처음으로" 를 무엇으로 읽었나</b> — 로비의 «새로하기»와 <b>같은 상태</b>다:
+    /// 저장 파일을 지우고 · 판 전역 기록(등장 인물·중립 사냥 수·지속 보정)을 비우고 ·
+    /// 게임 씬을 다시 연다. 로비를 거치지 않을 뿐 도착 지점이 같아야 «두 개가 다르다» 가 없다.
+    ///
+    /// ⚠ <b>두 번 눌러야 실행된다</b>(<see cref="restartConfirmSeconds"/>). 되돌릴 수 없고
+    ///   저장까지 지우는 동작이 «저장하기» 바로 아래에 있어서, 한 번의 오조작으로 판이
+    ///   통째로 날아가면 안 된다. 첫 번째 누름은 <c>Status</c> 칸에 경고만 띄운다.
     ///
     /// ⚠ <b>비활성으로 시작하므로 <c>Awake</c> 가 안 돈다</b> — 이 프로젝트에서 네 번 재발한
     /// 함정이다(59-6·88-1절). <see cref="Instance"/> 는 비활성 포함 조회로 채우고,
@@ -42,6 +60,7 @@ namespace LastSanctuary.UI
                  "이름으로 찾는다. 다른 HUD 패널이 전부 쓰는 방식과 같다")]
         [SerializeField] string saveButtonPath = "Body/SaveButton";
         [SerializeField] string lobbyButtonPath = "Body/LobbyButton";
+        [SerializeField] string restartButtonPath = "Body/RestartButton";
         [SerializeField] string closeButtonPath = "Header/CloseButton";
         [SerializeField] string statusPath = "Body/Status";
 
@@ -49,15 +68,29 @@ namespace LastSanctuary.UI
         [SerializeField] string savedFormat = "저장했습니다 ({0})";
         [SerializeField] string saveFailed = "저장하지 못했습니다.";
 
+        [Header("게임 재시작")]
+        [Tooltip("한 번 눌렀을 때 뜨는 경고. 이 상태에서 한 번 더 눌러야 실제로 재시작한다")]
+        [SerializeField] string restartConfirm =
+            "정말 처음부터 다시 시작할까요? 한 번 더 누르면 실행됩니다 (저장이 지워집니다)";
+
+        [Tooltip("경고가 살아 있는 시간(초). 지나면 처음 상태로 돌아간다 — " +
+                 "창을 켜 둔 채 잊고 있다가 누르는 일을 막는다")]
+        [Min(1f)] [SerializeField] float restartConfirmSeconds = 5f;
+
         [Tooltip("로비 씬 이름. 빌드 세팅에 들어 있어야 한다")]
         [SerializeField] string lobbySceneName = "Lobby";
 
         Button _saveButton;
         Button _lobbyButton;
+        Button _restartButton;
         Button _closeButton;
         TMP_Text _status;
 
         bool _bound;
+
+        /// <summary>재시작 확인이 살아 있는 시각(<see cref="Time.unscaledTime"/> 기준).
+        /// 0 이면 «아직 한 번도 안 눌렀다». ⚠ 일시정지 중에도 흘러야 하므로 unscaled 다.</summary>
+        float _restartArmedUntil;
 
         void Awake()
         {
@@ -86,6 +119,7 @@ namespace LastSanctuary.UI
             //    TMP 기본 폰트(Liberation Sans)로 남아 한글이 안 보인다.
             _saveButton = FindComponent<Button>(saveButtonPath);
             _lobbyButton = FindComponent<Button>(lobbyButtonPath);
+            _restartButton = FindComponent<Button>(restartButtonPath);
             _closeButton = FindComponent<Button>(closeButtonPath);
             _status = FindComponent<TMP_Text>(statusPath);
 
@@ -99,6 +133,19 @@ namespace LastSanctuary.UI
                 _lobbyButton.onClick.RemoveAllListeners();
                 _lobbyButton.onClick.AddListener(HandleSaveAndLobby);
             }
+            if (_restartButton != null)
+            {
+                _restartButton.onClick.RemoveAllListeners();
+                _restartButton.onClick.AddListener(HandleRestart);
+            }
+            else
+            {
+                // 씬에 버튼이 없으면 <b>조용히 넘어가지 않는다</b> — 이 창의 다른 배선과 달리
+                // 이건 이번에 새로 만든 오브젝트라, 없다면 씬이 옛 버전이라는 뜻이다.
+                Debug.LogWarning($"[환경설정] '{restartButtonPath}' 을 찾지 못했습니다 — " +
+                                 "Tools/scene_add_restart_button.py 를 돌렸는지 확인해주세요.", this);
+            }
+
             if (_closeButton != null)
             {
                 _closeButton.onClick.RemoveAllListeners();
@@ -137,6 +184,7 @@ namespace LastSanctuary.UI
 
             // ⚠ 음량 표시는 여기서 안 만진다 — <see cref="VolumeSlider"/> 가 자기 OnEnable 에서
             //   지금 값을 다시 읽는다(로비에서 바꾼 값이 그대로 반영된다).
+            _restartArmedUntil = 0f;     // 창을 다시 열면 «한 번 눌린» 상태가 남지 않는다
             SetStatus(string.Empty);
         }
 
@@ -168,6 +216,62 @@ namespace LastSanctuary.UI
             Time.timeScale = 1f;
 
             SceneManager.LoadScene(lobbySceneName);
+        }
+
+        /// <summary>
+        /// 게임 재시작 — <b>두 번 눌러야</b> 실행된다(위 ⚠).
+        ///
+        /// ★ 첫 누름은 <c>Status</c> 칸에 경고를 띄우고 <see cref="restartConfirmSeconds"/>
+        ///   동안만 «걸려 있다». 그 안에 다시 누르면 실행, 지나면 처음으로 돌아간다.
+        /// </summary>
+        void HandleRestart()
+        {
+            if (Time.unscaledTime > _restartArmedUntil)
+            {
+                _restartArmedUntil = Time.unscaledTime + restartConfirmSeconds;
+                SetStatus(restartConfirm);
+                return;
+            }
+
+            _restartArmedUntil = 0f;
+            RestartRun();
+        }
+
+        /// <summary>
+        /// <b>판을 처음 상태로 되돌린다</b> — 로비의 «새로하기»와 같은 도착 지점이다.
+        ///
+        /// 순서에 뜻이 있다:
+        ///   ① <b>지속 보정을 먼저 걷는다</b> — <see cref="EventRewardService"/> 는 유닛에
+        ///      건 보정을 «되돌릴 대상» 으로 들고 있다. 씬을 넘긴 뒤에 부르면 그 유닛들이
+        ///      이미 파괴돼 있어 조용히 건너뛴다(다음 판으로 새지는 않지만, 살아 있을 때
+        ///      거두는 편이 «누가 무엇을 되돌렸는가» 가 분명하다).
+        ///   ② <b>판 전역 기록을 비운다</b> — 등장 인물(재등장 금지)과 중립 사냥 수는
+        ///      <c>static</c> 이라 <b>씬을 다시 열어도 살아남는다</b>. 두 클래스 모두
+        ///      «새 판을 시작할 때 비운다» 는 <c>ResetRun()</c> 을 이미 갖고 있는데
+        ///      <b>아무도 부르지 않고 있었다</b> — 여기가 그 자리다.
+        ///      (도메인 리로드가 도는 에디터 플레이 진입 때만 우연히 비워지고 있었다.)
+        ///   ③ <b>저장을 지운다</b> — 안 지우면 첫 자동 저장 전에 게임을 껐다 켤 때
+        ///      <b>버린 판으로 되돌아간다</b>(<see cref="LobbyPanel"/> 의 «새로하기»와 같은 이유).
+        ///   ④ 씬을 다시 연다.
+        ///
+        /// ⚠ <b>지금 씬을 다시 연다</b> — 이름을 적어 두지 않는다. 이 창은 게임 씬에만 있고,
+        ///   씬 이름을 두 곳(여기·로비)에 적으면 한쪽만 고쳐질 수 있다.
+        /// ⚠ 배속·일시정지로 <c>timeScale</c> 이 0 이나 8 일 수 있다. 씬을 넘겨도 유지되므로
+        ///   반드시 되돌린다(<see cref="HandleSaveAndLobby"/> 와 같은 함정).
+        /// </summary>
+        void RestartRun()
+        {
+            EventRewardService.ClearAll();                 // ①
+            if (EventService.Instance != null) EventService.Instance.EndCurrent("게임 재시작");
+
+            CharacterDefinitionRegistry.ResetRun();        // ②
+            NeutralKillTally.ResetRun();
+
+            SaveService.Delete();                          // ③
+            SaveService.PendingLoad = null;                //    ⚠ 남아 있으면 새 판이 그걸 덮어쓴다
+
+            Time.timeScale = 1f;                           // ④
+            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
         }
 
         bool TrySave()
