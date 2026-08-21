@@ -68,7 +68,45 @@ namespace LastSanctuary.Units
         [Tooltip("배치 가능한 칸을 찾을 때 후보 셀 주변으로 몇 칸까지 대체 위치를 찾아볼지")]
         [Min(0)] [SerializeField] int placementFallbackRadius = 4;
 
+        // ==================================================================
+        //  ★★ 에픽 서식지가 <b>판마다 같은 자리</b>에 생기던 문제 (2026-08-21)
+        //
+        //  유저 지시: *"청크가 고정되어있는거 테이블 값 확인해서 200~320 타일 범위 내에
+        //  랜덤으로 서식지 생성해줘"*.
+        //
+        //  ⚠⚠ <b>범위는 처음부터 맞았다.</b> 표(`neutrality_mon`)의 에픽 4종은 전부
+        //    `spawn_range_min 200` · `spawn_range_max 320` 이고, 추첨도 그 고리 안에서
+        //    넓이 기준 균일하게 돌고 있었다(<see cref="SampleRingCell"/>).
+        //
+        //  <b>진짜 원인은 시드였다</b> — 이 스포너만 <c>new System.Random(seed)</c> 로
+        //  <b>고정 시드</b>를 쓰고 있었다. 이 프로젝트의 다른 난수 서비스는 전부
+        //  <c>randomizeSeed</c> 를 갖고 있고 기본값이 <b>켜짐</b>이다
+        //  (<c>UnitSpawner</c>·<c>ErosionService</c>·<c>CharacterUpgradeService</c>·
+        //   <c>MapGenerator</c>). 여기만 빠져 있어서 <b>판을 새로 시작해도 에픽이
+        //  늘 같은 자리에 나왔다</b> — 유저가 «고정» 이라고 본 그것이다.
+        // ==================================================================
+
+        [Tooltip("★ 켜면 판마다 <b>다른 자리</b>에 나온다(기본). 끄면 아래 시드로 " +
+                 "<b>항상 같은 배치</b>가 되어 재현 테스트에 쓸 수 있다.\n" +
+                 "⚠ 이 프로젝트의 다른 난수 서비스와 같은 이름·같은 기본값이다")]
+        [SerializeField] bool randomizeSeed = true;
+
+        [Tooltip("<b>randomizeSeed 를 껐을 때만</b> 쓰는 고정 시드. " +
+                 "같은 시드 = 항상 같은 배치라 버그 재현에 편하다")]
         [SerializeField] int seed = 20260805;
+
+        [Header("에픽 서식지 — 서로 겹치지 않게")]
+        [Tooltip("★ 에픽끼리 <b>서식지 중심</b>이 이만큼은 떨어지게 한다(타일). " +
+                 "유저 지시: *\"중립 에픽 몬스터 당 거리를 둬서 둘이 겹치지 않게\"*.\n\n" +
+                 "서식지 반경이 14 라면 두 원이 <b>닿지 않으려면 28</b>이 필요하고, " +
+                 "«겹치지 않는다» 가 눈에 보이려면 여유가 더 있어야 한다.\n" +
+                 "0 이면 검사하지 않는다(예전 동작)")]
+        [Min(0f)] [SerializeField] float epicHabitatMinSeparationTiles = 70f;
+
+        [Tooltip("떨어뜨릴 자리를 못 찾았을 때 <b>그래도 소환할지</b>. " +
+                 "켜면 경고를 남기고 가장 멀리 떨어진 후보에 놓는다(에픽이 안 나오는 것보다 낫다). " +
+                 "끄면 소환을 포기한다")]
+        [SerializeField] bool spawnEpicEvenIfCrowded = true;
 
         Transform _root;
         System.Random _rng;
@@ -84,7 +122,10 @@ namespace LastSanctuary.Units
 
         void Start()
         {
-            _rng = new System.Random(seed);
+            // ★ 판마다 다른 배치 — 위 ★★ 참조. 예전에는 고정 시드라 늘 같은 자리였다.
+            _rng = new System.Random(randomizeSeed
+                ? Random.Range(int.MinValue, int.MaxValue)
+                : seed);
             _root = new GameObject("NeutralMonsters").transform;
             _root.SetParent(transform, false);
 
@@ -875,6 +916,14 @@ namespace LastSanctuary.Units
         {
             float outer = ResolveOuterRadius(minDist, maxDist);
 
+            // ★ 에픽은 <b>서로 떨어져야</b> 한다 — 아래 ★★ 참조. 일반 중립은 검사하지 않는다
+            //   (수십 마리가 고리를 채우는 종이라 서로 떨어뜨릴 개념이 없다).
+            bool separate = def.epic && epicHabitatMinSeparationTiles > 0f;
+
+            // 떨어뜨리기에 실패했을 때 쓸 «그래도 가장 나은» 후보 — 이웃과 가장 멀리 떨어진 칸.
+            Vector3Int best = Vector3Int.zero;
+            float bestGap = -1f;
+
             // 고리가 맵 모서리 쪽에만 걸치는 경우 추첨이 자주 헛돌기 때문에 넉넉히 잡는다.
             const int Attempts = 96;
             for (int i = 0; i < Attempts; i++)
@@ -888,18 +937,104 @@ namespace LastSanctuary.Units
                 }
                 if (!mapGenerator.IsCellInsideMap(candidate)) continue;
 
-                if (mapGenerator.TryFindPlaceableNear(candidate, placementFallbackRadius, null,
-                                                       out Vector3Int placeable) &&
-                    RadiusFromNexus(placeable) >= minDist &&
-                    RadiusFromNexus(placeable) <= outer)
+                if (!mapGenerator.TryFindPlaceableNear(candidate, placementFallbackRadius, null,
+                                                       out Vector3Int placeable) ||
+                    RadiusFromNexus(placeable) < minDist ||
+                    RadiusFromNexus(placeable) > outer)
+                    continue;
+
+                if (!separate)
                 {
                     result = placeable;
                     return true;
                 }
+
+                // 이미 서 있는 에픽들과 얼마나 떨어졌는가.
+                float gap = NearestEpicHabitatDistance(placeable, def);
+                if (gap >= epicHabitatMinSeparationTiles)
+                {
+                    result = placeable;
+                    return true;
+                }
+                if (gap > bestGap)
+                {
+                    bestGap = gap;
+                    best = placeable;
+                }
+            }
+
+            // ⚠ 여기까지 왔으면 «떨어진 자리» 를 못 찾았다. 조용히 실패하지 않는다.
+            if (separate && bestGap >= 0f)
+            {
+                if (spawnEpicEvenIfCrowded)
+                {
+                    Debug.LogWarning(
+                        $"[중립] {def.DisplayName} — 다른 에픽과 " +
+                        $"{epicHabitatMinSeparationTiles:0}타일 떨어진 자리를 못 찾았습니다. " +
+                        $"가장 먼 후보({bestGap:0.#}타일)에 놓습니다. " +
+                        "간격을 줄이거나 등장 범위를 넓혀주세요.", this);
+                    result = best;
+                    return true;
+                }
+
+                Debug.LogWarning(
+                    $"[중립] {def.DisplayName} — 다른 에픽과 떨어진 자리를 못 찾아 소환을 " +
+                    $"건너뜁니다(가장 먼 후보 {bestGap:0.#}타일 < {epicHabitatMinSeparationTiles:0}). " +
+                    "spawnEpicEvenIfCrowded 를 켜면 그래도 소환합니다.", this);
             }
 
             result = Vector3Int.zero;
             return false;
+        }
+
+        /// <summary>
+        /// ★★ <b>지금 살아 있는 다른 에픽의 서식지 중심까지의 최단 거리</b>(타일).
+        /// 비교할 에픽이 하나도 없으면 <see cref="float.PositiveInfinity"/>.
+        ///
+        /// 유저 지시: *"중립 에픽 몬스터 당 거리를 둬서 둘이 겹치지 않게 로직 구성해줘"*.
+        ///
+        /// ★ <b>따로 목록을 들지 않는다</b> — «살아 있는 개체» 에서 매번 읽는다.
+        ///   별도 리스트를 두면 죽음·재생성·저장 복원마다 <b>지우는 것을 잊는 자리</b>가
+        ///   셋 생기고, 하나만 빠뜨려도 «있지도 않은 에픽 때문에 자리를 못 찾는» 상태가 된다.
+        ///   에픽은 종당 1마리(표 <c>max_alive</c>)라 훑을 것이 네 마리뿐이다.
+        ///
+        /// ★ 기준점은 <b>서식지 중심</b>이지 «지금 서 있는 자리» 가 아니다 — 에픽은 맞으면
+        ///   서식지 밖까지 쫓아 나가므로(<c>habitatChaseTiles</c>) 현재 위치로 재면
+        ///   교전 중에 값이 출렁인다. 저장 코드가 같은 이유로 같은 판단을 했다
+        ///   (<c>GameSnapshot</c> 의 «서식지 중심이 정본이다»).
+        ///
+        /// <param name="self">지금 놓으려는 종. <b>자기 자신은 빼지 않는다</b> — 같은 종이
+        ///   둘 이상 나올 수 있는 표라면(max_alive 2) 그 둘도 떨어져야 맞다.</param>
+        /// </summary>
+        float NearestEpicHabitatDistance(Vector3Int cell, NeutralMonsterDefinitionSO self)
+        {
+            Vector3 world = mapGenerator != null
+                ? mapGenerator.CellCenterWorld(cell)
+                : new Vector3(cell.x + 0.5f, cell.y + 0.5f, 0f);
+
+            float nearest = float.PositiveInfinity;
+
+            foreach (KeyValuePair<NeutralMonsterDefinitionSO, List<NeutralMonsterUnit>> pair in _alive)
+            {
+                if (pair.Key == null || !pair.Key.epic) continue;
+
+                List<NeutralMonsterUnit> list = pair.Value;
+                for (int i = 0; i < list.Count; i++)
+                {
+                    NeutralMonsterUnit unit = list[i];
+                    if (unit == null || !unit.IsAlive) continue;
+
+                    var wander = unit.GetComponent<NeutralMonsterWander>();
+                    Vector3 center = wander != null && wander.IsHabitatMode
+                        ? wander.HabitatCenter
+                        : unit.transform.position;
+
+                    float d = Vector2.Distance(world, center);
+                    if (d < nearest) nearest = d;
+                }
+            }
+
+            return nearest;
         }
 
         /// <summary>

@@ -2221,6 +2221,16 @@ namespace LastSanctuary.Combat
 
             _target.Heal(amount, healCrit);
 
+            // ★★ <b>회복 횟수를 센다</b> (2026-08-21 · 유저 지시: *"힐러는 회복 횟수를
+            //   카운트해서 회복을 200번 사용하면 영웅 각성이 가능한 상태로"*).
+            //
+            //   여기가 «회복을 사용했다» 의 정의다 — 위의 명중 실패·회복량 0·이기심 거절은
+            //   모두 이 줄에 <b>도달하지 못한다</b>. 그래서 «성공한 회복» 만 세어진다.
+            //   ⚠ 규칙과 수치는 전부 <see cref="HeroAwakeningService"/> 에 있다 — 여기서는
+            //     «일어났다» 만 알린다(처치가 OnAnyDamaged/OnAnyDied 로 가는 것과 같은 결).
+            if (_self is Units.CharacterUnit healerUnit)
+                HeroAwakeningService.Instance?.NotifyHeal(healerUnit);
+
             // ★ 회복 연출 (2026-08-19) — 회복이 <b>실제로 들어간 뒤</b>에만 깐다.
             //   거절(이기심)·회복량 0 에서 빠져나간 위 두 갈래보다 아래에 있는 것이 요점이다:
             //   시전만 하고 아무 일도 안 났는데 초록 십자가가 뜨면 회복된 것처럼 보인다.

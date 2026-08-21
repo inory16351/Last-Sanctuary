@@ -95,6 +95,39 @@ namespace LastSanctuary.Combat
                  "최대 횟수가 1 이면 쓰이지 않는다")]
         [Min(0)] [SerializeField] int killThresholdPerAwakening = 50;
 
+        // ══════════════════════════════════════════════════════════════════
+        //  ★★ <b>회복으로 가는 두 번째 길</b> (2026-08-21 · 유저 지시:
+        //  *"힐러는 회복 횟수를 카운트해서 회복을 200번 사용하면 영웅 각성이 가능한 상태로
+        //  만들어줘 / 영웅 각성을 할 확률은 회복 한 번 당 0.5%로 설정해줘 그 값을 전부
+        //  에딧에서 수정할 수 있게 만들어줘"*)
+        //
+        //  <b>왜 필요한가</b> — 각성 조건이 처치뿐이면 <b>회복 유형 캐릭터는 영웅이 될 수
+        //  없다</b>. 힐러는 처치를 거의 못 하기 때문이다.
+        //
+        //  ★ <b>«힐러인가» 를 묻지 않는다.</b> 회복을 쓰면 회복이 쌓이고, 처치를 하면 처치가
+        //    쌓인다 — 두 길은 <b>독립</b>이고 둘 중 <b>먼저 채운 쪽</b>으로 각성한다.
+        //    유형으로 갈래를 나누면 전술 창에서 유형을 바꿀 때마다 진행도가 무의미해진다
+        //    (이 프로젝트가 스킬을 «슬롯 번호가 아니라 종류» 로 판정하는 것과 같은 결).
+        //
+        //  ⚠ <b>레벨 조건(<see cref="awakenMinLevel"/>)은 두 길이 공유한다</b> — 각성이
+        //    «충분히 키운 캐릭터에게 오는 것» 이라는 뜻은 힐러에게도 같다.
+        // ══════════════════════════════════════════════════════════════════
+
+        [Header("영웅 각성 — 회복으로 가는 길 (힐러)")]
+        [Tooltip("회복 횟수와 회복 각성을 켠다. 끄면 회복은 세지도 굴리지도 않는다")]
+        [SerializeField] bool trackHeals = true;
+
+        [Tooltip("이 회복 횟수를 넘기면 '각성 가능' 상태가 된다. 표 기준 200")]
+        [Min(1)] [SerializeField] int awakenHealThreshold = 200;
+
+        [Tooltip("조건을 모두 채운 상태에서 <b>회복 1회마다</b> 각성을 굴리는 확률(%). " +
+                 "0.5 면 평균 200번쯤 더 회복하면 각성한다")]
+        [Range(0f, 100f)] [SerializeField] float awakenChancePerHealPercent = 0.5f;
+
+        [Tooltip("두 번째 이후 각성에 추가로 필요한 회복 수. " +
+                 "최대 횟수가 1 이면 쓰이지 않는다")]
+        [Min(0)] [SerializeField] int healThresholdPerAwakening = 200;
+
         [Header("영웅 각성 — 효과 (능력치 상한을 넘는다)")]
         [Tooltip("각성 1회에 성장 가능한 능력치 전부가 이만큼 오른다. " +
                  "★ 이 상승분은 능력치 상한(BalanceConfig.statMax)을 넘어설 수 있다")]
@@ -198,7 +231,11 @@ namespace LastSanctuary.Combat
 
             HeroAwakeningService s = Instance;
             if (s == null) return HeroState.None;
-            return k.Kills >= s.KillsNeededFor(k) ? HeroState.Ready : HeroState.None;
+
+            // ★ <b>둘 중 하나만 채워도 «각성 가능»</b> 이다 — 처치의 길과 회복의 길.
+            bool byKill = k.Kills >= s.KillsNeededFor(k);
+            bool byHeal = s.trackHeals && k.Heals >= s.HealsNeededFor(k);
+            return byKill || byHeal ? HeroState.Ready : HeroState.None;
         }
 
         /// <summary>다음 각성까지 필요한 처치 수. 이미 최대 각성이면 0.</summary>
@@ -211,9 +248,30 @@ namespace LastSanctuary.Combat
             return Mathf.Max(0, s.KillsNeededFor(k) - k.Kills);
         }
 
+        /// <summary>다음 각성까지 필요한 <b>회복</b> 수. 이미 최대 각성이거나 회복 길이 꺼져 있으면 0.</summary>
+        public static int HealsRemainingFor(CharacterUnit unit)
+        {
+            CharacterKills k = CharacterKills.Of(unit);
+            HeroAwakeningService s = Instance;
+            if (k == null || s == null || !s.trackHeals) return 0;
+            if (k.Awakenings >= s.maxAwakenings) return 0;
+            return Mathf.Max(0, s.HealsNeededFor(k) - k.Heals);
+        }
+
+        /// <summary>이 캐릭터의 회복 횟수. 기록이 없으면 0.</summary>
+        public static int HealsOf(CharacterUnit unit)
+        {
+            CharacterKills k = CharacterKills.Of(unit);
+            return k != null ? k.Heals : 0;
+        }
+
         /// <summary>이 기록이 다음 각성을 굴리려면 몇 킬이 필요한가.</summary>
         int KillsNeededFor(CharacterKills k) =>
             awakenKillThreshold + killThresholdPerAwakening * Mathf.Max(0, k.Awakenings);
+
+        /// <summary>이 기록이 다음 각성을 굴리려면 몇 번 회복해야 하는가.</summary>
+        int HealsNeededFor(CharacterKills k) =>
+            awakenHealThreshold + healThresholdPerAwakening * Mathf.Max(0, k.Awakenings);
 
         // ==================================================================
         // 장부
@@ -351,6 +409,54 @@ namespace LastSanctuary.Combat
             Awaken(record, unit);
         }
 
+        // ==================================================================
+        //  회복 · 각성 (힐러) — 위 ★★ 참조
+        // ==================================================================
+
+        /// <summary>
+        /// ★★ <b>회복 한 번을 인정한다</b> — 회복이 <b>실제로 들어간 뒤</b>에 부른다.
+        ///
+        /// 부르는 곳은 <see cref="UnitCombat"/> 의 회복 공격 한 곳이다
+        /// (<c>_target.Heal(...)</c> 바로 뒤). 그 자리가 «회복을 사용했다» 의 정의다.
+        ///
+        /// ⚠ <b>패시브·이벤트 회복은 세지 않는다.</b> 유저 지시가 *"회복을 200번 사용하면"*
+        ///   이므로 «캐릭터가 회복 공격을 한 것» 만 센다. 「성스러운 축복」의 지역 회복이나
+        ///   이벤트 보상 회복까지 세면 회복을 <b>안 쓴 캐릭터</b>도 진행도가 쌓인다.
+        /// ⚠ 빗나간 회복은 이 자리에 오지 않는다 — 명중 판정에서 이미 빠져나간다.
+        /// </summary>
+        public void NotifyHeal(CharacterUnit healer)
+        {
+            if (!trackHeals || healer == null) return;
+
+            CharacterKills record = CharacterKills.EnsureOn(healer);
+            if (record == null) return;
+
+            record.AddHeal();
+
+            if (logKills)
+                Debug.Log($"[회복] {healer.DisplayName} — 누적 {record.Heals}", record);
+
+            TryAwakenByHeal(record);
+        }
+
+        /// <summary>
+        /// 회복으로 각성을 굴린다. <see cref="TryAwaken"/> 과 <b>같은 순서·같은 모양</b>이고
+        /// 보는 값만 회복 쪽이다(회복 수 → 레벨 → 회복 확률).
+        /// </summary>
+        void TryAwakenByHeal(CharacterKills record)
+        {
+            if (record.Awakenings >= maxAwakenings) return;
+            if (record.Heals < HealsNeededFor(record)) return;
+
+            CharacterUnit unit = record.Unit;
+            if (unit == null) return;
+            if (unit.UpgradeCount < awakenMinLevel) return;
+
+            if (Random.value * 100f >= awakenChancePerHealPercent) return;
+
+            Awaken(record, unit);
+        }
+
         /// <summary>
         /// 실제 각성. 성장 가능한 능력치 전부를 <b>상한을 넘겨</b> 올린다.
         ///
@@ -385,7 +491,7 @@ namespace LastSanctuary.Combat
                 string suffix = maxAwakenings > 1 ? $" ({record.Awakenings}단계)" : string.Empty;
                 HudLog.Add($"{unit.DisplayName} 영웅 각성!{suffix}", HudLogKind.Good);
                 Debug.Log($"[영웅] {unit.DisplayName} 각성 {record.Awakenings}회 · " +
-                          $"처치 {record.Kills} · Lv.{unit.UpgradeCount} · " +
+                          $"처치 {record.Kills} · 회복 {record.Heals} · Lv.{unit.UpgradeCount} · " +
                           $"능력치 +{awakenStatBonus}(성장 유형 +{awakenStatBonus + awakenFocusBonus})", unit);
             }
 

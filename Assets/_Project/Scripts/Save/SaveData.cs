@@ -156,6 +156,13 @@ namespace LastSanctuary.Save
         public int kills;
         public int awakenings;
 
+        /// <summary>
+        /// ★ 회복 횟수 — 영웅 각성의 두 번째 길(2026-08-21).
+        /// ⚠ 옛 세이브에는 이 칸이 없어 <b>0 으로 읽힌다</b> — 힐러의 진행도만 초기화되고
+        ///   판은 정상으로 열린다. 그래서 세이브 버전을 올리지 않았다.
+        /// </summary>
+        public int heals;
+
         /// <summary>영웅 각성으로 붙은 고정 보정 — 능력치 종류(<c>(int)StatType</c>).</summary>
         public List<int> awakenBonusStats = new List<int>();
 

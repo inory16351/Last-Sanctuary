@@ -22,6 +22,18 @@ namespace LastSanctuary.Combat
         [Tooltip("이 캐릭터가 인정받은 처치 수. 같은 적을 여럿이 때렸으면 그 전원이 각각 1 을 받는다")]
         [SerializeField] int kills;
 
+        // ★★ <b>회복 횟수</b> (2026-08-21 · 유저 지시: *"힐러는 회복 횟수를 카운트해서
+        //   회복을 200번 사용하면 영웅 각성이 가능한 상태로 만들어줘"*).
+        //
+        //   <b>왜 처치와 따로 세나</b> — 힐러는 처치를 거의 못 한다. 각성 조건이 처치뿐이면
+        //   회복 유형 캐릭터는 <b>영웅이 될 길이 없다</b>. 그래서 «회복도 같은 방식으로 쌓이는
+        //   또 하나의 길» 로 뒀다.
+        //   ★ «힐러인가» 를 <b>묻지 않는다</b> — 회복을 쓰면 세고, 처치를 하면 센다.
+        //     인물이나 유형으로 갈래를 나누면 유형을 바꿀 때마다 규칙이 흔들린다
+        //     (이 프로젝트가 스킬을 «슬롯 번호가 아니라 종류» 로 판정하는 것과 같은 원칙).
+        [Tooltip("이 캐릭터가 <b>회복 공격을 성공시킨</b> 횟수. 영웅 각성의 두 번째 길이다")]
+        [SerializeField] int heals;
+
         [Tooltip("영웅 각성 횟수. 1 이상이면 이 캐릭터는 '영웅' 이다")]
         [SerializeField] int awakenings;
 
@@ -43,6 +55,9 @@ namespace LastSanctuary.Combat
 
         /// <summary>지금까지 인정받은 처치 수.</summary>
         public int Kills => kills;
+
+        /// <summary>지금까지 성공시킨 회복 횟수 (영웅 각성의 두 번째 길).</summary>
+        public int Heals => heals;
 
         /// <summary>영웅 각성 횟수. 0 이면 아직 평범한 캐릭터다.</summary>
         public int Awakenings => awakenings;
@@ -71,6 +86,9 @@ namespace LastSanctuary.Combat
 
         /// <summary>처치 하나를 인정한다. 부르는 곳은 <see cref="HeroAwakeningService"/> 하나다.</summary>
         public void AddKill() => kills++;
+
+        /// <summary>회복 하나를 인정한다. 부르는 곳은 <see cref="HeroAwakeningService"/> 하나다.</summary>
+        public void AddHeal() => heals++;
 
         /// <summary>각성 횟수를 1 올린다. 능력치를 실제로 올리는 것은 서비스가 한다.</summary>
         public void RegisterAwakening() => awakenings++;
@@ -113,6 +131,18 @@ namespace LastSanctuary.Combat
         {
             kills = Mathf.Max(0, killCount);
             awakenings = Mathf.Max(0, awakenCount);
+        }
+
+        /// <summary>
+        /// 저장에서 <b>회복 횟수</b>까지 되돌린다 (2026-08-21).
+        ///
+        /// ★ 오버로드를 <b>따로</b> 뒀다 — 옛 세이브에는 회복 칸이 없으므로 위 두 인자
+        ///   버전을 그대로 남겨 둔다(부르는 쪽이 안 바뀌면 옛 동작 그대로다).
+        /// </summary>
+        public void RestoreCounts(int killCount, int awakenCount, int healCount)
+        {
+            RestoreCounts(killCount, awakenCount);
+            heals = Mathf.Max(0, healCount);
         }
 
         /// <summary>각성으로 영구히 오른 양. 각성한 적이 없으면 0.</summary>

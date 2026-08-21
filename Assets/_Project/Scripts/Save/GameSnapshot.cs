@@ -287,6 +287,7 @@ namespace LastSanctuary.Save
                 {
                     save.kills = kills.Kills;
                     save.awakenings = kills.Awakenings;
+                    save.heals = kills.Heals;      // ★ 힐러의 각성 진행도(2026-08-21)
 
                     // 영웅 각성 보정은 <b>능력치에 안 들어 있다</b>(AddFlatStatBonus 는 상한 밖
                     // 별도 칸이다) — 따로 담지 않으면 불러왔을 때 각성이 통째로 사라진다.
@@ -563,7 +564,7 @@ namespace LastSanctuary.Save
                 CharacterKills kills = CharacterKills.EnsureOn(unit);
                 if (kills != null)
                 {
-                    kills.RestoreCounts(save.kills, save.awakenings);
+                    kills.RestoreCounts(save.kills, save.awakenings, save.heals);
 
                     int pairs = Mathf.Min(save.awakenBonusStats.Count, save.awakenBonusAmounts.Count);
                     for (int i = 0; i < pairs; i++)

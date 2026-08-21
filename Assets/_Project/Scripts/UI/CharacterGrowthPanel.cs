@@ -88,7 +88,12 @@ namespace LastSanctuary.UI
         [Tooltip("레벨 옆에 붙는 처치 수. {0} = 인정된 처치 수")]
         [SerializeField] string killCountFormat = " · 처치 {0}";
 
-        [Tooltip("각성 가능 상태(처치 수를 채웠다)일 때 덧붙이는 말")]
+        [Tooltip("★ 레벨 옆에 붙는 <b>회복 횟수</b>(힐러의 각성 진행도). {0} = 회복 횟수.\n" +
+                 "처치가 0 이고 회복만 쌓인 캐릭터는 이 줄만 보인다 — 힐러는 처치를 " +
+                 "거의 못 하므로 처치 수만 보여주면 진행도가 안 보인다(2026-08-21)")]
+        [SerializeField] string healCountFormat = " · 회복 {0}";
+
+        [Tooltip("각성 가능 상태(처치 수 <b>또는</b> 회복 수를 채웠다)일 때 덧붙이는 말")]
         [SerializeField] string heroReadyMark = " · 각성 가능";
 
         [Tooltip("이미 각성한 캐릭터 앞에 붙는 표식")]
@@ -539,6 +544,12 @@ namespace LastSanctuary.UI
             int kills = HeroAwakeningService.KillsOf(unit);
             if (kills > 0 && !string.IsNullOrEmpty(killCountFormat))
                 line += string.Format(killCountFormat, kills);
+
+            // ★ 회복 횟수 — 힐러의 각성 진행도(2026-08-21). 0 이면 안 붙으므로
+            //   회복을 안 쓰는 캐릭터의 줄은 예전과 <b>글자 하나 다르지 않다</b>.
+            int heals = HeroAwakeningService.HealsOf(unit);
+            if (heals > 0 && !string.IsNullOrEmpty(healCountFormat))
+                line += string.Format(healCountFormat, heals);
 
             switch (HeroAwakeningService.StateOf(unit))
             {
