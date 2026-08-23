@@ -43,6 +43,7 @@ MonoBehaviour:
   - {fileID: 21300000, guid: 9281b5ae3835adbcdc490e942660c0d5, type: 3}
   - {fileID: 21300000, guid: ffcab856e44f69438d298f284955fce5, type: 3}
   - {fileID: 21300000, guid: a8542c409a76e1ce740500ede3aea2b7, type: 3}
+  - {fileID: 21300000, guid: c3ebf1e3d0eace2dc8f375520e671560, type: 3}
   walkLeft:
   - {fileID: 21300000, guid: f86199c5c82c37a7c2674233d81b185c, type: 3}
   - {fileID: 21300000, guid: 95904ef77e279dcd54c0ea330440142e, type: 3}
@@ -53,6 +54,7 @@ MonoBehaviour:
   - {fileID: 21300000, guid: 96a7a28abe98e44d1269d6498b828ee3, type: 3}
   - {fileID: 21300000, guid: 098c4be3f6e48def07ac9276e9abd3fe, type: 3}
   - {fileID: 21300000, guid: 4902b064648daadf55caced3d1170afc, type: 3}
+  - {fileID: 21300000, guid: 1ffaddf347ecd81b0f3e0674336ed4b2, type: 3}
   attackRight:
   - {fileID: 21300000, guid: 0f02d989e54f39fd4fb72a3f9fc7e159, type: 3}
   - {fileID: 21300000, guid: cfc7a2df14321bdd825753e5c77a05c9, type: 3}
@@ -133,7 +135,6 @@ MonoBehaviour:
   - {fileID: 21300000, guid: c90be9dc3f96bd9a608776ce0bf86c36, type: 3}
   - {fileID: 21300000, guid: d5f494552fc87a29d62e99c2066ab30b, type: 3}
   - {fileID: 21300000, guid: c520e45aaa7e88d07c4dc0af9fc5ff88, type: 3}
-  - {fileID: 21300000, guid: d096c1bb7c97e252b302020356027092, type: 3}
   skill1Left:
   - {fileID: 21300000, guid: a2a2c7f879ae1718cc8f5ae9576a31d2, type: 3}
   - {fileID: 21300000, guid: e87fe1f4cec1081c98292726b4e17560, type: 3}
@@ -141,7 +142,6 @@ MonoBehaviour:
   - {fileID: 21300000, guid: f69e2f5cff11cf1a76b65576fe2b5e60, type: 3}
   - {fileID: 21300000, guid: dba9e04338dcefba2e0d466058106b1c, type: 3}
   - {fileID: 21300000, guid: ff21fca1fd0822691eb205529f0d8257, type: 3}
-  - {fileID: 21300000, guid: 739b69d5244b0141040d994a4ded1b53, type: 3}
   skill2Right:
   - {fileID: 21300000, guid: 8f40a8faf53ec276091d3b4e8564a29c, type: 3}
   - {fileID: 21300000, guid: cce2115c291fd1385e8e9c8855550913, type: 3}
@@ -173,10 +173,6 @@ MonoBehaviour:
   - {fileID: 21300000, guid: 7e3e1c60d2cdd48e98e14f573fa5eae7, type: 3}
   - {fileID: 21300000, guid: 5ee7303fc80574c324aace56daabaa06, type: 3}
   - {fileID: 21300000, guid: 6a07e79773acc624bdd4d3bc6e13abf8, type: 3}
-  - {fileID: 21300000, guid: 4095aeb89358e0bd0a6b22e06811a08e, type: 3}
-  - {fileID: 21300000, guid: 22aba26ceaade69a923ebd900b7c0674, type: 3}
-  - {fileID: 21300000, guid: 657783d0eae7ca2a3e31c4180be5536b, type: 3}
-  - {fileID: 21300000, guid: a654db6a0fd4e17eb1f54e16fcfc4a37, type: 3}
   muzzleFlashFrames:
   - {fileID: 21300000, guid: 700fb966f92b8b8cc246e1fee3b19f5d, type: 3}
   - {fileID: 21300000, guid: 0eee1e4e16e5d33f52c2d56afdef4ba7, type: 3}
@@ -192,7 +188,7 @@ MonoBehaviour:
   - {fileID: 21300000, guid: 0d8ff757f2e25e8adf3097eab59bcd93, type: 3}
   - {fileID: 21300000, guid: 09bca05033b124c162c0bb7d1981f7c6, type: 3}
   - {fileID: 21300000, guid: d3010b3b47e5f2297707316a08d44a4b, type: 3}
-  meleeTravelWidthTiles: 0
+  meleeTravelWidthTiles: 1.6
   groundImpactOnly: 0
   projectileScale: 0.55
   impactScale: {x: 1, y: 1}
@@ -200,6 +196,6 @@ MonoBehaviour:
   projectileSizeTiles: {x: 0.812, y: 0.312}
   impactSizeTiles: {x: 0, y: 0}
   projectileWidthTiles: 0.6
-  impactWidthTiles: 0
+  impactWidthTiles: 1.4
   impactFlattenY: 1
   bodyScaleAdjust: 1

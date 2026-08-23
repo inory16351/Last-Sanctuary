@@ -23,7 +23,6 @@ MonoBehaviour:
   - {fileID: 21300000, guid: d30eb47630ecac87b4646f66fc3cca63, type: 3}
   - {fileID: 21300000, guid: 3917e79acf40b8ec55026d5319c2d8c9, type: 3}
   - {fileID: 21300000, guid: 441e014ceef71629c8f5bfdb74aaccf7, type: 3}
-  - {fileID: 21300000, guid: 6c277e25724edfa678760b7ac94e0ff0, type: 3}
   idleLeft:
   - {fileID: 21300000, guid: 460609201d40608a97b0214765fc0f00, type: 3}
   - {fileID: 21300000, guid: 46895f35290a169782ec4cc3734ffdd3, type: 3}
@@ -117,7 +116,6 @@ MonoBehaviour:
   - {fileID: 21300000, guid: 1ab789f1bc02c4e0e1b37fe2435d21a3, type: 3}
   - {fileID: 21300000, guid: df7444350dc31f0ac960154e0ade68ae, type: 3}
   - {fileID: 21300000, guid: 971806991e87b08afac349bc4446516c, type: 3}
-  - {fileID: 21300000, guid: 083853edb1083b1ba52ec83d0f3e61d7, type: 3}
   reviveRight: []
   reviveLeft: []
   reviveFx: []
@@ -162,8 +160,6 @@ MonoBehaviour:
   - {fileID: 21300000, guid: 3b73e3df83af2bc9c12dd79e04e3f156, type: 3}
   - {fileID: 21300000, guid: 47bf442f4130ca07cb830c5876d3a065, type: 3}
   - {fileID: 21300000, guid: e20b19f117338032d3586ff8a365a33f, type: 3}
-  - {fileID: 21300000, guid: c3f70ffa8e9920d9e8e0cdb66bea1f7d, type: 3}
-  - {fileID: 21300000, guid: 16830bb2a319abe7593b27ef9636be40, type: 3}
   muzzleFlashFrames: []
   impactFrames: []
   magicImpactFrames:
@@ -174,13 +170,12 @@ MonoBehaviour:
   - {fileID: 21300000, guid: 155a6a7c48378f44d991c75710696990, type: 3}
   - {fileID: 21300000, guid: e7fd32dd1c55d79bef5723af41d98b38, type: 3}
   - {fileID: 21300000, guid: 37da4deb6afe0b761f02551d20fa660b, type: 3}
-  - {fileID: 21300000, guid: 8ecb84cedbf24f1021c9037c44934fc6, type: 3}
   meleeTravelFrames:
   - {fileID: 21300000, guid: 5ccb13a1836f1b2a39dc47222a5ca2cf, type: 3}
   - {fileID: 21300000, guid: ff4063cabeb4d9dc6d5b9bebf561d491, type: 3}
   - {fileID: 21300000, guid: e4d05726dfee66f7a430bb6c7be8e0b8, type: 3}
   - {fileID: 21300000, guid: ef836721e69985243561489292b341fa, type: 3}
-  meleeTravelWidthTiles: 0
+  meleeTravelWidthTiles: 2
   groundImpactOnly: 0
   projectileScale: 0.55
   impactScale: {x: 1, y: 1}
@@ -188,6 +183,6 @@ MonoBehaviour:
   projectileSizeTiles: {x: 1.297, y: 1.172}
   impactSizeTiles: {x: 0, y: 0}
   projectileWidthTiles: 1.2
-  impactWidthTiles: 0
+  impactWidthTiles: 1.5
   impactFlattenY: 1
   bodyScaleAdjust: 1

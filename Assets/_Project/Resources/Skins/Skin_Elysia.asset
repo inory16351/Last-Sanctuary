@@ -149,7 +149,7 @@ MonoBehaviour:
   - {fileID: 21300000, guid: 8c454f5bd367e7ede8d0b539ef370b48, type: 3}
   - {fileID: 21300000, guid: d8b96b430c4fcd93f45e49a3735f1841, type: 3}
   - {fileID: 21300000, guid: 556e4aa43336f4f0be75a90c3623cf39, type: 3}
-  meleeTravelWidthTiles: 0
+  meleeTravelWidthTiles: 1.8
   groundImpactOnly: 0
   projectileScale: 0.55
   impactScale: {x: 1, y: 1}
@@ -157,6 +157,6 @@ MonoBehaviour:
   projectileSizeTiles: {x: 2.359, y: 1.281}
   impactSizeTiles: {x: 1.734, y: 1.281}
   projectileWidthTiles: 1
-  impactWidthTiles: 0
+  impactWidthTiles: 1.5
   impactFlattenY: 1
   bodyScaleAdjust: 1
