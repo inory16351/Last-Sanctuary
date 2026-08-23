@@ -175,6 +175,12 @@ namespace LastSanctuary.Combat
             // 두 배율은 정확히 대칭이다. 정의가 없는 캐릭터는 둘 다 1.0 이라 예전과 같이 동작한다.
             // 침식 수치 자체는 실수로 누적한다(정수로 깎으면 초당 0.25 회복이 0 이 된다).
             float gain = _character != null ? _character.ErosionGainMultiplier : 1f;
+
+            // ★★ 유물 「서늘한 해열」(relic_erosion_slow) — <b>쌓이는 쪽만</b> 늦춘다
+            //   (표 EffectType 시트: *"빠지는 속도는 건드리지 않습니다"*). 그래서 recover 에는
+            //   곱하지 않는다. 저항력 배율과 <b>곱해서</b> 쌓는다 — 둘은 서로 다른 이유로
+            //   같은 값을 바꾸므로 어느 한쪽이 다른 쪽을 덮으면 안 된다.
+            gain *= Relics.RelicEffectService.ErosionGainMultiplier(_character);
             float recover = _character != null ? _character.ErosionRecoverMultiplier : 1f;
 
             if (IsInWaveCombat(service))

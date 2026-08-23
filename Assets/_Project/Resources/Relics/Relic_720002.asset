@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8d79840638937e4796aeac340e7fbdd, type: 3}
+  m_Name: Relic_720002
+  m_EditorClassIdentifier:
+  relicId: 720002
+  relicName: "구속의 인장"
+  grade: 3
+  effectType: 21
+  value01: 30
+  value02: 0
+  relicDesc: "받은 근접 피해의 30% 를 때린 적에게 되돌립니다."
+  relicFlavor: "묶는 자를 묶어 얻은 것. 이제는 붙잡는 손이 먼저 뜯긴다."
+  source: 3
+  sourceId: 120002
+  dropWeight: 100
+  iconKey: "relic_boss_120002"
+  icon: {fileID: 21300000, guid: b5503c2559a6a876e3c7566f3f6ff3f1, type: 3}

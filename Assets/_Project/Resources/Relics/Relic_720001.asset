@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8d79840638937e4796aeac340e7fbdd, type: 3}
+  m_Name: Relic_720001
+  m_EditorClassIdentifier:
+  relicId: 720001
+  relicName: "형상을 잊은 핵"
+  grade: 3
+  effectType: 1
+  value01: 20
+  value02: 0
+  relicDesc: "최대 체력이 20% 증가합니다."
+  relicFlavor: "무엇이든 될 수 있었던 것의 가운데. 아직도 무엇이 되려는 듯 미약하게 뛴다."
+  source: 3
+  sourceId: 120001
+  dropWeight: 100
+  iconKey: "relic_boss_120001"
+  icon: {fileID: 21300000, guid: bd836643eeedd636d6606ee8620a2fe5, type: 3}

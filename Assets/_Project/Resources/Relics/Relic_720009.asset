@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8d79840638937e4796aeac340e7fbdd, type: 3}
+  m_Name: Relic_720009
+  m_EditorClassIdentifier:
+  relicId: 720009
+  relicName: "얼금뱅이 뿔"
+  grade: 3
+  effectType: 5
+  value01: 18
+  value02: 0
+  relicDesc: "방어력이 18% 증가합니다."
+  relicFlavor: "패이고 곪은 자국투성이인데도 부러지지 않았다. 흉이 곧 두께다."
+  source: 3
+  sourceId: 1103
+  dropWeight: 100
+  iconKey: "relic_boss_1103"
+  icon: {fileID: 21300000, guid: 3d07b0657195780383f1aea9da09d184, type: 3}

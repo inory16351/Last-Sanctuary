@@ -37,7 +37,14 @@ namespace LastSanctuary.Save
         /// 복원하는 것보다 "형식이 다릅니다" 로 거부하는 편이 낫다
         /// (<see cref="SaveService.Load"/> 가 이미 그렇게 처리한다).
         /// </summary>
-        public const int CurrentVersion = 2;
+        /// <summary>
+        /// ★ 3 으로 올린 이유 — <b>유물</b> 칸 넷 신설 (2026-08-23).
+        ///
+        /// ⚠ <b>판을 올려서 옛 세이브를 거부하는 것이 맞다.</b> 옛 파일에는 보유·장착
+        /// 기록이 없어서, 그대로 읽으면 <b>유물을 다 잃은 채</b> 이어지게 된다 —
+        /// 조용히 손해를 보는 것보다 «이 저장은 못 읽는다» 가 낫다(맵 씨앗 때와 같은 판단).
+        /// </summary>
+        public const int CurrentVersion = 3;
 
         /// <summary>
         /// ★ 이 판의 <b>맵 씨앗</b> (2026-08-19 신설). 이어하기가 <b>같은 지형</b>을 다시
@@ -121,6 +128,26 @@ namespace LastSanctuary.Save
 
         /// <summary>위 종의 남은 대기 시간(초). 같은 순서로 짝지어진다.</summary>
         public List<float> neutralRestockSeconds = new List<float>();
+
+        // ── 유물 (2026-08-23) ─────────────────────────────────────────
+        //
+        // ★ <b>쌍을 두 리스트로 나눠</b> 담는다 — 이 파일의 다른 쌍(subjugationOrder*)이
+        //   이미 그 방식이다. JsonUtility 가 중첩 리스트를 못 다루기 때문이다.
+
+        /// <summary>보유한 유물 ID.</summary>
+        public List<int> relicOwnedIds = new List<int>();
+
+        /// <summary>같은 순서의 보유 개수.</summary>
+        public List<int> relicOwnedCounts = new List<int>();
+
+        /// <summary>유물을 낀 <b>캐릭터 정의 ID</b>. 인스턴스가 아니다(RelicInventory 의 ⚠).</summary>
+        public List<int> relicEquipCharacterIds = new List<int>();
+
+        /// <summary>같은 순서의 유물 ID.</summary>
+        public List<int> relicEquipRelicIds = new List<int>();
+
+        /// <summary>발굴 칸 — (칸 x, 칸 y, 상태 비트, 진행도 초) 를 접어 담는다.</summary>
+        public List<Vector4> relicDigSites = new List<Vector4>();
     }
 
     /// <summary>캐릭터 한 명. 능력치·성장·상태를 전부 담는다.</summary>

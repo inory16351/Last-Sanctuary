@@ -22,6 +22,11 @@ namespace LastSanctuary.Units
         /// 웨이브 타임(전투·광폭화)에는 잡히지 않는다 — 그때는 싸우는 게 먼저다.</summary>
         Build,
 
+        /// <summary>★ 발굴 — 유저가 느낌표를 눌러 지시한 발굴 가능 칸으로 가서 파는 중
+        /// (2026-08-23 · <see cref="Relics.RelicDigService"/>). 건설과 <b>같은 규칙</b>이다:
+        /// 웨이브 타임(전투·광폭화)에는 잡히지 않고, 한 자리에 한 명만 붙는다.</summary>
+        Dig,
+
         /// <summary>후퇴 — 전술 지침의 "후퇴 판단 기준" 이하로 체력이 떨어져 넥서스로 물러난 상태.
         /// 다른 모든 임무보다 우선하며, 회복될 때까지 싸우지 않는다.</summary>
         Retreat,
@@ -626,6 +631,11 @@ namespace LastSanctuary.Units
             if (TickInvestigate()) return;
 
             if (expeditionWork && TryBuild()) return;
+
+            // ★ 발굴 — 건설 <b>뒤</b>에 둔다. 둘 다 «정비 시간의 잡일» 이고 건설이 먼저
+            //   있던 기능이라 우선순위를 바꿀 근거가 없다(건설은 지금 꺼져 있어 사실상 발굴이
+            //   먼저 걸린다). 지시받은 자리가 없으면 곧바로 false 라 비용이 없다.
+            if (expeditionWork && TryExcavate()) return;
 
             // ★ 치유 유형은 <b>적을 노리지 않는다</b> — 대신 근처에서 싸우고 있는 동료 옆에
             //   붙어 지원한다(유저 확정 2026-08-13). 사냥·순찰보다 앞에 둔다: 이 유형에게
@@ -1527,6 +1537,39 @@ namespace LastSanctuary.Units
 
             if (Vector2.Distance(transform.position, site.Center) <= buildWorkRange)
                 svc.Contribute(site, Time.deltaTime);
+
+            return true;
+        }
+
+        /// <summary>
+        /// ★ <b>발굴</b> — 맡은 발굴 칸이 있으면 그쪽으로 가고, 도착했으면 판다
+        /// (2026-08-23 · 유저 지시: *"가장 가까운 캐릭터가 해당 칸을 15초에 걸쳐 발굴"*).
+        ///
+        /// <see cref="TryBuild"/> 와 <b>한 글자도 다르지 않은 구조</b>다 — 누가 갈지는 여기서
+        /// 정하지 않고(<see cref="Relics.RelicDigService.AssignedSiteFor"/> 가 전체를 보고
+        /// 자리마다 한 명씩 붙인다), 목적지는 한 번만 찍고, 도착하면 시간을 넣는다.
+        /// 그쪽 주석의 이유가 그대로 여기에도 해당한다.
+        /// </summary>
+        bool TryExcavate()
+        {
+            Relics.RelicDigService svc = Relics.RelicDigService.Instance;
+            if (svc == null) return false;
+
+            Relics.DigSite site = svc.AssignedSiteFor(this);
+            if (site == null) return false;
+
+            _duty = CharacterDuty.Dig;
+
+            // 목적지는 현장 한 곳으로 고정한다 — 매 프레임 다시 찍으면 경로가 계속 초기화된다
+            // (TryBuild 와 같은 이유).
+            if ((_destination - site.Center).sqrMagnitude > 0.01f)
+            {
+                _destination = site.Center;
+                _combat.SetHome(_destination, buildLeash);
+            }
+
+            if (Vector2.Distance(transform.position, site.Center) <= svc.WorkRange)
+                svc.Contribute(site, Time.deltaTime, _self as CharacterUnit);
 
             return true;
         }

@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8d79840638937e4796aeac340e7fbdd, type: 3}
+  m_Name: Relic_710003
+  m_EditorClassIdentifier:
+  relicId: 710003
+  relicName: "인터페론 결정"
+  grade: 2
+  effectType: 4
+  value01: 12
+  value02: 0
+  relicDesc: "마법이 12% 증가합니다."
+  relicFlavor: "옆 세포에게 미리 알리는 말. 아직 닿지 않은 곳까지 굳게 만든다."
+  source: 1
+  sourceId: 0
+  dropWeight: 10
+  iconKey: "relic_interferon"
+  icon: {fileID: 21300000, guid: f10c89363e112ccbcdcf4867d1cf494b, type: 3}

@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8d79840638937e4796aeac340e7fbdd, type: 3}
+  m_Name: Relic_700006
+  m_EditorClassIdentifier:
+  relicId: 700006
+  relicName: "삼킨 티끌"
+  grade: 1
+  effectType: 22
+  value01: 12
+  value02: 0
+  relicDesc: "적을 처치할 때마다 에너지를 12 얻습니다."
+  relicFlavor: "먹어치운 것을 곱씹어 양분으로 바꾼다. 남기는 것이 없다."
+  source: 1
+  sourceId: 0
+  dropWeight: 9
+  iconKey: "relic_phagocyte"
+  icon: {fileID: 21300000, guid: 1740b1b0e9c579355cbb13a06079eb81, type: 3}

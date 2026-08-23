@@ -36,6 +36,11 @@ namespace LastSanctuary.UI
         [SerializeField] TMP_Text subjugateLabel;
         [SerializeField] Image subjugateBackground;
 
+        [Header("유물 관리 (2026-08-23)")]
+        [SerializeField] Button relicButton;
+        [SerializeField] TMP_Text relicLabel;
+        [SerializeField] Image relicBackground;
+
         [SerializeField] Button settingsButton;
         [SerializeField] TMP_Text settingsLabel;
         [SerializeField] Image settingsBackground;
@@ -57,6 +62,10 @@ namespace LastSanctuary.UI
         [Tooltip("{0} = 발견한 에픽 몬스터 수. 0 이면 아래 subjugateNone 을 쓴다")]
         [SerializeField] string subjugateFound = "토벌 지시 ({0})";
         [SerializeField] string subjugateNone = "토벌 지시";
+        [Tooltip("{0} = 아직 안 판 «발견한» 발굴 칸 수. 0 이면 아래 relicIdle 을 쓴다")]
+        [SerializeField] string relicFound = "유물 관리 (발굴 {0})";
+        [SerializeField] string relicIdle = "유물 관리";
+        [SerializeField] string relicOpen = "유물 관리 닫기";
         [SerializeField] string settingsIdle = "환경 설정";
         [SerializeField] string settingsOpen = "환경 설정 닫기";
 
@@ -79,6 +88,9 @@ namespace LastSanctuary.UI
         /// <summary>환경 설정 창(2026-08-18 신설). 위 셋과 같은 이유로 비활성 포함 조회.</summary>
         SettingsPanel _settingsPanel;
 
+        /// <summary>유물 관리 창(2026-08-23 신설). 위 넷과 같은 이유로 비활성 포함 조회.</summary>
+        RelicPanel _relicPanel;
+
         // 마지막으로 화면에 반영한 값. 바뀔 때만 갱신한다.
         int _shownCost = int.MinValue;
         bool _shownCanCreate;
@@ -87,6 +99,7 @@ namespace LastSanctuary.UI
         int _shownSquadState = int.MinValue;
         int _shownSubjugateState = int.MinValue;
         int _shownSettingsState = int.MinValue;
+        int _shownRelicState = int.MinValue;
 
         void Start()
         {
@@ -98,6 +111,7 @@ namespace LastSanctuary.UI
             _squadPanel = FindAnyObjectByType<SquadPanel>(FindObjectsInactive.Include);
             _subjugationPanel = FindAnyObjectByType<SubjugationPanel>(FindObjectsInactive.Include);
             _settingsPanel = FindAnyObjectByType<SettingsPanel>(FindObjectsInactive.Include);
+            _relicPanel = FindAnyObjectByType<RelicPanel>(FindObjectsInactive.Include);
 
             // MCP 로는 씬 오브젝트 참조를 인스펙터에 넣을 수 없어서(진행상황 8절 4번),
             // 비어 있으면 이름으로 찾는다.
@@ -106,18 +120,21 @@ namespace LastSanctuary.UI
             Resolve("Buttons/SquadButton", ref squadButton, ref squadBackground, ref squadLabel);
             Resolve("Buttons/SubjugateButton", ref subjugateButton, ref subjugateBackground, ref subjugateLabel);
             Resolve("Buttons/SettingsButton", ref settingsButton, ref settingsBackground, ref settingsLabel);
+            Resolve("Buttons/RelicButton", ref relicButton, ref relicBackground, ref relicLabel);
 
             // 창들은 "닫힌 채로 시작"이 규칙이다. 창 스스로 Awake 에서 닫으면
             // <b>열리는 순간 닫히는</b> 버그가 되므로(UnitPortraitPanel.Awake 주석),
             // 항상 살아 있는 이쪽에서 한 번 확인해 닫는다.
             if (_subjugationPanel != null && _subjugationPanel.IsOpen) _subjugationPanel.Close();
             if (_settingsPanel != null && _settingsPanel.IsOpen) _settingsPanel.Close();
+            if (_relicPanel != null && _relicPanel.IsOpen) _relicPanel.Close();
 
             if (createButton != null) createButton.onClick.AddListener(HandleCreate);
             if (tacticsButton != null) tacticsButton.onClick.AddListener(HandleTactics);
             if (squadButton != null) squadButton.onClick.AddListener(HandleSquad);
             if (subjugateButton != null) subjugateButton.onClick.AddListener(HandleSubjugate);
             if (settingsButton != null) settingsButton.onClick.AddListener(HandleSettings);
+            if (relicButton != null) relicButton.onClick.AddListener(HandleRelic);
 
             if (_creation == null)
                 Debug.LogWarning("[Actions] CharacterCreationService 를 찾지 못했습니다. " +
@@ -222,6 +239,43 @@ namespace LastSanctuary.UI
             RefreshSquad(force);
             RefreshSubjugate(force);
             RefreshSettings(force);
+            RefreshRelic(force);
+        }
+
+        /// <summary>
+        /// ★ 유물 관리 버튼 — 열림 여부와 <b>아직 안 판 발굴 칸 수</b>를 보여준다
+        /// (2026-08-23). 토벌 버튼이 «발견한 에픽 수» 를 보여주는 것과 같은 규칙이다:
+        /// 창을 열지 않아도 «지금 할 일이 있는가» 를 알 수 있어야 한다.
+        /// </summary>
+        void RefreshRelic(bool force)
+        {
+            if (relicButton == null) return;
+
+            bool open = _relicPanel != null && _relicPanel.IsOpen;
+            var dig = Relics.RelicDigService.Instance;
+            int found = dig != null ? dig.RevealedCount : 0;
+
+            int state = (open ? 1 : 0) + found * 2;
+            if (!force && state == _shownRelicState) return;
+            _shownRelicState = state;
+
+            relicButton.interactable = _relicPanel != null;
+            if (relicBackground != null)
+                relicBackground.color = _relicPanel == null ? buttonOff
+                                      : (open ? buttonOn : buttonNormal);
+            if (relicLabel != null)
+                relicLabel.text = open ? relicOpen
+                                : found > 0 ? string.Format(relicFound, found)
+                                : relicIdle;
+        }
+
+        /// <summary>유물 관리 창을 연다/닫는다 — 다른 창들과 같은 구조.</summary>
+        void HandleRelic()
+        {
+            if (_relicPanel == null)
+                _relicPanel = FindAnyObjectByType<RelicPanel>(FindObjectsInactive.Include);
+            _relicPanel?.Toggle();
+            Refresh(force: true);
         }
 
         /// <summary>환경 설정 버튼 — 열림 여부만 보여준다(다른 창들과 같은 구조).</summary>

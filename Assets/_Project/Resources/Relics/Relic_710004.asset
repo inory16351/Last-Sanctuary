@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8d79840638937e4796aeac340e7fbdd, type: 3}
+  m_Name: Relic_710004
+  m_EditorClassIdentifier:
+  relicId: 710004
+  relicName: "비만세포 주머니"
+  grade: 2
+  effectType: 21
+  value01: 15
+  value02: 0
+  relicDesc: "받은 근접 피해의 15% 를 때린 적에게 되돌립니다."
+  relicFlavor: "건드리면 터진다. 터지면 온 자리가 부어오른다."
+  source: 1
+  sourceId: 0
+  dropWeight: 9
+  iconKey: "relic_mastcell"
+  icon: {fileID: 21300000, guid: cd461eadd8a6a0294bf1d13455016def, type: 3}

@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8d79840638937e4796aeac340e7fbdd, type: 3}
+  m_Name: Relic_700008
+  m_EditorClassIdentifier:
+  relicId: 700008
+  relicName: "저린 손끝"
+  grade: 1
+  effectType: 12
+  value01: 6
+  value02: 0
+  relicDesc: "이동 속도가 6% 증가합니다."
+  relicFlavor: "신호는 언제나 끝에서부터 온다. 저린 것은 아직 이어져 있다는 뜻이다."
+  source: 1
+  sourceId: 0
+  dropWeight: 10
+  iconKey: "relic_nerve"
+  icon: {fileID: 21300000, guid: bccb7dc34a82c556a5587d20099b5712, type: 3}

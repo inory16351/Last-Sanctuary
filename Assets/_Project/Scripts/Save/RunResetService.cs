@@ -74,6 +74,14 @@ namespace LastSanctuary.Save
             //     <c>static</c> 기록이 아예 없어졌다 — 비울 것이 없다(그 클래스의 ★★).
             //     이 클래스가 생긴 원인(«등장 기록이 씬을 넘어 살아남는다»)의 뿌리가 사라진 것이다.
             NeutralKillTally.ResetRun();
+
+            // ③ ★ 유물 — 보유·장착·걸어둔 능력치 보정을 전부 되돌린다(2026-08-23).
+            //   ⚠ <b>이어하기는 이 문을 지나지 않는다</b> — 그쪽은 GameSnapshot 이
+            //     저장된 값으로 되살린다(RelicInventory.ResetRun 의 ⚠).
+            if (Relics.RelicInventory.Instance != null)
+                Relics.RelicInventory.Instance.ResetRun();
+            else
+                Relics.RelicEffectService.ClearAll();
         }
 
         /// <summary>

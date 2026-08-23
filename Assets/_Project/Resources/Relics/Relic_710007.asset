@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8d79840638937e4796aeac340e7fbdd, type: 3}
+  m_Name: Relic_710007
+  m_EditorClassIdentifier:
+  relicId: 710007
+  relicName: "두꺼워진 가피"
+  grade: 2
+  effectType: 24
+  value01: 25
+  value02: 40
+  relicDesc: "체력이 40% 이하일 때 방어력이 25% 증가합니다."
+  relicFlavor: "깊이 파일수록 두껍게 앉는다. 몰릴수록 단단해지는 몸이 있다."
+  source: 1
+  sourceId: 0
+  dropWeight: 8
+  iconKey: "relic_eschar"
+  icon: {fileID: 21300000, guid: 1d0c958773a0a9e860b0a230f0ecef02, type: 3}

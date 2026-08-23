@@ -225,6 +225,7 @@ namespace LastSanctuary.Save
             CaptureMonsters(data);
             CaptureNeutrals(data);
             CaptureSubjugation(data);
+            CaptureRelics(data);
             CaptureFog(data);
             CaptureMap(data);
 
@@ -440,6 +441,71 @@ namespace LastSanctuary.Save
             service.ExportOrders(data.subjugationOrderSquads, data.subjugationOrderTargets);
         }
 
+        /// <summary>
+        /// ★ 유물 — 보유·장착·발굴 칸 (2026-08-23).
+        ///
+        /// <b>왜 셋 다 저장하나</b> — 보유는 «성역의 재산» 이고, 장착은 «누가 무엇을 쓰는가» 이며,
+        /// 발굴 칸은 <b>판마다 새로 뽑는 값</b>이라 저장하지 않으면 이어하기 때마다 자리가
+        /// 바뀐다(가던 캐릭터가 허공을 판다).
+        /// </summary>
+        void CaptureRelics(SaveData data)
+        {
+            var inv = Relics.RelicInventory.Instance;
+            if (inv != null)
+            {
+                data.relicOwnedIds.Clear();
+                data.relicOwnedCounts.Clear();
+                foreach (Vector2Int p in inv.CaptureOwned())
+                {
+                    data.relicOwnedIds.Add(p.x);
+                    data.relicOwnedCounts.Add(p.y);
+                }
+
+                data.relicEquipCharacterIds.Clear();
+                data.relicEquipRelicIds.Clear();
+                foreach (Vector2Int p in inv.CaptureEquipped())
+                {
+                    data.relicEquipCharacterIds.Add(p.x);
+                    data.relicEquipRelicIds.Add(p.y);
+                }
+            }
+
+            var dig = Relics.RelicDigService.Instance;
+            if (dig != null)
+            {
+                data.relicDigSites.Clear();
+                data.relicDigSites.AddRange(dig.Capture());
+            }
+        }
+
+        /// <summary>
+        /// 유물을 되돌린다. ⚠ <b>캐릭터 복원 뒤에</b> 불러야 한다 —
+        /// <see cref="Relics.RelicInventory.ReapplyAll"/> 이 «지금 살아 있는 캐릭터» 에게
+        /// 효과를 거는데, 그 인스턴스가 이때 생긴다.
+        /// </summary>
+        void RestoreRelics(SaveData data)
+        {
+            var inv = Relics.RelicInventory.Instance;
+            if (inv != null)
+            {
+                var owned = new List<Vector2Int>();
+                int n = Mathf.Min(data.relicOwnedIds.Count, data.relicOwnedCounts.Count);
+                for (int i = 0; i < n; i++)
+                    owned.Add(new Vector2Int(data.relicOwnedIds[i], data.relicOwnedCounts[i]));
+
+                var equipped = new List<Vector2Int>();
+                int m = Mathf.Min(data.relicEquipCharacterIds.Count, data.relicEquipRelicIds.Count);
+                for (int i = 0; i < m; i++)
+                    equipped.Add(new Vector2Int(data.relicEquipCharacterIds[i],
+                                                data.relicEquipRelicIds[i]));
+
+                inv.Restore(owned, equipped);
+                inv.ReapplyAll();
+            }
+
+            Relics.RelicDigService.Instance?.Restore(data.relicDigSites);
+        }
+
         void CaptureFog(SaveData data)
         {
             if (_fog == null || !_fog.IsReady) return;
@@ -477,6 +543,7 @@ namespace LastSanctuary.Save
             RestoreMonsters(data);
             RestoreNeutrals(data);
             RestoreSubjugation(data);   // 가리킬 개체가 생긴 뒤여야 한다
+            RestoreRelics(data);        // ★ 캐릭터가 다 선 뒤여야 효과를 다시 걸 수 있다
 
             ResourceManager resources = ResourceManager.Instance;
             if (resources != null) resources.RestoreEnergy(data.energy);

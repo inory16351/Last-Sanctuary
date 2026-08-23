@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8d79840638937e4796aeac340e7fbdd, type: 3}
+  m_Name: Relic_700005
+  m_EditorClassIdentifier:
+  relicId: 700005
+  relicName: "마른 각질"
+  grade: 1
+  effectType: 6
+  value01: 6
+  value02: 0
+  relicDesc: "저항력이 6% 증가합니다."
+  relicFlavor: "벗겨지면서 붙어 있던 것을 함께 데려간다. 버리는 것도 방어다."
+  source: 1
+  sourceId: 0
+  dropWeight: 10
+  iconKey: "relic_keratin"
+  icon: {fileID: 21300000, guid: 2a226e8075871ad3eb303b0045458cdd, type: 3}

@@ -316,6 +316,12 @@ namespace LastSanctuary.UI
         /// <summary>유형 버튼들을 담은 칸. 통째로 켜고 끈다.</summary>
         GameObject _focusGroup;
 
+        /// <summary>★ 유물 장착 칸(2026-08-23). 누르면 유물 관리 창이 열린다.</summary>
+        GameObject _relicSlot;
+        Button _relicSlotButton;
+        Image _relicSlotIcon;
+        TMP_Text _relicSlotName;
+
         /// <summary>지금 화면에 유형 버튼을 보여줄지 — 펼쳤거나, 이미 유형이 정해져 있으면.</summary>
         bool ShowFocusPicker =>
             _typePickerOpen || (_unit != null && _unit.GrowthFocus != StatGrowthFocus.None);
@@ -526,6 +532,42 @@ namespace LastSanctuary.UI
             RefreshRows(has);
             RefreshPassives(has);
             RefreshFooter(has);
+            RefreshRelicSlot(has);
+        }
+
+        /// <summary>
+        /// ★ 유물 칸 — 지금 선택된 캐릭터가 낀 유물을 보여준다(2026-08-23).
+        /// 비어 있으면 회색 «없음». 누르면 유물 관리 창이 열린다.
+        /// </summary>
+        void RefreshRelicSlot(bool has)
+        {
+            if (_relicSlot == null) return;
+
+            var inv = Relics.RelicInventory.Instance;
+            Relics.RelicDefinitionSO relic = has && inv != null ? inv.EquippedOn(_unit) : null;
+
+            if (_relicSlotIcon != null)
+            {
+                _relicSlotIcon.sprite = relic != null ? relic.icon : null;
+                _relicSlotIcon.enabled = relic != null && relic.icon != null;
+            }
+            if (_relicSlotName != null)
+            {
+                _relicSlotName.text = relic != null ? relic.DisplayName
+                                    : has ? "없음 — 눌러서 장착"
+                                    : "캐릭터를 선택하세요";
+                _relicSlotName.color = relic != null
+                    ? relic.GradeColor
+                    : new Color(0.62f, 0.68f, 0.75f, 1f);
+            }
+            if (_relicSlotButton != null) _relicSlotButton.interactable = has && !_unit.IsSummoned;
+        }
+
+        /// <summary>유물 관리 창을 연다 — 고르는 일은 그쪽이 한다(위 ★★).</summary>
+        void OpenRelicPanel()
+        {
+            RelicPanel panel = RelicPanel.Instance;
+            if (panel != null) panel.SetOpen(true);
         }
 
         /// <summary>
@@ -1011,6 +1053,20 @@ namespace LastSanctuary.UI
 
             // 성장 유형 버튼 5개. 하이라키 이름은 enum 이름을 그대로 쓴다 —
             // 표(StatGrowthFocusTable.Selectable)와 순서·개수가 항상 같아야 하므로 목록에서 만든다.
+            // ★★ 유물 칸 (2026-08-23 · 유저 지시 10번: *"캐릭터 성장 UI 에 유물 장착 할 수
+            //   있는 칸 신설 필요"*). 여기서는 <b>보여주고 창을 열어 주기만</b> 한다 —
+            //   무엇을 끼울지 고르는 일은 유물 관리 창(<see cref="RelicPanel"/>)이 한다.
+            //   ⚠ 두 곳에서 «고르기» 를 구현하면 규칙이 두 벌이 된다(이 프로젝트의 원칙).
+            _relicSlot = transform.Find("Stats/RelicSlot")?.gameObject;
+            _relicSlotButton = _relicSlot != null ? _relicSlot.GetComponent<Button>() : null;
+            _relicSlotIcon = transform.Find("Stats/RelicSlot/Icon")?.GetComponent<Image>();
+            _relicSlotName = FindText("Stats/RelicSlot/Name");
+            if (_relicSlotButton != null)
+            {
+                _relicSlotButton.onClick.RemoveAllListeners();
+                _relicSlotButton.onClick.AddListener(OpenRelicPanel);
+            }
+
             _focusGroup = transform.Find("Stats/GrowthTypes")?.gameObject;
             if (_focusGroup == null)
                 Debug.LogWarning("[Growth] 하이라키에서 'Stats/GrowthTypes' 를 찾지 못했습니다.", this);
