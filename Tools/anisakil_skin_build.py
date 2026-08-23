@@ -58,13 +58,13 @@ import sys
 import numpy as np
 from PIL import Image
 
-from vault_path import VAULT, PROJECT
+from vault_path import VAULT, PROJECT, find_art
 # ★ 자르기·저장·메타는 카르시노스 빌더의 것을 <b>그대로 쓴다</b> — 같은 규약(피벗 하단
 #   중앙 · PPU 64 · 결정적 guid)이라 복제하면 두 벌이 갈라진다.
 from carcinos_skin_build import (PPU, bands, merge_to_count, split_to_count,
                                  write_png, ensure_folder_meta)
 
-SRC = os.path.join(VAULT, "리소스", "asset", "anisakil_asset.png")
+SRC = find_art("anisakil_asset.png")
 DST_ROOT = os.path.join(PROJECT, "Assets", "_Project", "Art", "Char_Asset",
                         "Char_Asset_Anisakil", "Char")
 
@@ -259,6 +259,71 @@ def body_grid(seg, rows):
     return cuts
 
 
+#: ★ 한 줄이 «개체» 로 인정되려면 칸 폭의 이 비율만큼 불투명해야 한다
+#: (:func:`grow_to_body`). 실측: 개체의 가장 얇은 끝단이 8.4%, 프레임 번호 글자가 1.8~5.3%.
+BODY_ROW_FILL = 0.06
+
+#: 세로로 넓힐 때 밴드 밖으로 나갈 수 있는 최대 폭(px) — 밴드 사이 절반과 함께 상한이 된다.
+BODY_GROW_MAX = 30
+
+
+def band_limits(rows, height):
+    """밴드마다 «위·아래로 여기까지만» 이라는 한계. <b>이웃 밴드와의 중간</b>이다.
+
+    ⚠ 구획 사이에는 <b>가로 구분선</b>이 있고 그것은 칸 폭 전체가 불투명하다(실측 225/225).
+      한계를 두지 않으면 :func:`grow_to_body` 가 그 선까지 먹는다.
+    """
+    out = {}
+    for k, (y0, y1) in enumerate(rows):
+        top = (rows[k - 1][1] + y0) // 2 if k > 0 else 0
+        bot = (y1 + rows[k + 1][0]) // 2 if k < len(rows) - 1 else height - 1
+        out[(y0, y1)] = (max(top, y0 - BODY_GROW_MAX), min(bot, y1 + BODY_GROW_MAX))
+    return out
+
+
+def grow_to_body(opaque, box, cx0, cx1, limit):
+    """
+    ★★ <b>상자를 «채도» 가 아니라 «개체» 에 맞춘다</b> (2026-08-22 신설).
+
+    <b>왜 필요했나</b> (유저 리포트: *"뱀 모양 보스 몬스터 위아래로 짤림"*) — 이 스크립트는
+    프레임 상자를 <b>채도 마스크</b>(:data:`SEG_SAT`)로 잡는다. 그런데 이 개체는
+    <b>등만 보라색으로 빛나고 배·꼬리 밑동은 거의 검다</b>. 검은 부분은 채도 문턱을 못 넘어
+    상자에서 빠지고, 그래서 <b>배가 평평하게 잘린 벌레</b>가 구워졌다.
+
+    실측(이동 오른쪽 1번 칸 · 폭 225px):
+
+        y422 ~ y510   개체(불투명 19~179 px)      ← 진짜 몸
+        y423 ~ y495   채도 마스크가 잡은 범위     ← <b>아래 15px 손실</b>
+        y511 ~ y529   프레임 번호 글자(4~9 px)    ← 들어오면 안 된다
+        y533          가로 구분선(225 px = 전부)  ← 절대 안 된다
+
+    ★ 그래서 «패널색이 아닌 픽셀»(불투명) 로 <b>밴드에서 위·아래로 이어서 넓힌다</b>.
+      규칙 하나다: <b>한 줄이 칸 폭의 6% 이상 불투명하면 몸이다.</b>
+      번호 글자는 얇아서(1.8~5.3%) 문턱을 못 넘고, <b>이어짐이 끊기므로</b> 더 멀리 있는
+      것은 애초에 닿지 않는다. 구분선은 :func:`band_limits` 가 막는다.
+    """
+    bx0, bx1, by0, by1 = box
+    lo, hi = limit
+    w = cx1 - cx0 + 1
+    thr = max(3, int(w * BODY_ROW_FILL))
+
+    top, bot = by0, by1
+    while top - 1 >= lo and int(opaque[top - 1, cx0:cx1 + 1].sum()) >= thr:
+        top -= 1
+    while bot + 1 <= hi and int(opaque[bot + 1, cx0:cx1 + 1].sum()) >= thr:
+        bot += 1
+
+    # 가로도 같은 규칙으로 다시 잡는다 — 넓힌 줄에 몸이 더 있으면 x 도 따라 늘어난다.
+    h = bot - top + 1
+    cthr = max(2, int(h * BODY_ROW_FILL))
+    cols = opaque[top:bot + 1, cx0:cx1 + 1].sum(axis=0) >= cthr
+    if cols.any():
+        xs = np.where(cols)[0]
+        bx0 = min(bx0, cx0 + int(xs.min()))
+        bx1 = max(bx1, cx0 + int(xs.max()))
+    return (bx0, bx1, top, bot)
+
+
 def fx_frames(seg, y0, y1):
     """이펙트 행은 격자를 안 쓴다 — 폭이 프레임마다 크게 달라서 스스로 찾는다."""
     col = seg[y0:y1 + 1].sum(axis=0) > 0
@@ -328,6 +393,42 @@ def to_rgba(rgb, bgcand, satcrop, chromecrop, drop_small):
     return np.dstack([rgb, alpha])
 
 
+
+# ★★ <b>발을 피벗에 맞춰 얹기</b> (2026-08-22 신설 · 유저 지시 *"캐릭터가 커졌다 작아졌다
+#   도 안하게 확실하게 분석해서 피벗 맞추고"*).
+#
+# 옛 코드는 상자를 캔버스 <b>한가운데</b> 에 얹었다. 상자는 <b>낫·촉수·포효가 뻗은 쪽</b>으로
+# 늘어나므로 그 중심이 모션마다 옆으로 밀린다 — 실측으로 모션이 바뀔 때
+# 카르시노스 <b>15.5px</b> · 고르도네 <b>28.0px</b> · 아니사킬 <b>5.5px</b> 씩 <b>미끄러졌다</b>.
+# → 묶음마다 <b>발 중심의 중앙값</b>을 재서 그것이 캔버스 한가운데 오도록 <b>같은 양</b>을
+#   민다. 묶음 안의 움직임은 그대로 남고 묶음끼리만 맞는다(`skin_sheet.plant_feet` 와 같은 규칙).
+
+
+def foot_layout(rgbas):
+    """``(가로 시작 위치 목록, 캔버스 폭)`` — 발 중심을 피벗에 맞춘다.
+
+    ⚠⚠ <b>캔버스 폭을 여기서 정한다</b> — 처음에는 «폭은 그대로 두고 안에서 민다» 로
+      했는데, 폭이 <b>가장 넓은 프레임에 딱 맞게</b> 잡혀 있어서 <b>밀 자리가 없었다</b>
+      (고르도네 원거리는 탄이 뻗어 프레임이 캔버스만큼 넓다 → 28px 어긋남이 그대로 남았다).
+      :func:`skin_sheet.compose` 가 «피벗 좌우로 같은 폭» 을 잡는 것과 <b>같은 계산</b>을 한다.
+
+    ★ 미는 양은 <b>묶음 하나에 한 값</b>이다 — 프레임마다 발에 맞추면 다리 놀림이 지워진다.
+    """
+    from skin_sheet import foot_center
+    got = []
+    for r in rgbas:
+        c = foot_center(r)
+        if c is not None:
+            got.append(c - r.shape[1] / 2.0)
+    shift = float(np.median(got)) if got else 0.0
+    anchors = [r.shape[1] / 2.0 + shift for r in rgbas]
+    pad = max(max(anchors), max(r.shape[1] - a for r, a in zip(rgbas, anchors)))
+    cw = int(np.ceil(pad * 2))
+    oxs = [max(0, min(cw - r.shape[1], int(round(cw / 2.0 - a))))
+           for r, a in zip(rgbas, anchors)]
+    return oxs, cw
+
+
 def main():
     if not os.path.isfile(SRC):
         print("⚠ 원본이 없습니다:", SRC)
@@ -345,6 +446,10 @@ def main():
     cuts = body_grid(seg, rows)
     print("원본 %dx%d · 가로 밴드 %d개" % (im.size[0], im.size[1], len(rows)))
     print("열 격자:", cuts)
+
+    # ★★ <b>«개체» 마스크</b> — 채도가 아니라 «패널색이 아니다» 로 잡는다(아래 ★★).
+    opaque = (~bgcand) & (~chrome)
+    limits = band_limits(rows, seg.shape[0])
 
     made = 0
     for (motion, side), (y0, y1) in zip(ROW_ORDER, rows):
@@ -364,7 +469,10 @@ def main():
             xs = np.where(sub.any(axis=0))[0]
             if len(ys) == 0:
                 raise SystemExit("⚠ %s %s: x %d~%d 가 비어 있습니다" % (motion, side, x0, x1))
-            boxes.append((x0 + xs.min(), x0 + xs.max(), y0 + ys.min(), y0 + ys.max()))
+            box = (x0 + xs.min(), x0 + xs.max(), y0 + ys.min(), y0 + ys.max())
+            if not motion.startswith("Fx"):
+                box = grow_to_body(opaque, box, x0, x1, limits[(y0, y1)])
+            boxes.append(box)
 
         # ── 캔버스: 이 행의 모든 프레임이 안 잘리는 최소 크기 ──────────
         #    ⚠ 프레임마다 캔버스를 따로 잡으면 <b>재생 중에 개체가 튄다</b> —
@@ -373,16 +481,31 @@ def main():
         ch = max(b[3] - b[2] + 1 for b in boxes)
 
         folder = os.path.join(DST_ROOT, motion)
-        for i, (bx0, bx1, by0, by1) in enumerate(boxes):
-            rgba = to_rgba(rgb8[by0:by1 + 1, bx0:bx1 + 1],
-                           bgcand[by0:by1 + 1, bx0:bx1 + 1],
-                           satmap[by0:by1 + 1, bx0:bx1 + 1],
-                           chrome[by0:by1 + 1, bx0:bx1 + 1],
-                           drop_small=not motion.startswith("Fx"))
-
+        rgbas = [to_rgba(rgb8[b[2]:b[3] + 1, b[0]:b[1] + 1],
+                         bgcand[b[2]:b[3] + 1, b[0]:b[1] + 1],
+                         satmap[b[2]:b[3] + 1, b[0]:b[1] + 1],
+                         chrome[b[2]:b[3] + 1, b[0]:b[1] + 1],
+                         drop_small=not motion.startswith("Fx")) for b in boxes]
+        # ★ 이펙트는 «밑동» 이 기준이라 그대로 한가운데 두고, 몸통만 발에 맞춘다(위 ★★).
+        if motion.startswith("Fx"):
+            oxs = [(cw - r.shape[1]) // 2 for r in rgbas]
+        else:
+            # ★★ <b>옆 칸에서 들어온 «떠 있는 조각» 을 뗀다</b> (2026-08-22 · 유저 리포트:
+            #   *"이동 모션 사이 사이에 전 동작 모션과 함께 짤려 들어가서 어색해지는 부분들"*).
+            #   이 시트는 격자를 <b>열두 줄을 겹쳐</b> 만들므로 어떤 줄에서는 옆 개체의
+            #   <b>머리</b>가 칸 안까지 들어온다(실측: 이동 5·6번). 위쪽의
+            #   :data:`MIN_COMPONENT_RATIO`(6%)는 그것보다 커서 못 거른다 —
+            #   <b>몸에 붙어 있는가</b>로 가르는 :func:`skin_sheet.drop_stray_parts` 가 잡는다.
+            from skin_sheet import drop_stray_parts
+            rgbas = [drop_stray_parts(r)[0] for r in rgbas]
+            oxs, cw = foot_layout(rgbas)
+            # 조각을 뗀 뒤에는 캔버스 높이도 다시 잡아야 한다(떼어낸 만큼 줄 수 있다).
+            ch = max(r.shape[0] for r in rgbas)
+        for i, rgba in enumerate(rgbas):
             canvas = np.zeros((ch, cw, 4), dtype=np.uint8)
-            bw, bh = bx1 - bx0 + 1, by1 - by0 + 1
-            canvas[ch - bh:ch, (cw - bw) // 2:(cw - bw) // 2 + bw] = rgba
+            # ⚠ 조각을 떼면 상자가 줄어드므로 <b>실제 배열 크기</b>로 얹는다(boxes 가 아니다).
+            bh, bw = rgba.shape[0], rgba.shape[1]
+            canvas[ch - bh:ch, oxs[i]:oxs[i] + bw] = rgba
 
             name = ("Char_%s_%02d" % (motion, i) if side is None
                     else "Char_%s_%s_%02d" % (motion, side, i))

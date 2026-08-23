@@ -8,3 +8,5 @@ displayName=시안
 framesPerSecond=10
 attackFramesPerSecond=12
 projectileWidthTiles=1.2
+meleeTravelWidthTiles=2.0
+impactWidthTiles=1.5

@@ -487,6 +487,355 @@ def erase_box_borders(arr, bg):
     return arr, len(rows | dark_rows), len(cols | dark_cols), erased
 
 
+# ──────────────────────────────────────────────────────────────────────────
+# ★★ 「제목 딱지」 지우기 (2026-08-22 신설)
+#
+# <b>왜 필요한가</b> — 새 세대 기획 시트는 줄 제목을 <b>검은 알약(rounded pill) + 흰 글자</b>
+# 로 얹어 놓는데, 그 알약이 <b>프레임 줄의 x 를 침범한다</b>. 세라피엘 시트 실측:
+#
+#     이동 줄 딱지  y143~169 · x339~528   ← 1·2번 프레임(x345~575)의 <b>바로 위</b>
+#     근거리 딱지   y275~303 · x14~600    ← 1~3번 프레임과 x 가 겹친다
+#
+# 그래서 지금까지의 대처는 <b>밴드를 딱지 아래로 내려 잡는 것</b>이었다(``y0 = 306``).
+# 그러면 딱지는 피하지만 <b>그림의 머리·후광이 같이 잘린다</b> — 유저 리포트
+# «세라피엘 이동 중 모션 짤림» 이 정확히 이것이다(실측: 프레임 위쪽 16~47px 손실).
+#
+# ★ 딱지를 <b>지우면</b> 밴드를 그림 그대로 잡을 수 있다. 딱지는 색과 모양으로 갈린다:
+#
+#     ① <b>가로로 길게 이어진 어두운 줄</b>이 있다 — 실측 216~737px. 그림에서 가장 긴
+#        어두운 런은 164px 이다(아니사킬 `chrome_mask` 가 잰 값과 같은 대역).
+#     ② 알약은 <b>얇다</b> — 세로 27~33px. 그보다 두꺼운 덩어리는 그림이다.
+#
+# ⚠ scipy 를 쓰지 않는다(맨 위 ⚠) — 세로 닫기·부풀리기를 numpy 로 한다.
+# ──────────────────────────────────────────────────────────────────────────
+
+#: 딱지로 볼 최소 «어두운 가로 런» 길이(px).
+#:
+#: ★ 실측 근거(세라피엘 시트 · 행마다 «가장 긴 어두운 런» 을 재서 히스토그램을 봤다):
+#:
+#:       딱지가 있는 행   138 ~ 318 px
+#:       그림만 있는 행   최대 <b>79 px</b>   ← 총·망토의 검은 부분
+#:
+#:   둘 사이가 <b>59px 이나 비어 있다</b> — 120 은 그 가운데다.
+#: ⚠ 딱지의 런 길이는 <b>제목 글자 수</b>에 따라 달라진다. 새 시트에 쓸 때는
+#:   같은 방법으로 다시 재고, 그림 쪽 최댓값이 120 을 넘으면 이 값을 올려 넘길 것.
+PILL_MIN_RUN = 120
+
+#: 딱지 재질로 볼 광도 상한. 알약 바탕은 (20,20,22) 근처다.
+PILL_DARK_LUM = 70
+
+#: 알약의 <b>위·아래 테두리 사이</b>를 메울 최대 세로 간격(px) — 그 사이는 흰 글자다.
+PILL_CLOSE_V = 34
+
+#: 메운 결과가 이보다 두꺼우면 <b>딱지가 아니라 그림</b>으로 보고 버린다(px).
+PILL_MAX_H = 46
+
+#: 둥근 끝과 안티에일리어싱을 위해 사방으로 부풀리는 폭(px).
+PILL_GROW = 2
+
+#: 알약을 위·아래로 넓힐 때 «그 폭에서 어두운 비율» 문턱 (:func:`pill_mask` 의 ★).
+#: 실측: 알약 줄은 0.55~0.95 · 그림 줄은 0.5 를 넘지 않는다(어두운 인물 포함).
+PILL_FILL_RATIO = 0.5
+
+
+def _long_dark_runs(dark, min_run):
+    """가로로 ``min_run`` 이상 이어진 어두운 런만 남긴 마스크."""
+    out = np.zeros_like(dark)
+    h, w = dark.shape
+    for y in range(h):
+        row = dark[y]
+        if not row.any():
+            continue
+        idx = np.flatnonzero(np.diff(np.concatenate(([0], row.view(np.int8), [0]))))
+        for a, b in zip(idx[0::2], idx[1::2]):
+            if b - a >= min_run:
+                out[y, a:b] = True
+    return out
+
+
+def _close_vertical(mask, span):
+    """세로 닫기 — 위·아래가 <b>모두</b> 막힌 ``span`` px 이하의 구멍만 메운다.
+
+    ⚠ 위·아래 양쪽이 막힌 것만 메우므로 딱지 밑의 그림 쪽으로 번지지 않는다.
+    """
+    out = mask.copy()
+    h = mask.shape[0]
+    for gap in range(1, span + 1):
+        if gap >= h:
+            break
+        above = mask[:h - gap - 1]
+        below = mask[gap + 1:]
+        both = above & below
+        for k in range(1, gap + 1):
+            out[k:h - gap - 1 + k] |= both
+    return out
+
+
+def _grow_box(mask, px):
+    """사방 ``px`` 만큼 부풀린다(사각 커널) — numpy 시프트만 쓴다."""
+    out = mask.copy()
+    for _ in range(px):
+        g = out.copy()
+        g[1:] |= out[:-1]
+        g[:-1] |= out[1:]
+        g[:, 1:] |= out[:, :-1]
+        g[:, :-1] |= out[:, 1:]
+        out = g
+    return out
+
+
+def pill_mask(sheet, min_run=None, dark_lum=None, close_v=None, max_h=None, grow=None,
+              fill_ratio=None):
+    """<b>제목 딱지</b> 픽셀. 위 ★★ 의 두 근거(긴 어두운 줄 · 얇다)로 고른다.
+
+    ★★ <b>어떻게 «딱지 전체» 로 넓히나</b> (2026-08-22 · 두 번 고쳤다)
+
+    ① <b>«위·아래 테두리를 세로로 닫는다» 로는 안 됐다.</b> 알약의 아래 테두리는 글자의
+       내림꼴(「모」·「기」의 세로획)에 끊겨 <b>위 테두리보다 짧다</b>. 시안 시트의
+       「대기 모션 (Idle)」 은 위만 문턱을 넘어(x6~926) 닫을 상대가 없었고, <b>위 세 줄만</b>
+       지워진 채 알약이 남아 대기 줄 프레임에 그대로 들어갔다.
+
+    ② <b>«어두운 곳으로 번지기» 로도 안 됐다.</b> 시안은 <b>인물이 검다</b>(검은 낫·검은
+       망토). 알약에 닿은 그림으로 번짐이 새어 덩어리가 두꺼워지고, :data:`PILL_MAX_H`
+       검사에서 <b>전부 버려졌다</b> — 딱지를 하나도 못 지웠다.
+
+    ★ 그래서 <b>«그 알약의 x 폭에서 어두운 비율»</b> 로 위·아래로 넓힌다. 알약은 자기
+      폭의 절반 이상이 <b>언제나</b> 어둡다(둥근 판 + 흰 글자). 그림은 그 폭에서 그렇게까지
+      채워지지 않는다 — 어두운 인물이라도 실루엣 사이가 배경이다. 비율이 떨어지는 줄에서
+      <b>바로 멈추므로</b> 번짐처럼 새지 않는다.
+    ⚠ :data:`PILL_MAX_H` 가 상한을 지킨다 — 잘못 넓혀도 알약 두께 이상은 안 먹는다.
+    """
+    min_run = PILL_MIN_RUN if min_run is None else min_run
+    dark_lum = PILL_DARK_LUM if dark_lum is None else dark_lum
+    close_v = PILL_CLOSE_V if close_v is None else close_v
+    max_h = PILL_MAX_H if max_h is None else max_h
+    grow = PILL_GROW if grow is None else grow
+    fill_ratio = PILL_FILL_RATIO if fill_ratio is None else fill_ratio
+
+    lum = sheet["arr"].astype(np.float32).mean(axis=2)
+    dark = (lum < dark_lum) & sheet["mask"]
+    bars = _long_dark_runs(dark, min_run)
+    if not bars.any():
+        return bars
+
+    h = dark.shape[0]
+    out = np.zeros_like(bars)
+    # ⚠⚠ <b>«세로 구간» 단위로만 보면 안 된다</b> — 이 시트들은 <b>왼쪽 단과 오른쪽 단의
+    #   딱지가 y 로 겹쳐</b> 있다(시안 실측: 오른쪽 「스킬 모션」 y192~223 · 왼쪽 「이동 모션」
+    #   y214~245). 세로로만 보면 둘이 한 구간(54px)이 되어 ``max_h`` 에 걸려 <b>둘 다</b>
+    #   버려진다. 그래서 <b>구간 × x덩어리</b> 로 갈라 각각 재고 각각 판단한다.
+    for by0, by1 in runs(bars.any(axis=1), 1):
+        band = bars[by0:by1 + 1]
+        for x0, x1 in runs(band.any(axis=0), 1):
+            w = x1 - x0 + 1
+            if w < min_run:
+                continue                      # 옆 딱지의 부스러기
+            top, bot = by0, by1
+            while top - 1 >= 0 and (bot - top + 1) < max_h and                     dark[top - 1, x0:x1 + 1].sum() >= w * fill_ratio:
+                top -= 1
+            while bot + 1 < h and (bot - top + 1) < max_h and                     dark[bot + 1, x0:x1 + 1].sum() >= w * fill_ratio:
+                bot += 1
+            if bot - top + 1 <= max_h:
+                out[top:bot + 1, x0:x1 + 1] = True
+    if not out.any():
+        return out
+    # 남은 글자 구멍은 세로로 닫는다(사각으로 칠했으므로 대개 이미 메워져 있다).
+    out = _close_vertical(out, close_v)
+    return _grow_box(out, grow) if grow else out
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# ★★ 「반투명 판때기」 지우기 (2026-08-22 신설)
+#
+# <b>왜 필요한가</b> (유저 리포트: *"시안 이펙트 짤리는 문제"*) — 시안 시트는 이펙트
+# 구역을 <b>반투명 흰 판</b> 위에 그려 놓았다. 실측하면 그 판은
+#
+#       RGB (245, 245, 247)   ·   <b>알파 181~205</b>
+#
+# 이고, :data:`ALPHA_INK_MIN` 이 8 이므로 <b>전부 «그림» 으로 잡힌다</b>. 그래서
+# :func:`crop_rgba` 가 <b>불투명한 흰 판때기</b>를 프레임마다 함께 구웠다 — 회복 이펙트
+# 프레임은 <b>거의 흰 사각형</b>이었고 이펙트가 그 안에 묻혀 «짤린» 것처럼 보였다.
+# 몸통 줄에도 판의 왼쪽 끝이 물려 흰 띠가 들어갔다.
+#
+# ★ 판과 그림은 <b>알파로 갈린다</b>(실측):
+#
+#       판때기            알파 181~205  ·  밝고 저채도
+#       인물의 흰 머리    알파 231~252  ·  밝고 저채도   ← 남아야 한다
+#
+# 그래서 «판때기의 색·알파에 가까운» 픽셀만 후보로 잡고, <b>시트 테두리에서 이어진</b>
+# 것만 지운다(:func:`background_mask` 와 같은 «이어짐» 판정). 인물의 흰 머리는 검은
+# 외곽선에 갇혀 바깥과 이어지지 않으므로 <b>후보에 들어도 안 지워진다</b>.
+#
+# ⚠ 판 위에 그려진 이펙트의 <b>가장 옅은 겉 글로우</b>는 판과 색·알파가 겹칠 수 있어
+#   함께 조금 깎인다. 판때기가 통째로 남는 것보다 낫다(눈으로 대조해 정했다).
+# ──────────────────────────────────────────────────────────────────────────
+
+#: 판때기 색으로 볼 채널별 허용 차(±).
+PANEL_RGB_TOL = 10
+
+#: 판때기 알파로 볼 허용 차(±).
+PANEL_ALPHA_TOL = 28
+
+#: 이만큼(px)보다 작으면 판때기로 보지 않는다 — 우연히 맞은 옅은 글로우를 막는다.
+PANEL_MIN_AREA = 5000
+
+#: 후보를 찾을 때 «밝다» 의 기준(채널 최솟값) 과 «저채도» 의 기준.
+PANEL_MIN_CH = 225
+PANEL_MAX_SAT = 14
+
+#: 판때기 알파의 상한 — 이보다 불투명한 밝은 픽셀은 <b>그림</b>이다(위 ★ 표).
+PANEL_ALPHA_MAX = 225
+
+#: 「열기(opening)」 반경 — 이보다 얇은 우연한 일치는 판때기로 보지 않는다.
+PANEL_OPEN = 2
+
+
+def panel_mask(sheet, rgb_tol=None, alpha_tol=None, min_area=None,
+               region=None, alpha_max=None):
+    """<b>반투명 판때기</b> 픽셀. 못 찾으면 빈 마스크. 위 ★★ 참조.
+
+    ⚠ 원화에 알파가 없으면(``src_alpha`` 가 ``None``) 아무것도 하지 않는다 — 알파로
+      가르는 판정이므로 근거가 없다.
+    """
+    rgb_tol = PANEL_RGB_TOL if rgb_tol is None else rgb_tol
+    alpha_tol = PANEL_ALPHA_TOL if alpha_tol is None else alpha_tol
+    min_area = PANEL_MIN_AREA if min_area is None else min_area
+    alpha_max = PANEL_ALPHA_MAX if alpha_max is None else alpha_max
+
+    src = sheet.get("src_alpha")
+    empty = np.zeros(sheet["mask"].shape, dtype=bool)
+    if src is None:
+        return empty
+
+    arr = sheet["arr"].astype(np.int16)
+    alpha = src.astype(np.int16)
+    lo = arr.min(axis=2)
+    sat = arr.max(axis=2) - lo
+    # ① 판때기 <b>색</b>을 재서 찾는다 — 손으로 적지 않는다. «밝고 저채도이고 알파가
+    #    덜 찬» 픽셀 중 <b>가장 많은 (RGB, 알파)</b> 조합이 판때기다.
+    cand = (lo >= PANEL_MIN_CH) & (sat <= PANEL_MAX_SAT) &            (alpha > ALPHA_INK_MIN) & (alpha <= alpha_max) & sheet["mask"]
+    # ★★ <b>구역을 받는다</b> — 「분리된 이미지」 판때기는 시트의 <b>한 구획에만</b> 있다.
+    #   구역을 주면 인물이 있는 쪽은 <b>손도 대지 않으므로</b>, 알파 상한을 인물의 흰
+    #   머리(알파 231~252)까지 올려도 안전하다. 안 주면 시트 전체를 본다.
+    if region is not None:
+        ry0, ry1, rx0, rx1 = region
+        box = np.zeros_like(cand)
+        box[ry0:ry1 + 1, rx0:rx1 + 1] = True
+        cand &= box
+    if int(cand.sum()) < min_area:
+        return empty
+    ys, xs = np.where(cand)
+    key = np.stack([arr[ys, xs, 0], arr[ys, xs, 1], arr[ys, xs, 2], alpha[ys, xs]], axis=1)
+    # 8 단위로 뭉쳐 최빈값을 찾는다(잡티에 흔들리지 않게).
+    q = (key // 8).astype(np.int32)
+    codes = ((q[:, 0] * 64 + q[:, 1]) * 64 + q[:, 2]) * 64 + q[:, 3]
+    vals, counts = np.unique(codes, return_counts=True)
+    best = vals[counts.argmax()]
+    ref = np.array([(best // 64 // 64 // 64) % 64, (best // 64 // 64) % 64,
+                    (best // 64) % 64, best % 64], dtype=np.int16) * 8 + 4
+
+    near = (np.abs(arr[:, :, 0] - ref[0]) <= rgb_tol) &            (np.abs(arr[:, :, 1] - ref[1]) <= rgb_tol) &            (np.abs(arr[:, :, 2] - ref[2]) <= rgb_tol) &            (np.abs(alpha - ref[3]) <= alpha_tol)
+    if region is not None:
+        near &= box
+    if int(near.sum()) < min_area:
+        return empty
+
+    near &= sheet["mask"]
+
+    # ② <b>«넓게 깔린 것» 만 남긴다</b> — 형태학적 열기(erode → dilate).
+    #
+    # ⚠⚠ 처음에는 «시트 테두리에서 이어진 것만» 으로 했는데 <b>하나도 안 걸렸다</b>
+    #   (실측 0px). 판의 가장자리에 <b>색이 조금 다른 안티에일리어싱 한 겹</b>이 있어
+    #   흘려 채우기가 판 안으로 못 들어간다. 테두리를 통과시키려고 배경을 부풀리면
+    #   이번엔 <b>인물의 흰 머리</b>(실루엣 바로 안쪽에 있다)까지 먹는다 — 반대쪽으로
+    #   틀린다.
+    #
+    # ★ 그럴 필요가 없었다. 색·알파 키가 이미 <b>충분히 좁다</b> — 실측: 걸린 218,259px
+    #   가운데 <b>99.97%</b> 가 이펙트 구역(y400~1000 · x800~1536) 안이고 밖은 92px 뿐이다.
+    #   그 92px 같은 <b>얇은 부스러기</b>만 걷어내면 되고, 그것이 열기다: 판때기는 넓게
+    #   깔려 있어 살아남고, 한두 겹짜리 우연한 일치는 사라진다.
+    keep = near
+    for _ in range(PANEL_OPEN):
+        e = keep.copy()
+        e[1:] &= keep[:-1]
+        e[:-1] &= keep[1:]
+        e[:, 1:] &= keep[:, :-1]
+        e[:, :-1] &= keep[:, 1:]
+        keep = e
+    if int(keep.sum()) < min_area:
+        return empty
+    keep = _grow_box(keep, PANEL_OPEN) & near
+    return keep
+
+
+def sweep_panel_residue(sheet, region, alpha_max, min_ch=None, max_sat=None):
+    """
+    ★★ <b>구역 안에 남은 «반투명 흰 잔재» 를 통째로 걷는다</b> (2026-08-22).
+
+    <b>왜 필요한가</b> — :func:`panel_mask` 는 «가장 많은 색» 을 키로 잡으므로, 판 위에
+    <b>이펙트의 옅은 글로우가 덮인 자리</b>는 색이 조금 달라 남는다. 시안 시트에서 실제로
+    밝은 이펙트(구체·별) 주위에 <b>흰 블록 조각</b>이 1.3만 px 남았다.
+
+    ★ 그 잔재는 «밝고 저채도이고 알파가 덜 찬» 픽셀이라는 <b>같은 성질</b>을 갖는다.
+      구역을 받았으므로 인물이 있는 쪽은 건드리지 않고, 그 구역에서 그 성질을 가진 것을
+      전부 지운다. 이펙트의 <b>흰 심</b>은 알파가 거의 꽉 차 있어(246~255) 남는다 —
+      그래서 문턱을 <b>알파</b>로 잡는다. 눈으로 대조해 235 로 정했다(회복 빛기둥·날개가
+      전부 살아남고 판 잔재만 사라지는 값).
+    """
+    src = sheet.get("src_alpha")
+    if src is None:
+        return 0
+    min_ch = PANEL_MIN_CH if min_ch is None else min_ch
+    max_sat = PANEL_MAX_SAT if max_sat is None else max_sat
+    arr = sheet["arr"].astype(np.int16)
+    alpha = src.astype(np.int16)
+    lo = arr.min(axis=2)
+    sat = arr.max(axis=2) - lo
+    hit = (lo >= min_ch) & (sat <= max_sat) & (alpha > ALPHA_INK_MIN) & (alpha <= alpha_max)
+    box = np.zeros_like(hit)
+    ry0, ry1, rx0, rx1 = region
+    box[ry0:ry1 + 1, rx0:rx1 + 1] = True
+    hit &= box & sheet["mask"]
+    n = int(hit.sum())
+    sheet["mask"] &= ~hit
+    return n
+
+
+def erase_panels(sheet, passes=1, sweep_alpha=None, **kw):
+    """:func:`panel_mask` 가 찾은 판때기를 마스크에서 지운다. 지운 픽셀 수를 돌려준다.
+
+    ★ ``passes`` — <b>판이 여러 겹</b>인 시트가 있다. 시안은 큰 구획 판(알파 196) 위에
+      상자마다 <b>더 흰 속판</b>(알파 224~231)을 한 겹 더 깔았다. 한 번에 둘 다 잡으려면
+      키를 넓혀야 하고 그러면 그림까지 물리므로, <b>좁은 키로 여러 번</b> 돈다 —
+      매번 «남은 것 중 가장 많은 색» 을 다시 재므로 겹마다 자기 키로 잡힌다.
+    """
+    total = 0
+    for _ in range(max(1, passes)):
+        panel = panel_mask(sheet, **kw)
+        n = int(panel.sum())
+        if not n:
+            break
+        sheet["mask"] &= ~panel
+        total += n
+    if sweep_alpha is not None and kw.get("region") is not None:
+        total += sweep_panel_residue(sheet, kw["region"], sweep_alpha)
+    if total:
+        print("  반투명 판때기 %d px 지움" % total)
+    return total
+
+
+def erase_title_pills(sheet, **kw):
+    """:func:`pill_mask` 가 찾은 딱지를 마스크에서 지운다. 지운 픽셀 수를 돌려준다."""
+    pill = pill_mask(sheet, **kw)
+    n = int((sheet["mask"] & pill).sum())
+    sheet["mask"] &= ~pill
+    if n:
+        bands = runs(pill.any(axis=1), 1)
+        print("  제목 딱지 %d개 지움 · %d px  %s"
+              % (len(bands), n, ["y%d~%d" % (a, b) for a, b in bands]))
+    return n
+
+
 def load_sheet(path, box_borders=False):
     """
     시트를 읽어 파생 마스크를 함께 돌려준다.
@@ -630,7 +979,142 @@ def label_count(gray, x0, x1, ly0, ly1, gap=None, max_w=None, min_w=None):
     return len(label_blobs(gray, x0, x1, ly0, ly1, gap, max_w, min_w))
 
 
-def boxes_dominant(mask, cells, y0, y1, min_ink_ratio=0.12):
+# ──────────────────────────────────────────────────────────────────────────
+# ★★ 「잘림」 검사 — 밴드·칸 경계에서 <b>그림이 이어지는가</b> (2026-08-22 신설)
+#
+# <b>왜 여기인가</b> — `char_sheet.warn_if_clipped` 가 같은 일을 하지만 그것은
+# `char_sheet` 를 쓰는 <b>다섯 스크립트에만</b> 있다. 세라피엘·엘리시아·시안·레기미아는
+# 자기 스크립트가 좌표를 직접 들고 있어(bespoke) 검사가 <b>하나도 없었다</b> —
+# 유저 리포트 넷(«세라피엘 이동 짤림» · «엘리시아 상하 짤림» · «뱀 보스 위아래 짤림» ·
+# «시안 이펙트 짤림»)이 정확히 그 넷이다. 규칙이 두 벌이라 생긴 사고다.
+#
+# 그래서 <b>모든 스크립트가 반드시 지나는 자리</b>에 둔다 — :func:`boxes_for` 와
+# :func:`boxes_dominant` 는 «밴드 좌표와 마스크가 만나는» 단 두 곳이다.
+#
+# ★ 판정이 `char_sheet.warn_if_clipped` 보다 <b>정확하다</b>. 그쪽은 «밴드 밖 6px 에
+#   그림이 있는가» 를 보므로 <b>제목 딱지·프레임 번호에도 걸린다</b>(주석이 스스로
+#   *"제목·번호 줄이면 정상"* 이라 적어 둔 이유다). 여기서는 <b>같은 열에서 잉크가
+#   경계를 넘어 이어지는가</b>를 본다:
+#
+#       잘린 열 = mask[경계] AND mask[경계 바로 밖]
+#
+#   위에 딱지가 있어도 그 딱지는 상자 잉크와 <b>붙어 있지 않으므로</b> 안 걸린다.
+#   그림이 정말 잘렸으면 <b>잘린 단면이 경계선에 붙어</b> 있으므로 반드시 걸린다.
+# ──────────────────────────────────────────────────────────────────────────
+
+#: 이만큼 넘는 열(또는 행)이 경계를 넘어 이어지면 «잘렸다» 고 본다.
+#: ⚠ 1~2px 는 안티에일리어싱 한 겹이라 아니다 — 실측으로 진짜 잘림은 8px 이상이다.
+CLIP_MIN_RUN = 3
+
+
+def clipped_edges(mask, box, y0, y1, cx0=None, cx1=None):
+    """이 상자가 <b>네 경계</b>에서 그림을 자르고 있는가 — ``(위, 아래, 왼, 오른)`` px.
+
+    상자의 변이 <b>경계에 닿아 있을 때만</b> 잰다 — 안쪽에서 끝난 변은 잘릴 수 없다.
+    ``cx0``/``cx1`` 은 칸(가로) 경계다. ``None`` 이면 가로는 검사하지 않는다.
+    """
+    bx0, bx1, by0, by1 = box
+    h, w = mask.shape
+    up = dn = lf = rt = 0
+    if by0 <= y0 and y0 - 1 >= 0:
+        up = int((mask[y0, bx0:bx1 + 1] & mask[y0 - 1, bx0:bx1 + 1]).sum())
+    if by1 >= y1 and y1 + 1 < h:
+        dn = int((mask[y1, bx0:bx1 + 1] & mask[y1 + 1, bx0:bx1 + 1]).sum())
+    if cx0 is not None and bx0 <= cx0 and cx0 - 1 >= 0:
+        lf = int((mask[by0:by1 + 1, cx0] & mask[by0:by1 + 1, cx0 - 1]).sum())
+    if cx1 is not None and bx1 >= cx1 and cx1 + 1 < w:
+        rt = int((mask[by0:by1 + 1, cx1] & mask[by0:by1 + 1, cx1 + 1]).sum())
+    return up, dn, lf, rt
+
+
+def audit_boxes(mask, cells, boxes, y0, y1, name=""):
+    """상자들의 잘림을 <b>한 줄로</b> 알린다. 아무것도 안 잘리면 조용하다.
+
+    ⚠ <b>죽이지 않는다</b> — 가로 잘림은 «옆 칸의 날개를 일부러 깎은 것»(``CELL_INSET``)
+      일 수 있고, 그게 맞는 시트가 실재한다. 세로 잘림은 거의 언제나 밴드 오류다.
+      어느 쪽인지는 <b>사람이 시트를 보고</b> 정한다.
+    """
+    bad = []
+    for i, (box, cell) in enumerate(zip(boxes, cells)):
+        if box is None:
+            continue
+        up, dn, lf, rt = clipped_edges(mask, box, y0, y1, cell[0], cell[1])
+        parts = []
+        if up >= CLIP_MIN_RUN:
+            parts.append("위 %d" % up)
+        if dn >= CLIP_MIN_RUN:
+            parts.append("아래 %d" % dn)
+        if lf >= CLIP_MIN_RUN:
+            parts.append("왼 %d" % lf)
+        if rt >= CLIP_MIN_RUN:
+            parts.append("오른 %d" % rt)
+        if parts:
+            bad.append("%d번(%s)" % (i, "·".join(parts)))
+    if bad:
+        print("    ⚠ %-16s 잘림 — %s   [밴드 y%d~%d]"
+              % (name or "?", ", ".join(bad), y0, y1))
+    return bad
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# ★★ 「밴드가 조금 자른 것」 되찾기 (2026-08-22 신설)
+#
+# <b>왜 필요한가</b> (유저 리포트: *"위 아래도 조금씩 짤리는 이미지들이 발견된다"*) —
+# 밴드는 사람이 «줄이 여기서 여기까지» 로 잡는 값이다. 프레임마다 <b>머리 깃·꼬리·발밑
+# 그림자</b>가 몇 px 씩 다르므로, 한 줄에 하나의 y 를 주면 <b>어떤 프레임은 반드시 조금
+# 잘린다</b>. 밴드를 넉넉히 잡으면 이번엔 옆 줄이 들어온다.
+#
+# ★ 그래서 <b>프레임마다</b> 되찾는다: 상자에서 위·아래로 «잉크가 이어지는 동안만» 넓힌다.
+#   규칙은 아니사킬에서 쓴 것과 같다(:func:`anisakil_skin_build.grow_to_body`) —
+#   <b>한 줄이 칸 폭의 일정 비율만큼 차 있으면 이 프레임의 것</b>이고, 끊기면 멈춘다.
+#   그래서 <b>떨어져 있는 옆 줄·번호·딱지에는 절대 닿지 않는다</b>.
+# ⚠ 한계(``lo``/``hi``)는 호출자가 준다 — 이웃 줄의 밴드 사이 중간이다
+#   (:func:`char_sheet.grow_limits`).
+# ──────────────────────────────────────────────────────────────────────────
+
+#: 넓힐 때 «이 줄은 그림이다» 로 볼 최소 채움 비율(칸 폭에 대한).
+#: 실측: 프레임의 가장 얇은 끝단이 6~9%, 프레임 번호 글자가 2~5%.
+GROW_ROW_FILL = 0.06
+
+#: 채움 비율을 px 로 환산했을 때의 하한 — 아주 좁은 칸에서 0 이 되지 않게.
+GROW_MIN_PX = 3
+
+
+def grow_box_vertical(mask, box, cx0, cx1, lo, hi, min_fill=None):
+    """상자를 위·아래로 «잉크가 이어지는 동안만» 넓힌다. 위 ★★ 참조."""
+    min_fill = GROW_ROW_FILL if min_fill is None else min_fill
+    bx0, bx1, by0, by1 = box
+    thr = max(GROW_MIN_PX, int((cx1 - cx0 + 1) * min_fill))
+    top, bot = by0, by1
+    while top - 1 >= lo and int(mask[top - 1, cx0:cx1 + 1].sum()) >= thr:
+        top -= 1
+    while bot + 1 <= hi and int(mask[bot + 1, cx0:cx1 + 1].sum()) >= thr:
+        bot += 1
+    if top == by0 and bot == by1:
+        return box
+    # 넓힌 줄에 몸이 더 있으면 가로도 따라 늘린다 — 단 칸 밖으로는 안 나간다.
+    sub = mask[top:bot + 1, cx0:cx1 + 1]
+    xs = np.where(sub.any(axis=0))[0]
+    if len(xs):
+        bx0 = min(bx0, cx0 + int(xs.min()))
+        bx1 = max(bx1, cx0 + int(xs.max()))
+    return (bx0, bx1, top, bot)
+
+
+def _grow_all(mask, cells, boxes, grow):
+    """``grow`` 가 ``(lo, hi)`` 또는 ``(lo, hi, min_fill)`` 이면 상자들을 넓혀 돌려준다."""
+    if not grow:
+        return boxes
+    lo, hi = grow[0], grow[1]
+    fill = grow[2] if len(grow) > 2 else None
+    out = []
+    for box, cell in zip(boxes, cells):
+        out.append(None if box is None
+                   else grow_box_vertical(mask, box, cell[0], cell[1], lo, hi, fill))
+    return out
+
+
+def boxes_dominant(mask, cells, y0, y1, min_ink_ratio=0.12, name="", grow=None):
     """
     ★★ 칸마다 **한가운데를 물고 있는 덩어리**의 경계 상자. 옆 칸 조각을 버린다.
 
@@ -690,6 +1174,8 @@ def boxes_dominant(mask, cells, y0, y1, min_ink_ratio=0.12):
         col = mask[y0:y1 + 1, gx0:gx1 + 1]
         ys = np.where(col.any(axis=1))[0]
         out.append((gx0, gx1, y0 + int(ys.min()), y0 + int(ys.max())))
+    out = _grow_all(mask, cells, out, grow)
+    audit_boxes(mask, cells, out, y0, y1, name)
     return out
 
 
@@ -983,8 +1469,11 @@ def cells_by_gaps(mask, y0, y1, x0, x1, min_len=None):
     return [(mids[k], mids[k + 1]) for k in range(len(mids) - 1)]
 
 
-def boxes_for(mask, cells, y0, y1):
-    """각 칸 안의 그림 경계 상자. 그림이 없는 칸은 None."""
+def boxes_for(mask, cells, y0, y1, name="", grow=None):
+    """각 칸 안의 그림 경계 상자. 그림이 없는 칸은 None.
+
+    ★ ``name`` 을 주면 :func:`audit_boxes` 가 <b>잘림</b>을 함께 알린다(그 함수의 ★★).
+    """
     out = []
     for cx0, cx1 in cells:
         sub = mask[y0:y1 + 1, cx0:cx1 + 1]
@@ -994,6 +1483,8 @@ def boxes_for(mask, cells, y0, y1):
         ys = np.where(sub.any(axis=1))[0]
         xs = np.where(sub.any(axis=0))[0]
         out.append((cx0 + xs.min(), cx0 + xs.max(), y0 + ys.min(), y0 + ys.max()))
+    out = _grow_all(mask, cells, out, grow)
+    audit_boxes(mask, cells, out, y0, y1, name)
     return out
 
 
@@ -1062,6 +1553,117 @@ def crop_rgba(sheet, box):
     ys = np.where(solid.any(axis=1))[0]
     xs = np.where(solid.any(axis=0))[0]
     return rgba[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# ★★ 「옆 프레임 조각」 떼어내기 (2026-08-22 신설)
+#
+# <b>왜 필요한가</b> (유저 리포트: *"이동 모션 사이 사이에 전 동작 모션과 함께 짤려 들어가서
+# 어색해지는 부분들"*) — 새 세대 시트는 프레임이 <b>서로 겹쳐</b> 그려져 있다. 옆 프레임의
+# 날개 끝·검 끝·잔상이 이 칸의 x 범위 안까지 들어온다.
+#
+# :func:`boxes_dominant` 은 그것을 <b>열(가로)로</b> 걸러낸다 — «칸 한가운데를 물고 있는
+# 덩어리에서 좁은 간격만큼만 이어 붙인다». 그런데 그 판정은 <b>x 범위만</b> 본다.
+# 남의 날개가 이 칸 몸통과 <b>x 가 겹치는 높이</b>(머리 위·발 아래)에 있으면 열로는 못 가르고,
+# 상자 안의 잉크를 그대로 굽기 때문에 <b>떠 있는 조각</b>으로 함께 구워진다.
+# 재생하면 그 조각만 프레임마다 나타났다 사라져 «전 동작이 끼어드는» 것으로 보인다.
+#
+# ★ 그래서 <b>2차원 이어짐</b>으로 한 번 더 본다: 가장 큰 덩어리(= 몸)에 <b>붙어 있지 않고</b>
+#   가로로도 떨어져 있으면 남의 것이다.
+# ⚠ <b>크기만으로 자르면 안 된다</b> — 엘리시아 근접의 금색 궤적·세라피엘의 총구 화염은
+#   몸에서 떨어져 있지만 <b>이 프레임의 그림</b>이다. 그래서 «몸과 x 가 겹치거나 가깝다» 는
+#   조건을 먼저 본다(궤적은 손에서 뻗어 나오므로 언제나 몸에 가깝다).
+# ──────────────────────────────────────────────────────────────────────────
+
+#: 몸과 이만큼(px) 이내로 떨어진 덩어리는 «이 프레임의 것» 으로 본다.
+STRAY_JOIN_PX = 6
+
+#: 몸의 이 비율보다 큰 덩어리는 떨어져 있어도 남긴다(큰 연출을 잃지 않으려는 안전장치).
+STRAY_KEEP_RATIO = 0.50
+
+#: 이보다 작은 덩어리는 <b>부스러기</b>로 보고 조건 없이 버린다(px).
+STRAY_MIN_PX = 12
+
+#: ★★ 몸에서 이만큼(px) 넘게 <b>떨어진</b> 덩어리는 <b>크기와 상관없이</b> 버린다.
+#:
+#: <b>왜 크기 예외를 안 두나</b> — :data:`STRAY_KEEP_RATIO` 는 «궤적·화염처럼 큰 연출을
+#: 잃지 않으려는» 안전장치인데, 그런 연출은 <b>손·무기에서 뻗어 나오므로 언제나 몸 가까이</b>
+#: 시작한다. 반대로 아니사킬 이동 5·6번에 들어온 <b>옆 개체의 머리</b>는 몸의 40% 크기이면서
+#: 30px 넘게 떨어져 있었다 — 그래서 «크면 남긴다» 규칙이 그것을 살려 두고 있었다.
+#: 거리로 한 번 더 자르면 «큰 연출» 과 «남의 몸» 이 갈린다.
+STRAY_FAR_PX = 24
+
+
+def components(solid, max_n=48):
+    """4-이웃 덩어리 목록. scipy 를 쓰지 않는다 — :func:`flood` 를 되풀이한다."""
+    rest = solid.copy()
+    out = []
+    while rest.any() and len(out) < max_n:
+        ys, xs = np.where(rest)
+        seed = np.zeros_like(rest)
+        seed[ys[0], xs[0]] = True
+        comp = flood(rest, seed)
+        out.append(comp)
+        rest &= ~comp
+    return out
+
+
+def drop_stray_parts(rgba, join=None, keep_ratio=None, min_px=None):
+    """
+    ★★ <b>옆 프레임에서 들어온 조각</b>을 지운다 (위 ★★). 지운 픽셀 수를 함께 돌려준다.
+
+    규칙 — 가장 큰 덩어리를 «몸» 으로 삼고, 나머지는 다음 중 하나면 남긴다:
+
+    * 몸과 <b>가로로 겹치거나</b> <paramref name="join"/> px 이내로 가깝다 (손에서 뻗은 궤적)
+    * 몸의 <paramref name="keep_ratio"/> 배보다 <b>크다</b> (큰 연출)
+
+    그 밖에는 남의 것이므로 지운다. <paramref name="min_px"/> 미만은 조건 없이 지운다.
+    """
+    join = STRAY_JOIN_PX if join is None else join
+    keep_ratio = STRAY_KEEP_RATIO if keep_ratio is None else keep_ratio
+    min_px = STRAY_MIN_PX if min_px is None else min_px
+
+    solid = rgba[:, :, 3] > 0
+    if not solid.any():
+        return rgba, 0
+    comps = components(solid)
+    if len(comps) < 2:
+        return rgba, 0
+
+    areas = [int(c.sum()) for c in comps]
+    main = int(np.argmax(areas))
+
+    # ⚠⚠ <b>거리를 «가로 간격» 으로 재면 안 된다</b> (2026-08-22 실사고 · 아니사킬).
+    #   처음에는 x 범위의 간격만 봤는데, 옆 개체의 <b>머리</b>가 이 프레임 몸통의 <b>아래·옆</b>
+    #   에 들어와 있으면 x 가 겹쳐 «간격 0» 이 된다(실측: 이동 4·5번 · 간격 0~2px · 몸의 15~21%).
+    #   → <b>2차원 거리</b>로 잰다: 몸을 N px 부풀려 닿는지 본다.
+    near = _grow_box(comps[main], join)
+    far = _grow_box(comps[main], STRAY_FAR_PX)
+
+    drop = np.zeros_like(solid)
+    for i, comp in enumerate(comps):
+        if i == main:
+            continue
+        if areas[i] < min_px:
+            drop |= comp                      # 부스러기
+            continue
+        if (near & comp).any():
+            continue                          # 몸에 <b>붙어</b> 있다 — 이 프레임의 것이다
+        if areas[i] >= areas[main] * keep_ratio and (far & comp).any():
+            continue                          # 크고 <b>가까운</b> 연출(궤적·화염)은 남긴다
+        drop |= comp
+    n = int(drop.sum())
+    if not n:
+        return rgba, 0
+
+    out = rgba.copy()
+    out[drop] = 0
+    solid = out[:, :, 3] > 0
+    if not solid.any():
+        return rgba, 0
+    ys = np.where(solid.any(axis=1))[0]
+    xs = np.where(solid.any(axis=0))[0]
+    return out[ys.min():ys.max() + 1, xs.min():xs.max() + 1], n
 
 
 def resample_rgba(rgba, factor, resample=None):
@@ -1296,6 +1898,59 @@ def body_extent(rgba):
     if not len(ys):
         return (x1 - x0 + 1, 0)
     return (x1 - x0 + 1, int(ys[-1] - ys[0] + 1))
+
+
+#: 발밑으로 볼 아래쪽 비율 (:func:`foot_center`).
+FOOT_BAND = 0.16
+
+
+def foot_center(rgba, band=None):
+    """이 프레임에서 <b>발</b>의 가로 중심(px). 발이 없으면 ``None``.
+
+    ★ <b>몸통 덩어리의 아래쪽 띠</b>만 본다 — 앞으로 뻗은 총·낫·궤적은 공중에 있으므로
+      이 띠에 없다. 그래서 «자세가 바뀌어도 안 흔들리는» 유일한 기준점이다.
+    """
+    band = FOOT_BAND if band is None else band
+    solid = rgba[:, :, 3] > 0
+    if not solid.any():
+        return None
+    comps = components(solid)
+    main = max(comps, key=lambda c: int(c.sum()))
+    ys = np.where(main.any(axis=1))[0]
+    h = int(ys[-1] - ys[0] + 1)
+    strip = main[max(0, int(ys[-1]) - max(2, int(h * band))):int(ys[-1]) + 1]
+    xs = np.where(strip.any(axis=0))[0]
+    if not len(xs):
+        return None
+    return (int(xs.min()) + int(xs.max()) + 1) / 2.0
+
+
+def plant_feet(frames, anchors, band=None):
+    """
+    ★★ <b>묶음을 통째로 밀어 «발» 을 피벗에 맞춘다</b> (2026-08-22 신설).
+
+    <b>왜 필요한가</b> (유저 지시: *"캐릭터가 커졌다 작아졌다 도 안하게 확실하게 분석해서
+    피벗 맞추고"*) — :func:`body_anchor` 는 «세로로 두꺼운 열의 가운데» 다. 그것은 <b>한 묶음
+    안에서는</b> 훌륭한 기준이지만(사슬이 뻗어도 몸이 안 미끄러진다), <b>묶음끼리는 어긋난다</b>:
+    총을 앞으로 뻗는 원거리 줄은 총이 «두꺼운 열» 에 들어가 기준이 통째로 옆으로 밀린다.
+
+    실측(발 중심 − 피벗 · 중앙값):
+
+        시안   대기 <b>−13.5</b> px  vs  회복 <b>+5.5</b> px    → 모션이 바뀌면 <b>19px 미끄러진다</b>
+        엘리시아 이동 <b>+9.5</b>  vs  원거리 <b>−9.0</b>       → 18px
+        아루   원거리 <b>+10.0</b> vs  이동 <b>−9.2</b>         → 19px
+
+    ★ 고치는 방법은 «묶음마다 <b>한 값</b>만 미는 것» 이다. 프레임마다 발에 맞추면
+      <b>걷는 다리 놀림이 지워지고 몸이 흔들린다</b> — 그건 더 이상하다. 그래서
+      <b>묶음의 발 중심 중앙값</b>이 피벗에 오도록 <b>같은 양</b>을 모든 프레임에 더한다.
+      묶음 안의 움직임은 그대로 남고, 묶음끼리는 발이 맞는다.
+    """
+    got = [(i, foot_center(f, band)) for i, f in enumerate(frames)]
+    got = [(i, c) for i, c in got if c is not None]
+    if not got:
+        return anchors, 0.0
+    shift = float(np.median([c - anchors[i] for i, c in got]))
+    return [a + shift for a in anchors], shift
 
 
 def base_anchor(rgba):

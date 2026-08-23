@@ -52,6 +52,7 @@ from PIL import Image
 from scipy import ndimage
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from vault_path import find_art                                       # noqa: E402
 from char_asset_preyja_build import guid_for, png_meta, FOLDER_META   # noqa: E402
 
 PROJECT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -82,7 +83,7 @@ def find_vault():
 VAULT = find_vault()
 
 # 원본은 볼트가 정본이다(유저 지시 2026-08-14: "볼트에도 에셋 리소스 넣어주고").
-SRC = os.path.join(VAULT, "리소스", "asset", "char_asset", "Char_Asset_Histon", "histon_motion.png")
+SRC = find_art("Char_Asset_Histon", "histon_motion.png")
 
 DST = os.path.join(PROJECT, "Assets", "_Project", "Art", "Char_Asset", "Char_Asset_Histon", "Char")
 DST_REL = "Assets/_Project/Art/Char_Asset/Char_Asset_Histon/Char"

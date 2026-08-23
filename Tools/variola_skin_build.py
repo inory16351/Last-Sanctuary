@@ -93,7 +93,7 @@ from vault_path import VAULT, PROJECT                                   # noqa: 
 from skin_sheet import (                                                # noqa: E402,F401
     PPU, SKIN_SPEC_NAME, write_skin_spec,
     load_sheet, cells_by_clusters, cells_by_labels, label_blobs, boxes_for, crop_rgba,
-    body_anchor, base_anchor, compose, write_png, ensure_folder_meta,
+    body_anchor, base_anchor, compose, plant_feet, drop_stray_parts, write_png, ensure_folder_meta,
     shadow_in_box, reflood_background,
 )
 
@@ -256,10 +256,21 @@ def build(sheet):
             #    ⚠ 지금까지 캐릭터·보스는 전부 <b>두 발</b>이라 이 함정이 없었다.
             gained = reflood_background(sheet, shadow)
 
-        boxes = [b for b in boxes_for(sheet["mask"], cells, y0, y1) if b is not None]
+        boxes = [b for b in boxes_for(sheet["mask"], cells, y0, y1, name=name) if b is not None]
         frames = [crop_rgba(sheet, b) for b in boxes]
         anchor = body_anchor if kind == "body" else base_anchor
-        images, w, h = compose(frames, [anchor(f) for f in frames])
+        if kind == "body":
+            # ★★ <b>옆 프레임에서 들어온 떠 있는 조각을 뗀다</b>
+            #   (:func:`skin_sheet.drop_stray_parts` 의 ★★ · 2026-08-22).
+            #   유저 리포트: *"이동 모션 사이 사이에 전 동작 모션과 함께 짤려 들어가서
+            #   어색해지는 부분들"*.
+            frames = [drop_stray_parts(f)[0] for f in frames]
+        anchors = [anchor(f) for f in frames]
+        if kind == "body":
+            # ★★ <b>발을 피벗에 맞춘다</b> — 모션이 바뀔 때 옆으로 미끄러지지 않게
+            #   (:func:`skin_sheet.plant_feet` 의 ★★). 묶음 안의 움직임은 그대로 둔다.
+            anchors, _shift = plant_feet(frames, anchors)
+        images, w, h = compose(frames, anchors)
 
         made += write_group(images, name)
         note = "" if not erased else "  (라벨 자리 %dpx 지움)" % erased

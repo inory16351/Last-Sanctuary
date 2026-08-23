@@ -99,13 +99,60 @@ namespace LastSanctuary.Combat
             return now > 0.0001f ? widthTiles / now : 1f;
         }
 
+        // ------------------------------------------------------------------
+        // ★★★ 연출의 기준은 <b>「몸」 이지 「캔버스」 가 아니다</b> (2026-08-22)
+        //
+        // 유저 지시: *"캐릭터의 피벗 고정 후 캐릭터의 전방에 이펙트가 생성되도록 로직 구현.
+        //   현재 캐릭터의 리소스 공간에 이펙트가 표현되는 버그가 너무 많이 발생함.
+        //   단순한 일반 공격 또한 이펙트가 캐릭터의 공간과 분리되어 전방에 시각적으로 잘
+        //   표현될 수 있도록 수정 요함"*.
+        //
+        // <b>무엇이 잘못돼 있었나</b> — 이 클래스는 두 자리에서 <b>SpriteRenderer 의
+        // bounds</b>(= 지금 그려지는 <b>프레임 캔버스</b>)를 기준으로 삼고 있었다:
+        //
+        //     CenterOf()      → <c>sr.bounds.center</c>       «몸 중심» 이라고 적어 두었지만
+        //                                                      실제로는 <b>캔버스 중심</b>이다
+        //     MuzzleOffset()  → <c>sr.bounds.extents.x</c>    «몸 반지름» 이 아니라
+        //                                                      <b>캔버스 반폭</b>이다
+        //
+        // 그런데 이 프로젝트의 프레임 캔버스는 <b>이펙트까지 담고 있다</b> — 총구 화염·궤적·
+        // 바닥 고리가 들어간 프레임은 몸보다 훨씬 넓다(실측: 엘리시아 스킬1 캔버스 268px 에
+        // 몸통 91px). 그래서
+        //
+        //   · 캔버스가 넓은 프레임에서는 <b>중심이 몸 밖으로</b> 밀린다 → 연출이 «몸 옆 허공»
+        //     또는 <b>몸 안</b>에서 시작한다(유저가 «리소스 공간에 이펙트가 표현» 이라고 본 것)
+        //   · <b>프레임이 바뀔 때마다</b> 기준이 흔들린다 → 같은 공격인데 연출 위치가 떨린다
+        //   · 원화를 조금만 고쳐도 <b>게임 안 연출 위치가 따라 흔들린다</b>
+        //
+        // ★ 고칠 자리는 이미 프로젝트 안에 있었다 — <see cref="CharacterAnimator.RenderedSizeTiles"/>
+        //   는 <b>대기 원화의 알파 경계</b>를 재서 배율을 먹인 값이다(`measure_skin_tiles.py`).
+        //   즉 <b>캔버스 여백과 이펙트를 뺀 «몸» 의 크기</b>이고, 프레임이 바뀌어도 안 변한다.
+        //   포탑도 같은 이름의 칸을 갖고 있다(<see cref="TowerAnimator.RenderedSizeTiles"/>).
+        //   그래서 <see cref="BodyBox"/> 가 그 값을 읽고, 없을 때만 예전처럼 bounds 로 내려간다.
+        // ------------------------------------------------------------------
+
         /// <summary>
-        /// 탄환이 <b>몸 중심이 아니라 앞쪽(입/총구)에서</b> 출발하도록 밀어내는 거리 —
-        /// 스프라이트 가로 반지름에 이 비율을 곱한다. 0 이면 탄환이 몸 한가운데서 튀어나와
-        /// "뱉는다"로 안 읽힌다. 목표까지의 거리가 짧으면 그 40%를 넘지 않게 잘라
-        /// 붙어 있는 적을 지나쳐 생기지 않게 한다.
+        /// 연출이 출발할 자리를 몸 중심에서 앞으로 밀어낼 거리 — <b>몸 반폭</b>의 이 배수다.
+        ///
+        /// ⚠⚠ <b>0.45 → 1.0 으로 올렸다</b> (2026-08-22). 예전 값은 <b>캔버스</b> 반폭에
+        ///   0.45 를 곱한 것이라 «대략 실루엣 가장자리» 였는데, 캔버스 폭이 원화마다 달라
+        ///   어떤 유닛은 <b>몸 안</b>에서 연출이 시작됐다. 이제 <b>몸</b> 반폭 기준이므로
+        ///   1.0 이 정확히 «실루엣 경계» 다 — 유저 지시의 «전방» 을 그대로 옮긴 값이다.
         /// </summary>
-        const float MuzzleForwardRatio = 0.45f;
+        const float MuzzleForwardRatio = 1.0f;
+
+        /// <summary>
+        /// 실루엣 경계에서 <b>더</b> 밀어낼 여유(타일). 경계에 딱 붙이면 연출의 왼쪽 절반이
+        /// 몸에 겹쳐 «몸에서 새어 나오는» 것처럼 보인다 — 유저가 «캐릭터의 공간과 분리» 라고
+        /// 한 것이 이 여유다. 0.2 타일이면 64px 기준 13px 쯤 앞이다.
+        /// </summary>
+        const float MuzzleClearTiles = 0.2f;
+
+        /// <summary>
+        /// 목표가 코앞일 때 밀어낼 수 있는 상한 — 목표까지 거리의 이 비율. 이걸 넘기면
+        /// 탄환이 <b>적을 지나쳐서</b> 생겨 «맞추는 것처럼» 안 보인다.
+        /// </summary>
+        const float MuzzleMaxOfDistance = 0.45f;
 
         // ------------------------------------------------------------------
         //  기준 유닛이 없는 <b>지면 연출</b>의 정렬 (2026-08-21)
@@ -640,26 +687,70 @@ namespace LastSanctuary.Combat
             };
         }
 
+        /// <summary>
+        /// ★★ 이 유닛의 <b>「몸」 상자</b> — 가운데(월드)와 크기(타일=월드 유닛).
+        /// 캔버스가 아니라 <b>대기 원화 실측값</b>을 쓴다(맨 위 ★★★).
+        ///
+        /// 못 구하면 <c>false</c> 를 돌려주고, 그때만 부르는 쪽이 예전처럼 bounds 로 내려간다
+        /// (실측값이 없는 옛 프리팹·연출 전용 오브젝트).
+        /// </summary>
+        static bool BodyBox(DamageableUnit unit, out Vector3 center, out Vector2 size)
+        {
+            center = unit != null ? unit.transform.position : Vector3.zero;
+            size = Vector2.zero;
+            if (unit == null) return false;
+
+            var charAnim = unit.GetComponent<CharacterAnimator>();
+            if (charAnim != null) size = charAnim.RenderedSizeTiles;
+            if (size.x <= 0.0001f || size.y <= 0.0001f)
+            {
+                var towerAnim = unit.GetComponent<TowerAnimator>();
+                if (towerAnim != null) size = towerAnim.RenderedSizeTiles;
+            }
+            if (size.x <= 0.0001f || size.y <= 0.0001f) return false;
+
+            // ★ 피벗이 <b>발밑</b>(0.5, 0)이라 <c>transform.position</c> 이 곧 바닥이다 —
+            //   몸 가운데는 거기서 몸 높이의 절반만큼 위다. 캔버스와 무관한 값이다.
+            center += Vector3.up * (size.y * 0.5f);
+            return true;
+        }
+
         /// <summary>유닛의 몸통 중심. 발밑 피벗이라 <c>transform.position</c> 은 바닥이다.</summary>
         static Vector3 CenterOf(DamageableUnit unit)
         {
+            if (BodyBox(unit, out Vector3 center, out _)) return center;
+
+            // ⚠ 폴백 — 실측값이 없을 때만. 캔버스 중심이라 이펙트가 든 프레임에서 밀린다.
             var sr = unit.GetComponent<SpriteRenderer>();
             if (sr != null && sr.sprite != null) return sr.bounds.center;
             return unit.transform.position;
         }
 
         /// <summary>
-        /// 발사 지점을 몸 중심에서 목표 쪽으로 밀어낼 양. 스프라이트 가로 반지름 기준이라
-        /// 유닛 크기에 자동으로 맞는다. 목표가 코앞이면 그 40%까지만 밀어 탄환이 적을
-        /// 지나쳐서 생기지 않게 한다.
+        /// 발사 지점을 몸 중심에서 목표 쪽으로 밀어낼 양 — <b>몸</b> 가로 반지름 기준이라
+        /// (캔버스가 아니다 · 맨 위 ★★★) 유닛 크기에 자동으로 맞고 프레임이 바뀌어도 안 흔들린다.
+        /// 목표가 코앞이면 <see cref="MuzzleMaxOfDistance"/> 까지만 밀어 탄환이 적을 지나쳐서
+        /// 생기지 않게 한다.
         /// </summary>
         static Vector3 MuzzleOffset(DamageableUnit shooter, Vector3 dir, float dist)
         {
-            var sr = shooter.GetComponent<SpriteRenderer>();
-            if (sr == null || sr.sprite == null) return Vector3.zero;
+            float half;
+            if (BodyBox(shooter, out _, out Vector2 size))
+            {
+                half = size.x * 0.5f;
+            }
+            else
+            {
+                var sr = shooter.GetComponent<SpriteRenderer>();
+                if (sr == null || sr.sprite == null) return Vector3.zero;
+                // ⚠ 폴백은 캔버스 반폭이므로 옛 비율(0.45)을 그대로 쓴다 — 새 비율(1.0)을
+                //   캔버스에 곱하면 넓은 원화에서 연출이 너무 멀리 나간다.
+                half = sr.bounds.extents.x * 0.45f;
+                return dir * Mathf.Min(half, dist * MuzzleMaxOfDistance);
+            }
 
-            float forward = Mathf.Min(sr.bounds.extents.x * MuzzleForwardRatio, dist * 0.4f);
-            return dir * forward;
+            float forward = half * MuzzleForwardRatio + MuzzleClearTiles;
+            return dir * Mathf.Min(forward, dist * MuzzleMaxOfDistance);
         }
 
         /// <summary>

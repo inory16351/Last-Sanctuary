@@ -44,7 +44,7 @@ from PIL import Image
 from skin_sheet import (
     SKIN_SPEC_NAME, write_skin_spec,
     load_sheet, cells_by_labels, cells_by_gaps, cells_by_clusters, cells_by_span,
-    cells_by_feet,
+    cells_by_feet, erase_title_pills, drop_stray_parts, plant_feet,
     boxes_for, boxes_dominant, crop_rgba, body_anchor, base_anchor, compose,
     write_png, ensure_folder_meta, clear_frames, shadow_in_box, enclosed_background,
     resample_rgba, head_pixels, body_extent, feather_edges,
@@ -91,13 +91,22 @@ class Spec(object):
                  erase=(), no_direction=(), original_side=None, default_side="Right",
                  scale_reference="Idle", scale_metric="head",
                  dominant_join=0.06, pocket=(60, 60), ppu=None, filter_mode=None,
-                 supersample=1.0, sharpen=0.0, fx_target_height=None):
+                 supersample=1.0, sharpen=0.0, fx_target_height=None, pills=None,
+                 grow_margin=None, drop_stray=True):
         self.title = title
         self.sources = sources          # {"01": path, …}
         self.dst_root = dst_root
         self.skin_spec = skin_spec
         self.rows = rows
         self.erase = list(erase)        # [(y0, y1, x0, x1), …]  ← 제목 글자
+        #: ★★ <b>제목 딱지</b>(검은 알약 + 흰 글자)를 스스로 찾아 지운다 —
+        #:   ``{}`` 면 기본값으로, 딕셔너리면 :func:`skin_sheet.erase_title_pills` 에
+        #:   그대로 넘긴다(``min_run`` 등). ``None`` 이면 끄는 것이다.
+        #:
+        #:   <b>왜 :data:`erase` 로는 안 되나</b> — 딱지는 줄마다 x 가 다르고 개수도 다르다.
+        #:   세라피엘 시트는 <b>일곱 줄에 딱지가 아홉 개</b>이고, 그 좌표를 손으로 적으면
+        #:   원화가 한 번 바뀔 때 아홉 군데를 다시 재야 한다. 딱지는 «가로로 긴 어두운 줄 +
+        #:   얇다» 로 <b>재서 찾을 수 있으므로</b> 재는 쪽이 맞다.
         self.no_direction = set(no_direction)
         self.original_side = original_side or {}
         self.default_side = default_side
@@ -121,6 +130,14 @@ class Spec(object):
         #:
         #:   ⚠ :data:`supersample` 과 곱해진다 — 굽는 해상도를 올려도 게임 안 크기는 그대로다.
         self.fx_target_height = dict(fx_target_height or {})
+        self.pills = pills
+        #: ★★ 프레임을 <b>위·아래로 되찾을</b> 최대 폭(px). ``None`` 이면 기본값
+        #:   (:data:`GROW_MARGIN`), ``0`` 이면 끈다.
+        #:   무엇을 고치는지는 :func:`skin_sheet.grow_box_vertical` 의 ★★ 참조.
+        self.grow_margin = grow_margin
+        #: ★★ 옆 프레임에서 들어온 <b>떠 있는 조각</b>을 지울지
+        #:   (:func:`skin_sheet.drop_stray_parts` 의 ★★). 몸통 줄에만 쓴다.
+        self.drop_stray = drop_stray
 
 
 SCALE_MIN, SCALE_MAX = 0.60, 1.90
@@ -339,6 +356,39 @@ def warn_if_clipped(sheet, row):
               % (row.name, up, dn, row.y0, row.y1))
 
 
+#: 프레임을 위·아래로 되찾을 기본 최대 폭(px). 밴드를 사람이 몇 px 좁게 잡는 정도.
+GROW_MARGIN = 26
+
+
+def grow_limits(spec, row, height):
+    """
+    ★★ 이 줄이 위·아래로 <b>어디까지</b> 넓혀도 되는가 (2026-08-22 신설).
+
+    <b>이웃 줄의 밴드 사이 중간</b>까지다. «이웃» 은 <b>x 가 겹치는 줄</b>만 센다 —
+    이 프로젝트의 시트는 <b>한 줄을 좌/우 단으로 갈라</b> 서로 다른 모션을 나란히 두므로
+    (세라피엘 근거리|원거리), y 만 보면 «자기 짝» 을 이웃으로 잡아 못 넓힌다.
+
+    ⚠ 중간까지 열어 주되 :data:`GROW_MARGIN` 으로 한 번 더 조인다 — 넓힐 근거는
+      «잉크가 이어진다» 이고, 그 판정이 몇십 px 을 넘어 계속 이어질 일은 없다.
+      상한이 있으면 판정이 틀렸을 때의 피해가 한 줄 안에 머문다.
+    """
+    margin = GROW_MARGIN if spec.grow_margin is None else spec.grow_margin
+    if margin <= 0:
+        return None
+    lo, hi = 0, height - 1
+    for other in spec.rows:
+        if other is row or other.src != row.src:
+            continue
+        # x 가 겹치지 않으면 이웃이 아니다(같은 줄의 좌/우 단).
+        if other.x1 < row.x0 or other.x0 > row.x1:
+            continue
+        if other.y1 < row.y0:
+            lo = max(lo, (other.y1 + row.y0) // 2 + 1)
+        elif other.y0 > row.y1:
+            hi = min(hi, (row.y1 + other.y0) // 2 - 1)
+    return (max(lo, row.y0 - margin), min(hi, row.y1 + margin))
+
+
 def cells_of(sheet, row):
     kind = row.cells[0]
     if kind == "labels":
@@ -408,11 +458,12 @@ def cut(spec, sheets):
                 shadow |= shadow_in_box(sheet, b)
             sheet["mask"] &= ~shadow
 
+        grow = grow_limits(spec, row, sheet["mask"].shape[0])
         if row.kind == "body" and row.dominant:
             raw = boxes_dominant(sheet["mask"], cells, row.y0, row.y1,
-                                 min_ink_ratio=spec.dominant_join)
+                                 min_ink_ratio=spec.dominant_join, name=row.name, grow=grow)
         else:
-            raw = boxes_for(sheet["mask"], cells, row.y0, row.y1)
+            raw = boxes_for(sheet["mask"], cells, row.y0, row.y1, name=row.name, grow=grow)
 
         boxes = [b for b in raw if b is not None]
         if len(boxes) != len(cells):
@@ -420,6 +471,17 @@ def cut(spec, sheets):
                              % (row.name, len(cells) - len(boxes)))
 
         frames = [crop_rgba(sheet, b) for b in boxes]
+        if spec.drop_stray and row.kind == "body":
+            # ★ 옆 프레임에서 들어온 «떠 있는 조각» 을 뗀다(그 함수의 ★★).
+            gone = 0
+            cleaned = []
+            for f in frames:
+                f2, n = drop_stray_parts(f)
+                gone += n
+                cleaned.append(f2)
+            if gone:
+                print("    %-18s 옆 프레임 조각 %d px 떼어냄" % (row.name, gone))
+            frames = cleaned
         out.append((row, frames))
         if row.kind == "body" and row.scale:
             collected[row.name] = frames
@@ -460,8 +522,13 @@ def bake(spec, cut_rows, factors):
             t, b, l, r = (list(row.feather) + [0, 0, 0, 0])[:4]
             frames = [feather_edges(f, top=t, bottom=b, left=l, right=r) for f in frames]
 
-        anchor = body_anchor if row.kind == "body" else base_anchor
-        images, w, h = compose(frames, [anchor(f) for f in frames])
+        if row.kind == "body":
+            # ★★ 묶음을 통째로 밀어 <b>발</b>을 피벗에 맞춘다(그 함수의 ★★).
+            #   묶음 안의 움직임은 그대로 두고 묶음끼리만 맞춘다.
+            anchors, shift = plant_feet(frames, [body_anchor(f) for f in frames])
+        else:
+            anchors, shift = [base_anchor(f) for f in frames], 0.0
+        images, w, h = compose(frames, anchors)
 
         folder = os.path.join(spec.dst_root, row.folder)
         kw = {}
@@ -493,6 +560,8 @@ def bake(spec, cut_rows, factors):
         ensure_folder_meta(folder)
 
         extra = "" if abs(factor - 1.0) <= 0.002 else "  (x%.3f)" % factor
+        if abs(shift) >= 1.0:
+            extra += "  피벗 %+.0fpx (발 맞춤)" % shift
         print("  %-18s %3d x %3d · %2d장 · %s%s" % (row.name, w, h, len(images), note, extra))
     return made
 
@@ -509,6 +578,12 @@ def run(spec, fx_target_height=None):
     print("[%s 모션 시트 분해]" % spec.title)
 
     sheets = {k: load_sheet(v, box_borders=True) for k, v in spec.sources.items()}
+
+    if spec.pills is not None:
+        # ★ 딱지를 <b>가장 먼저</b> 지운다 — 밴드 검사·칸 가르기·상자 잡기가 모두
+        #   «딱지가 없는 마스크» 를 봐야 한다(:data:`Spec.pills` 의 ★★).
+        for sheet in sheets.values():
+            erase_title_pills(sheet, **spec.pills)
 
     for y0, y1, x0, x1 in spec.erase:
         tgt = sheets["01"]
@@ -531,7 +606,11 @@ def run(spec, fx_target_height=None):
     factors = measure_scale(spec, collected)
     made = bake(spec, cut_rows, factors)
 
-    lines = write_skin_spec(spec.dst_root, spec.skin_spec, spec.title)
+    # ⚠ «누가 만들었나» 에는 <b>스크립트 이름</b>을 적는다 — 예전에는 `spec.title`
+    #   (캐릭터 이름)을 넘겨 파일 첫 줄이 «세라피엘 가 만든 파일» 로 나왔다.
+    made_by = ("Tools/%s" % os.path.basename(sys.argv[0])
+               if sys.argv and sys.argv[0] else "Tools/char_sheet.py")
+    lines = write_skin_spec(spec.dst_root, spec.skin_spec, made_by)
     ensure_folder_meta(spec.dst_root)
     print("  스킨 설정 %s (%d줄)" % (SKIN_SPEC_NAME, lines))
     print("  → 프레임 %d장" % made)

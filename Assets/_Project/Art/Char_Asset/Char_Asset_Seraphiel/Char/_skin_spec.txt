@@ -8,3 +8,5 @@ displayName=세라피엘
 framesPerSecond=10
 attackFramesPerSecond=16
 projectileWidthTiles=0.6
+meleeTravelWidthTiles=1.6
+impactWidthTiles=1.4

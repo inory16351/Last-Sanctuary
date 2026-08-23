@@ -63,6 +63,40 @@ def find_vault():
 
 VAULT = find_vault()
 
+#: 원화가 들어 있을 수 있는 폴더들 — <b>볼트 안에서의 상대 경로</b>. 앞에 있는 것부터 본다.
+ART_DIRS = (
+    ("리소스", "sprites"),
+    ("리소스", "asset"),
+    ("리소스", "asset", "char_asset"),
+    ("리소스", "chunk"),
+    ("리소스", "illust"),
+)
+
+
+def find_art(*names):
+    """
+    ★★ <b>원화 파일을 «있는 곳에서» 찾는다</b> (2026-08-22 신설).
+
+    <b>왜 생겼나</b> — 유저가 볼트를 정리하면서 낱장 원화를 ``리소스/asset/`` 에서
+    ``리소스/sprites/`` 로 <b>옮겼다</b>. 그런데 분해 스크립트들은 옛 경로를 박아 두고 있어서
+    <b>돌리면 «원본이 없습니다» 로 죽는다</b> — 실제로 아니사킬·카르시노스·고르도네 셋이
+    그 상태였다(그래서 그 셋은 <b>다시 구울 수 없는</b> 상태로 남아 있었다).
+
+    이 모듈이 만들어진 이유(맨 위 ★)와 <b>같은 종류의 문제</b>다: 경로를 여러 파일에
+    박아 두면 폴더가 한 번 움직일 때 전부 깨진다. 그래서 «찾는 규칙» 을 여기 한 곳에 둔다.
+
+    ``names`` 는 마지막이 파일 이름이고 앞은 그 안의 하위 폴더다
+    (예: ``find_art("Char_Asset_Histon", "histon_motion.png")``).
+
+    ⚠ 못 찾으면 <b>첫 후보 경로를 그대로 돌려준다</b> — 없는 경로로 실패하더라도
+      메시지에 «찾던 곳» 이 찍혀야 원인을 알 수 있다(:func:`find_vault` 와 같은 규칙).
+    """
+    for parts in ART_DIRS:
+        cand = os.path.join(VAULT, *(parts + tuple(names)))
+        if os.path.isfile(cand):
+            return cand
+    return os.path.join(VAULT, *(ART_DIRS[0] + tuple(names)))
+
 #: 표(xlsx)들이 있는 폴더. 예전 스크립트들의 ``VAULT`` / ``TABLE_DIR`` 상수가 가리키던 값이다.
 TABLE_DIR = os.path.join(VAULT, "데이터 테이블")
 

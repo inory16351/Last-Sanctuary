@@ -46,9 +46,9 @@ import sys
 import numpy as np
 from PIL import Image
 
-from vault_path import VAULT, PROJECT
+from vault_path import VAULT, PROJECT, find_art
 
-SRC = os.path.join(VAULT, "리소스", "asset", "Carcinos_asset_02.png")
+SRC = find_art("Carcinos_asset_02.png")
 DST_ROOT = os.path.join(PROJECT, "Assets", "_Project", "Art", "Char_Asset",
                         "Char_Asset_Carcinos", "Char")
 
@@ -116,7 +116,7 @@ FILE_PREFIX = {
 # 실측한 경계는 아래 FX_ROW 에 있다.
 # ──────────────────────────────────────────────────────────────────────────
 
-SRC_FX = os.path.join(VAULT, "리소스", "asset", "Carcinos_asset_01.png")
+SRC_FX = find_art("Carcinos_asset_01.png")
 
 #: 이펙트 행의 y 범위. ⚠ <b>라벨 글자 아래</b>부터 잡는다 — 행 상단에
 #: "스킬 1 이펙트 (할퀴기)" 같은 제목이 있어서, 그대로 잡으면 글자가 프레임에 섞인다.
@@ -446,6 +446,42 @@ def build_fx():
     return made
 
 
+
+# ★★ <b>발을 피벗에 맞춰 얹기</b> (2026-08-22 신설 · 유저 지시 *"캐릭터가 커졌다 작아졌다
+#   도 안하게 확실하게 분석해서 피벗 맞추고"*).
+#
+# 옛 코드는 상자를 캔버스 <b>한가운데</b> 에 얹었다. 상자는 <b>낫·촉수·포효가 뻗은 쪽</b>으로
+# 늘어나므로 그 중심이 모션마다 옆으로 밀린다 — 실측으로 모션이 바뀔 때
+# 카르시노스 <b>15.5px</b> · 고르도네 <b>28.0px</b> · 아니사킬 <b>5.5px</b> 씩 <b>미끄러졌다</b>.
+# → 묶음마다 <b>발 중심의 중앙값</b>을 재서 그것이 캔버스 한가운데 오도록 <b>같은 양</b>을
+#   민다. 묶음 안의 움직임은 그대로 남고 묶음끼리만 맞는다(`skin_sheet.plant_feet` 와 같은 규칙).
+
+
+def foot_layout(rgbas):
+    """``(가로 시작 위치 목록, 캔버스 폭)`` — 발 중심을 피벗에 맞춘다.
+
+    ⚠⚠ <b>캔버스 폭을 여기서 정한다</b> — 처음에는 «폭은 그대로 두고 안에서 민다» 로
+      했는데, 폭이 <b>가장 넓은 프레임에 딱 맞게</b> 잡혀 있어서 <b>밀 자리가 없었다</b>
+      (고르도네 원거리는 탄이 뻗어 프레임이 캔버스만큼 넓다 → 28px 어긋남이 그대로 남았다).
+      :func:`skin_sheet.compose` 가 «피벗 좌우로 같은 폭» 을 잡는 것과 <b>같은 계산</b>을 한다.
+
+    ★ 미는 양은 <b>묶음 하나에 한 값</b>이다 — 프레임마다 발에 맞추면 다리 놀림이 지워진다.
+    """
+    from skin_sheet import foot_center
+    got = []
+    for r in rgbas:
+        c = foot_center(r)
+        if c is not None:
+            got.append(c - r.shape[1] / 2.0)
+    shift = float(np.median(got)) if got else 0.0
+    anchors = [r.shape[1] / 2.0 + shift for r in rgbas]
+    pad = max(max(anchors), max(r.shape[1] - a for r, a in zip(rgbas, anchors)))
+    cw = int(np.ceil(pad * 2))
+    oxs = [max(0, min(cw - r.shape[1], int(round(cw / 2.0 - a))))
+           for r, a in zip(rgbas, anchors)]
+    return oxs, cw
+
+
 def main():
     if not os.path.isfile(SRC):
         print("⚠ 원본이 없습니다:", SRC)
@@ -480,15 +516,16 @@ def main():
         h = max(b[3] - b[2] + 1 for b in boxes)
 
         folder = os.path.join(DST_ROOT, motion)
+        # ★ 가로는 <b>발 중심</b>을, 세로는 <b>바닥</b>을 캔버스에 맞춘다(위 ★★).
+        #   피벗이 (0.5, 0) = 발밑이라 바닥을 맞춰야 모션이 바뀔 때 위아래로 안 튄다.
+        rgbas = [to_rgba(arr[b[2]:b[3] + 1, b[0]:b[1] + 1], bg) for b in boxes]
+        oxs, w = foot_layout(rgbas)
         for i, (bx0, bx1, by0, by1) in enumerate(boxes):
-            block = arr[by0:by1 + 1, bx0:bx1 + 1]
-            rgba = to_rgba(block, bg)
+            rgba = rgbas[i]
 
-            # ★ 가로는 <b>그림 중심</b>을, 세로는 <b>바닥</b>을 캔버스에 맞춘다.
-            #   피벗이 (0.5, 0) = 발밑이라 바닥을 맞춰야 모션이 바뀔 때 위아래로 안 튄다.
             canvas = np.zeros((h, w, 4), dtype=np.uint8)
             bw, bh = bx1 - bx0 + 1, by1 - by0 + 1
-            ox = (w - bw) // 2
+            ox = oxs[i]
             oy = h - bh
             canvas[oy:oy + bh, ox:ox + bw] = rgba
 

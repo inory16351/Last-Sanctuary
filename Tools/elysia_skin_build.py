@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-"""엘리시아(9012 · 「무너지지 않는 방패」) 모션 시트 → 프레임 분해 (2026-08-21).
+"""엘리시아(9012 · 「무너지지 않는 방패」) 모션 시트 → 프레임 분해
+(2026-08-21 · **2026-08-22 좌표 전면 재측정**).
 
 유저 지시: *"볼트 폴더의 테이블이랑 에셋 이미지, 일러스트 이미지 확인해서 엘리시아랑
 Seraphiel, Cyan 이렇게 총 3종 캐릭터 인게임에 구현해줘"*
@@ -11,63 +12,93 @@ Seraphiel, Cyan 이렇게 총 3종 캐릭터 인게임에 구현해줘"*
 
 두 장은 <b>구획이 완전히 같고 그림 크기만 다르다</b>. ``_02`` 가 <b>더 크게</b> 그려져
 있어(대기 프레임 폭 92~105px vs ``_01`` 의 78~88px) 픽셀이 더 많다. 게임에서 확대해
-쓰므로 <b>큰 쪽이 정본</b>이다 — 베일이 «자를 수 있는 쪽» 을 고른 것과는 다른 기준이다
-(이 시트는 둘 다 같은 방식으로 갈리므로 해상도로 고른다).
+쓰므로 <b>큰 쪽이 정본</b>이다.
 
-★★ <b>이 시트에는 라벨도 구획선도 없다</b>
-------------------------------------------
-프레임 번호·제목 딱지가 <b>하나도 없고</b> 줄을 가르는 선도 없다. 게다가 날개·검이
-옆 칸까지 뻗어 <b>가로로도 세로로도 덩어리가 붙는다</b>(실측: 이동 줄은 6칸이 한 덩어리
-``x15~817`` 로 잡히고, 시트 전체가 세로로 한 밴드 ``y0~1007`` 다). 그래서:
+★★★ 2026-08-22 — <b>«상하로 짤린다» 의 원인은 밴드가 통째로 어긋난 것이었다</b>
+=============================================================================
+유저 리포트: *"엘리시아 모션중 상하 모션 짤리는 문제"*.
 
-  · <b>y 는 사람이 격자를 보고 읽었다</b> — `sheet_grid.py` 로 100px 격자를 얹어 읽은 값이
-    아래 :data:`BODY_ROWS` 다. 자동 밴드 탐지는 <b>시트 전체를 한 덩어리</b>로 잡는다.
-  · <b>x 는 «폭 ÷ 장수»</b>(:func:`skin_sheet.cells_by_span`) 로 가른다. 라벨이 없으니
-    라벨 기반 방법은 애초에 쓸 수 없고, 빈 열 기반도 붙어서 안 된다.
-  · 그렇게 가르면 <b>칸마다 옆 칸의 날개 끝이 딸려 온다</b> — :func:`skin_sheet.boxes_dominant`
-    가 «칸 한가운데를 물고 있는 덩어리» 만 남겨 그것을 막는다(베일에서 같은 문제를 잡은 함수).
+★ 이 시트에는 <b>라벨도 구획선도 제목 딱지도 없다</b>. 그래서 옛 좌표는 «격자 이미지를
+  눈으로 읽어» 적은 값이었고, 그것이 <b>거의 모든 줄에서 몇 px~수십 px 씩 밀려</b> 있었다.
+  새로 넣은 잘림 검사(:func:`skin_sheet.audit_boxes`)가 <b>열네 줄 중 열세 줄</b>에서
+  «위/아래로 그림이 이어진다» 고 잡아냈다.
 
-★ <b>장수의 근거</b> — 대기 줄만 빈 열로 깨끗하게 갈리고 <b>정확히 6덩어리</b>다
-  (폭 92~105px · 시작 x 34·151·273·392·518·633 → 간격 119.8px 로 고르다). 격자 이미지에서
-  나머지 줄도 같은 6칸 자리에 놓여 있다. 마지막 줄(궁극기)만 <b>4장</b>이다.
+★ 그래서 <b>사람 눈이 아니라 잉크 프로파일의 골</b>로 다시 쟀다. 몸통 단(x0~925)의
+  세로 잉크에서 <b>국소 최소</b>를 찾으면 줄 경계가 여섯 군데 나온다(실측):
+
+    y 123~134(0) · 241~257(0) · 368(21) · 504(154) · 623(171) · 770(122) · 984(0)
+
+  ⚠ <b>뒤 네 줄은 «빈 줄» 이 아니다</b>(잉크 122~171). 이 인물은 파란 후광·바닥 고리가
+    있어 줄과 줄이 <b>닿아 있다</b> — 그래서 «빈 줄 찾기» 로는 경계를 못 찾고, 옛 코드가
+    시트 전체를 한 밴드(y0~1007)로 잡았던 이유가 이것이다. <b>골</b>은 찾을 수 있다.
+
+| 줄 | 옛 밴드 | <b>실측 밴드</b> | 잃고 있던 것 |
+|---|---|---|---|
+| 대기 | 5~128 | 8~128 | — |
+| 이동 | 132~252 | 130~250 | — |
+| 근접(이펙트 없음) | 255~372 | 256~368 | — |
+| 근접 | 376~503 | **369~504** | 위 7px(펼친 날개) |
+| 원거리·마법 | 508~625 | **505~623** | 위 3px |
+| 회복 | 628~750 | **624~770** | <b>아래 20px — 발밑 빛 고리</b> |
+| 스킬1 | 760~940 | **771~983** | <b>아래 43px — 네 날개의 아랫깃과 후광</b> |
+
+★ 그리고 <b>몸통 단의 x 상한이 860 이었다</b>. 실측하면 근접 6번은 x878, 회복 6번은
+  x898, 스킬1 4번은 <b>x914</b> 까지 간다 → <b>오른쪽 끝 프레임의 방패·날개가 잘렸다</b>.
+  이펙트 단은 x933 부터라 <b>925</b> 로 올리면 둘이 안 섞인다.
+
+★ <b>이펙트 단(오른쪽)은 일곱 줄이 전부 밀려 있었다</b> — 같은 방법으로 다시 쟀다
+  (골: y82~90(0) · 174 · 292 · 420 · 585 · 754):
+
+| 줄 | 옛 밴드 | <b>실측 밴드</b> |
+|---|---|---|
+| 빛 창 투사체 | 5~120 | **0~81** |
+| 착탄 | 125~210 | **91~173** |
+| 문양(미사용) | 212~356 | **175~291** |
+| 초승달 궤적 | 358~505 | **293~419** |
+| 회복 빛기둥 | 508~610 | **421~584** |
+| 스킬1 바닥 고리 | 612~750 | **586~754** |
+| 궁극기(미사용) | 790~1015 | **755~1007** |
+
+즉 «착탄» 칸에는 <b>투사체 줄의 아래쪽과 착탄 줄의 위쪽이 반씩</b> 들어가 있었다.
+
+★★ 칸 가르기 — <b>«폭 ÷ 장수» 를 버렸다</b>
+--------------------------------------------
+옛 코드는 :func:`skin_sheet.cells_by_span` (폭 ÷ 장수) 였고, 어긋나는 것을
+``CELL_INSET = {"Move": 12}`` 으로 «칸을 깎아» 덮고 있었다. 깎으면 옆 프레임의 날개는
+떨어지지만 <b>자기 날개도 같이 잘린다</b> — 검사가 이동 6장 <b>전부</b> 에서
+«왼쪽 31~62px 이 경계를 넘어 이어진다» 고 잡았다.
+
+→ 몸통은 <b>발밑</b>으로 가른다(:func:`skin_sheet.cells_by_feet`) — 날개·후광은 공중에
+  있고 발은 땅에 따로 놓여 있다. 근접 줄만 <b>금색 궤적이 땅을 스쳐</b> 3·4번 발이 붙으므로
+  (실측: 발밑 띠가 x283~526 한 덩어리) 그 줄만 실측 경계를 ``bounds`` 로 박았다.
+⚠ 줄마다 <b>프레임 간격이 다르다</b> — 근접 줄의 몸통 중심 실측이 64·181·328·467·650·835
+  로 <b>간격이 117~185</b> 다(궤적이 자리를 차지한다). 그래서 «한 격자를 모든 줄에» 쓰는
+  것도 안 된다. 줄마다 그 줄의 발을 본다.
+
+★ ``CELL_INSET`` 은 <b>지웠다</b>.
+
+★★ 공통 몸통(`char_sheet`)으로 옮겼다 — 유저 지시 *"스킨 균일성 직접 검토"*.
+   줄마다 «몸통만» 재서 대기와 견주는 검사 · 보는 방향 실측 · 갇힌 배경 되돌리기 ·
+   발밑 그림자 지우기가 함께 붙는다(옛 스크립트에는 하나도 없었다).
 
 무엇이 어디로 가나 (배선은 `Editor/CharacterSkinBuilder.cs` 가 폴더 이름으로 한다)
 ==================================================================================
-| 시트 줄 (y) | 폴더 | 근거 |
+| 시트 줄 | 폴더 | 근거 |
 |---|---|---|
-| 1 (5~128) 정면 대기 | ``Idle`` | 방패를 든 정면 자세 |
-| 2 (132~252) 걷기 | ``Move`` | 날개를 뒤로 뻗고 달린다 |
-| 3 (255~372) 검 찌르기 <b>이펙트 없음</b> | ``Unused_MeleeNoFx`` | 4번 줄과 <b>같은 동작</b>인데 궤적이 없다 → 원화 보존만 |
-| 4 (376~503) 검 찌르기 + <b>금색 궤적</b> | ``MeleeAttack`` | 궤적까지 그려진 <b>완성본</b>이라 이쪽을 쓴다 |
-| 5 (508~625) 빛 창을 앞으로 | ``RangedAttack`` · ``MagicAttack`` | 오른쪽 단 1번(빛 창 투사체)과 <b>짝</b>이다 |
-| 6 (628~750) 두 손을 모으고 발밑에 빛 고리 | ``Heal`` | 표의 회복력이 <b>12(최고)</b> 라 회복 역할이다 |
-| 7 (760~940) 네 날개를 펼친다 · <b>4장</b> | ``Skill1`` | 「네 날개의 가호」(80036) 그 자체 |
+| 1 정면 대기 | ``Idle`` | 방패를 든 정면 자세 |
+| 2 걷기 | ``Move`` | 날개를 뒤로 뻗고 달린다 · <b>원본이 왼쪽</b> |
+| 3 검 찌르기 <b>이펙트 없음</b> | ``Unused_MeleeNoFx`` | 4번 줄과 <b>같은 동작</b>인데 궤적이 없다 → 원화 보존만 |
+| 4 검 찌르기 + <b>금색 궤적</b> | ``MeleeAttack`` | 궤적까지 그려진 <b>완성본</b>이라 이쪽을 쓴다 |
+| 5 빛 창을 앞으로 | ``RangedAttack`` · ``MagicAttack`` | 오른쪽 단 1번(빛 창 투사체)과 <b>짝</b>이다 |
+| 6 두 손을 모으고 발밑에 빛 고리 | ``Heal`` | 표의 회복력이 <b>12(최고)</b> 라 회복 역할이다 |
+| 7 네 날개를 펼친다 · <b>4장</b> | ``Skill1`` | 「네 날개의 가호」(80036) 그 자체 |
 
 ⚠ 5번 줄을 <b>두 폴더에 같은 그림으로</b> 굽는다. 표의 능력치가 마법 6 · 원거리 2 라
   역할 역산(`CharacterRole`)이 어느 쪽을 고를지 그림만 봐서는 알 수 없고, 둘 다 «빛
   투사체를 앞으로 쏘는» 같은 동작이다 — 비워두면 그 칸이 무작위 폴백을 탄다.
 
-이펙트 (오른쪽 단 · x 880~1536)
---------------------------------
-| 줄 (y) | 폴더 | 무엇 |
-|---|---|---|
-| 5~120 | ``Projectile`` | 빛 창 → 별 4단계 |
-| 125~210 | ``Impact`` | 착탄 구체 3단계 |
-| 212~356 | ``Unused_Sigils`` | 방패 문양·나침반별·고리 — <b>배선하지 않는다</b>(대응하는 스킬 칸이 없다) |
-| 358~505 | ``MeleeTravelFx`` | 초승달 궤적 3장 — 4번 줄의 궤적이 «날아가는» 판본 |
-| 508~610 | ``HealFx`` | 빛 기둥 + 바닥 고리 3장 |
-| 612~750 | ``Skill1Fx`` | 금색 고리 + 빛 기둥 (「가호」의 바닥 연출) |
-| 790~1015 | ``Unused_Ultimate`` | 큰 나침반 문양·깃털·빛줄기 |
-
-⚠ ``Skill1Fx`` 를 «금색 고리» 쪽으로 골랐다 — 큰 나침반 문양 줄(790~1015)은 깃털·빛줄기가
-  <b>서로 붙어</b> 한 덩어리(실측 x940~1535)라 프레임으로 가르면 <b>깃털 토막</b>이 나온다.
-  고리 쪽은 덩어리가 깨끗하게 떨어진다. 원화는 ``Unused_`` 로 남긴다.
-
 방향 — ★★ <b>이동 줄만 왼쪽을 본다</b>
 --------------------------------------
-⚠⚠ <b>2026-08-21 수정</b> — 처음에 «원본이 전부 오른쪽» 으로 잡았는데 <b>틀렸다</b>.
-  유저 리포트: *"왼쪽을 보고있는데 오른쪽으로 이동중"*. 다시 재보니 줄마다 다르다(실측):
-
 | 줄 | 보는 쪽 | 근거 |
 |---|---|---|
 | <b>이동</b> | <b>왼쪽</b> | 얼굴·방패가 <b>왼쪽</b>이고 <b>날개가 오른쪽으로 끌린다</b> — 끌리는 쪽의 반대가 진행 방향이다 |
@@ -77,7 +108,6 @@ Seraphiel, Cyan 이렇게 총 3종 캐릭터 인게임에 구현해줘"*
 
 ★ <b>모든 «Right» 칸이 오른쪽을 보게 맞춘다</b> — 한 줄이라도 어긋나면 걷다가 공격할 때
   <b>캐릭터가 좌우로 뒤집힌다</b>(`CharacterAnimator` 는 `FacingRight` 하나로 두 칸을 고른다).
-  그래서 원본이 왼쪽인 줄만 :data:`SOURCE_FACES_LEFT` 에 넣어 <b>뒤집어서</b> Right 로 굽는다.
 
 사용법:  python Tools/elysia_skin_build.py
 다음:    유니티 메뉴 **LastSanctuary/스킨/원화 폴더로 스킨 에셋 만들기**
@@ -85,101 +115,72 @@ Seraphiel, Cyan 이렇게 총 3종 캐릭터 인게임에 구현해줘"*
 """
 
 import os
-import sys
-
-from PIL import Image
 
 from vault_path import VAULT, PROJECT
-
-from skin_sheet import (  # noqa: F401
-    PPU, SKIN_SPEC_NAME, write_skin_spec,
-    load_sheet, cells_by_span, cells_by_gaps, boxes_dominant, boxes_for, crop_rgba,
-    body_anchor, base_anchor, compose, write_png, ensure_folder_meta,
-    clear_frames,
-)
+from char_sheet import Row, Spec, run
 
 SRC = os.path.join(VAULT, "리소스", "sprites", "Elysia_asset_02.png")
 
 DST_ROOT = os.path.join(PROJECT, "Assets", "_Project", "Art", "Char_Asset",
                         "Char_Asset_Elysia", "Char")
 
-#: 몸통 줄 — (폴더, y0, y1, 장수). ★ y 는 격자로 읽은 <b>실측</b>이다(맨 위 ★★).
-BODY_ROWS = [
-    ("Idle",               5, 128, 6),
-    ("Move",             132, 252, 6),
-    ("Unused_MeleeNoFx", 255, 372, 6),
-    ("MeleeAttack",      376, 503, 6),
-    ("RangedAttack",     508, 625, 6),
-    ("Heal",             628, 750, 6),
-    ("Skill1",           760, 940, 4),
-]
+#: 몸통 단의 x 상한 — 이펙트 단이 x933 부터라 여기까지가 안전하다(맨 위 ★).
+BODY_X1 = 925
 
-#: 몸통 단의 x 범위 — 오른쪽 이펙트 단(880~)이 들어오지 않게 막는다.
-BODY_X = (0, 860)
+#: 근접 줄의 칸 경계 — 금색 궤적이 땅을 스쳐 발밑 판정이 3·4번을 붙인다(맨 위 ⚠).
+#: 실측 몸통 위치: 20~108 · 137~260 · 285~372 · 415~520 · 600~760 · 810~878.
+MELEE_BOUNDS = [17, 130, 277, 410, 560, 790, 926]
 
-#: ★ 같은 그림을 <b>두 폴더</b>에 굽는다 (맨 위 ⚠).
-ALSO_AS = {"RangedAttack": "MagicAttack"}
+#: 스킬1 줄의 칸 경계 — 실측 덩어리 16~143 · 191~407 · 422~684 · 687~914.
+SKILL1_BOUNDS = [16, 172, 414, 687, 916]
 
-#: 이펙트 줄 — (폴더, y0, y1, x0, x1, 장수).
-#:
-#: ★★ <b>이 단은 «애니메이션» 이 아니라 «부품 팔레트» 다.</b> 한 줄에 <b>서로 다른 것</b>이
-#:   나란히 있다 — 예를 들어 빛 기둥 줄에는 기둥 3단계 <b>다음에 깃털</b>이 붙어 있고,
-#:   고리 줄에는 고리 하나 뒤에 <b>날개 네 장과 반짝임</b>이 있다. 그래서
-#:   <b>«progressive 한 단계» 인 줄만 프레임으로 굽고</b> 나머지는 ``Unused_`` 로 남긴다.
-#:   ⚠ 팔레트를 그대로 프레임으로 구우면 재생할 때 <b>깃털이 한 프레임 끼어든다</b>.
-#:
-#: ★ 칸은 «폭 ÷ 장수» 다(:func:`skin_sheet.cells_by_span`). 빈 열로는 못 가른다 —
-#:   글로우가 서로 닿아 한 덩어리가 된다(실측: 문양 줄 전체가 ``x961~1529`` 한 덩어리).
-#: ★ ``x1`` 로 <b>줄 뒤쪽의 다른 부품을 잘라낸다</b> — 그게 «장수 ÷ 폭» 을 맞히는 열쇠다
-#:   (깃털까지 넣으면 3단계가 4~5칸으로 갈린다).
-FX_ROWS = [
-    # 빛 창 → 별. 4단계가 또렷하게 커진다.
-    ("Projectile",        5,  120,  885, 1515, 4),
-    # 착탄 구체 4단계(큰 구체 → 작은 마름모). x 를 1365 로 끊어 <b>반짝임 부품</b>을 뺀다.
-    ("Impact",          125,  210,  960, 1365, 4),
-    # 방패 문양·나침반별·고리별·별·타원 — 대응하는 스킬 칸이 없다.
-    ("Unused_Sigils",   212,  356,  955, 1535, 5),
-    # 초승달 궤적 3장 — 근접 4번 줄의 궤적이 «날아가는» 판본이다.
-    ("MeleeTravelFx",   358,  505,  945, 1520, 3),
-    # 빛 기둥 3단계. x 를 1370 으로 끊어 <b>깃털</b>을 뺀다.
-    ("HealFx",          508,  610,  990, 1370, 3),
-    # 「가호」의 바닥 고리 — <b>한 장</b>이다(뒤의 날개·반짝임은 아래 Unused_).
-    ("Skill1Fx",        612,  750,  920, 1195, 1),
-    ("Unused_Wings",    612,  750, 1195, 1535, 2),
-    # 큰 나침반 문양·깃털·빛줄기 — 서로 붙어 한 덩어리(x940~1535)라 못 가른다.
-    ("Unused_Ultimate", 790, 1015,  920, 1535, 1),
+ROWS = [
+    # ── 몸통 ──
+    Row("Idle",             "body",   8, 128, 0, BODY_X1, ("feet",), 6),
+    Row("Move",             "body", 130, 250, 0, BODY_X1, ("feet",), 6),
+    Row("Unused_MeleeNoFx", "body", 256, 368, 0, BODY_X1, ("feet",), 6),
+    Row("MeleeAttack",      "body", 369, 504, 0, BODY_X1, ("bounds", MELEE_BOUNDS), 6),
+    Row("RangedAttack",     "body", 505, 623, 0, BODY_X1, ("feet",), 6),
+    # ★ 같은 그림을 두 폴더에 굽는다(맨 위 ⚠). 좌표가 같으므로 결과도 같다.
+    Row("MagicAttack",      "body", 505, 623, 0, BODY_X1, ("feet",), 6),
+    Row("Heal",             "body", 624, 770, 0, BODY_X1, ("feet",), 6),
+    Row("Skill1",           "body", 771, 983, 0, BODY_X1, ("bounds", SKILL1_BOUNDS), 4),
+
+    # ── 이펙트 (오른쪽 단) ──
+    #
+    # ★★ <b>이 단은 «애니메이션» 이 아니라 «부품 팔레트» 다.</b> 한 줄에 서로 다른 것이
+    #   나란히 있다 — 빛 기둥 줄에는 기둥 셋 <b>다음에 깃털</b>이 붙어 있고, 고리 줄에는
+    #   고리 하나 뒤에 <b>날개 네 장과 반짝임</b>이 있다. 그래서 «progressive 한 단계» 인
+    #   줄만 프레임으로 굽고 나머지는 ``Unused_`` 로 남긴다.
+    #   ⚠ 팔레트를 그대로 프레임으로 구우면 재생할 때 <b>깃털이 한 프레임 끼어든다</b>.
+    Row("Projectile",     "fx",   0,   81,  926, 1509,
+        ("bounds", [926, 1056, 1213, 1358, 1510]), 4),
+    Row("Impact",         "fx",  91,  173,  965, 1367,
+        # ★ 다섯 덩어리 중 마지막(1379~1489)은 <b>흩어지는 반짝임</b>이라 뺐다 —
+        #   구체가 작아지는 <b>네 단계</b>가 착탄이다.
+        ("bounds", [965, 1079, 1201, 1299, 1368]), 4),
+    Row("Unused_Sigils",  "fx", 175,  291,  961, 1510,
+        ("bounds", [961, 1397, 1511]), 2),
+    Row("MeleeTravelFx",  "fx", 293,  419,  948, 1529,
+        # ★ 초승달 셋. 실측: 950~1120 · 1170~1320 · 1360~1510.
+        ("bounds", [948, 1145, 1330, 1530]), 3),
+    Row("HealFx",         "fx", 421,  584,  958, 1419,
+        # ★ 빛 기둥 셋. ⚠ 3번 칸에는 <b>깃털이 함께</b> 들어온다 — 깃털의 x 가 기둥과
+        #   겹쳐 있어(실측 1300~1510 vs 1290~1410) x 로 못 가른다. 올라가는 깃털은
+        #   회복 연출로 읽히므로 그대로 둔다.
+        ("bounds", [958, 1128, 1270, 1420]), 3),
+    Row("Skill1Fx",       "fx", 586,  754,  933, 1188, ("span",), 1),
+    Row("Unused_Wings",   "fx", 586,  754, 1190, 1524,
+        ("bounds", [1190, 1377, 1525]), 2),
+    Row("Unused_Ultimate", "fx", 755, 1007,  940, 1535, ("span",), 1),
 ]
 
 #: 좌우 방향이 없는 묶음 — 파일 이름에 Right/Left 를 안 붙인다.
-NO_DIRECTION = {"Projectile", "Impact", "MeleeTravelFx", "HealFx", "Skill1Fx"}
+NO_DIRECTION = {"Projectile", "Impact", "MeleeTravelFx", "HealFx", "Skill1Fx",
+                "Unused_Sigils", "Unused_Wings", "Unused_Ultimate"}
 
-#: ★★ <b>원본이 왼쪽을 보고 있는 줄</b> — 뒤집어서 Right 로 굽는다(맨 위 ⚠⚠).
-SOURCE_FACES_LEFT = {"Move"}
-
-#: ★★ <b>칸을 안쪽으로 좁히는 폭</b>(px) — 0 이면 좁히지 않는다.
-#:
-#: ⚠⚠ <b>왜 필요한가</b> (2026-08-21 · 유저 리포트: *"왼쪽 날개부분이 잘려서 나오는데 그
-#:   잘린 부분이 오른쪽에 붙었어"*) — 이동 줄은 <b>모션 블러로 프레임이 이어져</b> 있다.
-#:   실측: 이동 줄 ``x420~575`` 가 <b>열 하나도 비지 않은 한 덩어리</b>다. 즉 앞 프레임의
-#:   날개가 흐릿한 꼬리로 다음 프레임까지 <b>붙어</b> 있어서, 열을 보고 가르는 어떤 방법도
-#:   (`boxes_dominant` 의 «떨어진 덩어리 버리기» 포함) <b>이 둘을 못 나눈다</b>.
-#:
-#: → 그래서 칸을 <b>양쪽에서 조금씩 깎는다</b>. 몸통은 칸 가운데에 있고(폭 70~90px in 117px)
-#:   블러 꼬리는 <b>칸 가장자리</b>에 있으므로, 가장자리를 버리면 남의 날개만 떨어진다.
-#: ⚠ 너무 크게 깎으면 <b>자기 날개</b>가 잘린다 — 몸통 폭과 칸 폭의 차이의 절반이 상한이다.
-CELL_INSET = {"Move": 12}
-
-
-def inset_cells(cells, px):
-    """각 칸을 양쪽에서 ``px`` 만큼 깎는다. 칸이 뒤집히지 않게 최소 폭을 남긴다."""
-    if px <= 0:
-        return cells
-    out = []
-    for a, b in cells:
-        keep = max(8, (b - a + 1) - px * 2)
-        mid = (a + b) // 2
-        out.append((mid - keep // 2, mid + keep // 2))
-    return out
+#: ★★ <b>원본이 왼쪽을 보고 있는 줄</b> — 뒤집어서 Right 로 굽는다(맨 위 방향 표).
+ORIGINAL_SIDE = {"Move": "Left"}
 
 SKIN_SPEC = {
     "skinAssetName": "Skin_Elysia",
@@ -189,80 +190,45 @@ SKIN_SPEC = {
     "attackFramesPerSecond": "12",
     # 빛 창 투사체 — 검 한 자루 길이면 화면에서 «날아가는 창» 으로 읽힌다.
     "projectileWidthTiles": "1.0",
+    # ★★ <b>이펙트 크기를 «타일» 로 못박는다</b> (2026-08-22 · 유저 지시 *"확실하게
+    #   이펙트가 표현되도록"*). 비워 두면(<b>0</b>) 배율이 1 이 되어 <b>구워진 픽셀 크기가
+    #   그대로 화면 크기</b>가 된다 — 그러면 원화를 다시 자를 때마다(이번처럼) 연출이
+    #   커졌다 작아졌다 한다. 이 프로젝트의 규칙은 «몇 타일로 그릴지만 적고 배율은 코드가
+    #   계산한다»(`CombatProjectileFx.ScaleForWidthTiles`)이고, 그 규칙을 지금 적용한다.
+    # ★ 값의 근거 — 몸통이 1.4~1.8 타일이다(`contentSizeTiles`). 참격은 몸보다 조금 커야
+    #   «베었다» 로 읽히고, 착탄은 몸 정도면 «맞았다» 로 읽힌다. 카이론·아루의
+    #   `impactWidthTiles`(1.4~1.6)와 같은 대역이다.
+    "meleeTravelWidthTiles": "1.8",
+    "impactWidthTiles": "1.5",
 }
 
-
-def write_group(images, name):
-    folder = os.path.join(DST_ROOT, name)
-    gone = clear_frames(folder)
-    if gone:
-        print("      (i) 예전 프레임 %d개 지움 (%s)" % (gone, name))
-    n = 0
-    for i, img in enumerate(images):
-        if name in NO_DIRECTION or name.startswith("Unused_"):
-            write_png(img, folder, "Char_%s_%02d" % (name, i))
-            n += 1
-        else:
-            flipped = img.transpose(Image.FLIP_LEFT_RIGHT)
-            right, left = ((flipped, img) if name in SOURCE_FACES_LEFT
-                           else (img, flipped))
-            write_png(right, folder, "Char_%s_Right_%02d" % (name, i))
-            write_png(left, folder, "Char_%s_Left_%02d" % (name, i))
-            n += 2
-    ensure_folder_meta(folder)
-    return n
-
-
-def build(sheet):
-    made = 0
-
-    for name, y0, y1, count in BODY_ROWS:
-        cells = cells_by_span(sheet["mask"], y0, y1, BODY_X[0], BODY_X[1], count)
-        cells = inset_cells(cells, CELL_INSET.get(name, 0))
-        if not cells:
-            raise SystemExit("[!] %s: 칸을 못 찾았습니다 (y%d~%d)" % (name, y0, y1))
-        # 옆 칸의 날개 끝을 버린다 (맨 위 ★★ 세 번째 점).
-        boxes = [b for b in boxes_dominant(sheet["mask"], cells, y0, y1, min_ink_ratio=0.02) if b is not None]
-        frames = [crop_rgba(sheet, b) for b in boxes]
-        images, w, h = compose(frames, [body_anchor(f) for f in frames])
-        made += write_group(images, name)
-        print("  %-18s %3d x %3d · %2d장  %s  폭 %s"
-              % (name, w, h, len(images),
-                 "<-" if name in SOURCE_FACES_LEFT else "->",
-                 [b[1] - b[0] + 1 for b in boxes]))
-
-        if name in ALSO_AS:
-            alias = ALSO_AS[name]
-            made += write_group(images, alias)
-            print("  %-18s %3d x %3d · %2d장  (같은 그림 — 맨 위 ⚠)"
-                  % (alias, w, h, len(images)))
-
-    for name, y0, y1, x0, x1, count in FX_ROWS:
-        cells = cells_by_span(sheet["mask"], y0, y1, x0, x1, count)
-        if not cells:
-            print("  [!] %s: 칸을 못 찾았습니다 (y%d~%d) — 건너뜁니다" % (name, y0, y1))
-            continue
-        boxes = [b for b in boxes_for(sheet["mask"], cells, y0, y1) if b is not None]
-        frames = [crop_rgba(sheet, b) for b in boxes]
-        images, w, h = compose(frames, [base_anchor(f) for f in frames])
-        made += write_group(images, name)
-        print("  %-18s %3d x %3d · %2d장  칸 %s"
-              % (name, w, h, len(images), [(a, b) for a, b in cells]))
-
-    return made
+SPEC = Spec(
+    title="엘리시아",
+    sources={"01": SRC},
+    dst_root=DST_ROOT,
+    skin_spec=SKIN_SPEC,
+    rows=ROWS,
+    # ★ 이 시트에는 딱지가 없다(재보면 0px) — 그래도 켜 둔다. 원화가 바뀌어 딱지가
+    #   생기면 좌표를 다시 적지 않아도 되고, 없을 때는 아무것도 하지 않는다.
+    pills={},
+    no_direction=NO_DIRECTION,
+    original_side=ORIGINAL_SIDE,
+    default_side="Right",
+    scale_reference="Idle",
+    # ★★ <b>크기 정규화는 끈다</b> — 세라피엘과 같은 이유다(그 스크립트의 ★★).
+    #   이 인물도 <b>날개가 하얗다</b>. `head_pixels` 가 «상단의 밝고 저채도인 픽셀» 을
+    #   머리로 세므로 날개를 펼치는 줄(이동·스킬1)에서 «머리가 커졌다» 로 읽고 몸을 줄인다.
+    # ★ 그리고 필요가 없다 — 원화가 이미 한 격자에 같은 크기로 그려져 있다
+    #   (`report_body_size` 가 줄마다 찍어 준다).
+    scale_metric=None,
+    # ⚠ 기본값 0.06 은 «본체에서 7px 떨어진 덩어리까지 이어 붙인다» 는 뜻이라 이 시트에서는
+    #   옆 프레임의 날개 끝까지 붙인다.
+    dominant_join=0.02,
+)
 
 
 def main():
-    sys.stdout.reconfigure(encoding="utf-8")
-    print("[엘리시아 모션 시트 분해]")
-    sheet = load_sheet(SRC)
-    n = build(sheet)
-    spec = write_skin_spec(DST_ROOT, SKIN_SPEC, "Tools/elysia_skin_build.py")
-    ensure_folder_meta(DST_ROOT)
-    ensure_folder_meta(os.path.dirname(DST_ROOT))
-    print("  스킨 설정 %s (%d줄)" % (SKIN_SPEC_NAME, spec))
-    print("  -> 프레임 %d장" % n)
-    print("  다음: 유니티 메뉴 LastSanctuary/스킨/원화 폴더로 스킨 에셋 만들기")
+    run(SPEC)
 
 
 if __name__ == "__main__":

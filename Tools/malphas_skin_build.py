@@ -94,9 +94,11 @@ import sys
 import numpy as np
 from PIL import Image
 
-from vault_path import VAULT, PROJECT
+from vault_path import VAULT, PROJECT, find_art
+# ★ 발을 피벗에 맞추는 공통 함수만 가져온다 — 이 스크립트는 자기 body_anchor 를 쓴다.
+from skin_sheet import plant_feet
 
-SRC = os.path.join(VAULT, "리소스", "Malphas_asset.png")
+SRC = find_art("Malphas_asset.png")
 DST_ROOT = os.path.join(PROJECT, "Assets", "_Project", "Art", "Char_Asset",
                         "Char_Asset_Malphas", "Char")
 
@@ -732,7 +734,7 @@ def main():
         #     한가운데라, 여백이 한쪽만 넓으면 <b>몸통이 피벗에서 비켜난다</b> —
         #     대기 → 원거리로 넘어가는 순간 보스가 옆으로 미끄러진다(구슬이 오른쪽에만
         #     그려져 있어 실제로 10px 어긋나 있었다). 남는 쪽은 투명 여백일 뿐이다.
-        anchors = [body_anchor(f) for f in frames]
+        anchors, _shift = plant_feet(frames, [body_anchor(f) for f in frames])
         pad = max(max(anchors),
                   max(f.shape[1] - a for f, a in zip(frames, anchors)))
         w = int(np.ceil(pad * 2))

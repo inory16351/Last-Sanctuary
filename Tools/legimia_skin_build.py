@@ -99,7 +99,7 @@ from vault_path import VAULT, PROJECT
 from skin_sheet import (  # noqa: F401
     PPU, SKIN_SPEC_NAME, write_skin_spec,
     load_sheet, cells_by_clusters, cells_by_gaps, boxes_for, crop_rgba,
-    body_anchor, base_anchor, compose, write_png, ensure_folder_meta,
+    body_anchor, base_anchor, compose, plant_feet, write_png, ensure_folder_meta,
     shadow_in_box, sharpen_rgba, resample_rgba, clear_frames, runs,
     enclosed_background, reflood_background,
     FILTER_BILINEAR,
@@ -322,7 +322,7 @@ def body_boxes(sheet, y0, y1, x0, x1, name):
         print("      그림자가 막던 배경 %5d px 편입 (%s)" % (gained, name))
     # ★★ 촉수 사이에 갇힌 흰 배경을 지운다 (아래 drop_pockets 의 ★★).
     drop_pockets(sheet, rough, name)
-    boxes = [b for b in boxes_for(sheet["mask"], cells, y0, y1) if b is not None]
+    boxes = [b for b in boxes_for(sheet["mask"], cells, y0, y1, name=name) if b is not None]
     return cells, boxes
 
 
@@ -332,7 +332,8 @@ def build(sheet):
     for name, (y0, y1, x0, x1) in BODY_ROWS:
         cells, boxes = body_boxes(sheet, y0, y1, x0, x1, name)
         frames = bake(sheet, boxes)
-        images, w, h = compose(frames, [body_anchor(f) for f in frames])
+        anchors, _shift = plant_feet(frames, [body_anchor(f) for f in frames])
+        images, w, h = compose(frames, anchors)
         made += write_group(images, name)
         print("  %-17s %3d x %3d · %2d장  %s  폭 %s"
               % (name, w, h, len(images),
@@ -346,7 +347,8 @@ def build(sheet):
         s1_boxes += boxes
         s1_widths += [e - s + 1 for s, e in cells]
     frames = bake(sheet, s1_boxes)
-    images, w, h = compose(frames, [body_anchor(f) for f in frames])
+    anchors, _shift = plant_feet(frames, [body_anchor(f) for f in frames])
+    images, w, h = compose(frames, anchors)
     made += write_group(images, "Skill1")
     print("  %-17s %3d x %3d · %2d장  →  폭 %s" % ("Skill1", w, h, len(images), s1_widths))
 
@@ -356,7 +358,7 @@ def build(sheet):
             raise SystemExit("⚠ %s: 칸을 하나도 못 찾았습니다 (y%d~%d)" % (name, y0, y1))
         boxes = [b for b in boxes_for(sheet["mask"], cells, y0, y1) if b is not None]
         drop_pockets(sheet, boxes, name)
-        boxes = [b for b in boxes_for(sheet["mask"], cells, y0, y1) if b is not None]
+        boxes = [b for b in boxes_for(sheet["mask"], cells, y0, y1, name=name) if b is not None]
         frames = bake(sheet, boxes)
         images, w, h = compose(frames, [base_anchor(f) for f in frames])
         made += write_group(images, name)

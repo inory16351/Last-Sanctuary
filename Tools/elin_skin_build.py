@@ -138,7 +138,7 @@ import sys
 import numpy as np
 from PIL import Image
 
-from vault_path import VAULT, PROJECT
+from vault_path import VAULT, PROJECT, find_art
 
 # ★ 시트 분해의 공통 규칙은 전부 여기 있다 — 이 파일에는 «이 시트의 실측 좌표와
 #   판단» 만 남긴다. 배경·그림자·갇힌 배경 판정의 근거는 그쪽 주석에 있다.
@@ -153,7 +153,7 @@ from skin_sheet import (  # noqa: F401  (상수도 그대로 쓴다)
     guid_for, modal_background, grow, flood, background_mask,
     enclosed_background, shadow_in_box, load_sheet, runs, label_count,
     cells_by_gaps, boxes_for, alpha_for, crop_rgba, column_thickness,
-    body_anchor, base_anchor, compose, write_png, ensure_folder_meta,
+    body_anchor, base_anchor, compose, plant_feet, write_png, ensure_folder_meta,
 )
 
 
@@ -172,10 +172,10 @@ SKIN_SPEC = {
 }
 
 #: ★ 정본 한 장 (맨 위 표).
-SRC = os.path.join(VAULT, "리소스", "asset", "char_asset", "Elin_asset_02.png")
+SRC = find_art("Elin_asset_02.png")
 
 #: 읽지 않는다 — 맨 위 표의 근거를 매번 다시 확인해주려고 경로만 들고 있다.
-SRC_FIRST_DRAFT = os.path.join(VAULT, "리소스", "asset", "char_asset", "Elin_asset_01.png")
+SRC_FIRST_DRAFT = find_art("Elin_asset_01.png")
 
 DST_ROOT = os.path.join(PROJECT, "Assets", "_Project", "Art", "Char_Asset",
                         "Char_Asset_Elin", "Char")
@@ -317,7 +317,7 @@ def build_bodies(sheet):
 
         boxes = [b for b in boxes_for(sheet["mask"], use, y0, y1) if b is not None]
         frames = [crop_rgba(sheet, b) for b in boxes]
-        anchors = [body_anchor(f) for f in frames]
+        anchors, _shift = plant_feet(frames, [body_anchor(f) for f in frames])
         images, w, h = compose(frames, anchors)
 
         folder = os.path.join(DST_ROOT, name)

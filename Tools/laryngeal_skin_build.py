@@ -74,7 +74,9 @@ import sys
 import numpy as np
 from PIL import Image
 
-from vault_path import VAULT, PROJECT
+from vault_path import VAULT, PROJECT, find_art
+# ★ 발을 피벗에 맞추는 공통 함수만 가져온다 — 이 스크립트는 자기 body_anchor 를 쓴다.
+from skin_sheet import plant_feet
 
 #: 몸통 모션 + 근접/아우성/히트 이펙트.
 # ⚠ 2026-08-20 — 원본이 `리소스/` 에서 `리소스/sprites/` 로 옮겨졌다(다른 시트와 함께 정리된 듯).
@@ -694,7 +696,7 @@ def build_bodies(sheet):
                   for b, c, fy0, fy1 in items]
 
         # ★ 가로 정렬은 <b>몸통 중심</b> 기준 · 좌우 여백을 <b>같게</b> (113-4절).
-        anchors = [body_anchor(f) for f in frames]
+        anchors, _shift = plant_feet(frames, [body_anchor(f) for f in frames])
         pad = max(max(anchors), max(f.shape[1] - a for f, a in zip(frames, anchors)))
         w = int(np.ceil(pad * 2))
         h = max(f.shape[0] for f in frames)

@@ -203,7 +203,7 @@ MonoBehaviour:
   impactScale: {x: 1, y: 1}
   contentSizeTiles: {x: 1.375, y: 1.594}
   projectileSizeTiles: {x: 0.922, y: 0.516}
-  impactSizeTiles: {x: 1.703, y: 1.078}
+  impactSizeTiles: {x: 1.703, y: 1.391}
   projectileWidthTiles: 0.8
   impactWidthTiles: 1.6
   impactFlattenY: 1

@@ -8,3 +8,5 @@ displayName=엘리시아
 framesPerSecond=10
 attackFramesPerSecond=12
 projectileWidthTiles=1.0
+meleeTravelWidthTiles=1.8
+impactWidthTiles=1.5
