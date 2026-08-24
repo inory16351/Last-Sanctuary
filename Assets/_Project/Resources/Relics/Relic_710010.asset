@@ -16,12 +16,12 @@ MonoBehaviour:
   relicName: "부푼 림프절"
   grade: 2
   effectType: 1
-  value01: 1
+  value01: 2
   value02: 0
   effectType2: 5
-  value03: 2
+  value03: 4
   value04: 0
-  relicDesc: "체력이 1, 방어력이 2 증가합니다."
+  relicDesc: "체력이 2, 방어력이 4 증가합니다."
   relicFlavor: "싸움이 벌어진 자리마다 붓는다. 부은 만큼 안에서 무언가 만들어지고 있다."
   source: 1
   sourceId: 0

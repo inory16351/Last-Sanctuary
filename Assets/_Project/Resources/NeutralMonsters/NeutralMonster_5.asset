@@ -16,10 +16,10 @@ MonoBehaviour:
   nameKey: mon_name_1102
   displayName: NeutralMonster_5
   template: {fileID: 0}
-  minEnergy: 400
-  maxEnergy: 600
-  attackStat: 90
-  hpStat: 253
+  minEnergy: 600
+  maxEnergy: 900
+  attackStat: 28
+  hpStat: 2035
   defenseStat: 33
   regenStat: 8
   detectRange: 6
@@ -55,3 +55,4 @@ MonoBehaviour:
   - 2003
   - 2004
   hpPercent: 100
+  growthPerKill: 0.1

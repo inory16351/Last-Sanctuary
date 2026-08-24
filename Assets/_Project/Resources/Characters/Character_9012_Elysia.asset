@@ -21,17 +21,17 @@ MonoBehaviour:
   illustName: 'illust_Elysia'
   skinAssetName: 'Skin_Elysia'
   stats:
-    hp: 9
-    attack: 4
-    defense: 8
-    regen: 7
+    hp: 8
+    attack: 3
+    defense: 7
+    regen: 6
     rangedAttack: 2
-    magic: 6
-    cure: 12
+    magic: 5
+    cure: 10
     accuracy: 4
     critical: 1
-    attackSpeed: 3
-    moveSpeed: 6
+    attackSpeed: 2
+    moveSpeed: 5
     resistance: 96
   attackPreset: 0
   positionPreset: 0

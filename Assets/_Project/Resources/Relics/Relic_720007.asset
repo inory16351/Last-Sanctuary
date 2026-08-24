@@ -16,12 +16,12 @@ MonoBehaviour:
   relicName: "검은 숲의 홀씨"
   grade: 3
   effectType: 4
-  value01: 2
+  value01: 5
   value02: 0
   effectType2: 8
-  value03: 2
+  value03: 5
   value04: 0
-  relicDesc: "마법이 2, 회복력이 2 증가합니다."
+  relicDesc: "마법이 5, 회복력이 5 증가합니다."
   relicFlavor: "숲을 만들던 씨. 뿌리지 않으면 아무 일도 없지만, 뿌리면 돌이킬 수 없다."
   source: 3
   sourceId: 1101

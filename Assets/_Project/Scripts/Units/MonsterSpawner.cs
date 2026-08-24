@@ -329,7 +329,15 @@ namespace LastSanctuary.Units
             // 이 분기가 하나도 안 바뀌므로 웨이브 테이블을 아직 안 연결한 다른 상황을 깨지 않는다.
             if (waveDefinitions != null && waveDefinitions.TryGetWave(waveNumber, out var wave))
             {
-                hpScale = atkScale = wave.statPercent;
+                // ★★ 2026-08-24 — <b>체력과 공격의 배율을 따로 읽는다</b>(S1).
+                //   예전에는 이 줄이 <c>hpScale = atkScale = wave.statPercent</c> 였다.
+                //   공격 계열에는 상한이 있고(<c>monsterAttackStatMax</c>) 체력에는 없으므로,
+                //   한 값을 둘에 넣으면 후반에 <b>공격만 상한에 붙어 얼어붙는다</b>
+                //   (진행상황 135-1절 진단 ⑤⑥ — 잡몹 13웨이브 · 보스 20웨이브).
+                //   ⚠ <c>attackPercent</c> 가 0 이면 예전과 똑같이 동작한다 — 그 열이 없던
+                //     옛 에셋을 조용히 깨뜨리지 않기 위한 폴백이다.
+                hpScale  = wave.statPercent;
+                atkScale = wave.attackPercent > 0 ? wave.attackPercent : wave.statPercent;
                 AppendToQueue(queue, meleeSlot, wave.meleeCount);
                 AppendToQueue(queue, rangedSlot, wave.rangedCount);
                 AppendBosses(queue, wave.bossCount, wave.bossMonsterId);

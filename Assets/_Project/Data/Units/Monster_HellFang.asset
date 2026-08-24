@@ -17,7 +17,7 @@ MonoBehaviour:
   tier: 0
   template: {fileID: 0}
   hpStat: 7
-  attackStat: 5
+  attackStat: 4
   defenseStat: 2
   regenStat: 0
   hpPercent: 100

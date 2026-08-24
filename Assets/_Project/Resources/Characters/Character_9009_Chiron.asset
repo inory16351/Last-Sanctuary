@@ -21,8 +21,8 @@ MonoBehaviour:
   illustName: 'illust_Chiron'
   skinAssetName: 'Skin_Chiron'
   stats:
-    hp: 10
-    attack: 10
+    hp: 9
+    attack: 9
     defense: 6
     regen: 4
     rangedAttack: 4
@@ -31,7 +31,7 @@ MonoBehaviour:
     accuracy: 4
     critical: 5
     attackSpeed: 4
-    moveSpeed: 8
+    moveSpeed: 7
     resistance: 60
   attackPreset: 0
   positionPreset: 0

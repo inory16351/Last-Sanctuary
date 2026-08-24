@@ -16,10 +16,10 @@ MonoBehaviour:
   nameKey: mon_name_1104
   displayName: NeutralMonster_8
   template: {fileID: 0}
-  minEnergy: 600
-  maxEnergy: 800
+  minEnergy: 900
+  maxEnergy: 1200
   attackStat: 0
-  hpStat: 410
+  hpStat: 4024
   defenseStat: 40
   regenStat: 1
   detectRange: 6
@@ -43,7 +43,7 @@ MonoBehaviour:
   habitatTileAsset: PolyirHabitat
   titleKey: epic_boss_title_1104
   hpPercent: 100
-  rangedAttackStat: 220
+  rangedAttackStat: 65
   magicStat: 0
   cureStat: 0
   accuracyStat: 50
@@ -56,3 +56,4 @@ MonoBehaviour:
   - 2007
   - 2008
   - 2009
+  growthPerKill: 0.2

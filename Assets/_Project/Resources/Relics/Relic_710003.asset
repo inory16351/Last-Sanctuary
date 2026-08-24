@@ -16,12 +16,12 @@ MonoBehaviour:
   relicName: "인터페론 결정"
   grade: 2
   effectType: 4
-  value01: 2
+  value01: 4
   value02: 0
   effectType2: 0
   value03: 0
   value04: 0
-  relicDesc: "마법이 2 증가합니다."
+  relicDesc: "마법이 4 증가합니다."
   relicFlavor: "옆 세포에게 미리 알리는 말. 아직 닿지 않은 곳까지 굳게 만든다."
   source: 1
   sourceId: 0

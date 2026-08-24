@@ -163,7 +163,7 @@ namespace LastSanctuary.Units
                 //      다시 태어난» 개체를 여전히 잡아 주고, 저장 호환도 지킨다.
                 //
                 // 안개 서비스가 없으면(테스트 씬) 전부 보이는 것으로 친다.
-                if (!known && _fog != null && !_fog.IsExploredWorld(n.transform.position)) continue;
+                if (!known && _fog != null && !AnyPartExplored(n)) continue;
 
                 _discovered.Add(n);
                 _knownSpecies.Add(speciesId);
@@ -179,6 +179,64 @@ namespace LastSanctuary.Units
                 UI.HudLog.Add($"에픽 몬스터 발견 — {n.DisplayName}", UI.HudLogKind.Warn);
             }
             return changed;
+        }
+
+        /// <summary>
+        /// ★★ <b>몸의 일부만 밝혀져 있어도 발견으로 본다</b> (2026-08-24 · 유저 지시:
+        /// *"에픽 몬스터의 신체의 일부만 보여도 토벌 가능하게 해"*).
+        ///
+        /// <b>무엇이 문제였나</b> — 판정이 <c>IsExploredWorld(transform.position)</c>,
+        /// 즉 <b>중심점 한 점</b>이었다. 에픽은 <b>7.5 x 11 타일</b>(표 <c>collider_*_tiles</c>)이라
+        /// 몸이 절반 넘게 밝혀진 자리에 서 있어도 <b>그 한 점이 안개면</b> 목록에 오르지 않는다.
+        /// ★ 이것은 94-1절에서 «거리는 몸집을 더해 재는데 시야는 중심점 한 점만 봤다» 로
+        ///   고쳤던 것과 <b>같은 성질의 실수</b>다 — 큰 몸집을 점으로 다루면 반드시 어긋난다.
+        ///
+        /// <b>무엇을 「신체」로 보는가</b> — <see cref="SpriteRenderer.bounds"/>(월드 AABB)다.
+        /// ★ 콜라이더 크기(<c>ColliderSizeTiles</c>)가 아니라 <b>실제로 그려진 것</b>을 쓴다 —
+        ///   유저가 화면에서 보는 것이 그것이고, 피벗이 발밑인지 가운데인지(116-5절)를
+        ///   <b>따지지 않아도 맞는다</b>. 그림이 없으면 콜라이더, 그것도 없으면 중심점으로 내려온다.
+        ///
+        /// 훑는 방법은 <b>가로·세로 각 5칸의 격자 + 중심</b>이다. 한 점이라도 밝혀져 있으면 발견이다.
+        /// ⚠ 촘촘히 훑을 필요가 없다 — 안개 칸이 타일 단위이고 에픽 몸집이 7타일이 넘으므로
+        ///   5x5 면 <b>칸을 건너뛰지 않는다</b>. 이 함수는 <c>rescanInterval</c> 주기로만 돈다.
+        /// </summary>
+        bool AnyPartExplored(NeutralMonsterUnit n)
+        {
+            if (_fog == null) return true;
+
+            Vector3 c = n.transform.position;
+            if (_fog.IsExploredWorld(c)) return true;      // 대개 여기서 끝난다
+
+            // ── 「신체」의 월드 범위 ────────────────────────────────────
+            Vector2 half;
+            var sr = n.GetComponentInChildren<SpriteRenderer>();
+            if (sr != null && sr.sprite != null)
+            {
+                Bounds b = sr.bounds;
+                c = b.center;                               // ★ 그림의 가운데 (피벗이 아니다)
+                half = new Vector2(b.extents.x, b.extents.y);
+            }
+            else
+            {
+                float r = n.BodyRadiusTiles;
+                if (r <= 0.01f) return false;               // 크기를 모르면 중심점 판정 그대로
+                half = new Vector2(r, r);
+            }
+
+            if (half.x < 0.01f || half.y < 0.01f) return false;
+
+            const int Steps = 5;                            // 5 x 5 격자
+            for (int iy = 0; iy < Steps; iy++)
+            {
+                float ty = Steps == 1 ? 0f : (iy / (float)(Steps - 1)) * 2f - 1f;   // -1 ~ +1
+                for (int ix = 0; ix < Steps; ix++)
+                {
+                    float tx = Steps == 1 ? 0f : (ix / (float)(Steps - 1)) * 2f - 1f;
+                    var p = new Vector3(c.x + tx * half.x, c.y + ty * half.y, c.z);
+                    if (_fog.IsExploredWorld(p)) return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>죽었거나 사라진 대상을 목록과 명령에서 지운다.</summary>

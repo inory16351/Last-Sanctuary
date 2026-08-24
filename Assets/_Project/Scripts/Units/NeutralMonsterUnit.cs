@@ -177,7 +177,11 @@ namespace LastSanctuary.Units
 
             // ★ 사냥 성장 — 같은 종을 잡을수록 다음 개체가 강해진다(2026-08-21).
             //   세는 곳은 아래 OnDeath · 수치는 <b>하이라키</b> GameSystems ▸ NeutralGrowthService.
-            GrowthMultiplier = def != null ? NeutralKillTally.MultiplierFor(def.monId) : 1f;
+            //   ★★ 2026-08-24 — <b>종별 성장 배율</b>(표 growth_per_kill)을 넘긴다(S6).
+            //     0 이면 예전처럼 씬의 전역 값으로 떨어진다.
+            GrowthMultiplier = def != null
+                ? NeutralKillTally.MultiplierFor(def.monId, def.growthPerKill)
+                : 1f;
 
             stats = def != null ? def.BuildStats(GrowthMultiplier, balance) : new StatBlock { hp = 1 };
             SetupHealth(balance);

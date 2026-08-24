@@ -49,3 +49,4 @@ MonoBehaviour:
   skinAssetName: TumorSpider
   habitatTileAsset: 
   hpPercent: 100
+  growthPerKill: 0.01

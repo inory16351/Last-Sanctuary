@@ -1054,6 +1054,9 @@ def sync_neutral_monsters():
             'maxEnergy': int(num(row.get('max_energy'))),
             'maxAlive': int(num(row.get('max_alive'))),
             'respawnSeconds': num(row.get('respawn_seconds')),
+            # ★★ growth_per_kill(2026-08-24 신설, S6) - 종별 사냥 성장 배율.
+            #   0 이면 씬 NeutralGrowthService 의 전역 값으로 떨어진다.
+            'growthPerKill': num(row.get('growth_per_kill'), 0),
 
             # ★ 공격 유형이 표에서 온다(2026-08-15). 예전에는 스포너가 근거리로 못박아
             #   `atk_type: ranged` 인 1002 도 붙어서 싸웠다.
@@ -1146,7 +1149,7 @@ def sync_neutral_monsters():
                     changes[k] = v
 
         total += patch_fields(path, changes, asset,
-                              add_missing=('maxAlive', 'respawnSeconds',
+                              add_missing=('maxAlive', 'respawnSeconds', 'growthPerKill',
                                            'spawnRangeMinTiles', 'spawnRangeMaxTiles')
                                           + NEUTRAL_NEW_FIELDS)
         # ⚠ 2026-08-16 부터 등장 범위는 <b>정사각형</b>이다(유저 확정) — 표 값은 "한 변",
@@ -1289,6 +1292,9 @@ def sync_waves():
         # (단탈리온·말파스)이 되면서 "어느 보스인지" 를 표가 정해야 했다.
         out.append('    bossMonsterId: %d' % int(num(r.get('boss_monster_id'))))
         out.append('    statPercent: %d' % round(float(num(r.get('wave_mon_abil_per'))) * 100))
+        # ★★ wave_mon_atk_per(2026-08-24 신설) - 공격 계열 배율. 체력과 곡선을 따로 그린다.
+        #   표에 열이 없거나 비어 있으면 0 을 적는다 -> 스포너가 statPercent 로 폴백한다.
+        out.append('    attackPercent: %d' % round(float(num(r.get('wave_mon_atk_per'), 0)) * 100))
         out.append('    reinforceIntervalSeconds: %s' % ri)
         out.append('    reinforceCount: %s' % rc)
         # spawn_group_size - 2026-08-13 신설. 포탈 한 곳에서 한 번에 나오는 마리 수.

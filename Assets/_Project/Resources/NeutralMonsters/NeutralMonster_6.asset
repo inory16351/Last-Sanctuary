@@ -48,3 +48,4 @@ MonoBehaviour:
   criticalStat: 10
   resistanceStat: 50
   hpPercent: 100
+  growthPerKill: 0.01

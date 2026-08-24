@@ -16,12 +16,12 @@ MonoBehaviour:
   relicName: "비명을 삼킨 성대"
   grade: 3
   effectType: 11
-  value01: 2
+  value01: 5
   value02: 0
   effectType2: 9
-  value03: 4
+  value03: 10
   value04: 0
-  relicDesc: "공격 속도가 2, 명중률이 4 증가합니다."
+  relicDesc: "공격 속도가 5, 명중률이 10 증가합니다."
   relicFlavor: "지르던 것이 이제 안에서 운다. 그 울림에 맞춰 팔이 빨라진다."
   source: 3
   sourceId: 120004

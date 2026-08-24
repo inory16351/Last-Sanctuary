@@ -21,17 +21,17 @@ MonoBehaviour:
   illustName: 'illust_Sicaria'
   skinAssetName: 'Skin_Sicaria'
   stats:
-    hp: 3
-    attack: 2
-    defense: 1
-    regen: 1
-    rangedAttack: 9
-    magic: 1
-    cure: 1
+    hp: 5
+    attack: 3
+    defense: 2
+    regen: 2
+    rangedAttack: 12
+    magic: 2
+    cure: 2
     accuracy: 6
     critical: 7
-    attackSpeed: 7
-    moveSpeed: 6
+    attackSpeed: 11
+    moveSpeed: 10
     resistance: 34
   attackPreset: 0
   positionPreset: 0

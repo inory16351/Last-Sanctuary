@@ -19,9 +19,9 @@ MonoBehaviour:
   value01: 6
   value02: 0
   effectType2: 2
-  value03: 2
+  value03: 5
   value04: 0
-  relicDesc: "적을 처치할 때마다 최대 체력의 6% 를 회복하고, 근거리 공격력이 2 증가합니다."
+  relicDesc: "적을 처치할 때마다 최대 체력의 6% 를 회복하고, 근거리 공격력이 5 증가합니다."
   relicFlavor: "속으로 난 이빨. 삼킨 뒤에야 씹기 시작한다."
   source: 3
   sourceId: 1102

@@ -16,12 +16,12 @@ MonoBehaviour:
   relicName: "각성한 수지상세포"
   grade: 2
   effectType: 9
-  value01: 2
+  value01: 4
   value02: 0
   effectType2: 10
-  value03: 2
+  value03: 4
   value04: 0
-  relicDesc: "명중률이 2, 크리티컬 확률이 2 증가합니다."
+  relicDesc: "명중률이 4, 크리티컬 확률이 4 증가합니다."
   relicFlavor: "붙잡은 조각을 들고 다니며 보여 준다. 이제 모두가 그 얼굴을 안다."
   source: 1
   sourceId: 0

@@ -18,11 +18,11 @@ MonoBehaviour:
   titleKey: boss_title_120005
   tier: 2
   template: {fileID: 0}
-  hpStat: 174
-  attackStat: 18
+  hpStat: 314
+  attackStat: 4
   defenseStat: 35
   regenStat: 5
-  rangedAttackStat: 15
+  rangedAttackStat: 3
   magicStat: 0
   cureStat: 0
   accuracyStat: 50

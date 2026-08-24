@@ -22,7 +22,7 @@ MonoBehaviour:
   skinAssetName: 'Skin_Histon'
   stats:
     hp: 8
-    attack: 9
+    attack: 10
     defense: 5
     regen: 3
     rangedAttack: 5

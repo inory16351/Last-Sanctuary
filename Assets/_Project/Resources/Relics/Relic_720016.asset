@@ -16,12 +16,12 @@ MonoBehaviour:
   relicName: "세 겹의 방벽"
   grade: 3
   effectType: 5
-  value01: 3
+  value01: 8
   value02: 0
   effectType2: 1
-  value03: 2
+  value03: 5
   value04: 0
-  relicDesc: "방어력이 3, 체력이 2 증가합니다."
+  relicDesc: "방어력이 8, 체력이 5 증가합니다."
   relicFlavor: "피부와 점막과 그 아래. 무너져도 뒤에 한 겹이 더 있다는 것이 이 몸의 설계다."
   source: 2
   sourceId: 0

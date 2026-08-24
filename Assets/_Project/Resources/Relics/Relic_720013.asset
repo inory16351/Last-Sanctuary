@@ -16,12 +16,12 @@ MonoBehaviour:
   relicName: "심장에 박힌 가시"
   grade: 3
   effectType: 41
-  value01: 1
+  value01: 2
   value02: 5
   effectType2: 0
   value03: 0
   value04: 0
-  relicDesc: "적을 처치할 때마다 근거리 공격력이 1 씩 오릅니다(최대 5회)."
+  relicDesc: "적을 처치할 때마다 근거리 공격력이 2 씩 오릅니다(최대 5회)."
   relicFlavor: "빼내면 죽는다기에 그냥 두었다. 그 뒤로 심장은 더 세게 뛴다."
   source: 2
   sourceId: 0

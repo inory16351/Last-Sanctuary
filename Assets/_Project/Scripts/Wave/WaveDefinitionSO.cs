@@ -26,6 +26,20 @@ namespace LastSanctuary.Wave
         [Tooltip("이 웨이브의 몬스터 능력치 배율(%, 정수). 표의 wave_mon_abil_per(0.6~2.63) × 100")]
         [Min(0)] public int statPercent;
 
+        [Tooltip("★★ 이 웨이브의 몬스터 <b>공격 계열</b> 배율(%, 정수). " +
+                 "표 `웨이브테이블.xlsx` Sheet2 의 `wave_mon_atk_per` x 100 (2026-08-24 신설). " +
+                 "<b>왜 열을 갈랐나</b> — 예전에는 스포너가 hpScale = atkScale = statPercent 로 " +
+                 "<b>같은 값을 둘에 넣었다</b>. 그런데 몬스터 공격력에는 상한이 있고 " +
+                 "(BalanceConfigSO.monsterAttackStatMax 40 · 보스 190) 체력에는 없다. " +
+                 "그래서 배율이 커지면 <b>공격은 상한에 붙어 얼어붙고 체력만 계속 붇는</b> " +
+                 "구간이 생겼다 — 잡몹은 13웨이브, 보스는 20웨이브부터 「한 대」가 한 톨도 " +
+                 "안 변했다(진행상황 135절 진단 5·6번). " +
+                 "이제 두 곡선을 따로 그린다. 공격 배율은 <b>「한 대 = 캐릭터 최대 체력의 7%」</b> 를 " +
+                 "게임 전체에서 유지하도록 역산한 값이라, 상한에 닿지 않으면서도 웨이브마다 " +
+                 "조금씩 오른다(30웨이브에서 정확히 상한 직전). " +
+                 "⚠ <b>0 이면 statPercent 를 쓴다</b> — 이 열이 없던 옛 에셋이 예전과 똑같이 동작한다")]
+        [Min(0)] public int attackPercent;
+
         [Tooltip("전투 중 증원이 오는 간격(초). 표에 없던 값 — \"광폭화가 거의 안 걸린다\" 는 " +
                  "피드백으로 새로 추가했다. meleeCount+rangedCount+bossCount(기본 마리 수)의 20%를 " +
                  "ceil 해서 증원 수로, 28-웨이브번호를 15~28 사이로 clamp 해서 간격으로 임의 계산했다 " +

@@ -21,17 +21,17 @@ MonoBehaviour:
   illustName: 'illust_Aru'
   skinAssetName: 'Skin_Aru'
   stats:
-    hp: 2
-    attack: 1
-    defense: 3
-    regen: 4
-    rangedAttack: 4
-    magic: 7
-    cure: 6
+    hp: 3
+    attack: 2
+    defense: 5
+    regen: 7
+    rangedAttack: 7
+    magic: 12
+    cure: 10
     accuracy: 5
     critical: 3
-    attackSpeed: 3
-    moveSpeed: 1
+    attackSpeed: 5
+    moveSpeed: 2
     resistance: 41
   attackPreset: 0
   positionPreset: 0

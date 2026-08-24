@@ -18,7 +18,8 @@ MonoBehaviour:
     rangedCount: 4
     bossCount: 0
     bossMonsterId: 0
-    statPercent: 55
+    statPercent: 193
+    attackPercent: 62
     reinforceIntervalSeconds: 0
     reinforceCount: 0
     spawnGroupSize: 2
@@ -27,7 +28,8 @@ MonoBehaviour:
     rangedCount: 5
     bossCount: 0
     bossMonsterId: 0
-    statPercent: 75
+    statPercent: 292
+    attackPercent: 100
     reinforceIntervalSeconds: 0
     reinforceCount: 0
     spawnGroupSize: 2
@@ -36,7 +38,8 @@ MonoBehaviour:
     rangedCount: 7
     bossCount: 0
     bossMonsterId: 0
-    statPercent: 105
+    statPercent: 307
+    attackPercent: 120
     reinforceIntervalSeconds: 0
     reinforceCount: 0
     spawnGroupSize: 3
@@ -45,331 +48,368 @@ MonoBehaviour:
     rangedCount: 8
     bossCount: 0
     bossMonsterId: 0
-    statPercent: 145
+    statPercent: 392
+    attackPercent: 142
     reinforceIntervalSeconds: 0
     reinforceCount: 0
     spawnGroupSize: 3
   - waveNumber: 5
-    meleeCount: 10
-    rangedCount: 10
+    meleeCount: 6
+    rangedCount: 6
     bossCount: 1
     bossMonsterId: 120001
-    statPercent: 210
+    statPercent: 392
+    attackPercent: 164
     reinforceIntervalSeconds: 0
     reinforceCount: 0
-    spawnGroupSize: 4
+    spawnGroupSize: 3
   - waveNumber: 6
-    meleeCount: 11
-    rangedCount: 11
+    meleeCount: 12
+    rangedCount: 12
     bossCount: 0
     bossMonsterId: 0
-    statPercent: 260
+    statPercent: 442
+    attackPercent: 164
     reinforceIntervalSeconds: 0
     reinforceCount: 0
     spawnGroupSize: 4
   - waveNumber: 7
-    meleeCount: 13
-    rangedCount: 13
-    bossCount: 0
-    bossMonsterId: 0
-    statPercent: 320
-    reinforceIntervalSeconds: 0
-    reinforceCount: 0
-    spawnGroupSize: 5
-  - waveNumber: 8
-    meleeCount: 14
-    rangedCount: 14
-    bossCount: 0
-    bossMonsterId: 0
-    statPercent: 390
-    reinforceIntervalSeconds: 0
-    reinforceCount: 0
-    spawnGroupSize: 5
-  - waveNumber: 9
     meleeCount: 15
     rangedCount: 15
     bossCount: 0
     bossMonsterId: 0
-    statPercent: 470
+    statPercent: 475
+    attackPercent: 187
     reinforceIntervalSeconds: 0
     reinforceCount: 0
-    spawnGroupSize: 6
-  - waveNumber: 10
+    spawnGroupSize: 4
+  - waveNumber: 8
+    meleeCount: 16
+    rangedCount: 16
+    bossCount: 0
+    bossMonsterId: 0
+    statPercent: 564
+    attackPercent: 236
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
+    spawnGroupSize: 4
+  - waveNumber: 9
     meleeCount: 17
     rangedCount: 17
+    bossCount: 0
+    bossMonsterId: 0
+    statPercent: 664
+    attackPercent: 262
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
+    spawnGroupSize: 5
+  - waveNumber: 10
+    meleeCount: 12
+    rangedCount: 12
     bossCount: 1
     bossMonsterId: 120002
-    statPercent: 600
+    statPercent: 664
+    attackPercent: 289
     reinforceIntervalSeconds: 0
     reinforceCount: 0
-    spawnGroupSize: 6
+    spawnGroupSize: 5
   - waveNumber: 11
-    meleeCount: 18
-    rangedCount: 18
-    bossCount: 0
-    bossMonsterId: 0
-    statPercent: 660
-    reinforceIntervalSeconds: 0
-    reinforceCount: 0
-    spawnGroupSize: 6
-  - waveNumber: 12
-    meleeCount: 20
-    rangedCount: 20
-    bossCount: 0
-    bossMonsterId: 0
-    statPercent: 740
-    reinforceIntervalSeconds: 0
-    reinforceCount: 0
-    spawnGroupSize: 7
-  - waveNumber: 13
-    meleeCount: 21
-    rangedCount: 21
-    bossCount: 0
-    bossMonsterId: 0
-    statPercent: 830
-    reinforceIntervalSeconds: 0
-    reinforceCount: 0
-    spawnGroupSize: 7
-  - waveNumber: 14
     meleeCount: 22
     rangedCount: 22
     bossCount: 0
     bossMonsterId: 0
-    statPercent: 930
+    statPercent: 750
+    attackPercent: 289
     reinforceIntervalSeconds: 0
     reinforceCount: 0
-    spawnGroupSize: 7
-  - waveNumber: 15
-    meleeCount: 24
-    rangedCount: 24
-    bossCount: 1
-    bossMonsterId: 120003
-    statPercent: 1080
-    reinforceIntervalSeconds: 0
-    reinforceCount: 0
-    spawnGroupSize: 8
-  - waveNumber: 16
+    spawnGroupSize: 5
+  - waveNumber: 12
     meleeCount: 25
     rangedCount: 25
     bossCount: 0
     bossMonsterId: 0
-    statPercent: 1180
+    statPercent: 793
+    attackPercent: 289
     reinforceIntervalSeconds: 0
     reinforceCount: 0
-    spawnGroupSize: 8
-  - waveNumber: 17
-    meleeCount: 27
-    rangedCount: 27
+    spawnGroupSize: 6
+  - waveNumber: 13
+    meleeCount: 26
+    rangedCount: 26
     bossCount: 0
     bossMonsterId: 0
-    statPercent: 1300
+    statPercent: 979
+    attackPercent: 289
     reinforceIntervalSeconds: 0
     reinforceCount: 0
-    spawnGroupSize: 8
-  - waveNumber: 18
+    spawnGroupSize: 6
+  - waveNumber: 14
     meleeCount: 28
     rangedCount: 28
     bossCount: 0
     bossMonsterId: 0
-    statPercent: 1440
+    statPercent: 1092
+    attackPercent: 289
     reinforceIntervalSeconds: 0
     reinforceCount: 0
-    spawnGroupSize: 9
-  - waveNumber: 19
-    meleeCount: 30
-    rangedCount: 30
-    bossCount: 0
-    bossMonsterId: 0
-    statPercent: 1600
-    reinforceIntervalSeconds: 0
-    reinforceCount: 0
-    spawnGroupSize: 9
-  - waveNumber: 20
-    meleeCount: 31
-    rangedCount: 31
+    spawnGroupSize: 6
+  - waveNumber: 15
+    meleeCount: 18
+    rangedCount: 18
     bossCount: 1
-    bossMonsterId: 120004
-    statPercent: 1850
+    bossMonsterId: 120003
+    statPercent: 1092
+    attackPercent: 345
     reinforceIntervalSeconds: 0
     reinforceCount: 0
-    spawnGroupSize: 9
-  - waveNumber: 21
-    meleeCount: 32
-    rangedCount: 32
-    bossCount: 0
-    bossMonsterId: 0
-    statPercent: 1940
-    reinforceIntervalSeconds: 0
-    reinforceCount: 0
-    spawnGroupSize: 10
-  - waveNumber: 22
+    spawnGroupSize: 7
+  - waveNumber: 16
     meleeCount: 33
     rangedCount: 33
     bossCount: 0
     bossMonsterId: 0
-    statPercent: 2020
+    statPercent: 1307
+    attackPercent: 375
     reinforceIntervalSeconds: 0
     reinforceCount: 0
-    spawnGroupSize: 10
-  - waveNumber: 23
-    meleeCount: 34
-    rangedCount: 34
-    bossCount: 0
-    bossMonsterId: 0
-    statPercent: 2100
-    reinforceIntervalSeconds: 0
-    reinforceCount: 0
-    spawnGroupSize: 10
-  - waveNumber: 24
-    meleeCount: 35
-    rangedCount: 35
-    bossCount: 0
-    bossMonsterId: 0
-    statPercent: 2180
-    reinforceIntervalSeconds: 0
-    reinforceCount: 0
-    spawnGroupSize: 10
-  - waveNumber: 25
+    spawnGroupSize: 7
+  - waveNumber: 17
     meleeCount: 36
     rangedCount: 36
-    bossCount: 1
-    bossMonsterId: 120005
-    statPercent: 2260
-    reinforceIntervalSeconds: 0
-    reinforceCount: 0
-    spawnGroupSize: 11
-  - waveNumber: 26
-    meleeCount: 37
-    rangedCount: 37
     bossCount: 0
     bossMonsterId: 0
-    statPercent: 2320
+    statPercent: 1421
+    attackPercent: 437
     reinforceIntervalSeconds: 0
     reinforceCount: 0
-    spawnGroupSize: 11
-  - waveNumber: 27
+    spawnGroupSize: 7
+  - waveNumber: 18
     meleeCount: 38
     rangedCount: 38
     bossCount: 0
     bossMonsterId: 0
-    statPercent: 2380
+    statPercent: 1550
+    attackPercent: 470
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
+    spawnGroupSize: 8
+  - waveNumber: 19
+    meleeCount: 41
+    rangedCount: 41
+    bossCount: 0
+    bossMonsterId: 0
+    statPercent: 1636
+    attackPercent: 537
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
+    spawnGroupSize: 8
+  - waveNumber: 20
+    meleeCount: 26
+    rangedCount: 26
+    bossCount: 1
+    bossMonsterId: 120004
+    statPercent: 1636
+    attackPercent: 572
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
+    spawnGroupSize: 8
+  - waveNumber: 21
+    meleeCount: 45
+    rangedCount: 45
+    bossCount: 0
+    bossMonsterId: 0
+    statPercent: 1907
+    attackPercent: 572
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
+    spawnGroupSize: 9
+  - waveNumber: 22
+    meleeCount: 47
+    rangedCount: 47
+    bossCount: 0
+    bossMonsterId: 0
+    statPercent: 2164
+    attackPercent: 572
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
+    spawnGroupSize: 9
+  - waveNumber: 23
+    meleeCount: 49
+    rangedCount: 49
+    bossCount: 0
+    bossMonsterId: 0
+    statPercent: 2425
+    attackPercent: 572
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
+    spawnGroupSize: 9
+  - waveNumber: 24
+    meleeCount: 52
+    rangedCount: 52
+    bossCount: 0
+    bossMonsterId: 0
+    statPercent: 2592
+    attackPercent: 608
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
+    spawnGroupSize: 10
+  - waveNumber: 25
+    meleeCount: 32
+    rangedCount: 32
+    bossCount: 1
+    bossMonsterId: 120005
+    statPercent: 2592
+    attackPercent: 645
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
+    spawnGroupSize: 10
+  - waveNumber: 26
+    meleeCount: 56
+    rangedCount: 56
+    bossCount: 0
+    bossMonsterId: 0
+    statPercent: 3058
+    attackPercent: 722
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
+    spawnGroupSize: 10
+  - waveNumber: 27
+    meleeCount: 58
+    rangedCount: 58
+    bossCount: 0
+    bossMonsterId: 0
+    statPercent: 3307
+    attackPercent: 802
     reinforceIntervalSeconds: 0
     reinforceCount: 0
     spawnGroupSize: 11
   - waveNumber: 28
-    meleeCount: 39
-    rangedCount: 39
+    meleeCount: 61
+    rangedCount: 61
     bossCount: 0
     bossMonsterId: 0
-    statPercent: 2440
+    statPercent: 3492
+    attackPercent: 886
     reinforceIntervalSeconds: 0
     reinforceCount: 0
     spawnGroupSize: 11
   - waveNumber: 29
-    meleeCount: 40
-    rangedCount: 40
+    meleeCount: 63
+    rangedCount: 63
     bossCount: 0
     bossMonsterId: 0
-    statPercent: 2500
+    statPercent: 3721
+    attackPercent: 930
     reinforceIntervalSeconds: 0
     reinforceCount: 0
-    spawnGroupSize: 12
+    spawnGroupSize: 11
   - waveNumber: 30
-    meleeCount: 41
-    rangedCount: 41
+    meleeCount: 38
+    rangedCount: 38
     bossCount: 1
     bossMonsterId: 120006
-    statPercent: 2560
+    statPercent: 3721
+    attackPercent: 1000
     reinforceIntervalSeconds: 0
     reinforceCount: 0
     spawnGroupSize: 12
   - waveNumber: 31
-    meleeCount: 42
-    rangedCount: 42
+    meleeCount: 40
+    rangedCount: 40
     bossCount: 0
     bossMonsterId: 0
-    statPercent: 2610
+    statPercent: 3907
+    attackPercent: 1000
     reinforceIntervalSeconds: 0
     reinforceCount: 0
     spawnGroupSize: 12
   - waveNumber: 32
-    meleeCount: 43
-    rangedCount: 43
+    meleeCount: 42
+    rangedCount: 42
     bossCount: 0
     bossMonsterId: 0
-    statPercent: 2660
+    statPercent: 4102
+    attackPercent: 1000
     reinforceIntervalSeconds: 0
     reinforceCount: 0
-    spawnGroupSize: 12
+    spawnGroupSize: 13
   - waveNumber: 33
     meleeCount: 44
     rangedCount: 44
     bossCount: 0
     bossMonsterId: 0
-    statPercent: 2710
+    statPercent: 4308
+    attackPercent: 1000
     reinforceIntervalSeconds: 0
     reinforceCount: 0
     spawnGroupSize: 13
   - waveNumber: 34
-    meleeCount: 45
-    rangedCount: 45
+    meleeCount: 46
+    rangedCount: 46
     bossCount: 0
     bossMonsterId: 0
-    statPercent: 2760
+    statPercent: 4523
+    attackPercent: 1000
     reinforceIntervalSeconds: 0
     reinforceCount: 0
     spawnGroupSize: 13
   - waveNumber: 35
-    meleeCount: 46
-    rangedCount: 46
-    bossCount: 1
-    bossMonsterId: 120002
-    statPercent: 2810
-    reinforceIntervalSeconds: 0
-    reinforceCount: 0
-    spawnGroupSize: 13
-  - waveNumber: 36
-    meleeCount: 47
-    rangedCount: 47
-    bossCount: 0
-    bossMonsterId: 0
-    statPercent: 2850
-    reinforceIntervalSeconds: 0
-    reinforceCount: 0
-    spawnGroupSize: 13
-  - waveNumber: 37
     meleeCount: 48
     rangedCount: 48
-    bossCount: 0
-    bossMonsterId: 0
-    statPercent: 2890
+    bossCount: 1
+    bossMonsterId: 120002
+    statPercent: 4749
+    attackPercent: 1000
     reinforceIntervalSeconds: 0
     reinforceCount: 0
     spawnGroupSize: 14
-  - waveNumber: 38
-    meleeCount: 49
-    rangedCount: 49
-    bossCount: 0
-    bossMonsterId: 0
-    statPercent: 2930
-    reinforceIntervalSeconds: 0
-    reinforceCount: 0
-    spawnGroupSize: 14
-  - waveNumber: 39
+  - waveNumber: 36
     meleeCount: 50
     rangedCount: 50
     bossCount: 0
     bossMonsterId: 0
-    statPercent: 2970
+    statPercent: 4986
+    attackPercent: 1000
     reinforceIntervalSeconds: 0
     reinforceCount: 0
     spawnGroupSize: 14
+  - waveNumber: 37
+    meleeCount: 52
+    rangedCount: 52
+    bossCount: 0
+    bossMonsterId: 0
+    statPercent: 5236
+    attackPercent: 1000
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
+    spawnGroupSize: 14
+  - waveNumber: 38
+    meleeCount: 54
+    rangedCount: 54
+    bossCount: 0
+    bossMonsterId: 0
+    statPercent: 5498
+    attackPercent: 1000
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
+    spawnGroupSize: 15
+  - waveNumber: 39
+    meleeCount: 56
+    rangedCount: 56
+    bossCount: 0
+    bossMonsterId: 0
+    statPercent: 5772
+    attackPercent: 1000
+    reinforceIntervalSeconds: 0
+    reinforceCount: 0
+    spawnGroupSize: 15
   - waveNumber: 40
-    meleeCount: 51
-    rangedCount: 51
+    meleeCount: 58
+    rangedCount: 58
     bossCount: 1
     bossMonsterId: 120003
-    statPercent: 3000
+    statPercent: 6061
+    attackPercent: 1000
     reinforceIntervalSeconds: 0
     reinforceCount: 0
-    spawnGroupSize: 14
+    spawnGroupSize: 15

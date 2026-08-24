@@ -19,9 +19,9 @@ MonoBehaviour:
   value01: 25
   value02: 0
   effectType2: 5
-  value03: 3
+  value03: 8
   value04: 0
-  relicDesc: "받은 근접 피해의 25% 를 되돌리고, 방어력이 3 증가합니다."
+  relicDesc: "받은 근접 피해의 25% 를 되돌리고, 방어력이 8 증가합니다."
   relicFlavor: "묶는 자를 묶어 얻은 것. 이제는 붙잡는 손이 먼저 뜯긴다."
   source: 3
   sourceId: 120002

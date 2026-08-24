@@ -95,6 +95,21 @@ namespace LastSanctuary.Units
                  "0 이면 씬 스포너의 Restock Interval 로 떨어진다")]
         [Min(0f)] public float respawnSeconds;
 
+        [Tooltip("★★ <b>이 종을 한 마리 잡을 때마다 다음 개체에 더해지는 배율</b> " +
+                 "(표 `임시용 중립 몬스터.xlsx` 의 `growth_per_kill`, 2026-08-24 신설). " +
+                 "<b>왜 종별로 두는가</b> — 밸런스 기획서가 에픽마다 <b>다른</b> 성장을 요구한다: " +
+                 "«카르시노스는 재생성될 때마다 +1레벨 · 아니사킬 +1~2 · 바리올라 +2~3 · " +
+                 "폴리르 +4~5». 그런데 NeutralGrowthService 는 씬에 하나뿐이고 " +
+                 "(killsPerStep 10 · stepMultiplier 0.1) <b>종을 구분하지 않는다</b> — " +
+                 "잡몹 중립과 에픽에 같은 배율이 걸린다. 게다가 에픽은 maxAlive 1 · " +
+                 "respawnSeconds 600~800초라 한 판(9,000초) 동안 열 마리 남짓만 나오고, " +
+                 "그 전체를 다 잡아도 «10마리당 +0.1» 로는 x1.1~1.5 에 그친다. " +
+                 "★ 이 값은 <b>한 마리당</b>이다 — 0.01 이면 «10마리당 +0.1» 로 " +
+                 "서비스의 기본값과 정확히 같다(잡몹 중립이 그 값이다). " +
+                 "⚠ <b>0 이면 서비스의 전역 값을 쓴다</b> — 이 열이 없던 옛 에셋이 예전과 " +
+                 "똑같이 동작한다")]
+        [Min(0f)] public float growthPerKill;
+
         [Header("능력치 1~100 (테이블 first_Stat 시트)")]
         [Tooltip("웨이브 몬스터와 같은 BalanceConfigSO 치환 공식을 그대로 쓴다.\n" +
                  "★ 2026-08-13 부터 `임시용 중립 몬스터.xlsx` 의 <b>first_Stat 시트</b>가 정본이다 — " +

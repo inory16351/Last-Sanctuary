@@ -16,12 +16,12 @@ MonoBehaviour:
   relicName: "영원한 숙적의 눈"
   grade: 3
   effectType: 10
-  value01: 4
+  value01: 10
   value02: 0
   effectType2: 9
-  value03: 4
+  value03: 10
   value04: 0
-  relicDesc: "크리티컬 확률이 4, 명중률이 4 증가합니다."
+  relicDesc: "크리티컬 확률이 10, 명중률이 10 증가합니다."
   relicFlavor: "끝내 감기지 않은 눈. 보고 있으면 어디가 무른지 알게 된다."
   source: 3
   sourceId: 1104

@@ -19,9 +19,9 @@ MonoBehaviour:
   value01: 12
   value02: 0
   effectType2: 1
-  value03: 2
+  value03: 5
   value04: 0
-  relicDesc: "입힌 피해의 12% 를 회복하고, 체력이 2 증가합니다."
+  relicDesc: "입힌 피해의 12% 를 회복하고, 체력이 5 증가합니다."
   relicFlavor: "피 냄새로 불러 모으던 것. 이제는 그 냄새가 제 상처를 아물게 한다."
   source: 3
   sourceId: 120003

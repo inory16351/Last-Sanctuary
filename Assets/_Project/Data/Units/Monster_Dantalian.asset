@@ -16,8 +16,8 @@ MonoBehaviour:
   displayName: 암세포 군주
   tier: 2
   template: {fileID: 0}
-  hpStat: 174
-  attackStat: 8
+  hpStat: 176
+  attackStat: 7
   defenseStat: 35
   regenStat: 2
   hpPercent: 100

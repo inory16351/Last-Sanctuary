@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier:
   outcomes:
   - outcomeType: "dig_energy"
-    weight: 26
+    weight: 29
     value01: 120
     value02: 0
     outcomeDesc: "에너지를 {value_01} 얻습니다."
@@ -62,13 +62,13 @@ MonoBehaviour:
     outcomeDesc: "일반 등급 유물 하나를 얻습니다."
     outcomeScript: "몸이 스스로 만들어 굳힌 흔적이 나왔습니다."
   - outcomeType: "dig_relic_rare"
-    weight: 6
+    weight: 4
     value01: 0
     value02: 0
     outcomeDesc: "레어 등급 유물 하나를 얻습니다."
     outcomeScript: "겨냥해 만들어진 것이 온전한 모양으로 남아 있었습니다."
   - outcomeType: "dig_relic_epic"
-    weight: 2
+    weight: 1
     value01: 0
     value02: 0
     outcomeDesc: "에픽 등급 <b>발굴 전용</b> 유물 하나를 얻습니다."
@@ -79,16 +79,16 @@ MonoBehaviour:
     percent: 1.2
   - killSource: "wave_normal"
     grade: 2
-    percent: 0.3
+    percent: 0.2
   - killSource: "neutral_normal"
     grade: 1
     percent: 1.2
   - killSource: "neutral_normal"
     grade: 2
-    percent: 0.3
+    percent: 0.2
   - killSource: "neutral_epic"
     grade: 3
-    percent: 20
+    percent: 12
   - killSource: "wave_boss"
     grade: 3
-    percent: 35
+    percent: 25

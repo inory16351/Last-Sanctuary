@@ -52,15 +52,42 @@ namespace LastSanctuary.Units
         /// <c>배율 = 1 + 한 단계값 × (처치 수 ÷ 단계당 마리 수)</c> — 정수 나눗셈이라
         /// «9마리까지는 그대로, 10마리째부터 +0.1» 이 된다(유저가 말한 «10마리당»).
         /// </summary>
-        public static float MultiplierFor(int monId)
+        public static float MultiplierFor(int monId) => MultiplierFor(monId, 0f);
+
+        /// <summary>
+        /// ★★ <b>종별 성장 배율</b> (2026-08-24 · S6).
+        ///
+        /// <paramref name="perKill"/> 이 0 보다 크면 <b>그 값이 이긴다</b> —
+        /// «한 마리당 이만큼» 이라는 뜻이고, 씬의
+        /// <see cref="NeutralGrowthService.KillsPerStep"/>·<c>StepMultiplier</c> 를 건너뛴다.
+        ///
+        /// <b>왜 필요했나</b> — 밸런스 기획서가 에픽마다 다른 성장을 요구하는데
+        /// (카르시노스 +1레벨/회 … 폴리르 +4~5레벨/회) 서비스는 씬에 하나뿐이라
+        /// <b>종을 구분할 수 없었다</b>. 에픽은 <c>maxAlive</c> 1 이라 «10마리당» 이라는
+        /// 단위 자체가 맞지 않는다 — 한 판에 열 마리 남짓만 나온다.
+        ///
+        /// ⚠ 0 이면 예전 그대로 전역 값으로 떨어진다(잡몹 중립은 표에 0.01 = 같은 값).
+        /// ⚠ 상한(<see cref="NeutralGrowthService.MaxMultiplier"/>)은 <b>둘 다</b>에 걸린다 —
+        ///   «무제한이 기본» 이라는 규약을 종별 값이 몰래 깨지 않게.
+        /// </summary>
+        public static float MultiplierFor(int monId, float perKill)
         {
             NeutralGrowthService cfg = NeutralGrowthService.Instance;
             if (cfg == null || !cfg.GrowthEnabled) return 1f;
 
-            int steps = KillsOf(monId) / cfg.KillsPerStep;
-            if (steps <= 0) return 1f;
-
-            float mul = 1f + cfg.StepMultiplier * steps;
+            float mul;
+            if (perKill > 0f)
+            {
+                int kills = KillsOf(monId);
+                if (kills <= 0) return 1f;
+                mul = 1f + perKill * kills;
+            }
+            else
+            {
+                int steps = KillsOf(monId) / cfg.KillsPerStep;
+                if (steps <= 0) return 1f;
+                mul = 1f + cfg.StepMultiplier * steps;
+            }
 
             // 0 = 무제한 (몬스터 능력치 상한 칸들과 같은 규약)
             float cap = cfg.MaxMultiplier;

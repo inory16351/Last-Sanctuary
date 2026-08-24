@@ -16,12 +16,12 @@ MonoBehaviour:
   relicName: "형상을 잊은 핵"
   grade: 3
   effectType: 1
-  value01: 2
+  value01: 5
   value02: 0
   effectType2: 7
-  value03: 2
+  value03: 5
   value04: 0
-  relicDesc: "체력이 2, 체력 재생이 2 증가합니다."
+  relicDesc: "체력이 5, 체력 재생이 5 증가합니다."
   relicFlavor: "무엇이든 될 수 있었던 것의 가운데. 아직도 무엇이 되려는 듯 미약하게 뛴다."
   source: 3
   sourceId: 120001

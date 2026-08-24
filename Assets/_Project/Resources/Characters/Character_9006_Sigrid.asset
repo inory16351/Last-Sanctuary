@@ -25,13 +25,13 @@ MonoBehaviour:
     attack: 6
     defense: 2
     regen: 4
-    rangedAttack: 8
+    rangedAttack: 9
     magic: 5
     cure: 2
     accuracy: 4
     critical: 4
     attackSpeed: 6
-    moveSpeed: 7
+    moveSpeed: 8
     resistance: 76
   attackPreset: 1
   positionPreset: 0

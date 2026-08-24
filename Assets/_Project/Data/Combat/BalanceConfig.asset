@@ -16,7 +16,7 @@ MonoBehaviour:
   statMax: 100
   monsterHpStatMax: 0
   monsterAttackStatMax: 40
-  bossAttackStatMax: 150
+  bossAttackStatMax: 190
   initialStatMin: 1
   initialStatMax: 10
   hpBase: 40
