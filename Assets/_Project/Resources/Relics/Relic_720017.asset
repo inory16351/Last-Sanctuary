@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8d79840638937e4796aeac340e7fbdd, type: 3}
+  m_Name: Relic_720017
+  m_EditorClassIdentifier:
+  relicId: 720017
+  relicName: "값이 붙지 않은 은혜"
+  grade: 3
+  effectType: 24
+  value01: 8
+  value02: 35
+  effectType2: 7
+  value03: 5
+  value04: 0
+  relicDesc: "체력이 35% 이하일 때 방어력이 8 증가하고, 체력 재생이 5 증가합니다."
+  relicFlavor: "왜 감쌌는지 끝내 알려주지 않았다. 값이 뒤에 붙지 않은 호의는 이것 하나뿐이었다."
+  source: 4
+  sourceId: 205020
+  dropWeight: 0
+  iconKey: "relic_grace"
+  icon: {fileID: 21300000, guid: 1bfba6b862d05ee352148458a8769d83, type: 3}

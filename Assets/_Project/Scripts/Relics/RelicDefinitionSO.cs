@@ -41,6 +41,21 @@ namespace LastSanctuary.Relics
         /// (웨이브 보스 120001~120006 · 에픽 중립 1101~1104).
         /// </summary>
         Boss = 3,
+
+        /// <summary>
+        /// ★★ <c>event</c> — <b>사건 보상으로만</b> 나온다 (2026-08-24 신설 · 유저 지시:
+        /// *"이벤트 보상용 전용 에픽 유물 3개만 추가해 … 예상치못한 획득의 재미를 느낄 수 있게"*).
+        ///
+        /// <b>발굴·처치·보스 어디에서도 안 나온다.</b> 사건의 선택지가
+        /// <c>relic_gain</c> 보상으로 <b>ID 를 지목해</b> 주는 것이 유일한 통로다
+        /// (<c>EventRewardService</c>). <see cref="RelicDefinitionSO.sourceId"/> 에는
+        /// 그 사건의 <c>event_id</c> 를 적어 «어느 사건이 주는가» 를 표에서 읽을 수 있게 했다.
+        ///
+        /// ⚠ <see cref="RelicRegistry"/> 의 뽑기 풀에 <b>들어가서는 안 된다</b> —
+        ///   그쪽 <c>switch</c> 의 <c>default</c> 가 «일반 풀» 이라, 가지를 안 만들면
+        ///   조용히 발굴·처치에서 튀어나온다(그래서 거기에 명시적으로 가지를 뒀다).
+        /// </summary>
+        Event = 4,
     }
 
     /// <summary>

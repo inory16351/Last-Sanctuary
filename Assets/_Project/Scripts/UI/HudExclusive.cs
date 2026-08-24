@@ -124,6 +124,64 @@ namespace LastSanctuary.UI
             return closed;
         }
 
+        /// <summary>
+        /// ★ <b>지금 열려 있는 배타 창이 있는가</b> (2026-08-24 · <see cref="Help.HelpService"/>).
+        ///
+        /// <b>왜 필요한가</b> — 조언 카드는 «그 상황이 처음 왔을 때» 저절로 뜬다. 그런데 사건 창이나
+        /// 성장 창이 열려 있는 위에 덮이면 <b>그 창의 선택지가 안 보인다</b>. 카드는 창이 닫힐 때까지
+        /// 대기줄에서 기다려야 하고, 그 판단에 필요한 것이 이 한 줄이다.
+        ///
+        /// ★ <see cref="CloseOpenPanel"/> 과 목록을 <b>공유</b>한다 — 창이 새로 생겨도
+        ///   <see cref="IExclusiveHudPanel"/> 만 구현하면 저절로 셈에 들어온다.
+        /// </summary>
+        public static bool AnyOpen()
+        {
+            EnsureScanned();
+
+            for (int i = 0; i < _panels.Count; i++)
+            {
+                IExclusiveHudPanel p = _panels[i];
+                if (p == null) continue;
+                if (p is Object o && o == null) continue;
+                if (p.IsOpen) return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// ★★★ <b>창 하나를 이름으로 열거나 닫는다</b> (2026-08-24 · 도움말 안내가 쓴다).
+        ///
+        /// <b>왜 여기 있나</b> — 도움말의 「자세히 보기」는 <b>그 창을 실제로 띄워 놓고</b> 안을
+        /// 짚어야 한다(유저 지시). 그런데 «창을 연다» 는 `gameObject.SetActive(true)` 가 아니다 —
+        /// 각 창의 <c>SetOpen</c> 이 <see cref="OpenOnly"/> 로 다른 창을 닫고, 목록을 다시 그리고,
+        /// 맨 앞으로 올라온다. 그 절차를 건너뛰면 <b>내용이 빈 창</b>이 뜬다.
+        ///
+        /// ★ <b>스위치를 <see cref="IExclusiveHudPanel"/> 에 올리지 않은 이유</b> —
+        ///   <c>EventPanel</c>·<c>RelicDigPanel</c> 도 이 인터페이스를 구현하는데, 그 둘은
+        ///   «사건이 일어나서» 뜨는 창이라 <b>바깥에서 열 수 있는 것이 아니다</b>.
+        ///   인터페이스에 <c>SetOpen</c> 을 올리면 그 둘에 <b>가짜 구현</b>을 넣어야 한다.
+        ///   그래서 «열 수 있는 창» 만 여기 <b>명시적으로</b> 적는다 — 컴파일러가 검사해 주고,
+        ///   창이 하나 늘 때 <b>한 줄만</b> 더하면 된다.
+        ///
+        /// ⚠ 여기 없는 창을 넘기면 <c>false</c> 를 돌려준다 — <b>조용히 SetActive 로 때우지 않는다.</b>
+        ///   내용이 빈 창이 뜨는 것보다 «못 열었다» 를 부르는 쪽이 아는 것이 낫다.
+        /// </summary>
+        /// <returns>열거나 닫는 데 성공했으면 <c>true</c>.</returns>
+        public static bool TryOpen(Transform window, bool open)
+        {
+            if (window == null) return false;
+
+            if (window.TryGetComponent(out TacticalOrderPanel tactics)) { tactics.SetOpen(open); return true; }
+            if (window.TryGetComponent(out SquadPanel squad)) { squad.SetOpen(open); return true; }
+            if (window.TryGetComponent(out CharacterGrowthPanel growth)) { growth.SetOpen(open); return true; }
+            if (window.TryGetComponent(out RelicPanel relic)) { relic.SetOpen(open); return true; }
+            if (window.TryGetComponent(out SubjugationPanel subjugate)) { subjugate.SetOpen(open); return true; }
+            if (window.TryGetComponent(out SettingsPanel settings)) { settings.SetOpen(open); return true; }
+            if (window.TryGetComponent(out HelpPanel help)) { help.SetOpen(open); return true; }
+
+            return false;
+        }
+
         /// <summary>맵 클릭을 기다리는 모드를 전부 끊는다 (집결지 지정 · 건설 자리 지정).</summary>
         public static void CancelMapModes()
         {

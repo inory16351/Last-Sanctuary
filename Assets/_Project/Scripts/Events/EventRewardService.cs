@@ -442,6 +442,44 @@ namespace LastSanctuary.Events
                     return $"{pick.DisplayName} {StatBlock.DisplayName(stat)} +{amount} (영구)";
                 }
 
+                // ── 유물 획득 (즉시) ──
+                //
+                // ★★ <b>value_01 은 «수치» 가 아니라 «유물 ID» 다</b> (2026-08-24 · 유저 지시:
+                //   *"등급별로 3개씩 이벤트 보상에 유물획득도 넣어"* ·
+                //   *"이벤트 내용이랑 관련있는 유물이었으면 좋겠음 예상치못한 획득의 재미"*).
+                //
+                //   다른 보상 타입은 전부 «얼마나» 를 value_01 에 담는데 이것만 «무엇을» 을 담는다.
+                //   그래도 <b>등급을 적어 굴리는 방식</b>을 쓰지 않은 이유가 있다 — 유저가
+                //   «이벤트 내용과 관련 있는 유물» 을 원했다. 등급으로 굴리면 「곪은 자리」에서
+                //   「젖은 활시위」가 나오는 일이 생기고, 그러면 <b>사건과 유물이 서로 남이 된다</b>.
+                //   그래서 표가 <b>어느 유물인지 지목</b>한다.
+                //
+                // ⚠ 없는 ID 를 조용히 넘기지 않는다 — 표의 오타가 «아무 일도 안 일어나는 선택지»
+                //   로 남으면 찾을 방법이 없다(이 클래스 맨 위의 ⚠⚠ 와 같은 판단).
+                case "relic_gain":
+                {
+                    var inv = Relics.RelicInventory.Instance;
+                    if (inv == null)
+                    {
+                        Debug.LogWarning("[이벤트] relic_gain — RelicInventory 가 없습니다 " +
+                                         "(GameSystems 에 붙어 있는지 확인하세요).");
+                        return "";
+                    }
+
+                    var relic = Relics.RelicRegistry.ById(value);
+                    if (relic == null)
+                    {
+                        Debug.LogWarning($"[이벤트] relic_gain — 유물 ID {value} 를 찾지 못했습니다. " +
+                                         "표의 reward_value_01 이 유물 테이블의 relic_id 와 맞는지 " +
+                                         "확인하세요(py -3 Tools/gen_relic_assets.py 를 돌렸는지도).");
+                        return "";
+                    }
+
+                    inv.Grant(relic);
+                    return $"{relic.DisplayName} 획득 " +
+                           $"({Relics.RelicDefinitionSO.NameOf(relic.grade)})";
+                }
+
                 // ── 합류 / 사망 (즉시 · 확률) ──
                 case "char_join":
                 {

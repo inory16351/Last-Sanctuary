@@ -111,6 +111,36 @@ namespace LastSanctuary.Relics
         [Tooltip("표식의 화면 크기(픽셀). 카메라 줌과 무관하게 일정하게 둔다 — 작아지면 못 누른다")]
         [Min(8f)] [SerializeField] float markerPixels = 34f;
 
+        [Header("표식 그림 (2026-08-25)")]
+        [Tooltip("느낌표 원화의 Resources 경로. 비우거나 못 찾으면 <b>글자 느낌표</b>로 돌아간다.\n" +
+                 "굽는 스크립트: Tools/dig_marker_build.py")]
+        [SerializeField] string markerSpriteResource = "DigMarker/dig_marker";
+
+        [Tooltip("평소 표식의 색. ★ 원화를 <b>그려진 대로</b> 보여주려면 흰색이어야 한다 — " +
+                 "다른 색을 주면 곱연산으로 물든다")]
+        [SerializeField] Color markerSpriteIdle = Color.white;
+
+        [Tooltip("파는 중일 때의 색. 진행도가 오르면 평소 색으로 돌아온다 — " +
+                 "«지금 누가 파고 있다» 를 색이 옅어지는 것으로 알린다")]
+        [SerializeField] Color markerSpriteDigging = new Color(0.52f, 0.56f, 0.62f, 0.95f);
+
+        [Header("통통 튀기 (2026-08-25 · 주의를 끌기 위해)")]
+        [Tooltip("튀어오르는 높이(픽셀). 0 이면 튀지 않는다")]
+        [Min(0f)] [SerializeField] float bounceHeight = 9f;
+
+        [Tooltip("한 번 튀고 다음에 튀기까지의 주기(초)")]
+        [Min(0.05f)] [SerializeField] float bouncePeriod = 0.95f;
+
+        [Tooltip("주기 중 <b>공중에 있는</b> 비율. 1 보다 작아야 바닥에서 잠깐 쉰다 — " +
+                 "그 «쉼» 이 있어야 통통 튀는 것으로 보인다. 1 이면 계속 흐물거린다")]
+        [Range(0.15f, 1f)] [SerializeField] float bounceAirRatio = 0.55f;
+
+        [Tooltip("표식마다 튀는 때를 이만큼 어긋나게 한다(초). 0 이면 전부 <b>한꺼번에</b> 튄다")]
+        [Min(0f)] [SerializeField] float bouncePhaseStep = 0.19f;
+
+        /// <summary>느낌표 원화. 못 찾으면 null 이고, 그때는 글자 느낌표를 그대로 쓴다.</summary>
+        Sprite _markerSprite;
+
         [Header("디버그")]
         [SerializeField] bool logChanges = true;
 
@@ -203,6 +233,48 @@ namespace LastSanctuary.Relics
             if (markerTemplate != null) markerTemplate.gameObject.SetActive(false);
             else Debug.LogWarning("[유물] DigOverlay/DigMarkerTemplate 을 찾지 못했습니다 — " +
                                   "발굴 칸이 화면에 안 보입니다.", this);
+
+            LoadMarkerSprite();
+        }
+
+        /// <summary>
+        /// ★★ <b>느낌표를 글자에서 원화로 바꾼다</b> (2026-08-25 · 유저 지시:
+        /// *"느낌표 스프라이트 볼트에 넣어놨으니까 <b>텍스트 대신 주황색 느낌표 짤라서 써</b>
+        /// 발굴칸에"*).
+        ///
+        /// ★ 원화를 <b>못 찾으면 글자 느낌표를 그대로 둔다.</b> 표식이 아예 안 보이는 것보다
+        ///   «옛 모양으로 보이는» 편이 낫고, 무엇을 굽지 않았는지 경고로 알린다.
+        /// ⚠ <b>원본(템플릿)의 글자를 끈다</b> — 복제는 템플릿을 그대로 베끼므로 여기서 한 번
+        ///   끄면 앞으로 만들어지는 표식 전부에 적용된다. 표식마다 끄면 프레임마다 일이 생긴다.
+        /// ⚠ 스프라이트 «참조» 는 MCP 로 넣을 수 없다(진행상황 8절 4번) — 그래서 씬이 아니라
+        ///   <b>코드가 Resources 에서 읽어</b> 꽂는다(<c>HudTheme.Font</c> 와 같은 방식).
+        /// </summary>
+        void LoadMarkerSprite()
+        {
+            if (string.IsNullOrWhiteSpace(markerSpriteResource)) return;
+
+            _markerSprite = Resources.Load<Sprite>(markerSpriteResource);
+            if (_markerSprite == null)
+            {
+                Debug.LogWarning($"[유물] 느낌표 원화를 찾지 못했습니다: Resources/{markerSpriteResource} " +
+                                 "— py -3 Tools/dig_marker_build.py 를 돌리세요. " +
+                                 "그때까지는 글자 느낌표로 보입니다.", this);
+                return;
+            }
+
+            if (markerTemplate == null) return;
+
+            Transform label = markerTemplate.Find("Label");
+            if (label != null && label.gameObject.activeSelf) label.gameObject.SetActive(false);
+
+            // ★ 원화의 가로세로가 1:1 이 아니다(느낌표는 세로로 길다). preserveAspect 를 켜지
+            //   않으면 <b>납작하게 눌린다</b>. 칸은 정사각으로 두어 누르는 넓이를 지킨다.
+            if (markerTemplate.TryGetComponent(out Image templateImage))
+            {
+                templateImage.sprite = _markerSprite;
+                templateImage.preserveAspect = true;
+                templateImage.color = markerSpriteIdle;
+            }
         }
 
         // ==================================================================
@@ -377,16 +449,33 @@ namespace LastSanctuary.Relics
                 if (!item.gameObject.activeSelf) item.gameObject.SetActive(true);
                 RectTransformUtility.ScreenPointToLocalPointInRectangle(
                     overlayParent, screen, null, out Vector2 local);
-                item.anchoredPosition = local;
+                // ★ 파는 중에는 튀지 않는다 — 이미 사람이 가고 있으니 <b>주의를 끌 일이 끝났다</b>.
+                item.anchoredPosition = local + new Vector2(0f, s.Ordered ? 0f : BounceOffset(slot - 1));
                 item.sizeDelta = new Vector2(markerPixels, markerPixels);
 
                 var img = item.GetComponent<Image>();
                 if (img != null)
                 {
-                    // 파는 중이면 진행도를 색으로 보여준다(건설 오버레이와 같은 규칙).
-                    img.color = s.Ordered
-                        ? Color.Lerp(orderedColor, Color.white, s.Ratio(DigSeconds))
-                        : idleColor;
+                    if (_markerSprite != null)
+                    {
+                        // ⚠ 복제가 템플릿보다 먼저 만들어졌을 수 있다(저장된 씬의 값) —
+                        //   그래서 여기서도 한 번 확인한다. 같으면 아무 일도 하지 않는다.
+                        if (img.sprite != _markerSprite)
+                        {
+                            img.sprite = _markerSprite;
+                            img.preserveAspect = true;
+                        }
+                        img.color = s.Ordered
+                            ? Color.Lerp(markerSpriteDigging, markerSpriteIdle, s.Ratio(DigSeconds))
+                            : markerSpriteIdle;
+                    }
+                    else
+                    {
+                        // 원화가 없을 때의 옛 모양 — 파는 중이면 진행도를 색으로 보여준다.
+                        img.color = s.Ordered
+                            ? Color.Lerp(orderedColor, Color.white, s.Ratio(DigSeconds))
+                            : idleColor;
+                    }
                 }
 
                 // ⚠ 버튼은 <b>매 프레임 다시 배선한다</b> — 표식은 자리마다 재사용되므로
@@ -404,6 +493,37 @@ namespace LastSanctuary.Relics
 
             for (int i = slot; i < _markers.Count; i++)
                 if (_markers[i].gameObject.activeSelf) _markers[i].gameObject.SetActive(false);
+        }
+
+        /// <summary>
+        /// ★★ <b>통통 튀는 높이</b> (2026-08-25 · 유저 지시: *"통통 튀게 해줘 주의를 끌 수 있도록"*).
+        ///
+        /// <b>왜 사인 곡선이 아닌가</b> — <c>Sin</c> 은 위아래로 <b>고르게 흐물거린다</b>.
+        /// 통통 튀는 것으로 보이려면 <b>바닥에서 쉬는 시간</b>이 있어야 한다. 실제로 튀는 공이
+        /// 그렇다 — 잠깐 솟았다가 내려와 <b>머문다</b>. 그래서 «공중에 있는 동안» 만
+        /// 포물선(<c>4x(1-x)</c>)을 그리고 나머지 시간은 <b>0</b>으로 둔다.
+        ///
+        /// <code>
+        ///   |    ▁▄█▄▁          ▁▄█▄▁          ▁▄█▄▁
+        ///   |____      __________     __________     ____   ← 이 «쉼» 이 통통의 정체다
+        ///        공중         바닥
+        /// </code>
+        ///
+        /// ★ 표식마다 <b>때를 어긋나게</b> 한다(<see cref="bouncePhaseStep"/>) — 여럿이
+        ///   한꺼번에 튀면 기계처럼 보이고, 어긋나면 살아 있는 것처럼 보인다.
+        /// ⚠ <see cref="Time.unscaledTime"/> 을 쓴다 — 조언 카드나 일시정지로 시간이 멈춰도
+        ///   표식은 계속 튀어야 «누를 수 있는 것» 으로 읽힌다(멈춘 동안에도 누를 수 있다).
+        /// </summary>
+        float BounceOffset(int index)
+        {
+            if (bounceHeight <= 0f || bouncePeriod <= 0f) return 0f;
+
+            float t = Mathf.Repeat(Time.unscaledTime + index * bouncePhaseStep, bouncePeriod)
+                    / bouncePeriod;
+            if (t >= bounceAirRatio) return 0f;          // 바닥에서 쉬는 구간
+
+            float x = t / bounceAirRatio;                 // 공중에 있는 동안을 0~1 로
+            return 4f * x * (1f - x) * bounceHeight;      // 포물선 — 올랐다 내린다
         }
 
         /// <summary>

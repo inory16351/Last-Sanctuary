@@ -272,6 +272,7 @@ namespace LastSanctuary.UI
         {
             RelicSource.Boss => "보스 처치로만 얻습니다.",
             RelicSource.DigOnly => "발굴로만 얻습니다.",
+            RelicSource.Event => "사건에서만 얻습니다.",
             _ => "발굴하거나 일반 몬스터를 사냥해 얻습니다.",
         };
 

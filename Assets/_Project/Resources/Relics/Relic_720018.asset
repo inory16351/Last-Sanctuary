@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8d79840638937e4796aeac340e7fbdd, type: 3}
+  m_Name: Relic_720018
+  m_EditorClassIdentifier:
+  relicId: 720018
+  relicName: "스스로 메운 살"
+  grade: 3
+  effectType: 43
+  value01: 22
+  value02: 20
+  effectType2: 1
+  value03: 5
+  value04: 0
+  relicDesc: "웨이브가 시작될 때 최대 체력의 22% 만큼 보호막을 20초 동안 두르고, 체력이 5 증가합니다."
+  relicFlavor: "갈라진 곳을 아무도 꿰매지 않았는데 아물었다. 이 몸은 여태 혼자 그렇게 해 왔다."
+  source: 4
+  sourceId: 206005
+  dropWeight: 0
+  iconKey: "relic_fleshmend"
+  icon: {fileID: 21300000, guid: ff746e6501eb330d36bc66d72bac9322, type: 3}

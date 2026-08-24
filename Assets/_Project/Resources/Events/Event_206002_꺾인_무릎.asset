@@ -26,12 +26,12 @@ MonoBehaviour:
     choiceOrder: 1
     choiceText: "어깨를 붙들어준다."
     resultScript: "누군가 그의 어깨를 잡고 한참을 서 있었습니다.\n무너지던 안쪽이 그 손자리에서 멈췄습니다."
-    resultEffect: "효과 : 천사 1명 침식 −40"
+    resultEffect: "효과 : 천사 1명 침식 −40  ·  유물 「돌아갈 곳의 기억」 획득 (에픽)"
     rewardType01: "char_erosion_down"
     rewardValue01: 40
     rewardDuration01: 0
-    rewardType02: ""
-    rewardValue02: 0
+    rewardType02: "relic_gain"
+    rewardValue02: 720019
     rewardDuration02: 0
   - choiceId: 300060
     choiceOrder: 2

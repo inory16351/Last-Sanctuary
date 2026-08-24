@@ -1,0 +1,516 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a093b46ae70477548a732b9fa2307139, type: 3}
+  m_Name: HelpTable
+  m_EditorClassIdentifier:
+  entries:
+  - helpId: "help_nexus"
+    category: "기본"
+    order: 110
+    titleKey: "help_nexus_title"
+    summaryKey: "help_nexus_summary"
+    bodyKey: "help_nexus_body"
+    trigger: 1
+    triggerArg: 0
+    priority: 1
+    showOnce: 1
+    seeAlso: "help_wave"
+    openPanelPath: ""
+  - helpId: "help_wave"
+    category: "기본"
+    order: 120
+    titleKey: "help_wave_title"
+    summaryKey: "help_wave_summary"
+    bodyKey: "help_wave_body"
+    trigger: 1
+    triggerArg: 0
+    priority: 2
+    showOnce: 1
+    seeAlso: "help_energy"
+    openPanelPath: ""
+  - helpId: "help_energy"
+    category: "기본"
+    order: 130
+    titleKey: "help_energy_title"
+    summaryKey: "help_energy_summary"
+    bodyKey: "help_energy_body"
+    trigger: 2
+    triggerArg: 0
+    priority: 2
+    showOnce: 1
+    seeAlso: "help_neutral"
+    openPanelPath: ""
+  - helpId: "help_create"
+    category: "기본"
+    order: 140
+    titleKey: "help_create_title"
+    summaryKey: "help_create_summary"
+    bodyKey: "help_create_body"
+    trigger: 3
+    triggerArg: 0
+    priority: 2
+    showOnce: 1
+    seeAlso: "help_stats"
+    openPanelPath: ""
+  - helpId: "help_camera"
+    category: "기본"
+    order: 150
+    titleKey: "help_camera_title"
+    summaryKey: "help_camera_summary"
+    bodyKey: "help_camera_body"
+    trigger: 0
+    triggerArg: 0
+    priority: 3
+    showOnce: 1
+    seeAlso: ""
+    openPanelPath: ""
+  - helpId: "help_battle"
+    category: "전투"
+    order: 210
+    titleKey: "help_battle_title"
+    summaryKey: "help_battle_summary"
+    bodyKey: "help_battle_body"
+    trigger: 4
+    triggerArg: 0
+    priority: 2
+    showOnce: 1
+    seeAlso: "help_tactics"
+    openPanelPath: ""
+  - helpId: "help_enrage"
+    category: "전투"
+    order: 220
+    titleKey: "help_enrage_title"
+    summaryKey: "help_enrage_summary"
+    bodyKey: "help_enrage_body"
+    trigger: 5
+    triggerArg: 0
+    priority: 1
+    showOnce: 1
+    seeAlso: "help_wave"
+    openPanelPath: ""
+  - helpId: "help_death"
+    category: "전투"
+    order: 230
+    titleKey: "help_death_title"
+    summaryKey: "help_death_summary"
+    bodyKey: "help_death_body"
+    trigger: 6
+    triggerArg: 0
+    priority: 1
+    showOnce: 1
+    seeAlso: "help_retreat"
+    openPanelPath: ""
+  - helpId: "help_hit"
+    category: "전투"
+    order: 240
+    titleKey: "help_hit_title"
+    summaryKey: "help_hit_summary"
+    bodyKey: "help_hit_body"
+    trigger: 7
+    triggerArg: 0
+    priority: 3
+    showOnce: 1
+    seeAlso: "help_stats"
+    openPanelPath: ""
+  - helpId: "help_boss"
+    category: "전투"
+    order: 250
+    titleKey: "help_boss_title"
+    summaryKey: "help_boss_summary"
+    bodyKey: "help_boss_body"
+    trigger: 8
+    triggerArg: 0
+    priority: 1
+    showOnce: 1
+    seeAlso: "help_squad"
+    openPanelPath: ""
+  - helpId: "help_upgrade"
+    category: "성장"
+    order: 310
+    titleKey: "help_upgrade_title"
+    summaryKey: "help_upgrade_summary"
+    bodyKey: "help_upgrade_body"
+    trigger: 9
+    triggerArg: 0
+    priority: 2
+    showOnce: 1
+    seeAlso: "help_stats"
+    openPanelPath: "UI_Root/HUD_Growth"
+  - helpId: "help_stats"
+    category: "성장"
+    order: 320
+    titleKey: "help_stats_title"
+    summaryKey: "help_stats_summary"
+    bodyKey: "help_stats_body"
+    trigger: 0
+    triggerArg: 0
+    priority: 3
+    showOnce: 1
+    seeAlso: "help_upgrade"
+    openPanelPath: "UI_Root/HUD_Growth"
+  - helpId: "help_awaken"
+    category: "성장"
+    order: 330
+    titleKey: "help_awaken_title"
+    summaryKey: "help_awaken_summary"
+    bodyKey: "help_awaken_body"
+    trigger: 10
+    triggerArg: 0
+    priority: 2
+    showOnce: 1
+    seeAlso: "help_upgrade"
+    openPanelPath: "UI_Root/HUD_Growth"
+  - helpId: "help_relic_dig"
+    category: "성장"
+    order: 340
+    titleKey: "help_relic_dig_title"
+    summaryKey: "help_relic_dig_summary"
+    bodyKey: "help_relic_dig_body"
+    trigger: 11
+    triggerArg: 0
+    priority: 2
+    showOnce: 1
+    seeAlso: "help_relic_equip"
+    openPanelPath: ""
+  - helpId: "help_relic_equip"
+    category: "성장"
+    order: 350
+    titleKey: "help_relic_equip_title"
+    summaryKey: "help_relic_equip_summary"
+    bodyKey: "help_relic_equip_body"
+    trigger: 12
+    triggerArg: 0
+    priority: 2
+    showOnce: 1
+    seeAlso: "help_relic_dig"
+    openPanelPath: "UI_Root/HUD_Relics"
+  - helpId: "help_squad"
+    category: "지휘"
+    order: 410
+    titleKey: "help_squad_title"
+    summaryKey: "help_squad_summary"
+    bodyKey: "help_squad_body"
+    trigger: 13
+    triggerArg: 0
+    priority: 2
+    showOnce: 1
+    seeAlso: "help_rally"
+    openPanelPath: "UI_Root/HUD_Squad"
+  - helpId: "help_rally"
+    category: "지휘"
+    order: 420
+    titleKey: "help_rally_title"
+    summaryKey: "help_rally_summary"
+    bodyKey: "help_rally_body"
+    trigger: 14
+    triggerArg: 0
+    priority: 2
+    showOnce: 1
+    seeAlso: "help_squad"
+    openPanelPath: "UI_Root/HUD_Squad"
+  - helpId: "help_tactics"
+    category: "지휘"
+    order: 430
+    titleKey: "help_tactics_title"
+    summaryKey: "help_tactics_summary"
+    bodyKey: "help_tactics_body"
+    trigger: 15
+    triggerArg: 0
+    priority: 2
+    showOnce: 1
+    seeAlso: "help_retreat"
+    openPanelPath: "UI_Root/HUD_Tactics"
+  - helpId: "help_retreat"
+    category: "지휘"
+    order: 440
+    titleKey: "help_retreat_title"
+    summaryKey: "help_retreat_summary"
+    bodyKey: "help_retreat_body"
+    trigger: 0
+    triggerArg: 0
+    priority: 2
+    showOnce: 1
+    seeAlso: "help_death"
+    openPanelPath: "UI_Root/HUD_Tactics"
+  - helpId: "help_build"
+    category: "지휘"
+    order: 450
+    titleKey: "help_build_title"
+    summaryKey: "help_build_summary"
+    bodyKey: "help_build_body"
+    trigger: 16
+    triggerArg: 0
+    priority: 2
+    showOnce: 1
+    seeAlso: "help_energy"
+    openPanelPath: ""
+  - helpId: "help_erosion"
+    category: "위험"
+    order: 510
+    titleKey: "help_erosion_title"
+    summaryKey: "help_erosion_summary"
+    bodyKey: "help_erosion_body"
+    trigger: 17
+    triggerArg: 50
+    priority: 1
+    showOnce: 1
+    seeAlso: "help_mental_error"
+    openPanelPath: "UI_Root/HUD_Growth"
+  - helpId: "help_mental_error"
+    category: "위험"
+    order: 520
+    titleKey: "help_mental_error_title"
+    summaryKey: "help_mental_error_summary"
+    bodyKey: "help_mental_error_body"
+    trigger: 18
+    triggerArg: 0
+    priority: 1
+    showOnce: 1
+    seeAlso: "help_erosion"
+    openPanelPath: "UI_Root/HUD_Growth"
+  - helpId: "help_neutral"
+    category: "위험"
+    order: 530
+    titleKey: "help_neutral_title"
+    summaryKey: "help_neutral_summary"
+    bodyKey: "help_neutral_body"
+    trigger: 19
+    triggerArg: 0
+    priority: 3
+    showOnce: 1
+    seeAlso: "help_energy"
+    openPanelPath: ""
+  - helpId: "help_epic"
+    category: "위험"
+    order: 540
+    titleKey: "help_epic_title"
+    summaryKey: "help_epic_summary"
+    bodyKey: "help_epic_body"
+    trigger: 20
+    triggerArg: 0
+    priority: 2
+    showOnce: 1
+    seeAlso: "help_neutral"
+    openPanelPath: "UI_Root/HUD_Subjugate"
+  - helpId: "help_event"
+    category: "위험"
+    order: 550
+    titleKey: "help_event_title"
+    summaryKey: "help_event_summary"
+    bodyKey: "help_event_body"
+    trigger: 21
+    triggerArg: 0
+    priority: 2
+    showOnce: 1
+    seeAlso: ""
+    openPanelPath: ""
+  - helpId: "help_save"
+    category: "운영"
+    order: 610
+    titleKey: "help_save_title"
+    summaryKey: "help_save_summary"
+    bodyKey: "help_save_body"
+    trigger: 22
+    triggerArg: 0
+    priority: 3
+    showOnce: 1
+    seeAlso: ""
+    openPanelPath: "UI_Root/HUD_Settings"
+  - helpId: "help_speed"
+    category: "운영"
+    order: 620
+    titleKey: "help_speed_title"
+    summaryKey: "help_speed_summary"
+    bodyKey: "help_speed_body"
+    trigger: 23
+    triggerArg: 0
+    priority: 3
+    showOnce: 1
+    seeAlso: ""
+    openPanelPath: ""
+  steps:
+  - helpId: "help_awaken"
+    stepOrder: 1
+    targetPath: "UI_Root/HUD_Growth/Info/Name"
+    stepText: "각성한 캐릭터는 이름이 금색으로 바뀝니다. 로스터에서도 같은 색으로 보입니다."
+  - helpId: "help_awaken"
+    stepOrder: 2
+    targetPath: "UI_Root/HUD_Growth/Info/Note"
+    stepText: "각성 여부와 남은 조건이 여기에 적힙니다."
+  - helpId: "help_awaken"
+    stepOrder: 3
+    targetPath: "UI_Root/HUD_Growth/Stats/Grid"
+    stepText: "각성하면 이 칸들에 보너스가 얹히고, 상한 100을 넘어설 수 있습니다."
+  - helpId: "help_create"
+    stepOrder: 1
+    targetPath: "UI_Root/HUD_Actions/Buttons/CreateButton"
+    stepText: "이 버튼을 누르면 아군이 한 명 늘어납니다. 버튼에 적힌 숫자가 지금 드는 에너지입니다."
+  - helpId: "help_energy"
+    stepOrder: 1
+    targetPath: "UI_Root/HUD_Energy/Energy"
+    stepText: "지금 가진 에너지입니다. 캐릭터를 만들거나 강화할 때 이 숫자에서 빠져나갑니다."
+  - helpId: "help_epic"
+    stepOrder: 1
+    targetPath: "UI_Root/HUD_Subjugate/Targets/List"
+    stepText: "발견한 에픽 몬스터가 여기에 오릅니다. 잡는 데 필요한 수준도 함께 나옵니다."
+  - helpId: "help_epic"
+    stepOrder: 2
+    targetPath: "UI_Root/HUD_Subjugate/Squads/List"
+    stepText: "어느 부대를 보낼지 여기서 고릅니다. 지시를 내린 부대만 잡으러 갑니다."
+  - helpId: "help_epic"
+    stepOrder: 3
+    targetPath: "UI_Root/HUD_Subjugate/Hint"
+    stepText: "지금 무엇을 골라야 하는지 여기에 안내가 나옵니다."
+  - helpId: "help_erosion"
+    stepOrder: 1
+    targetPath: "UI_Root/HUD_Growth/Info/ErosionBack"
+    stepText: "보라색 게이지가 침식입니다. 싸우는 동안 차오르고, 전투가 끝나면 저절로 줄어듭니다."
+  - helpId: "help_erosion"
+    stepOrder: 2
+    targetPath: "UI_Root/HUD_Growth/Stats/Grid"
+    stepText: "능력치 중 저항력이 침식이 차는 속도와 줄어드는 속도를 정합니다."
+  - helpId: "help_mental_error"
+    stepOrder: 1
+    targetPath: "UI_Root/HUD_Growth/Info/ErosionBack"
+    stepText: "이 게이지가 끝까지 차면 정신 이상이 하나 나타납니다."
+  - helpId: "help_mental_error"
+    stepOrder: 2
+    targetPath: "UI_Root/HUD_Growth/Info/Note"
+    stepText: "지금 걸린 정신 이상의 이름이 여기에 적힙니다. 로스터에도 함께 표시됩니다."
+  - helpId: "help_rally"
+    stepOrder: 1
+    targetPath: "UI_Root/HUD_Squad/Body/Grid"
+    stepText: "부대 칸마다 집결지를 만드는 버튼과 해제하는 버튼이 있습니다."
+  - helpId: "help_rally"
+    stepOrder: 2
+    targetPath: ""
+    stepText: "만들기를 누른 뒤 맵에서 자리를 찍으십시오. 깃발을 1초쯤 누른 채 끌면 자리를 옮길 수 있습니다."
+  - helpId: "help_relic_equip"
+    stepOrder: 1
+    targetPath: "UI_Root/HUD_Relics/List"
+    stepText: "지금까지 얻은 유물이 여기에 쌓입니다. 등급이 높은 것이 위로 옵니다."
+  - helpId: "help_relic_equip"
+    stepOrder: 2
+    targetPath: "UI_Root/HUD_Relics/Detail/Effect"
+    stepText: "고른 유물이 무엇을 해 주는지 여기에 적힙니다."
+  - helpId: "help_relic_equip"
+    stepOrder: 3
+    targetPath: "UI_Root/HUD_Relics/Detail/EquipButton"
+    stepText: "이 버튼으로 끼웁니다. 끼울 대상은 왼쪽 로스터에서 고른 캐릭터입니다."
+  - helpId: "help_relic_equip"
+    stepOrder: 4
+    targetPath: "UI_Root/HUD_Relics/Detail/Wearer"
+    stepText: "그 유물을 이미 누가 끼고 있으면 여기에 이름이 나옵니다."
+  - helpId: "help_retreat"
+    stepOrder: 1
+    targetPath: "UI_Root/HUD_Tactics/Col2/RetreatSlider"
+    stepText: "이 막대를 끌어 후퇴 기준을 정합니다. 체력이 그만큼 남으면 스스로 물러납니다."
+  - helpId: "help_retreat"
+    stepOrder: 2
+    targetPath: "UI_Root/HUD_Tactics/Col2/RetreatValue"
+    stepText: "지금 정한 기준입니다. 앞줄은 낮게, 뒷줄은 높게 잡는 것이 무난합니다."
+  - helpId: "help_retreat"
+    stepOrder: 3
+    targetPath: "UI_Root/HUD_Tactics/Col2/RetreatAction"
+    stepText: "물러난 뒤 무엇을 할지 고릅니다."
+  - helpId: "help_save"
+    stepOrder: 1
+    targetPath: "UI_Root/HUD_Settings/Body/SaveButton"
+    stepText: "이 버튼으로 지금 상태를 저장합니다. 저장 칸은 하나뿐입니다."
+  - helpId: "help_save"
+    stepOrder: 2
+    targetPath: "UI_Root/HUD_Settings/Body/LobbyButton"
+    stepText: "저장하고 로비로 나갑니다. 로비의 이어하기로 이 판을 다시 잇습니다."
+  - helpId: "help_save"
+    stepOrder: 3
+    targetPath: "UI_Root/HUD_Settings/Body/Status"
+    stepText: "마지막으로 저장한 때가 여기에 적힙니다."
+  - helpId: "help_speed"
+    stepOrder: 1
+    targetPath: "UI_Root/HUD_Speed/x1"
+    stepText: "게임 속도를 고르는 버튼입니다. 지금 걸린 속도는 색이 밝게 표시됩니다."
+  - helpId: "help_speed"
+    stepOrder: 2
+    targetPath: "UI_Root/HUD_Speed/x8"
+    stepText: "가장 빠른 8배입니다. 몬스터가 없는 정비 시간을 넘길 때 쓰면 편합니다."
+  - helpId: "help_speed"
+    stepOrder: 3
+    targetPath: "UI_Root/HUD_Speed/Pause"
+    stepText: "이 버튼이나 P 키로 시간을 멈춥니다. 멈춘 동안에도 창을 열어 지침을 바꿀 수 있습니다."
+  - helpId: "help_squad"
+    stepOrder: 1
+    targetPath: "UI_Root/HUD_Squad/Header/AddButton"
+    stepText: "이 버튼으로 새 부대를 만듭니다. 부대는 여섯 개까지 만들 수 있습니다."
+  - helpId: "help_squad"
+    stepOrder: 2
+    targetPath: "UI_Root/HUD_Squad/Body/Grid"
+    stepText: "만든 부대가 여기에 칸으로 늘어섭니다. 왼쪽 로스터에서 캐릭터를 눌러 배정합니다."
+  - helpId: "help_stats"
+    stepOrder: 1
+    targetPath: "UI_Root/HUD_Growth/Stats/Grid"
+    stepText: "능력치 열두 칸입니다. 여기 보이는 숫자에는 유물과 각성 보너스가 이미 더해져 있습니다."
+  - helpId: "help_stats"
+    stepOrder: 2
+    targetPath: "UI_Root/HUD_Growth/Stats/GrowthTypes"
+    stepText: "이 캐릭터가 주로 쓰는 능력치입니다. 강화할 때 이쪽이 더 자주, 더 많이 오릅니다."
+  - helpId: "help_stats"
+    stepOrder: 3
+    targetPath: "UI_Root/HUD_Growth/Stats/PassiveGrid"
+    stepText: "이 캐릭터가 타고난 특별한 능력입니다. 강화로는 바뀌지 않습니다."
+  - helpId: "help_stats"
+    stepOrder: 4
+    targetPath: "UI_Root/HUD_Growth/RelicBar"
+    stepText: "지금 끼고 있는 유물입니다. 유물이 주는 능력치는 상한 100을 넘어서 붙습니다."
+  - helpId: "help_tactics"
+    stepOrder: 1
+    targetPath: "UI_Root/HUD_Tactics/Col1/Pos"
+    stepText: "전방, 중위, 후방 중 어디에 설지 고릅니다. 앞줄은 적을 직접 받아내고 뒷줄은 사거리 끝에서 싸웁니다."
+  - helpId: "help_tactics"
+    stepOrder: 2
+    targetPath: "UI_Root/HUD_Tactics/Col1/Type"
+    stepText: "어떤 방식으로 공격할지 고릅니다."
+  - helpId: "help_tactics"
+    stepOrder: 3
+    targetPath: "UI_Root/HUD_Tactics/Col2/Target"
+    stepText: "여러 적이 있을 때 누구를 먼저 칠지 고릅니다."
+  - helpId: "help_tactics"
+    stepOrder: 4
+    targetPath: "UI_Root/HUD_Tactics/Col3/Wave"
+    stepText: "몬스터가 몰려올 때 어떻게 움직일지 고릅니다."
+  - helpId: "help_tactics"
+    stepOrder: 5
+    targetPath: "UI_Root/HUD_Tactics/Col3/Summary"
+    stepText: "고른 지침을 한눈에 정리해 보여 줍니다. 여기만 봐도 지금 설정이 확인됩니다."
+  - helpId: "help_upgrade"
+    stepOrder: 1
+    targetPath: "UI_Root/HUD_Growth/Info/EnhanceButton"
+    stepText: "이 버튼이 강화입니다. 한 번 누를 때마다 고른 캐릭터의 레벨이 1 올라갑니다."
+  - helpId: "help_upgrade"
+    stepOrder: 2
+    targetPath: "UI_Root/HUD_Growth/Info/CostValue"
+    stepText: "한 번 강화하는 데 드는 에너지입니다. 레벨이 오를수록 이 값도 함께 커집니다."
+  - helpId: "help_upgrade"
+    stepOrder: 3
+    targetPath: "UI_Root/HUD_Growth/Info/Level"
+    stepText: "지금 레벨입니다. 강화할 때마다 여기가 올라갑니다."
+  - helpId: "help_upgrade"
+    stepOrder: 4
+    targetPath: "UI_Root/HUD_Growth/Stats/Grid"
+    stepText: "레벨이 오르면 이 능력치 칸들 중 몇 개가 함께 올라갑니다. 어느 칸이 오를지는 그때 정해집니다."
+  - helpId: "help_wave"
+    stepOrder: 1
+    targetPath: "UI_Root/HUD_Wave/Phase"
+    stepText: "지금이 어느 단계인지 알려 주는 칸입니다. 정비, 진군, 전투, 광폭화 중 하나가 적힙니다."
+  - helpId: "help_wave"
+    stepOrder: 2
+    targetPath: "UI_Root/HUD_Wave/Timer"
+    stepText: "남은 시간입니다. 정비 단계에서 이 시간이 0이 되면 몬스터가 몰려옵니다."

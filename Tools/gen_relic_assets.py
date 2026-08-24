@@ -54,7 +54,7 @@ ICON_SIZE = 128
 
 # ── 표의 enum → C# enum 정수값. <b>RelicDefinitionSO.cs 와 반드시 같아야 한다.</b> ──
 GRADE = {"common": 1, "rare": 2, "epic": 3}
-SOURCE = {"dig_monster": 1, "dig": 2, "boss": 3}
+SOURCE = {"dig_monster": 1, "dig": 2, "boss": 3, "event": 4}   # 4 = 사건 전용(2026-08-24)
 EFFECT = {
     "relic_hp_up": 1, "relic_melee_atk_up": 2, "relic_ranged_atk_up": 3,
     "relic_magic_atk_up": 4, "relic_def_up": 5, "relic_resist_up": 6,

@@ -41,6 +41,11 @@ namespace LastSanctuary.UI
         [SerializeField] TMP_Text relicLabel;
         [SerializeField] Image relicBackground;
 
+        [Header("도움말 (2026-08-24)")]
+        [SerializeField] Button helpButton;
+        [SerializeField] TMP_Text helpLabel;
+        [SerializeField] Image helpBackground;
+
         [SerializeField] Button settingsButton;
         [SerializeField] TMP_Text settingsLabel;
         [SerializeField] Image settingsBackground;
@@ -68,6 +73,10 @@ namespace LastSanctuary.UI
         [SerializeField] string relicOpen = "유물 관리 닫기";
         [SerializeField] string settingsIdle = "환경 설정";
         [SerializeField] string settingsOpen = "환경 설정 닫기";
+        [Tooltip("{0} = 아직 안 읽은 도움말 수. 0 이면 아래 helpIdle 을 쓴다")]
+        [SerializeField] string helpUnread = "도움말 (새 {0})";
+        [SerializeField] string helpIdle = "도움말 (F1)";
+        [SerializeField] string helpOpen = "도움말 닫기";
 
         [Header("칸 높이 (2026-08-24 — 하드코딩 제거)")]
         [Tooltip("켜면 <b>켜져 있는 버튼 수</b>에 맞춰 이 패널의 높이를 스스로 맞춘다.\n" +
@@ -97,6 +106,9 @@ namespace LastSanctuary.UI
         /// <summary>유물 관리 창(2026-08-23 신설). 위 넷과 같은 이유로 비활성 포함 조회.</summary>
         RelicPanel _relicPanel;
 
+        /// <summary>도움말 창(2026-08-24 신설). 위 다섯과 같은 이유로 비활성 포함 조회.</summary>
+        HelpPanel _helpPanel;
+
         // 마지막으로 화면에 반영한 값. 바뀔 때만 갱신한다.
         int _shownCost = int.MinValue;
         bool _shownCanCreate;
@@ -106,6 +118,7 @@ namespace LastSanctuary.UI
         int _shownSubjugateState = int.MinValue;
         int _shownSettingsState = int.MinValue;
         int _shownRelicState = int.MinValue;
+        int _shownHelpState = int.MinValue;
 
         void Start()
         {
@@ -118,6 +131,7 @@ namespace LastSanctuary.UI
             _subjugationPanel = FindAnyObjectByType<SubjugationPanel>(FindObjectsInactive.Include);
             _settingsPanel = FindAnyObjectByType<SettingsPanel>(FindObjectsInactive.Include);
             _relicPanel = FindAnyObjectByType<RelicPanel>(FindObjectsInactive.Include);
+            _helpPanel = FindAnyObjectByType<HelpPanel>(FindObjectsInactive.Include);
 
             // MCP 로는 씬 오브젝트 참조를 인스펙터에 넣을 수 없어서(진행상황 8절 4번),
             // 비어 있으면 이름으로 찾는다.
@@ -127,6 +141,7 @@ namespace LastSanctuary.UI
             Resolve("Buttons/SubjugateButton", ref subjugateButton, ref subjugateBackground, ref subjugateLabel);
             Resolve("Buttons/SettingsButton", ref settingsButton, ref settingsBackground, ref settingsLabel);
             Resolve("Buttons/RelicButton", ref relicButton, ref relicBackground, ref relicLabel);
+            Resolve("Buttons/HelpButton", ref helpButton, ref helpBackground, ref helpLabel);
 
             // 창들은 "닫힌 채로 시작"이 규칙이다. 창 스스로 Awake 에서 닫으면
             // <b>열리는 순간 닫히는</b> 버그가 되므로(UnitPortraitPanel.Awake 주석),
@@ -134,6 +149,7 @@ namespace LastSanctuary.UI
             if (_subjugationPanel != null && _subjugationPanel.IsOpen) _subjugationPanel.Close();
             if (_settingsPanel != null && _settingsPanel.IsOpen) _settingsPanel.Close();
             if (_relicPanel != null && _relicPanel.IsOpen) _relicPanel.Close();
+            if (_helpPanel != null && _helpPanel.IsOpen) _helpPanel.Close();
 
             if (createButton != null) createButton.onClick.AddListener(HandleCreate);
             if (tacticsButton != null) tacticsButton.onClick.AddListener(HandleTactics);
@@ -141,6 +157,7 @@ namespace LastSanctuary.UI
             if (subjugateButton != null) subjugateButton.onClick.AddListener(HandleSubjugate);
             if (settingsButton != null) settingsButton.onClick.AddListener(HandleSettings);
             if (relicButton != null) relicButton.onClick.AddListener(HandleRelic);
+            if (helpButton != null) helpButton.onClick.AddListener(HandleHelp);
 
             if (_creation == null)
                 Debug.LogWarning("[Actions] CharacterCreationService 를 찾지 못했습니다. " +
@@ -302,6 +319,43 @@ namespace LastSanctuary.UI
             RefreshSubjugate(force);
             RefreshSettings(force);
             RefreshRelic(force);
+            RefreshHelp(force);
+        }
+
+        /// <summary>
+        /// ★ 도움말 버튼 — 열림 여부와 <b>아직 안 읽은 항목 수</b>를 보여준다 (2026-08-24).
+        /// 토벌·유물 버튼이 «지금 할 일이 있는가» 를 숫자로 보여주는 것과 같은 규칙이다:
+        /// 창을 열지 않아도 «새로 읽을 것이 있는가» 를 알 수 있어야 한다.
+        /// </summary>
+        void RefreshHelp(bool force)
+        {
+            if (helpButton == null) return;
+
+            bool open = _helpPanel != null && _helpPanel.IsOpen;
+            Help.HelpService service = Help.HelpService.Instance;
+            int unread = service != null ? Mathf.Max(0, service.TotalCount - service.SeenCount) : 0;
+
+            int state = (open ? 1 : 0) + unread * 2;
+            if (!force && state == _shownHelpState) return;
+            _shownHelpState = state;
+
+            helpButton.interactable = _helpPanel != null;
+            if (helpBackground != null)
+                helpBackground.color = _helpPanel == null ? buttonOff
+                                     : (open ? buttonOn : buttonNormal);
+            if (helpLabel != null)
+                helpLabel.text = open ? helpOpen
+                               : unread > 0 ? string.Format(helpUnread, unread)
+                               : helpIdle;
+        }
+
+        /// <summary>도움말 창을 연다/닫는다 — 다른 창들과 같은 구조. F1 도 같은 일을 한다.</summary>
+        void HandleHelp()
+        {
+            if (_helpPanel == null)
+                _helpPanel = FindAnyObjectByType<HelpPanel>(FindObjectsInactive.Include);
+            _helpPanel?.Toggle();
+            Refresh(force: true);
         }
 
         /// <summary>
@@ -336,6 +390,7 @@ namespace LastSanctuary.UI
         {
             if (_relicPanel == null)
                 _relicPanel = FindAnyObjectByType<RelicPanel>(FindObjectsInactive.Include);
+            _helpPanel = FindAnyObjectByType<HelpPanel>(FindObjectsInactive.Include);
             _relicPanel?.Toggle();
             Refresh(force: true);
         }

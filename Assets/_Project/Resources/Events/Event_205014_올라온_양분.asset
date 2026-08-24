@@ -26,12 +26,12 @@ MonoBehaviour:
     choiceOrder: 1
     choiceText: "전부 먹여라."
     resultScript: "천사들의 상처가 눈에 보이는 속도로 메워집니다.\n지금 채운 몸이 다음 파도를 받아낼 것입니다."
-    resultEffect: "효과 : 천사 전체 체력 회복 (최대 체력의 15%)"
+    resultEffect: "효과 : 천사 전체 체력 회복 (최대 체력의 15%)  ·  유물 「부어오른 자리」 획득 (일반)"
     rewardType01: "char_hp_percent_heal"
     rewardValue01: 15
     rewardDuration01: 0
-    rewardType02: ""
-    rewardValue02: 0
+    rewardType02: "relic_gain"
+    rewardValue02: 700003
     rewardDuration02: 0
   - choiceId: 300028
     choiceOrder: 2

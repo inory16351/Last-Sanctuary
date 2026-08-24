@@ -37,10 +37,10 @@ MonoBehaviour:
     choiceOrder: 2
     choiceText: "사양한다."
     resultScript: "천사들은 뻗어온 손을 정중히 물렸습니다.\n받지 않은 것에는 값도 붙지 않습니다."
-    resultEffect: "효과 : 천사 전체 침식 −12"
+    resultEffect: "효과 : 천사 전체 침식 −12  ·  유물 「값이 붙지 않은 은혜」 획득 (에픽)"
     rewardType01: "char_all_erosion_down"
     rewardValue01: 12
     rewardDuration01: 0
-    rewardType02: ""
-    rewardValue02: 0
+    rewardType02: "relic_gain"
+    rewardValue02: 720017
     rewardDuration02: 0

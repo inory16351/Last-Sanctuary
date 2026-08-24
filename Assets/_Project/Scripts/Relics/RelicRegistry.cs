@@ -108,6 +108,14 @@ namespace LastSanctuary.Relics
                     case RelicSource.DigOnly:
                         Bucket(_digOnlyPool, r.grade).Add(r);
                         break;
+
+                    // ★★ <b>사건 전용은 어느 풀에도 넣지 않는다</b> (2026-08-24).
+                    //   아래 default 가 «일반 풀»(발굴·처치 드랍)이라, 이 가지가 없으면
+                    //   사건 보상 전용 유물이 <b>조용히 발굴에서 튀어나온다</b>.
+                    //   주는 통로는 EventRewardService 의 relic_gain 하나뿐이다.
+                    case RelicSource.Event:
+                        break;
+
                     default:
                         Bucket(_commonPool, r.grade).Add(r);
                         break;
