@@ -23,7 +23,8 @@ namespace LastSanctuary.UI
     /// <code>
     ///   Resources/Opening/BG_01 ~ BG_04      ← 볼트의 opening_BG.png 를 2×2 로 잘라낸 넉 장
     ///                                          ⚠ 자른 순서 ≠ 이야기 순서 (<see cref="slides"/>)
-    ///   Resources/Opening/VO_01 ~ VO_04      ← 볼트의 voice/Scene_01~04.mp3
+    ///   Resources/Opening/VO_01_1 ~ VO_04_4  ← 볼트 voice/ 의 <b>유저가 문장별로 나눠 준</b>
+    ///                                          16개(01-01 … 04-04) (Tools/import_opening_voice.py)
     ///   Resources/Bgm/The Fall of the Sanctuary  ← 오프닝 브금 (1분 59초)
     ///   Resources/UI/Lobby/LobbyButtonSkip   ← 건너뛰기 버튼 판 (로비 버튼을 가로만 잘라낸 것)
     /// </code>
@@ -40,12 +41,13 @@ namespace LastSanctuary.UI
     /// 프레임이 아무리 튀어도 «그 소절» 에 정확히 배경이 바뀐다.
     /// (<see cref="_clock"/> · <see cref="Slide.atMusicTime"/>)
     ///
-    /// <b>㉡ 자막은 음성 길이에 맞춰 «스스로» 속도를 정한다</b>
-    /// (<see cref="Slide.fitCaptionsToVoice"/>). 자막을 초 단위로 하나하나 박아 넣으면
-    /// 문구를 한 글자 고칠 때마다 그 장면의 시각을 <b>전부 다시 재야</b> 한다. 대신
-    /// «이 장면의 글자 수» 를 «이 음성의 길이» 로 나눠 타자 속도를 구하면, 문구를 고쳐도
-    /// 자막은 여전히 <b>내레이션이 끝나기 조금 전에</b> 다 쳐진다. 한 줄 한 줄을 노래에
-    /// 정확히 붙여야 할 때만 <see cref="Caption.atMusicTime"/> 에 시각을 적으면 그쪽이 이긴다.
+    /// <b>㉡ 한 조각 = 자막 + 음성 + 시각</b> (2026-08-24 개편 — <see cref="Caption"/> 의 설명).
+    /// 음성이 조각으로 나뉘어 있으므로 조각마다 «브금의 몇 초에 말을 시작할지»
+    /// (<see cref="Caption.atMusicTime"/>)를 적는다. <b>조각 사이의 텀이 데이터가 된다</b> —
+    /// 앞 조각이 끝나도 다음 조각의 시각까지 기다리므로 그 차이가 곧 텀이고, 텀을 바꾸려면
+    /// 숫자만 밀면 된다(오디오를 다시 굽지 않는다).
+    /// 타자 속도는 <b>그 조각 음성의 길이</b>에서 계산하므로(<see cref="SpeedFor"/>) 문구를
+    /// 고쳐도 자막은 여전히 <b>그 조각을 말하는 동안</b> 다 쳐진다.
     ///
     /// <b>㉢ 페이드는 «검은 막» 하나로 한다</b> — 배경 두 장을 겹쳐 크로스페이드하지 않는다.
     /// 유저가 요청한 것은 «페이드 인 / 페이드 아웃»(검게 지고 검은 데서 다시 밝아지는 것)이고,
@@ -76,39 +78,62 @@ namespace LastSanctuary.UI
         //  대본 — 오프닝의 내용은 전부 이 표에 있다 (유저: "하드 코딩 해도 됨")
         // ────────────────────────────────────────────────────────────────
 
-        /// <summary>자막 한 줄. 타자를 치듯 한 글자씩 나타난다.</summary>
+        /// <summary>
+        /// ★★ <b>문장 하나</b> — 자막 · 그 문장의 음성 · 말을 시작하는 시각이 <b>한 덩어리</b>다
+        /// (2026-08-24 개편. 유저 지시: <i>"문장 별로 너무 빨리 이어져서 … 문장 별로 나눠서 좀 더
+        /// 텀을 두고 말하게 만들 수 있음?"</i> → <i>"음성 파일 자체를 짤라서 하면 되자나"</i>).
+        ///
+        /// <b>예전에는 음성이 «장면»에 붙어 있었다</b>(<c>Slide.voice</c> 한 개 = 문장 두세 개가
+        /// 이어 붙은 통짜 파일). 그래서 문장 사이의 텀이 <b>녹음에 구워져 있었고</b> 연출로는
+        /// 손댈 수 없었다 — 유저가 «너무 빨리 이어진다» 고 한 것이 그것이다.
+        ///
+        /// 지금은 음성이 조각으로 나뉘어 있고, 조각마다 <see cref="atMusicTime"/> 에 «브금의 몇 초에
+        /// 말을 시작할지» 를 적는다. 그러면 <b>텀이 데이터가 된다</b> — 숫자를 고치면 텀이 바뀌고,
+        /// 오디오는 다시 굽지 않는다.
+        ///
+        /// ★★ 2026-08-24 <b>조각은 유저가 직접 나눠 준다</b> (유저 지시: <i>"오프닝 목소리 수정한거
+        /// 반영 좀 문장별로 다 분리해서 파일 만들어 놨으니까 이거 바탕으로 다시 배치해줘"</i>).
+        /// 처음에는 통짜 음성 4개를 <b>내가 소리로 분석해</b> 11조각으로 갈랐다(경계를 찾느라
+        /// 방법을 세 번 틀렸다 — 진행상황 139-1절). 이제 볼트에 <b>16개</b>가 나뉘어 들어오므로
+        /// 그 추측이 필요 없다 — 경계는 «추정» 이 아니라 «주어진 것» 이다.
+        ///
+        /// ⚠ 조각은 <b>문장이 아니라 절(clause) 단위</b>다(컷 2가 6조각). 그래서 텀도 두 단계다 —
+        ///   <see cref="slides"/> 의 설명 참조.
+        /// </summary>
         [Serializable]
         public class Caption
         {
-            [Tooltip("자막 문구(영어)")]
+            [Tooltip("자막 문구(한글). 줄바꿈은 \\n 으로 <b>손으로</b> 나눈다 — slides 의 설명 참조")]
             [TextArea(1, 4)] public string text;
 
-            [Tooltip("이 줄을 치기 시작하는 <b>브금의 시각(초)</b>. " +
-                     "0 이면 앞 줄을 다 친 뒤 captionGapSeconds 만큼 쉬고 이어 친다")]
+            [Tooltip("이 문장의 음성 — Resources 아래의 경로(확장자 없이). 없으면 비워둔다.\n" +
+                     "예: Opening/VO_02_3 (컷 2의 셋째 문장)")]
+            public string voice;
+
+            [Tooltip("이 문장이 <b>말을 시작하는 브금의 시각(초)</b>. 음성과 자막이 함께 시작한다.\n" +
+                     "0 이면 앞 문장을 다 친 뒤 captionGapSeconds 만큼 쉬고 이어 친다")]
             [Min(0f)] public float atMusicTime;
         }
 
-        /// <summary>배경 한 장 + 그 위에 얹히는 자막들 + 그 장면의 음성.</summary>
+        /// <summary>배경 한 장 + 그 위에 차례로 지나가는 문장들.</summary>
         [Serializable]
         public class Slide
         {
             [Tooltip("배경 그림 — Resources 아래의 경로(확장자 없이)")]
             public string background;
 
-            [Tooltip("이 장면의 음성 — Resources 아래의 경로. 없으면 비워둔다")]
-            public string voice;
-
             [Tooltip("이 장면이 <b>페이드 인을 시작하는</b> 브금의 시각(초). " +
                      "0 이면 앞 장면이 검게 진 직후 바로 시작한다")]
             [Min(0f)] public float atMusicTime;
 
-            [Tooltip("자막의 타자 속도를 <b>음성 길이에 맞춰 자동으로</b> 정한다. " +
-                     "켜두면 내레이션이 끝나기 captionTailSeconds 전에 자막이 다 쳐진다")]
+            [Tooltip("자막의 타자 속도를 <b>그 문장 음성의 길이에 맞춰</b> 정한다. " +
+                     "켜두면 문장을 말하는 동안 자막이 다 쳐진다")]
             public bool fitCaptionsToVoice = true;
 
-            [Tooltip("마지막 자막을 다 친 뒤 머무는 시간(초). " +
-                     "⚠ 다음 장면에 atMusicTime 이 적혀 있으면 그쪽이 이긴다 — " +
-                     "다음 장면이 노래에서 밀리지 않는 것이 우선이다")]
+            [Tooltip("<b>말이 끝난 뒤</b> 머무는 시간(초).\n" +
+                     "⚠ 자막이 끝난 뒤가 아니라 <b>음성이 끝난 뒤</b>부터 잰다 — 자막은 말보다 " +
+                     "먼저 끝나므로 자막 기준으로 재면 마지막 문장이 잘린다.\n" +
+                     "⚠ 다음 장면에 atMusicTime 이 적혀 있으면 그쪽이 이긴다")]
             [Min(0f)] public float holdAfterLastCaption = 2f;
 
             public Caption[] captions;
@@ -117,16 +142,75 @@ namespace LastSanctuary.UI
         /// <summary>
         /// ★★ <b>오프닝 대본</b>.
         ///
-        /// <b>시각(<see cref="Slide.atMusicTime"/>)은 음성 길이에서 뽑았다</b> — 각 장면은
-        /// «페이드 인 → 내레이션 → 잠깐 머묾 → 페이드 아웃» 이고, 페이드 아웃이 끝나는 순간이
-        /// 곧 다음 장면의 시각이다(<see cref="Run"/> 의 fadeOutAt 계산).
+        /// ★★ <b>시각은 전부 <c>Tools/import_opening_voice.py</c> 가 계산해 찍어준다</b>.
+        /// 손으로 재지 말 것 — 조각이 16개라 하나를 고치면 뒤가 다 밀린다. 그 스크립트에서
+        /// 값을 고쳐 다시 돌리면 <b>이 표에 그대로 옮길 시각표</b>를 찍어 준다.
+        ///
+        /// ★★★ <b>시각이 노래의 «박» 에 맞춰져 있다</b> (2026-08-24 유저 지시: <i>"텀은 노래
+        /// 타이밍에 맞춰서 전환 해주면 베스트 불가능하면 현재로 유지"</i>).
+        ///
+        /// 브금을 분석해 격자를 <b>실측</b>했다 — <b>63.80 BPM · 4/4 · 박 0.9404초 · 마디 3.7616초 ·
+        /// 첫 마디 1.590초</b>. 격자 선명도 1.94(1.0 이면 «격자가 무의미»)이고 다운비트 대비가
+        /// 2.30(3박자 후보는 1.16)이라 <b>맞출 만한 곡</b>이다. 박의 3분할(191.4 = 63.8 x 3)이
+        /// 뚜렷해 잘게 맞출 때는 박을 <b>셋으로</b> 나눈다(0.3135초).
+        ///
+        /// 그래서 지금 —
         /// <code>
-        ///   장면 1 : 2.0초 시작 · 음성 15.60초 → 17.6초 끝 · 19.8초부터 검게 진다
-        ///   장면 2 : 21.0초    · 음성 23.72초 → 44.7초    · 46.8초
-        ///   장면 3 : 48.0초    · 음성 19.67초 → 67.7초    · 69.3초
-        ///   장면 4 : 70.5초    · 음성 20.09초 → 90.6초    · 93.6초 → 게임 씬으로
-        ///   (브금 The Fall of the Sanctuary 는 119.65초 — 넉넉히 남는다)
+        ///   컷 전환(slide.atMusicTime)  = <b>박</b> 위에 놓인다
+        ///   조각 시작(caption.atMusicTime) = <b>박의 1/3</b> 위에 놓인다
         /// </code>
+        /// <b>텀은 «격자까지의 거리» 로 저절로 정해진다</b> — 최소 텀(문장 0.35 · 절 0.15)만 지나면
+        /// 다음 격자점으로 <b>올려</b> 붙이므로, 실제 텀은 0.18~0.63초 사이에서 <b>노래에 맞게</b>
+        /// 들쭉날쭉하다. 손으로 정한 균일한 텀보다 이것이 «음악에 맞춰 읽는» 소리에 가깝다.
+        ///
+        /// ⚠ <b>마디(다운비트)에 맞추는 것은 못 했다</b> — 1.33초가 모자란다. 내레이션 16조각이
+        ///   93.07초이고 페이드·머묾을 더하면 브금 119.65초를 거의 다 쓴다. 마디 격자(3.76초)로
+        ///   올리면 컷 셋에서 평균 1.9초씩 버려져 브금을 넘긴다. 그래서 <b>한 단계 잘게</b>
+        ///   («박») 맞췄다. 마디까지 맞추려면 페이드나 머묾을 1.5초쯤 줄여야 한다 —
+        ///   그것은 연출의 <b>모양</b>을 바꾸는 결정이므로 하지 않았다.
+        ///   (스크립트가 격자 후보 다섯을 전부 시험해 «브금 안에 들어오는 가장 센 격자» 를 고른다)
+        ///
+        /// ★ 최소 텀이 어느 쪽인지는 <b>앞 자막의 «끝 글자» 가 정한다</b> — 마침표로 끝나면 문장,
+        /// 쉼표나 줄표(—)로 끝나면 절이다. 대본을 눈으로 읽으면 바로 보이고, 따로 관리하는 표가
+        /// 없으니 어긋날 일도 없다.
+        ///
+        /// 그 규칙으로 나온 지금의 시각표 (조각 3 · 6 · 3 · 4 = 16) —
+        /// <code>
+        ///   컷 1  1.59 시작 :  3.47(6.16초) · 10.05(4.73) · 15.07(5.38)              → 20.45 끝
+        ///   컷 2 23.22      : 25.10(3.84) · 29.49(3.71) · 33.56(7.52) ·
+        ///                     41.71(2.77) · 44.85(5.46) · 50.49(6.45)                → 56.94
+        ///   컷 3 59.90      : 61.78(5.25) · 67.42(9.27) · 77.14(9.43)                → 86.57
+        ///   컷 4 89.99      : 91.87(5.85) · 98.14(6.27) · 105.03(8.39) · 113.81(2.59) → 116.40
+        ///                     그 뒤 1.5초 머물고 검게 져 119.10초에 게임 씬으로
+        ///   (브금 The Fall of the Sanctuary 는 119.65초 — 0.55초 남는다)
+        /// </code>
+        /// 컷 1 은 <b>첫 마디</b>(1.590)에서 시작하고, 컷 3·4 의 첫 조각(61.78 · 91.87)은
+        /// 우연히 <b>마디 위</b>에 떨어졌다.
+        /// ⚠ 브금보다 길어져도 <b>멈추지는 않는다</b> — <see cref="_clock"/> 은 브금이 끝나도
+        ///   <see cref="Time.unscaledDeltaTime"/> 으로 계속 흐른다. 다만 마지막이 무음에서
+        ///   끝나므로 스크립트가 «브금 안에 들어오는지» 를 찍어 확인해 준다.
+        ///
+        /// ★★ <b>줄바꿈은 손으로 나눈다</b> (2026-08-24 유저 지시: <i>"오프닝 줄 바꿈 좀 깔끔하게
+        /// 해줘 지금 너무 지저분 함"</i>).
+        ///
+        /// 문구를 한 덩어리로 넣고 <see cref="TMP_Text"/> 의 자동 줄바꿈에 맡기면, 줄이 <b>칸 폭이
+        /// 다하는 곳에서</b> 끊긴다 — 「하늘은 순식간에 핏빛으로 / 물들었고」처럼 <b>구(句) 가운데를
+        /// 가른다</b>. 한글은 어절이 길어 이 사고가 특히 잦고, 왼쪽 정렬이라 오른쪽 끝의 들쭉날쭉함이
+        /// 그대로 눈에 남는다. 게다가 타자 효과가 그 자리에서 <b>한 글자씩</b> 지나가므로 «어색한
+        /// 지점»을 유저가 오래 본다.
+        ///
+        /// 그래서 <c>\n</c> 을 <b>대본에 직접</b> 넣어 «한 줄 = 한 구» 로 맞췄다. 소스의 줄 모양이
+        /// 곧 화면의 줄 모양이다.
+        ///
+        /// ★★ 2026-08-24 조각을 16개로 나눈 뒤에는 <b>줄바꿈이 하나도 없다</b> — 조각이 절 단위라
+        /// 자막이 죄다 <b>한 줄</b>에 들어간다(가장 긴 것이 30자). 손으로 나눌 일이 없어졌지만
+        /// 규칙은 남겨 둔다 — 문구를 길게 고치면 다시 필요해진다.
+        /// 칸(<see cref="captionSize"/> 1440px · 40pt)은 <b>40자쯤</b>이 들어간다 —
+        /// 자동 줄바꿈은 <b>끄지 않았다</b>. 해상도 비율이 달라져 한 줄이 넘칠 때 화면 밖으로
+        /// 삐져나가는 것보다 <b>접히는</b> 편이 안전하다(평소에는 여유 7자 덕에 발동하지 않는다).
+        ///
+        /// ⚠ <b>문구를 고치면 줄도 다시 나눠야 한다.</b> 이것이 손으로 나누는 값의 대가다 —
+        ///   한 줄이 <b>35자</b>를 넘지 않게, 쉼표·줄표(—) 뒤에서 끊는 것을 기준으로 삼을 것.
         ///
         /// <b>자막은 한글이다</b> (2026-08-24 유저 지시 — <i>"이렇게 한글로만 넣고"</i>).
         /// 음성은 영어 내레이션 그대로지만 화면에 뜨는 글은 유저가 준 한글 문구다. 길이가
@@ -151,69 +235,135 @@ namespace LastSanctuary.UI
         ///    해야 한다: ① 인스펙터에서 값을 같이 고친다, 또는 ② 컴포넌트 톱니바퀴 →
         ///    <b>Reset</b> 으로 씬의 값을 코드 기본값으로 되돌린다(다른 설정도 함께 초기화된다).
         /// </summary>
-        [Header("대본 (배경 · 음성 · 자막)")]
+        [Header("대본 (배경 · 조각 = 자막 + 음성 + 시각)")]
         [SerializeField] Slide[] slides =
         {
             new Slide
             {
-                background  = "Opening/BG_04",       // 흰 성역 — «순백으로 빛나던 시절»
-                voice       = "Opening/VO_01",
-                atMusicTime = 2f,
+                background  = "Opening/BG_04",
+                atMusicTime = 1.59f,
                 captions = new[]
                 {
                     new Caption
                     {
-                        text = "기억한다 — 이 성역이 순백으로 빛나던 시절을. "
-                             + "천사들의 노래가 첨탑마다 울려 퍼졌고, "
-                             + "그 어떤 어둠도 이 문턱을 넘지 못했다.",
+                        voice       = "Opening/VO_01_1",     // 6.16초
+                        atMusicTime = 3.47f,
+                        text = "기억한다 — 이 성역이 순백으로 빛나던 시절을.",
+                    },
+                    new Caption
+                    {
+                        voice       = "Opening/VO_01_2",     // 4.73초
+                        atMusicTime = 10.05f,
+                        text = "천사들의 노래가 첨탑마다 울려 퍼졌고,",
+                    },
+                    new Caption
+                    {
+                        voice       = "Opening/VO_01_3",     // 5.38초
+                        atMusicTime = 15.07f,
+                        text = "그 어떤 어둠도 이 문턱을 넘지 못했다.",
                     },
                 },
             },
             new Slide
             {
-                background  = "Opening/BG_01",       // 붉은 일식 — «하늘은 순식간에 핏빛으로»
-                voice       = "Opening/VO_02",
-                atMusicTime = 21f,
+                background  = "Opening/BG_01",
+                atMusicTime = 23.22f,
                 captions = new[]
                 {
                     new Caption
                     {
-                        text = "그 빛은 꺼졌다. 하늘은 순식간에 핏빛으로 물들었고, "
-                             + "노도와 같은 어둠은 그들을 집어삼켰다. "
-                             + "터전을 지키는 데에 그 이유는 중요치 않으리 — "
-                             + "그들은 영문도 모른 채 갑주를 여미고, "
-                             + "짙어지는 어둠을 향해 나아갈 뿐이었다.",
+                        voice       = "Opening/VO_02_1",     // 3.84초
+                        atMusicTime = 25.10f,
+                        text = "그 빛은 꺼졌다.",
+                    },
+                    new Caption
+                    {
+                        voice       = "Opening/VO_02_2",     // 3.71초
+                        atMusicTime = 29.49f,
+                        text = "하늘은 순식간에 핏빛으로 물들었고,",
+                    },
+                    new Caption
+                    {
+                        voice       = "Opening/VO_02_3",     // 7.52초
+                        atMusicTime = 33.56f,
+                        text = "노도와 같은 어둠은 그들을 집어삼켰다.",
+                    },
+                    new Caption
+                    {
+                        voice       = "Opening/VO_02_4",     // 2.77초
+                        atMusicTime = 41.71f,
+                        text = "터전을 지키는 데에,",
+                    },
+                    new Caption
+                    {
+                        voice       = "Opening/VO_02_5",     // 5.46초
+                        atMusicTime = 44.85f,
+                        text = "그 이유는 중요치 않으리 — 그들은 영문도 모른 채,",
+                    },
+                    new Caption
+                    {
+                        voice       = "Opening/VO_02_6",     // 6.45초
+                        atMusicTime = 50.49f,
+                        text = "갑주를 여미고, 짙어지는 어둠을 향해 나아갈 뿐이었다.",
                     },
                 },
             },
             new Slide
             {
-                background  = "Opening/BG_03",       // 불타는 성 — «하늘에서는 짐승이 울부짖는다»
-                voice       = "Opening/VO_03",
-                atMusicTime = 48f,
+                background  = "Opening/BG_03",
+                atMusicTime = 59.90f,
                 captions = new[]
                 {
                     new Caption
                     {
-                        text = "성문은 무너졌고, 하늘에서는 짐승이 울부짖는다. "
-                             + "불길은 자비를 모르고, 어둠은 뿌리처럼 번져간다. "
-                             + "남은 것은 잿더미와, 지켜지지 못한 맹세뿐.",
+                        voice       = "Opening/VO_03_1",     // 5.25초
+                        atMusicTime = 61.78f,
+                        text = "성문은 무너졌고, 하늘에서는 짐승이 울부짖는다.",
+                    },
+                    new Caption
+                    {
+                        voice       = "Opening/VO_03_2",     // 9.27초
+                        atMusicTime = 67.42f,
+                        text = "불길은 자비를 모르고, 어둠은 뿌리처럼 번져간다.",
+                    },
+                    new Caption
+                    {
+                        voice       = "Opening/VO_03_3",     // 9.43초
+                        atMusicTime = 77.14f,
+                        text = "남은 것은 잿더미와, 지켜지지 못한 맹세뿐.",
                     },
                 },
             },
             new Slide
             {
-                background  = "Opening/BG_02",       // 주저앉은 천사 — «쓰러진 이들의 이름»
-                voice       = "Opening/VO_04",
-                atMusicTime = 70.5f,
-                holdAfterLastCaption = 3f,
+                background  = "Opening/BG_02",
+                atMusicTime = 89.99f,
+                holdAfterLastCaption = 1.5f,
                 captions = new[]
                 {
                     new Caption
                     {
-                        text = "쓰러진 이들의 이름을 나는 다 기억하지 못한다. "
-                             + "그러나 그들이 지키려 했던 것만은 잊지 않았다. "
-                             + "그대여, 마지막 성역이 완전히 저물기 전에 — 나서라.",
+                        voice       = "Opening/VO_04_1",     // 5.85초
+                        atMusicTime = 91.87f,
+                        text = "쓰러진 이들의 이름을 나는 다 기억하지 못한다.",
+                    },
+                    new Caption
+                    {
+                        voice       = "Opening/VO_04_2",     // 6.27초
+                        atMusicTime = 98.14f,
+                        text = "그러나 그들이 지키려 했던 것만은 잊지 않았다.",
+                    },
+                    new Caption
+                    {
+                        voice       = "Opening/VO_04_3",     // 8.39초
+                        atMusicTime = 105.03f,
+                        text = "그대여, 마지막 성역이 완전히 저물기 전에 —",
+                    },
+                    new Caption
+                    {
+                        voice       = "Opening/VO_04_4",     // 2.59초
+                        atMusicTime = 113.81f,
+                        text = "나서라.",
                     },
                 },
             },
@@ -354,6 +504,16 @@ namespace LastSanctuary.UI
         /// </summary>
         float _clock;
 
+        /// <summary>
+        /// 지금 틀고 있는 음성이 <b>끝나는 브금 시각</b>. 마지막 장면이 «말이 끝난 뒤» 머무는
+        /// 시간을 재는 근거다(<see cref="Run"/> 의 ⑤).
+        ///
+        /// ⚠ 자막이 끝난 시각(<see cref="_clock"/>)으로 재면 안 된다 — 자막은 말보다
+        ///   <see cref="captionTailSeconds"/> 먼저 끝나도록 속도를 정하므로, 그 기준으로 재면
+        ///   <b>마지막 문장을 말하는 중에</b> 화면이 검게 진다.
+        /// </summary>
+        float _voiceEndsAt;
+
         bool _running;
         bool _leaving;
 
@@ -412,21 +572,24 @@ namespace LastSanctuary.UI
                     while (_clock < slide.atMusicTime) yield return null;
 
                 // ② 막이 내려간 동안 배경을 갈아끼운다 — 바뀌는 순간이 보이지 않는다.
+                //    ★ 음성은 여기서 틀지 않는다 — 문장마다 <b>제 시각에</b> 제 음성을 튼다(④).
                 ApplyBackground(slide.background);
                 _caption.text = string.Empty;
-                float voiceLength = PlayVoice(slide.voice);
+                _voiceEndsAt = _clock;
 
                 // ③ 페이드 인
                 yield return Fade(_curtain, 1f, 0f, fadeInSeconds);
 
-                // ④ 자막을 차례대로 타자로 친다
-                yield return TypeCaptions(slide, voiceLength);
+                // ④ 문장을 차례대로 — 각 문장이 «제 시각에» 말을 시작하고 자막이 같이 쳐진다
+                yield return TypeCaptions(slide);
 
                 // ⑤ 페이드 아웃을 <b>언제</b> 시작할지 — 다음 장면이 노래에서 밀리지 않는 것이 우선이다.
+                //    ⚠ 마지막 장면은 «말이 끝난 뒤»(_voiceEndsAt)부터 머문다 — 자막은 말보다 먼저
+                //      끝나므로 _clock 만 보면 <b>마지막 문장이 잘린 채</b> 검게 진다.
                 float? next = NextSlideMusicTime(i);
                 float fadeOutAt = next.HasValue && next.Value > 0f
                     ? next.Value - fadeOutSeconds
-                    : _clock + slide.holdAfterLastCaption;
+                    : Mathf.Max(_clock, _voiceEndsAt) + slide.holdAfterLastCaption;
 
                 while (_clock < fadeOutAt) yield return null;
 
@@ -442,12 +605,22 @@ namespace LastSanctuary.UI
                 ? slides[index + 1].atMusicTime
                 : (float?)null;
 
-        IEnumerator TypeCaptions(Slide slide, float voiceLength)
+        /// <summary>
+        /// 문장을 차례대로 — <b>제 시각에 · 제 음성으로 · 제 자막으로</b>.
+        ///
+        /// ★ <b>조각 사이의 텀은 여기서 «저절로» 생긴다.</b> 앞 조각의 음성이 끝나도 다음 조각의
+        /// <see cref="Caption.atMusicTime"/> 까지는 기다리므로, 그 차이가 곧 텀이다. 텀을 늘리려면
+        /// 표의 시각만 밀면 되고 <b>오디오는 손대지 않는다</b> — 그 시각은
+        /// <c>Tools/import_opening_voice.py</c> 가 <b>노래의 박자 격자에 맞춰</b> 계산해 준다
+        /// (<see cref="slides"/> 의 설명).
+        ///
+        /// ★ <b>앞 문장의 자막은 지우지 않는다</b> — 텀 동안 화면에 그대로 남아 있고, 다음 문장이
+        /// 쳐지기 시작할 때 <see cref="Type"/> 이 갈아끼운다. 텀마다 화면이 비면 «끊긴» 느낌이 난다.
+        /// </summary>
+        IEnumerator TypeCaptions(Slide slide)
         {
             Caption[] captions = slide.captions;
             if (captions == null) yield break;
-
-            float speed = SpeedFor(slide, voiceLength);
 
             for (int i = 0; i < captions.Length; i++)
             {
@@ -456,7 +629,7 @@ namespace LastSanctuary.UI
 
                 if (caption.atMusicTime > 0f)
                 {
-                    // 노래(=음성)의 그 시각에 이 줄이 시작한다
+                    // 노래의 그 시각에 이 문장이 말을 시작한다
                     while (_clock < caption.atMusicTime) yield return null;
                 }
                 else if (i > 0)
@@ -465,46 +638,38 @@ namespace LastSanctuary.UI
                     while (_clock < until) yield return null;
                 }
 
-                yield return Type(caption.text, speed);
+                float voiceLength = PlayVoice(caption.voice);
+                yield return Type(caption.text, SpeedFor(slide, caption, voiceLength));
             }
         }
 
         /// <summary>
-        /// 이 장면의 타자 속도(초당 글자 수).
+        /// <b>이 문장</b>의 타자 속도(초당 글자 수).
         ///
-        /// <see cref="Slide.fitCaptionsToVoice"/> 가 켜져 있으면 «이 장면 자막의 총 글자 수» 를
-        /// «내레이션에 남은 시간» 으로 나눈다 — 자막이 <b>음성보다
-        /// <see cref="captionTailSeconds"/> 먼저</b> 끝난다. 문구를 고쳐도 시각을 다시 잴 필요가
-        /// 없는 것이 이 방식의 값이다.
+        /// <see cref="Slide.fitCaptionsToVoice"/> 가 켜져 있으면 «이 문장의 글자 수» 를
+        /// «이 문장 음성의 길이» 로 나눈다 — 자막이 <b>그 문장을 말하는 동안</b>
+        /// (끝나기 <see cref="captionTailSeconds"/> 전에) 다 쳐진다.
         ///
-        /// ⚠ 자막은 페이드 인이 <b>끝난 뒤</b> 시작하므로(<see cref="Run"/> 의 ③→④) 예산에서
-        ///   <see cref="fadeInSeconds"/> 를 뺀다. 줄 사이 쉬는 시간도 예산에서 빠진다.
+        /// ★ <b>장면 단위가 아니라 문장 단위로 잰다</b>(2026-08-24 개편). 예전에는 «장면의 총
+        /// 글자 수 ÷ 통짜 음성 길이» 였다 — 문장마다 길이가 다르면 어떤 문장은 말보다 한참
+        /// 먼저 끝나고 어떤 문장은 말이 끝난 뒤에도 계속 쳐졌다. 이제 음성이 문장별로 잘려
+        /// 있으므로(<see cref="Caption.voice"/>) 문장마다 제 예산으로 잰다.
+        ///
+        /// ⚠ 페이드 인·줄 사이 쉬는 시간을 예산에서 뺄 일이 <b>없어졌다</b> — 문장의 시작이
+        ///   <see cref="Caption.atMusicTime"/> 으로 못박혀 있어 예산이 곧 음성 길이다.
         /// ⚠ 극단적인 값(너무 느려 안 읽히거나 순간에 다 떠버리는)은 <see cref="Mathf.Clamp"/>
         ///   으로 막는다 — 문구가 아주 짧거나 아주 길 때를 대비한 안전장치다.
         /// </summary>
-        float SpeedFor(Slide slide, float voiceLength)
+        float SpeedFor(Slide slide, Caption caption, float voiceLength)
         {
-            if (!slide.fitCaptionsToVoice || voiceLength <= 0f || slide.captions == null)
+            if (!slide.fitCaptionsToVoice || voiceLength <= 0f
+                || caption == null || string.IsNullOrEmpty(caption.text))
                 return charsPerSecond;
 
-            int chars = 0;
-            int lines = 0;
-            foreach (Caption caption in slide.captions)
-            {
-                if (caption == null || string.IsNullOrEmpty(caption.text)) continue;
-                chars += caption.text.Length;
-                lines++;
-            }
-            if (chars <= 0) return charsPerSecond;
-
-            float budget = voiceLength
-                           - fadeInSeconds
-                           - captionTailSeconds
-                           - captionGapSeconds * Mathf.Max(0, lines - 1);
-
+            float budget = voiceLength - captionTailSeconds;
             if (budget <= 0.25f) return charsPerSecond;
 
-            return Mathf.Clamp(chars / budget, 6f, 90f);
+            return Mathf.Clamp(caption.text.Length / budget, 6f, 90f);
         }
 
         /// <summary>
@@ -660,6 +825,8 @@ namespace LastSanctuary.UI
             _voice.clip = clip;
             _voice.volume = voiceVolume;
             _voice.Play();
+
+            _voiceEndsAt = _clock + clip.length;    // ★ «말이 끝나는 시각» 을 남긴다 (Run 의 ⑤)
             return clip.length;
         }
 

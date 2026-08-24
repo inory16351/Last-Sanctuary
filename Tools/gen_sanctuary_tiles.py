@@ -78,6 +78,18 @@ PAGE_BG = (25, 25, 33)
 #: 데코의 배경을 지울 때 쓰는 채널 차 허용치.
 DECO_TOL = 26
 
+#: ★★ <b>굽지 않는 데코 칸</b> (2026-08-24 유저 지시: *"데코에 자꾸 스킬 이펙트가 박혀 있는데
+#:   … 청크들 데코도 봐봐 서식지랑 중앙건물 쪽 데코들"*).
+#:
+#:   참조 시트의 데코 12칸 중 넷은 <b>구조가 없는 발광 덩어리</b>다 —
+#:     04 발광 고리 · 06 불꽃 · 07 주황 발광 덩어리 · 08 불꽃
+#:   넥서스(중앙 건물) 바닥에 깔리면 «불·폭발 이펙트가 바닥에 박혀 있다» 로 보인다.
+#:   남기는 여덟(00·01·02·03·05·09·10·11)은 뿌리·균열·잔불 같은 <b>형태가 있는</b> 것들이다.
+#:
+#:   ⚠ 번호는 <b>안 밀린다</b> — 건너뛴 칸의 번호를 비워 둔다. 그래야 남은 파일 이름이
+#:     이 목록과 그대로 맞물려 «어느 칸을 뺐는지» 를 파일만 보고도 알 수 있다.
+PROPS_SKIP = {4, 6, 7, 8}
+
 # ── 시트 배치 (실측) ──────────────────────────────────────────────────────
 #   (묶음, y0, y1, x 시작, x 끝, 칸 수)
 BANDS = [
@@ -540,6 +552,7 @@ def main():
 
     ensure_folder_meta(TILE_ROOT)
     counts = {"Ground": 0, "Edge": 0, "Props": 0}
+    skipped = 0
 
     for band in BANDS:
         kind, _, _, _, _, n = band
@@ -547,6 +560,14 @@ def main():
         tile_dir = os.path.join(TILE_ROOT, "Sanctuary" + ("" if kind == "Ground" else kind))
 
         for i in range(n):
+            index = counts[kind]
+            counts[kind] += 1
+
+            # ★ 이펙트처럼 보이는 데코 칸은 굽지 않는다 (PROPS_SKIP 의 설명).
+            if kind == "Props" and index in PROPS_SKIP:
+                skipped += 1
+                continue
+
             cell = cut(img, band, i)
             if kind == "Ground":
                 rgba = opaque(cell)
@@ -555,16 +576,17 @@ def main():
             else:
                 rgba = faded(cell)
 
-            name = "Sanctuary%s_%02d" % ("" if kind == "Ground" else kind, counts[kind])
+            name = "Sanctuary%s_%02d" % ("" if kind == "Ground" else kind, index)
             write_tile(rgba, art, tile_dir, name)
-            counts[kind] += 1
 
         ensure_folder_meta(art)
         ensure_folder_meta(tile_dir)
 
     print("  바닥      %2d종  → Resources/HabitatTiles/Sanctuary" % counts["Ground"])
     print("  가장자리  %2d종  → Resources/HabitatTiles/SanctuaryEdge" % counts["Edge"])
-    print("  데코      %2d종  → Resources/HabitatTiles/SanctuaryProps" % counts["Props"])
+    print("  데코      %2d종  → Resources/HabitatTiles/SanctuaryProps  "
+          "(이펙트처럼 보이는 %d칸 %s 은 건너뜀)"
+          % (counts["Props"] - skipped, skipped, sorted(PROPS_SKIP)))
     print("\n원화 → Art/OrganicTilemap/Sanctuary*")
     print("Unity 에서 Assets/Refresh 를 실행할 것.")
     return 0

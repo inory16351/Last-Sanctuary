@@ -1,0 +1,133 @@
+        [Header("대본 (배경 · 조각 = 자막 + 음성 + 시각)")]
+        [SerializeField] Slide[] slides =
+        {
+            new Slide
+            {
+                background  = "Opening/BG_04",
+                atMusicTime = 1.59f,
+                captions = new[]
+                {
+                    new Caption
+                    {
+                        voice       = "Opening/VO_01_1",     // 6.16초
+                        atMusicTime = 3.47f,
+                        text = "기억한다 — 이 성역이 순백으로 빛나던 시절을.",
+                    },
+                    new Caption
+                    {
+                        voice       = "Opening/VO_01_2",     // 4.73초
+                        atMusicTime = 10.05f,
+                        text = "천사들의 노래가 첨탑마다 울려 퍼졌고,",
+                    },
+                    new Caption
+                    {
+                        voice       = "Opening/VO_01_3",     // 5.38초
+                        atMusicTime = 15.07f,
+                        text = "그 어떤 어둠도 이 문턱을 넘지 못했다.",
+                    },
+                },
+            },
+            new Slide
+            {
+                background  = "Opening/BG_01",
+                atMusicTime = 23.22f,
+                captions = new[]
+                {
+                    new Caption
+                    {
+                        voice       = "Opening/VO_02_1",     // 3.84초
+                        atMusicTime = 25.10f,
+                        text = "그 빛은 꺼졌다.",
+                    },
+                    new Caption
+                    {
+                        voice       = "Opening/VO_02_2",     // 3.71초
+                        atMusicTime = 29.49f,
+                        text = "하늘은 순식간에 핏빛으로 물들었고,",
+                    },
+                    new Caption
+                    {
+                        voice       = "Opening/VO_02_3",     // 7.52초
+                        atMusicTime = 33.56f,
+                        text = "노도와 같은 어둠은 그들을 집어삼켰다.",
+                    },
+                    new Caption
+                    {
+                        voice       = "Opening/VO_02_4",     // 2.77초
+                        atMusicTime = 41.71f,
+                        text = "터전을 지키는 데에,",
+                    },
+                    new Caption
+                    {
+                        voice       = "Opening/VO_02_5",     // 5.46초
+                        atMusicTime = 44.85f,
+                        text = "그 이유는 중요치 않으리 — 그들은 영문도 모른 채,",
+                    },
+                    new Caption
+                    {
+                        voice       = "Opening/VO_02_6",     // 6.45초
+                        atMusicTime = 50.49f,
+                        text = "갑주를 여미고, 짙어지는 어둠을 향해 나아갈 뿐이었다.",
+                    },
+                },
+            },
+            new Slide
+            {
+                background  = "Opening/BG_03",
+                atMusicTime = 59.90f,
+                captions = new[]
+                {
+                    new Caption
+                    {
+                        voice       = "Opening/VO_03_1",     // 5.25초
+                        atMusicTime = 61.78f,
+                        text = "성문은 무너졌고, 하늘에서는 짐승이 울부짖는다.",
+                    },
+                    new Caption
+                    {
+                        voice       = "Opening/VO_03_2",     // 9.27초
+                        atMusicTime = 67.42f,
+                        text = "불길은 자비를 모르고, 어둠은 뿌리처럼 번져간다.",
+                    },
+                    new Caption
+                    {
+                        voice       = "Opening/VO_03_3",     // 9.43초
+                        atMusicTime = 77.14f,
+                        text = "남은 것은 잿더미와, 지켜지지 못한 맹세뿐.",
+                    },
+                },
+            },
+            new Slide
+            {
+                background  = "Opening/BG_02",
+                atMusicTime = 89.99f,
+                holdAfterLastCaption = 1.5f,
+                captions = new[]
+                {
+                    new Caption
+                    {
+                        voice       = "Opening/VO_04_1",     // 5.85초
+                        atMusicTime = 91.87f,
+                        text = "쓰러진 이들의 이름을 나는 다 기억하지 못한다.",
+                    },
+                    new Caption
+                    {
+                        voice       = "Opening/VO_04_2",     // 6.27초
+                        atMusicTime = 98.14f,
+                        text = "그러나 그들이 지키려 했던 것만은 잊지 않았다.",
+                    },
+                    new Caption
+                    {
+                        voice       = "Opening/VO_04_3",     // 8.39초
+                        atMusicTime = 105.03f,
+                        text = "그대여, 마지막 성역이 완전히 저물기 전에 —",
+                    },
+                    new Caption
+                    {
+                        voice       = "Opening/VO_04_4",     // 2.59초
+                        atMusicTime = 113.81f,
+                        text = "나서라.",
+                    },
+                },
+            },
+        };
