@@ -3,7 +3,9 @@ using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.UI;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using LastSanctuary.Save;
@@ -20,8 +22,10 @@ namespace LastSanctuary.UI
     /// 쓰는 에셋 (볼트 <c>리소스/</c> 에서 가져와 <c>Resources/</c> 로 넣었다) —
     /// <code>
     ///   Resources/Opening/BG_01 ~ BG_04      ← 볼트의 opening_BG.png 를 2×2 로 잘라낸 넉 장
+    ///                                          ⚠ 자른 순서 ≠ 이야기 순서 (<see cref="slides"/>)
     ///   Resources/Opening/VO_01 ~ VO_04      ← 볼트의 voice/Scene_01~04.mp3
     ///   Resources/Bgm/The Fall of the Sanctuary  ← 오프닝 브금 (1분 59초)
+    ///   Resources/UI/Lobby/LobbyButtonSkip   ← 건너뛰기 버튼 판 (로비 버튼을 가로만 잘라낸 것)
     /// </code>
     ///
     /// <b>㉠ 브금이 시계다</b> — 이 연출의 뼈대가 되는 판단.
@@ -51,7 +55,7 @@ namespace LastSanctuary.UI
     ///   CaptionShade (아래쪽 그늘)
     ///   Caption      (자막)
     ///   Curtain      (검은 막)          ← 자막까지 덮는다
-    ///   SkipHint     (건너뛰기 안내)    ← 막 위. 검은 화면에서도 보인다
+    ///   SkipButton   (건너뛰기 버튼)    ← 막 위. 검은 화면에서도 보이고 눌린다
     /// </code>
     /// 자막을 막 <b>아래</b>에 두었기 때문에 «자막 지우기» 를 따로 할 일이 없다.
     ///
@@ -124,10 +128,22 @@ namespace LastSanctuary.UI
         ///   (브금 The Fall of the Sanctuary 는 119.65초 — 넉넉히 남는다)
         /// </code>
         ///
-        /// ⚠ <b>자막 문구는 아직 자리표시자다</b> — 볼트에는 배경·음성·브금만 들어왔고
-        ///   내레이션 <b>대본(텍스트)</b>은 없었다. 음성에 배경음이 계속 깔려 있어 문장 경계를
-        ///   소리로 갈라낼 수도 없다. 영어 문구가 들어오면 이 표의 <c>text</c> 만 채우면 되고,
-        ///   타자 속도는 <see cref="Slide.fitCaptionsToVoice"/> 가 알아서 맞춘다.
+        /// <b>자막은 한글이다</b> (2026-08-24 유저 지시 — <i>"이렇게 한글로만 넣고"</i>).
+        /// 음성은 영어 내레이션 그대로지만 화면에 뜨는 글은 유저가 준 한글 문구다. 길이가
+        /// 영어와 달라도 타자 속도는 <see cref="Slide.fitCaptionsToVoice"/> 가 음성 길이에서
+        /// 다시 계산하므로 <b>시각을 손댈 일이 없다</b>(㉡).
+        ///
+        /// ★★ <b>배경을 대사에 맞춰 다시 짝지었다</b> (같은 지시 — <i>"이미지 배경이 컷이랑
+        /// 안 맞아 한글대사 읽어보고 해당 대사에 맞춰서 해줘"</i>). 넉 장은 볼트 그림을 2×2 로
+        /// 자른 순서(BG_01~04)일 뿐이고 <b>이야기 순서가 아니었다</b> —
+        /// <code>
+        ///   1컷 «순백으로 빛나던 시절 · 천사들의 노래»  → BG_04 (흰 성역 · 맑은 하늘)
+        ///   2컷 «빛이 꺼지고 하늘이 핏빛 · 갑주를 여미고» → BG_01 (붉은 일식 · 진군하는 기사들)
+        ///   3컷 «성문이 무너지고 짐승이 울부짖는다»      → BG_03 (불타는 성 · 용과 마군)
+        ///   4컷 «쓰러진 이들 · 지켜지지 못한 맹세»        → BG_02 (주저앉은 천사 · 잿더미)
+        /// </code>
+        /// ⚠ <b>음성(VO)의 순서는 그대로다</b> — 내레이션은 이미 이야기 순서로 녹음되어 있다.
+        ///   바꾼 것은 «어느 그림을 어느 컷에 쓸지» 뿐이다.
         ///
         /// ⚠⚠ <b>이 표는 씬에도 복사되어 있다</b>(<c>Opening.unity</c> 의 OpeningDirector).
         ///    <see cref="SerializeField"/> 이므로 <b>씬에 저장된 값이 이 코드보다 이긴다</b> —
@@ -140,43 +156,65 @@ namespace LastSanctuary.UI
         {
             new Slide
             {
-                background  = "Opening/BG_01",
+                background  = "Opening/BG_04",       // 흰 성역 — «순백으로 빛나던 시절»
                 voice       = "Opening/VO_01",
                 atMusicTime = 2f,
                 captions = new[]
                 {
-                    new Caption { text = "[SCENE 1] Paste the English narration for this scene here." },
+                    new Caption
+                    {
+                        text = "기억한다 — 이 성역이 순백으로 빛나던 시절을. "
+                             + "천사들의 노래가 첨탑마다 울려 퍼졌고, "
+                             + "그 어떤 어둠도 이 문턱을 넘지 못했다.",
+                    },
                 },
             },
             new Slide
             {
-                background  = "Opening/BG_02",
+                background  = "Opening/BG_01",       // 붉은 일식 — «하늘은 순식간에 핏빛으로»
                 voice       = "Opening/VO_02",
                 atMusicTime = 21f,
                 captions = new[]
                 {
-                    new Caption { text = "[SCENE 2] Paste the English narration for this scene here." },
+                    new Caption
+                    {
+                        text = "그 빛은 꺼졌다. 하늘은 순식간에 핏빛으로 물들었고, "
+                             + "노도와 같은 어둠은 그들을 집어삼켰다. "
+                             + "터전을 지키는 데에 그 이유는 중요치 않으리 — "
+                             + "그들은 영문도 모른 채 갑주를 여미고, "
+                             + "짙어지는 어둠을 향해 나아갈 뿐이었다.",
+                    },
                 },
             },
             new Slide
             {
-                background  = "Opening/BG_03",
+                background  = "Opening/BG_03",       // 불타는 성 — «하늘에서는 짐승이 울부짖는다»
                 voice       = "Opening/VO_03",
                 atMusicTime = 48f,
                 captions = new[]
                 {
-                    new Caption { text = "[SCENE 3] Paste the English narration for this scene here." },
+                    new Caption
+                    {
+                        text = "성문은 무너졌고, 하늘에서는 짐승이 울부짖는다. "
+                             + "불길은 자비를 모르고, 어둠은 뿌리처럼 번져간다. "
+                             + "남은 것은 잿더미와, 지켜지지 못한 맹세뿐.",
+                    },
                 },
             },
             new Slide
             {
-                background  = "Opening/BG_04",
+                background  = "Opening/BG_02",       // 주저앉은 천사 — «쓰러진 이들의 이름»
                 voice       = "Opening/VO_04",
                 atMusicTime = 70.5f,
                 holdAfterLastCaption = 3f,
                 captions = new[]
                 {
-                    new Caption { text = "[SCENE 4] Paste the English narration for this scene here." },
+                    new Caption
+                    {
+                        text = "쓰러진 이들의 이름을 나는 다 기억하지 못한다. "
+                             + "그러나 그들이 지키려 했던 것만은 잊지 않았다. "
+                             + "그대여, 마지막 성역이 완전히 저물기 전에 — 나서라.",
+                    },
                 },
             },
         };
@@ -220,14 +258,70 @@ namespace LastSanctuary.UI
 
         [SerializeField] float captionFontSize = 40f;
 
+        /// <summary>
+        /// ★ <b>자막은 왼쪽 정렬이다</b> (2026-08-24 유저 지시: <i>"자막 위치를 중앙정열로
+        /// 하지말고 왼쪽 정렬로 해서 깔끔하게 다듬어줘"</i>).
+        ///
+        /// 가운데 정렬은 <b>줄마다 시작 x 가 달라진다</b> — 줄이 넘어갈 때마다 눈이 좌우로
+        /// 튀고, 타자 효과가 «왼쪽에서 오른쪽으로 쳐 나가는» 것과도 어긋난다(글자가 늘 때마다
+        /// 줄 전체가 옮겨 앉는 것처럼 보인다). 왼쪽 정렬은 모든 줄의 시작이 <b>한 선</b>에
+        /// 맞아서 여러 줄을 읽어도 자리를 잃지 않는다.
+        ///
+        /// ⚠ 칸을 <b>화면 폭보다 좁게</b> 잡는다(1440 &lt; 1920). 왼쪽 정렬은 오른쪽 끝이
+        ///   들쭉날쭉해서, 칸이 화면 폭에 가까우면 한 줄이 너무 길어져 오히려 읽기 어렵다.
+        ///   40pt 한글로 한 줄에 35자쯤 — 4컷 중 가장 긴 2컷(116자)이 4줄이다.
+        /// </summary>
+        [Tooltip("자막 칸의 크기(px · 1920x1080 기준). " +
+                 "한 줄이 너무 길어지지 않게 <b>화면 폭보다 좁다</b>")]
+        [SerializeField] Vector2 captionSize = new Vector2(1440f, 320f);
+
+        [Tooltip("자막 칸을 화면 <b>왼쪽 아래</b> 모서리에서 띄우는 여백(px). " +
+                 "x 가 곧 «모든 줄이 시작하는 선» 이다")]
+        [SerializeField] Vector2 captionMargin = new Vector2(180f, 110f);
+
+        [Tooltip("줄 사이를 조금 벌린다(글꼴 크기 대비 %). " +
+                 "여러 줄이 붙어 보이면 왼쪽 정렬의 «시작선» 이 덩어리로 뭉쳐 보인다")]
+        [SerializeField] float captionLineSpacing = 12f;
+
         [Tooltip("자막 뒤에 깔아 밝은 배경에서도 글자가 읽히게 하는 아래쪽 그늘의 진하기. 0 이면 안 깐다")]
         [Range(0f, 1f)] [SerializeField] float captionShadeAlpha = 0.7f;
 
-        [Header("건너뛰기")]
-        [Tooltip("이 시간이 지나면 «건너뛰기» 안내가 뜬다(초)")]
-        [Min(0f)] [SerializeField] float skipHintDelaySeconds = 3.5f;
+        [Tooltip("아래쪽 그늘의 높이(px). 자막 칸의 위끝보다 넉넉히 높아야 " +
+                 "글자 윗줄이 그늘 밖으로 삐져나오지 않는다")]
+        [Min(0f)] [SerializeField] float captionShadeHeight = 480f;
 
-        [SerializeField] string skipHintText = "PRESS SPACE TO SKIP";
+        /// <summary>
+        /// ★★ <b>건너뛰기는 «버튼» 으로만 한다</b> (2026-08-24 유저 지시: <i>"오프닝은 클릭으로
+        /// 스킵되지 말고 클릭하면 스킵되어 버리는데 오른쪽 위에 스킵 버튼 만들어서 해당 버튼
+        /// 누르면 스킵되게 만들어줘"</i>).
+        ///
+        /// 처음에는 «화면 아무 곳이나 누르면 건너뛴다» 였다(<see cref="LobbyPanel"/> 의 «누르면
+        /// 넘어가기» 를 그대로 가져온 것). 그런데 오프닝은 <b>2분을 보는 연출</b>이라 손이
+        /// 미끄러진 한 번의 클릭으로 <b>전부 날아간다</b>. 되돌릴 방법도 없다 — 그래서 건너뛰기는
+        /// «누를 곳이 정해진 버튼» 이어야 한다.
+        ///
+        /// ⚠ 키보드(스페이스·엔터·ESC)는 <b>남겨 둔다</b> — 실수로 눌릴 위험이 있는 것은
+        ///   «화면 아무 곳이나» 인 마우스 클릭이고, 그것만 뺐다(<see cref="SkipRequested"/>).
+        /// </summary>
+        [Header("건너뛰기 버튼")]
+        [Tooltip("이 시간이 지나면 «건너뛰기» 버튼이 떠오른다(초)")]
+        [Min(0f)] [SerializeField] float skipButtonDelaySeconds = 3.5f;
+
+        [SerializeField] string skipButtonText = "건너뛰기";
+
+        [Tooltip("버튼 판 그림 — Resources 아래의 경로(확장자 없이). " +
+                 "로비 버튼 판을 <b>가로만 잘라낸</b> 그림이다 (Tools/make_skip_button_art.py)")]
+        [SerializeField] string skipButtonResource = "UI/Lobby/LobbyButtonSkip";
+
+        [Tooltip("버튼 칸의 크기(px · 1920x1080 기준). " +
+                 "로비 버튼 칸(360x70)과 <b>같은 픽셀 축척</b>이라 장식이 같은 두께로 보인다")]
+        [SerializeField] Vector2 skipButtonSize = new Vector2(200f, 70f);
+
+        [Tooltip("화면 <b>오른쪽 위</b> 모서리에서 띄우는 여백(px)")]
+        [SerializeField] Vector2 skipButtonMargin = new Vector2(40f, 24f);
+
+        [Tooltip("버튼 글자 크기 — 로비 버튼 라벨과 같은 20")]
+        [Min(1f)] [SerializeField] float skipButtonFontSize = 20f;
 
         [Tooltip("건너뛸 때 검게 지는 시간(초). 0 이면 즉시 넘어간다")]
         [Min(0f)] [SerializeField] float skipFadeSeconds = 0.4f;
@@ -242,7 +336,7 @@ namespace LastSanctuary.UI
         AspectRatioFitter _backgroundFit;
         CanvasGroup _curtain;
         TMP_Text _caption;
-        CanvasGroup _skipHint;
+        CanvasGroup _skipButton;
 
         AudioSource _bgm;
         AudioSource _voice;
@@ -278,7 +372,7 @@ namespace LastSanctuary.UI
 
             _running = true;
             StartCoroutine(Run());
-            StartCoroutine(ShowSkipHint());
+            StartCoroutine(ShowSkipButton());
         }
 
         void Update()
@@ -290,12 +384,13 @@ namespace LastSanctuary.UI
             if (_running && !_leaving && SkipRequested()) Skip();
         }
 
-        /// <summary><see cref="LobbyPanel"/> 의 «누르면 건너뛰기» 와 같은 입력을 받는다.</summary>
+        /// <summary>
+        /// 건너뛰기 <b>키</b>. 마우스는 여기 없다 — 화면 아무 곳이나 눌러 건너뛰는 것을 막는 것이
+        /// 이 연출의 요구사항이고(<see cref="skipButtonDelaySeconds"/> 의 설명), 클릭은
+        /// <b>버튼만</b> 받는다.
+        /// </summary>
         static bool SkipRequested()
         {
-            Mouse mouse = Mouse.current;
-            if (mouse != null && mouse.leftButton.wasPressedThisFrame) return true;
-
             Keyboard keyboard = Keyboard.current;
             return keyboard != null &&
                    (keyboard.spaceKey.wasPressedThisFrame ||
@@ -440,11 +535,27 @@ namespace LastSanctuary.UI
 
         // ── 끝내기 ──────────────────────────────────────────────────────
 
+        /// <summary>
+        /// 건너뛴다. 버튼의 <c>onClick</c> 과 <see cref="SkipRequested"/> 가 함께 부른다.
+        ///
+        /// ⚠ <b>두 번 눌리는 것을 막는다</b> — 버튼을 연타하면 <see cref="Leave"/> 가 두 번 돌아
+        ///   씬을 두 번 열려 한다. 막이 지는 0.4초는 연타하기에 충분한 시간이다.
+        ///   (<see cref="Leave"/> 의 <c>_leaving</c> 도 같은 사고를 막지만, 버튼을 아예
+        ///   먹통으로 만들어 <b>눌린 표시조차 나지 않게</b> 하는 편이 손에 맞다.)
+        /// </summary>
         void Skip()
         {
+            if (_leaving) return;
+
             StopAllCoroutines();
             _running = false;
-            if (_skipHint != null) _skipHint.alpha = 0f;
+
+            if (_skipButton != null)
+            {
+                _skipButton.alpha = 0f;
+                _skipButton.blocksRaycasts = false;
+            }
+
             StartCoroutine(Leave(skipFadeSeconds));
         }
 
@@ -511,14 +622,22 @@ namespace LastSanctuary.UI
             group.alpha = to;
         }
 
-        IEnumerator ShowSkipHint()
+        /// <summary>
+        /// 건너뛰기 버튼을 <see cref="skipButtonDelaySeconds"/> 뒤에 떠오르게 한다.
+        ///
+        /// ⚠ <b>다 뜬 뒤에야 눌린다</b>(<c>blocksRaycasts</c>) — 반투명하게 떠오르는 중에
+        ///   눌리면 «안 보이는 버튼을 눌렀다» 가 된다. 로비가 버튼을 하나씩 띄울 때 내린
+        ///   결론과 같다(<see cref="LobbyPanel"/> 의 FadeInButton).
+        /// </summary>
+        IEnumerator ShowSkipButton()
         {
-            if (_skipHint == null) yield break;
+            if (_skipButton == null) yield break;
 
             float t = 0f;
-            while (t < skipHintDelaySeconds) { t += Time.unscaledDeltaTime; yield return null; }
+            while (t < skipButtonDelaySeconds) { t += Time.unscaledDeltaTime; yield return null; }
 
-            yield return Fade(_skipHint, 0f, 1f, 0.8f);
+            yield return Fade(_skipButton, 0f, 1f, 0.8f);
+            _skipButton.blocksRaycasts = true;
         }
 
         void ApplyBackground(string resource)
@@ -623,7 +742,7 @@ namespace LastSanctuary.UI
                 shade.anchorMax = new Vector2(1f, 0f);
                 shade.pivot = new Vector2(0.5f, 0f);
                 shade.offsetMin = Vector2.zero;
-                shade.offsetMax = new Vector2(0f, 420f);
+                shade.offsetMax = new Vector2(0f, captionShadeHeight);
 
                 var shadeImage = shade.gameObject.AddComponent<Image>();
                 shadeImage.sprite = BuildBottomGradient();
@@ -631,19 +750,22 @@ namespace LastSanctuary.UI
                 shadeImage.color = new Color(0f, 0f, 0f, captionShadeAlpha);
             }
 
-            // ③ 자막
+            // ③ 자막 — 화면 <b>왼쪽 아래</b>에 붙이고 <b>왼쪽 정렬</b>한다 (captionSize 의 설명).
+            //    ★ 칸을 왼쪽 아래 모서리에 앵커하므로 여백(captionMargin)이 그대로
+            //      «글자가 시작하는 선» 이 된다 — 화면 비율이 달라져도 그 선은 안 움직인다.
             RectTransform captionRect = NewRect("Caption", root);
-            captionRect.anchorMin = new Vector2(0.5f, 0f);
-            captionRect.anchorMax = new Vector2(0.5f, 0f);
-            captionRect.pivot = new Vector2(0.5f, 0f);
-            captionRect.sizeDelta = new Vector2(1560f, 300f);
-            captionRect.anchoredPosition = new Vector2(0f, 110f);
+            captionRect.anchorMin = new Vector2(0f, 0f);
+            captionRect.anchorMax = new Vector2(0f, 0f);
+            captionRect.pivot = new Vector2(0f, 0f);
+            captionRect.sizeDelta = captionSize;
+            captionRect.anchoredPosition = captionMargin;
 
             _caption = captionRect.gameObject.AddComponent<TextMeshProUGUI>();
             _caption.font = HudTheme.Font;               // 네오둥근모 (유저 지정)
             _caption.fontSize = captionFontSize;
             _caption.color = HudTheme.TextMain;
-            _caption.alignment = TextAlignmentOptions.Bottom;
+            _caption.alignment = TextAlignmentOptions.BottomLeft;
+            _caption.lineSpacing = captionLineSpacing;
             _caption.textWrappingMode = TextWrappingModes.Normal;
             _caption.overflowMode = TextOverflowModes.Overflow;
             _caption.raycastTarget = false;
@@ -659,26 +781,105 @@ namespace LastSanctuary.UI
             _curtain.alpha = 1f;
             _curtain.blocksRaycasts = false;
 
-            // ⑤ 건너뛰기 안내 — 막 <b>위</b>에 둔다. 장면 사이의 검은 화면에서도 보여야 한다.
-            RectTransform hintRect = NewRect("SkipHint", root);
-            hintRect.anchorMin = new Vector2(1f, 0f);
-            hintRect.anchorMax = new Vector2(1f, 0f);
-            hintRect.pivot = new Vector2(1f, 0f);
-            hintRect.sizeDelta = new Vector2(560f, 48f);
-            hintRect.anchoredPosition = new Vector2(-48f, 40f);
+            // ⑤ 건너뛰기 버튼 — <b>오른쪽 위</b>. 막 <b>위</b>에 둔다(형제 중 마지막 = 가장 앞).
+            //    장면 사이의 검은 화면에서도 보여야 하고, 그때도 눌려야 한다.
+            BuildSkipButton(root);
+        }
 
-            var hint = hintRect.gameObject.AddComponent<TextMeshProUGUI>();
-            hint.font = HudTheme.Font;
-            hint.fontSize = 22f;
-            hint.color = HudTheme.TextDim;
-            hint.alignment = TextAlignmentOptions.BottomRight;
-            hint.textWrappingMode = TextWrappingModes.NoWrap;
-            hint.raycastTarget = false;
-            hint.text = skipHintText;
+        /// <summary>
+        /// «건너뛰기» 버튼을 짓는다 — <b>로비 버튼과 같은 디자인</b>
+        /// (유저 지시: <i>"스킵 버튼 디자인은 로비 버튼 디자인이랑 똑같게 가로 길이만 이미지
+        /// 짤라서 줄여주고"</i>).
+        ///
+        /// ★ <b>판을 가로로 «눌러» 줄이지 않았다.</b> <c>LobbyButton</c> 을 200px 칸에 그대로
+        /// 넣으면 양끝의 창끝 장식이 찌그러져 로비 버튼과 같은 디자인으로 보이지 않는다.
+        /// 그래서 그림의 <b>가운데 평평한 띠만 도려낸</b> 새 그림을 쓴다
+        /// (<c>Tools/make_skip_button_art.py</c> → <c>LobbyButtonSkip</c>).
+        /// 픽셀 축척(그림 폭÷칸 폭)이 로비와 같으므로 장식의 두께·그림자가 똑같이 보인다.
+        ///
+        /// ★ <b>상태 색은 로비 씬의 버튼에서 그대로 가져왔다</b>(정상 0.9 · 강조 1.0 · 눌림 0.66 ·
+        /// 페이드 0.12초). 로비는 그 값이 <b>씬</b>에 있어서 코드에 없다 — 오프닝은 UI 를 코드로
+        /// 짓기 때문에 여기 적는다. 두 곳의 값이 갈리면 «같은 버튼» 으로 보이지 않는다.
+        ///
+        /// ⚠ <see cref="EventSystem"/> 이 없으면 <b>버튼이 눌리지 않는다</b>. 오프닝 씬에는
+        ///   원래 없었다(연출이 클릭을 받지 않았으니 필요가 없었다) — 그래서 없으면
+        ///   <see cref="EnsureEventSystem"/> 이 만든다.
+        /// </summary>
+        void BuildSkipButton(RectTransform root)
+        {
+            EnsureEventSystem();
 
-            _skipHint = hintRect.gameObject.AddComponent<CanvasGroup>();
-            _skipHint.alpha = 0f;
-            _skipHint.blocksRaycasts = false;
+            RectTransform rect = NewRect("SkipButton", root);
+            rect.anchorMin = new Vector2(1f, 1f);
+            rect.anchorMax = new Vector2(1f, 1f);
+            rect.pivot = new Vector2(1f, 1f);
+            rect.sizeDelta = skipButtonSize;
+            rect.anchoredPosition = new Vector2(-skipButtonMargin.x, -skipButtonMargin.y);
+
+            var plate = rect.gameObject.AddComponent<Image>();
+            plate.sprite = LoadOnce<Sprite>(skipButtonResource);
+            plate.type = Image.Type.Simple;
+            plate.preserveAspect = false;       // 로비와 같다 — 판은 가로로 늘어나도 되는 그림이다
+            plate.raycastTarget = true;
+
+            var button = rect.gameObject.AddComponent<Button>();
+            button.targetGraphic = plate;
+            button.transition = Selectable.Transition.ColorTint;
+
+            ColorBlock colors = button.colors;
+            colors.normalColor      = new Color(0.90f, 0.90f, 0.90f, 1f);
+            colors.highlightedColor = Color.white;
+            colors.pressedColor     = new Color(0.66f, 0.66f, 0.66f, 1f);
+            colors.selectedColor    = new Color(0.90f, 0.90f, 0.90f, 1f);
+            colors.disabledColor    = new Color(0.45f, 0.45f, 0.45f, 0.55f);
+            colors.colorMultiplier  = 1f;
+            colors.fadeDuration     = 0.12f;
+            button.colors = colors;
+
+            // ⚠ 키보드 포커스를 받지 않게 한다 — 스페이스로 건너뛸 때 «버튼이 눌린 것» 으로도
+            //   처리되어 Skip() 이 두 번 불릴 수 있다(막아 두었지만 애초에 안 겹치는 편이 낫다).
+            var navigation = button.navigation;
+            navigation.mode = Navigation.Mode.None;
+            button.navigation = navigation;
+
+            button.onClick.AddListener(Skip);
+
+            // 라벨 — 로비 버튼과 같은 폰트·크기·색·여백(좌우 8px)이다.
+            RectTransform labelRect = NewRect("Label", rect);
+            Stretch(labelRect);
+            labelRect.offsetMin = new Vector2(8f, 0f);
+            labelRect.offsetMax = new Vector2(-8f, 0f);
+
+            var label = labelRect.gameObject.AddComponent<TextMeshProUGUI>();
+            label.font = HudTheme.Font;                  // 네오둥근모
+            label.fontSize = skipButtonFontSize;
+            label.color = HudTheme.TextMain;             // 로비 라벨과 같은 (0.88, 0.92, 0.94)
+            label.alignment = TextAlignmentOptions.Center;
+            label.textWrappingMode = TextWrappingModes.NoWrap;
+            label.raycastTarget = false;
+            label.text = skipButtonText;
+
+            _skipButton = rect.gameObject.AddComponent<CanvasGroup>();
+            _skipButton.alpha = 0f;
+            _skipButton.blocksRaycasts = false;          // 다 떠오른 뒤에 열린다 (ShowSkipButton)
+        }
+
+        /// <summary>
+        /// 클릭을 받을 <see cref="EventSystem"/> 이 없으면 만든다.
+        ///
+        /// ⚠ 이 프로젝트는 <b>Input System 패키지 전용</b>이라 입력 모듈도
+        ///   <see cref="InputSystemUIInputModule"/> 여야 한다 — 기본 <c>StandaloneInputModule</c>
+        ///   은 실행 시점에 «옛 입력 백엔드가 꺼져 있다» 며 예외를 던진다.
+        ///   액션은 모듈이 <b>스스로</b> 기본값을 넣는다(패키지의 <c>OnEnable</c> →
+        ///   <c>HasNoActions()</c> → <c>AssignDefaultActions()</c>) — 씬에 배선할 것이 없다.
+        /// </summary>
+        static void EnsureEventSystem()
+        {
+            if (EventSystem.current != null) return;
+
+            var go = new GameObject("EventSystem",
+                typeof(EventSystem), typeof(InputSystemUIInputModule));
+            go.transform.SetParent(null, false);
         }
 
         static RectTransform NewRect(string name, Transform parent)

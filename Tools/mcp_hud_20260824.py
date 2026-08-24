@@ -22,11 +22,18 @@
      실행 중에는 `ActionPanel` 이 <b>켜져 있는 자식을 세어</b> 다시 맞춘다(하드코딩 제거).
      여기서 굽는 것은 «에디터에서 봤을 때도 맞아 보이게» 하기 위한 것이다.
 
-③ 창 셋에 <b>끌어 옮기기</b>(`UiWindowDrag`)를 붙인다 — ``HUD_Event`` ·
-   ``HUD_SkillDetail`` · ``HUD_Portrait``. 나머지 여섯(설정·전술·성장·유물·토벌·부대)은
+③ 창 둘에 <b>끌어 옮기기</b>(`UiWindowDrag`)를 붙인다 — ``HUD_Event`` ·
+   ``HUD_SkillDetail``. 나머지 여섯(설정·전술·성장·유물·토벌·부대)은
    2026-08-18 에 이미 붙어 있다.
-   ⚠ ``HUD_Portrait`` 는 배경 Image 의 ``raycastTarget`` 이 <b>꺼져 있었다</b> —
-     그대로는 포인터를 못 받아 드래그가 시작되지 않는다. 같이 켠다.
+
+   ★★ <b>``HUD_Portrait`` 는 뺐다</b> (같은 날 저녁 유저 지시: *"캐릭터 클릭하면 나오는
+      초상화 ui 도 클릭으로 드래그 되어 버리는데 이거는 미니맵 처럼 고정해줘"*).
+      초상화는 <b>전투 중에 계속 보는 판</b>이라 손이 스치기만 해도 자리가 틀어진다 —
+      미니맵처럼 <b>제자리에 붙어 있는</b> 편이 맞다. 씬의 컴포넌트는 지우지 않고
+      <b>꺼 두었다</b>(`m_Enabled: 0`) — 되돌릴 때 다시 붙일 필요가 없다.
+      ⚠ 이 목록에 ``HUD_Portrait`` 를 다시 넣으면 그 결정이 <b>조용히 뒤집힌다</b>.
+   ⚠ 배경 Image 의 ``raycastTarget`` 은 <b>켠 채로 둔다</b> — 드래그 때문에 켰던 것이지만,
+     끄면 초상화 판을 뚫고 뒤의 전장이 눌린다.
 
 ⚠ 멱등하다 — `update_gameobject`/`update_component` 가 «없으면 만들고 있으면 고친다».
 ⚠ 씬 저장은 마지막 한 번.
@@ -81,11 +88,15 @@ def build_actions():
 
 
 def build_drag():
-    for path in ("UI_Root/HUD_Event", "UI_Root/HUD_SkillDetail", "UI_Root/HUD_Portrait"):
+    # ⚠ HUD_Portrait 는 <b>여기에 넣지 않는다</b> — 미니맵처럼 고정하기로 했다(위 ③).
+    for path in ("UI_Root/HUD_Event", "UI_Root/HUD_SkillDetail"):
         comp(path, "UiWindowDrag", {})
 
-    # 초상화 카드만 배경이 포인터를 안 받고 있었다 — 켜야 드래그가 시작된다.
+    # 초상화 카드만 배경이 포인터를 안 받고 있었다 — 켜 두면 판을 뚫고 전장이 눌리지 않는다.
     comp("UI_Root/HUD_Portrait", "Image", {"raycastTarget": True})
+
+    # 끌어 옮기기는 껐지만 컴포넌트는 남겨 둔다 — 되돌릴 때 다시 붙일 필요가 없게.
+    comp("UI_Root/HUD_Portrait", "UiWindowDrag", {"enabled": False})
 
 
 def run():
