@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 using LastSanctuary.Save;
 
@@ -24,6 +25,13 @@ namespace LastSanctuary.UI
     ///   ② 그것이 <b>완전히</b> 끝난 뒤 타이틀이 화면 중앙에서 제자리로 떠오르며 밝아진다
     ///   ③ 타이틀이 다 떠오른 뒤 버튼들이 <b>순차적으로</b> 페이드 인 한다
     /// </code>
+    /// <b>2026-08-24 (유저 지시)</b> — 연출을 손볼 두 가지:
+    /// <code>
+    ///   ① 버튼은 <b>다 뜬 뒤에야</b> 눌린다. 예전에는 알파만 0 이라 «아직 안 보이는 버튼»
+    ///      자리를 누르면 그대로 게임이 시작됐다 (EnsureGroup 의 blocksRaycasts).
+    ///   ② 연출 중에 <b>화면을 누르면 끝까지 감긴다</b> (Update / SkipToEnd).
+    /// </code>
+    ///
     /// 시간은 <see cref="Time.unscaledDeltaTime"/> 으로 잰다 —
     /// 게임에서 일시정지(<c>timeScale = 0</c>)한 채 로비로 나오면 연출이 멈춰버린다.
     /// (<see cref="SettingsPanel"/> 이 씬을 넘기기 전에 되돌리지만, 그 한 곳에만 의존하지 않는다.)
@@ -92,6 +100,15 @@ namespace LastSanctuary.UI
         [SerializeField] string noSaveText = "저장된 게임이 없습니다";
 
         CanvasGroup _titleGroup;
+
+        /// <summary>
+        /// 타이틀이 <b>도착해야 할 자리</b>. 씬에 잡아둔 값을 <see cref="Bind"/> 에서 기억한다 —
+        /// 연출을 건너뛸 때도 여기로 되돌려야 하므로 <see cref="RiseIn"/> 안에 두면 안 된다.
+        /// </summary>
+        Vector2 _titleHome;
+
+        /// <summary>연출이 도는 중인가. 이 동안만 «클릭하면 건너뛰기» 가 열려 있다.</summary>
+        bool _introPlaying;
         CanvasGroup _vignetteGroup;
         CanvasGroup _curtainGroup;
         RectTransform _titleRect;
@@ -114,6 +131,7 @@ namespace LastSanctuary.UI
             // 씬에 적용</b> 이 이 씬의 TMP 전부에 정본 에셋을 붙인다.
             // ⚠ <b>로비에 글자를 새로 추가하면 그 메뉴를 다시 실행할 것.</b>
             Bind();
+            _introPlaying = true;
             StartCoroutine(PlayIntro());
         }
 
@@ -126,6 +144,7 @@ namespace LastSanctuary.UI
 
             _titleGroup = EnsureGroup(titlePath);
             _titleRect = transform.Find(titlePath) as RectTransform;
+            _titleHome = _titleRect != null ? _titleRect.anchoredPosition : Vector2.zero;
 
             // 비네트는 타이틀과 <b>같이</b> 떠오른다 — 먼저 나오면 배경에 검은 얼룩이 지고,
             // 나중에 나오면 로고가 밝은 후광 위에 떠 있는 그 상태를 한 번 보여주게 된다.
@@ -341,6 +360,15 @@ namespace LastSanctuary.UI
                 group = node.gameObject.AddComponent<CanvasGroup>();
 
             group.alpha = 0f;      // 연출이 시작되기 전에는 전부 숨어 있다
+
+            // ★★ 2026-08-24 — <b>안 보이는 것은 눌리지도 않아야 한다</b> (유저 지시:
+            //   *"버튼 등장시 지금 버튼 있는 부분 누르면 바로 들어가게 하지 말고"*).
+            //   <c>alpha = 0</c> 은 <b>그리기만</b> 끈다 — 레이캐스트는 그대로 살아 있어서
+            //   버튼이 뜨기 전에 그 자리를 누르면 «투명한 버튼» 이 그대로 눌렸다.
+            //   ⚠ <c>interactable</c> 이 아니라 <c>blocksRaycasts</c> 를 끈다 —
+            //     <c>interactable = false</c> 로 막으면 버튼이 <b>비활성 색</b>으로 떠올라
+            //     페이드 인 하는 동안 회색으로 보인다(«이어하기» 의 진짜 비활성과 헷갈린다).
+            group.blocksRaycasts = false;
             return group;
         }
 
@@ -372,7 +400,7 @@ namespace LastSanctuary.UI
             //    비네트는 <b>제자리에서</b> 같은 시간에 걸쳐 같이 밝아진다 — 따라 움직이면
             //    어두운 얼룩이 화면을 타고 올라가는 것이 보인다.
             StartCoroutine(Fade(_vignetteGroup, titleFadeSeconds));
-            yield return RiseIn(_titleGroup, _titleRect, titleFadeSeconds, titleRisePixels);
+            yield return RiseIn(_titleGroup, _titleRect, _titleHome, titleFadeSeconds, titleRisePixels);
 
             if (menuDelaySeconds > 0f)
                 yield return new WaitForSecondsRealtime(menuDelaySeconds);
@@ -381,10 +409,79 @@ namespace LastSanctuary.UI
             {
                 // ★ 앞 버튼이 <b>다 뜨기를 기다리지 않는다</b> — 간격(stagger)만 두고 다음을 시작해
                 //   물결처럼 이어지게 한다. 다 기다리면 버튼 4개에 2.5초가 걸려 답답하다.
-                StartCoroutine(Fade(_menuGroups[i], buttonFadeSeconds));
+                // ★★ 2026-08-24 — 다 뜬 <b>그 버튼만</b> 눌리게 연다(FadeInButton).
+                StartCoroutine(FadeInButton(_menuGroups[i], buttonFadeSeconds));
 
                 if (buttonStaggerSeconds > 0f && i < _menuGroups.Count - 1)
                     yield return new WaitForSecondsRealtime(buttonStaggerSeconds);
+            }
+
+            // 마지막 버튼이 다 뜰 때까지 기다린 뒤에야 «연출이 끝났다» 로 본다 —
+            // 그 전에 끄면 마지막 버튼이 떠오르는 동안 클릭이 «건너뛰기» 로 먹히지 않는다.
+            yield return new WaitForSecondsRealtime(buttonFadeSeconds);
+            _introPlaying = false;
+        }
+
+        /// <summary>
+        /// 버튼 하나를 띄우고, <b>다 뜬 뒤에</b> 클릭을 연다.
+        /// (<see cref="EnsureGroup"/> 이 꺼둔 <c>blocksRaycasts</c> 를 여기서만 되돌린다.)
+        /// </summary>
+        IEnumerator FadeInButton(CanvasGroup group, float seconds)
+        {
+            yield return Fade(group, seconds);
+            if (group != null) group.blocksRaycasts = true;
+        }
+
+        // ------------------------------------------------------------------
+        // 연출 건너뛰기 (2026-08-24 유저 지시: <i>"연출 나올때 화면 클릭하면 연출 스킵"</i>)
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// 연출이 도는 동안만 «아무 데나 누르면 끝까지 감기» 를 받는다.
+        ///
+        /// ⚠ 이 프로젝트는 <b>Input System 패키지 전용</b>이다(<c>activeInputHandler: 1</c>) —
+        ///   <c>UnityEngine.Input</c> 을 쓰면 실행 시점에 예외가 난다.
+        /// ★ 누르는 <b>순간</b>(wasPressedThisFrame)에 건너뛴다. 그 순간 버튼들은 아직
+        ///   <c>blocksRaycasts = false</c> 라 <b>누름이 버튼에 등록되지 않았고</b>,
+        ///   유니티 버튼은 «같은 대상에서 누르고 뗐을 때» 만 클릭이 되므로
+        ///   손을 떼는 순간에도 그 버튼이 눌리지 않는다 — 건너뛰기가 곧바로
+        ///   «이어하기» 로 이어지는 사고가 구조적으로 막힌다.
+        /// </summary>
+        void Update()
+        {
+            if (!_introPlaying) return;
+            if (!SkipRequested()) return;
+
+            StopAllCoroutines();
+            SkipToEnd();
+        }
+
+        static bool SkipRequested()
+        {
+            Mouse mouse = Mouse.current;
+            if (mouse != null && mouse.leftButton.wasPressedThisFrame) return true;
+
+            Keyboard keyboard = Keyboard.current;
+            return keyboard != null &&
+                   (keyboard.spaceKey.wasPressedThisFrame || keyboard.enterKey.wasPressedThisFrame);
+        }
+
+        /// <summary>연출의 <b>마지막 프레임</b> 상태를 그대로 만든다 — 중간 상태를 남기지 않는다.</summary>
+        void SkipToEnd()
+        {
+            _introPlaying = false;
+
+            if (_curtainGroup != null) _curtainGroup.alpha = 0f;
+
+            if (_titleGroup != null) _titleGroup.alpha = 1f;
+            if (_titleRect != null) _titleRect.anchoredPosition = _titleHome;
+            if (_vignetteGroup != null) _vignetteGroup.alpha = 1f;
+
+            for (int i = 0; i < _menuGroups.Count; i++)
+            {
+                if (_menuGroups[i] == null) continue;
+                _menuGroups[i].alpha = 1f;
+                _menuGroups[i].blocksRaycasts = true;
             }
         }
 
@@ -424,11 +521,10 @@ namespace LastSanctuary.UI
         ///
         /// 끝에서 감속한다(<c>1 - (1-t)²</c>) — 등속으로 멈추면 툭 서는 느낌이 난다.
         /// </summary>
-        static IEnumerator RiseIn(CanvasGroup group, RectTransform rect, float seconds, float rise)
+        static IEnumerator RiseIn(CanvasGroup group, RectTransform rect, Vector2 home,
+                                  float seconds, float rise)
         {
             if (group == null) yield break;
-
-            Vector2 home = rect != null ? rect.anchoredPosition : Vector2.zero;
 
             if (seconds <= 0f)
             {

@@ -410,6 +410,8 @@ namespace LastSanctuary.Combat
             _animator?.PlaySkillMotion(1, Mathf.Max(TrioFxSeconds, so.value04),
                                        target.transform.position);
             StartCoroutine(Barrage(so, center, dir, length, width));
+            StartCoroutine(BarrageFx(center, dir, length, width,
+                                     Mathf.Max(1, Mathf.RoundToInt(so.value04))));
 
             UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName,
                                               $"{length:0.#}x{width:0.#}타일 · {so.value04:0.#}초"),
@@ -432,7 +434,8 @@ namespace LastSanctuary.Combat
             {
                 if (_unit == null || !_unit.IsAlive) yield break;
 
-                PlayTrioAreaFx(1, center, Mathf.Max(length, width));
+                // ⚠ 연출은 <see cref="BarrageFx"/> 가 따로 돈다 — 여기서 그리면 «1초에 한 번
+                //   번쩍» 이라 포격으로 안 보인다(2026-08-24 유저 지시로 갈라냈다).
                 UnitRegistry.CollectEnemiesInOrientedRect(center, half, dir, _unit.Faction, _trioScratch);
                 for (int i = 0; i < _trioScratch.Count; i++)
                 {
@@ -441,6 +444,98 @@ namespace LastSanctuary.Combat
                     u.TakeDamageFrom(_unit, percent);
                 }
                 yield return new WaitForSeconds(1f);
+            }
+        }
+
+        // ------------------------------------------------------------------
+        // 「종말의 선언」 연출 — 포탄을 흩뿌린다 (2026-08-24)
+        // ------------------------------------------------------------------
+
+        /// <summary>한 «초» 에 떨어지는 포탄 수. 늘리면 화려해지고 그만큼 그림이 많아진다.</summary>
+        const int BarrageShellsPerSecond = 7;
+
+        /// <summary>포탄 하나가 화면에 남는 시간(초). 짧아야 «터지고 사라진다» 로 읽힌다.</summary>
+        const float BarrageShellSeconds = 0.34f;
+
+        /// <summary>
+        /// ★★ <b>포격처럼 보이게 한다</b> (2026-08-24 · 유저 지시:
+        /// <i>"세라피엘 세번째 스킬 포격 느낌이 안 나니까 좀 여러개 섞어서 화려하게"</i>).
+        ///
+        /// <b>예전에는 왜 밋밋했나</b> — 1초에 한 번, <c>skill2Fx</c> <b>한 장</b>을 상자 크기로
+        /// 늘려 깔았다. 그림이 <b>정사각</b>으로 늘어나(<c>max(length,width)</c>) 6x2 상자와
+        /// 모양도 안 맞았고, 무엇보다 «한 번 번쩍» 이라 <b>연사</b>로 읽히지 않았다.
+        ///
+        /// ★ 세 겹으로 쌓는다:
+        /// <list type="number">
+        /// <item><b>상자</b> — 어디가 맞는지 한 번만 깐다. 이제 <b>가로x세로를 따로</b> 준다.</item>
+        /// <item><b>포탄</b> — 상자 안 아무 데나, 초당 <see cref="BarrageShellsPerSecond"/> 발.
+        ///       크기·각도·프레이즈를 매번 흔들어 같은 그림이 반복돼 보이지 않게 한다.</item>
+        /// <item><b>총구 섬광</b> — 매 초 시전자 앞에. «쏘는 쪽» 이 보여야 포격이 된다.</item>
+        /// </list>
+        ///
+        /// ★ <b>스킨의 여러 칸을 섞어 쓴다</b>(유저 지시의 «여러개 섞어서») —
+        ///   <c>skill2Fx</c> · <c>magicImpactFrames</c> · <c>impactFrames</c> ·
+        ///   <c>muzzleFlashFrames</c> 중 <b>있는 것만</b> 모아 돌려 쓴다. 세라피엘은 넷 중
+        ///   셋을 갖고 있다(3 · 4 · 4장). 없으면 조용히 빠진다 — 다른 인물이 이 스킬을
+        ///   갖게 돼도 안 깨진다.
+        ///
+        /// ⚠ <b>순수 연출이다.</b> 피해는 <see cref="Barrage"/> 가 넣는다 —
+        ///   여기서 한 번 더 넣으면 이중 타격이 된다(<c>CombatProjectileFx</c> 의 대원칙).
+        /// </summary>
+        IEnumerator BarrageFx(Vector3 center, Vector2 dir, float length, float width, int ticks)
+        {
+            CharacterSkinSO skin = _animator != null ? _animator.Skin : null;
+            if (skin == null) yield break;
+
+            float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
+
+            // ① 상자 — 가로는 사거리, 세로는 두께. 포격이 끝날 때까지 깔려 있는다.
+            Sprite[] box = skin.SkillFx(1);
+            if (box != null)
+                CombatProjectileFx.PlayArea(box, center, new Vector2(length, width),
+                                            angle, _unit, ticks);
+
+            // 섞어 쓸 프레임 묶음 — 있는 것만 모은다.
+            var kinds = new List<Sprite[]>();
+            void Add(Sprite[] f) { if (f != null && f.Length > 0) kinds.Add(f); }
+            Add(box);
+            Add(skin.magicImpactFrames);
+            Add(skin.impactFrames);
+            Add(skin.muzzleFlashFrames);
+            if (kinds.Count == 0) yield break;
+
+            var perp = new Vector2(-dir.y, dir.x);
+            float gap = 1f / Mathf.Max(1, BarrageShellsPerSecond);
+
+            for (int t = 0; t < ticks; t++)
+            {
+                if (_unit == null || !_unit.IsAlive) yield break;
+
+                // ③ 총구 섬광 — 몸 앞 한 칸.
+                if (skin.muzzleFlashFrames != null && skin.muzzleFlashFrames.Length > 0)
+                    CombatProjectileFx.PlayArea(skin.muzzleFlashFrames,
+                                                transform.position + (Vector3)(dir * 0.8f),
+                                                new Vector2(1.1f, 1.1f), angle, _unit, 0.18f);
+
+                for (int i = 0; i < BarrageShellsPerSecond; i++)
+                {
+                    if (_unit == null || !_unit.IsAlive) yield break;
+
+                    // ② 상자 안 아무 자리. 가장자리에 몰리지 않게 0.9 만큼만 쓴다.
+                    Vector3 at = center
+                               + (Vector3)(dir * (Random.Range(-0.45f, 0.45f) * length))
+                               + (Vector3)(perp * (Random.Range(-0.45f, 0.45f) * width));
+
+                    Sprite[] frames = kinds[Random.Range(0, kinds.Count)];
+                    float size = Random.Range(0.9f, 1.7f);
+
+                    // 각도를 통째로 흔든다 — 같은 그림이 같은 방향으로 반복되면 «복사» 로 보인다.
+                    CombatProjectileFx.PlayArea(frames, at, new Vector2(size, size),
+                                                Random.Range(0f, 360f), _unit,
+                                                BarrageShellSeconds);
+
+                    yield return new WaitForSeconds(gap);
+                }
             }
         }
 

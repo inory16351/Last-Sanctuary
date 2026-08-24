@@ -26,7 +26,7 @@ MonoBehaviour:
   value05: 0
   value06: 0
   coolTime: 0
-  iconName: ''
+  iconName: 'icon_red_slash'
   flavorText: '거둬들인 죽음의 무게가 그대로 시안의 힘이 됩니다.'
   detailText: '거둔 영혼이 일정 수에 이를 때마다 근거리 공격력이 영구적으로 오릅니다. 이 값은 능력치 상한을 넘어설 수 있습니다.'
   effectTemplate: '시안이 획득한 영혼 {value_01}마다 시안의 근거리 공격력이 영구적으로 {value_02} 상승합니다. 해당 값은 스탯 상한을 초월할 수 있습니다.'

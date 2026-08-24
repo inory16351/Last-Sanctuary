@@ -26,7 +26,7 @@ MonoBehaviour:
   value05: 0
   value06: 0
   coolTime: 0
-  iconName: ''
+  iconName: 'icon_barrier_dome'
   flavorText: '그녀가 들어올리는 방패는 승리를 알리는 승전보와 같습니다.'
   detailText: '공격받을 때마다 자신의 최대 체력에 비례하는 피해를 때린 적에게 그대로 되돌려 줍니다.'
   effectTemplate: 'skill_type_desc_The_Legion’s_Shield'

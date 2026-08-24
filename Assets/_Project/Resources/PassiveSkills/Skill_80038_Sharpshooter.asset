@@ -26,7 +26,7 @@ MonoBehaviour:
   value05: 0
   value06: 0
   coolTime: 0
-  iconName: ''
+  iconName: 'icon_snipe_mark'
   flavorText: '세라피엘의 총성은 언제나 한 발이면 충분했습니다.'
   detailText: '크리티컬 확률이 영구적으로 오릅니다. 이 값은 능력치 상한을 넘어설 수 있습니다.'
   effectTemplate: '영구적으로 세라피엘이 {value_01}의 크리티컬 확률을 획득합니다. 이 값은 스탯 한계치를 초월할 수 있습니다. (120의 크리티컬 확률의 세라피엘의 원거리 공격은 100% 확률로 치명타로 적중합니다.)'

@@ -322,6 +322,9 @@ namespace LastSanctuary.UI
         Image _relicSlotIcon;
         TMP_Text _relicSlotName;
 
+        /// <summary>낀 유물의 <b>효과 한 줄</b>(2026-08-24). 칸이 없으면 조용히 건너뛴다.</summary>
+        TMP_Text _relicSlotEffect;
+
         /// <summary>지금 화면에 유형 버튼을 보여줄지 — 펼쳤거나, 이미 유형이 정해져 있으면.</summary>
         bool ShowFocusPicker =>
             _typePickerOpen || (_unit != null && _unit.GrowthFocus != StatGrowthFocus.None);
@@ -554,12 +557,19 @@ namespace LastSanctuary.UI
             if (_relicSlotName != null)
             {
                 _relicSlotName.text = relic != null ? relic.DisplayName
-                                    : has ? "없음 — 눌러서 장착"
+                                    : has ? "없음"
                                     : "캐릭터를 선택하세요";
                 _relicSlotName.color = relic != null
                     ? relic.GradeColor
                     : new Color(0.62f, 0.68f, 0.75f, 1f);
             }
+
+            // ★ 효과 줄 — 무엇을 끼고 있는지보다 «그래서 뭐가 좋아지는지» 가 먼저 궁금하다.
+            if (_relicSlotEffect != null)
+                _relicSlotEffect.text = relic != null ? relic.relicDesc
+                                      : has ? "「유물 관리 열기」로 이 캐릭터에게 유물을 끼웁니다."
+                                      : "";
+
             if (_relicSlotButton != null) _relicSlotButton.interactable = has && !_unit.IsSummoned;
         }
 
@@ -1057,10 +1067,20 @@ namespace LastSanctuary.UI
             //   있는 칸 신설 필요"*). 여기서는 <b>보여주고 창을 열어 주기만</b> 한다 —
             //   무엇을 끼울지 고르는 일은 유물 관리 창(<see cref="RelicPanel"/>)이 한다.
             //   ⚠ 두 곳에서 «고르기» 를 구현하면 규칙이 두 벌이 된다(이 프로젝트의 원칙).
-            _relicSlot = transform.Find("Stats/RelicSlot")?.gameObject;
-            _relicSlotButton = _relicSlot != null ? _relicSlot.GetComponent<Button>() : null;
-            _relicSlotIcon = transform.Find("Stats/RelicSlot/Icon")?.GetComponent<Image>();
-            _relicSlotName = FindText("Stats/RelicSlot/Name");
+            // ★★ 2026-08-24 — 유물 칸이 <b>창 아래 가로 띠</b>(`RelicBar`)로 옮겨졌다.
+            //   예전 자리(`Stats/RelicSlot`)는 이미 꽉 찬 칸의 바닥이라 <b>패시브 카드에
+            //   깔려 보이지 않았다</b>(유저 리포트: *"성장 ui에 유물 장착 칸이 없음"*).
+            //   ⚠ 옛 경로도 <b>폴백으로 남긴다</b> — 씬을 되돌린 사람이 있어도 안 깨진다.
+            _relicSlot = (transform.Find("RelicBar") ?? transform.Find("Stats/RelicSlot"))
+                         ?.gameObject;
+            string bar = transform.Find("RelicBar") != null ? "RelicBar" : "Stats/RelicSlot";
+
+            // 「변경」 버튼이 따로 있으면 그것이 입구고, 없으면 칸 자체가 버튼이다(옛 배치).
+            _relicSlotButton = transform.Find(bar + "/ChangeButton")?.GetComponent<Button>()
+                            ?? (_relicSlot != null ? _relicSlot.GetComponent<Button>() : null);
+            _relicSlotIcon = transform.Find(bar + "/Icon")?.GetComponent<Image>();
+            _relicSlotName = FindText(bar + "/Name");
+            _relicSlotEffect = FindText(bar + "/Effect");
             if (_relicSlotButton != null)
             {
                 _relicSlotButton.onClick.RemoveAllListeners();

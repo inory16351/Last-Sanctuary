@@ -1,3 +1,4 @@
+using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -30,6 +31,13 @@ namespace LastSanctuary.UI
     /// </summary>
     public class EventPanel : MonoBehaviour, IExclusiveHudPanel
     {
+        [Header("등장 연출 (2026-08-24 유저 지시 — 페이드 인 · 떠오르기)")]
+        [Tooltip("창이 밝아지는 시간(초). 0 이면 연출 없이 바로 뜬다")]
+        [Min(0f)] [SerializeField] float appearSeconds = 0.28f;
+
+        [Tooltip("창이 <b>아래에서</b> 제자리로 올라오는 높이(px). 0 이면 제자리에서 밝아지기만 한다")]
+        [Min(0f)] [SerializeField] float appearRisePixels = 36f;
+
         [Header("임시 문구 — 표에 값이 없을 때만 쓴다")]
         [Tooltip("이벤트 이름이 비어 있을 때")]
         [SerializeField] string fallbackTitle = "이름 없는 사건";
@@ -51,6 +59,21 @@ namespace LastSanctuary.UI
 
         EventService _service;
         bool _bound;
+
+        /// <summary>등장 연출용. 없으면 <see cref="EnsureIntro"/> 가 붙인다.</summary>
+        CanvasGroup _group;
+        RectTransform _rect;
+
+        /// <summary>
+        /// 창이 <b>도착해야 할 자리</b>. 씬에 잡아둔 값이다 —
+        /// 연출이 여기서 출발해 여기로 돌아오므로 <b>한 번만</b> 기억해야 한다.
+        /// ⚠ 매번 «지금 자리» 를 읽으면 연출이 끊겼을 때 창이 아래에 눌러앉는다.
+        /// </summary>
+        Vector2 _home;
+        bool _homeKnown;
+
+        /// <summary>지금 도는 등장 연출. 새 단계가 오면 갈아탄다(둘이 겹치면 알파가 싸운다).</summary>
+        Coroutine _intro;
 
         /// <summary>
         /// 지금 <see cref="Present"/> 로 열리는 중인가. <see cref="Awake"/> 가 창을 다시
@@ -132,10 +155,92 @@ namespace LastSanctuary.UI
                 return;
             }
 
+            // ★★ 2026-08-24 — <b>«처음 열릴 때» 만</b> 등장 연출을 태운다(유저 지시:
+            //   *"이벤트 등장 시 ui 등장에 페이드 인 / 떠오르기 효과 추가"*).
+            //   ⚠ 본문 → 결과 단계는 <b>같은 창의 내용이 바뀌는 것</b>이라 여기서 또 태우면
+            //     선택지를 누를 때마다 창이 아래로 툭 떨어졌다 올라온다.
+            bool opening = !gameObject.activeSelf;
+
             // ★ 다른 창과 <b>배타</b>다 — 전술·성장 창처럼 겹쳐 뜨면 클릭이 섞인다(UI-23).
             HudExclusive.OpenOnly(this);
             gameObject.SetActive(true);
             Refresh(def, choice);
+
+            if (opening) PlayAppear();
+        }
+
+        // ------------------------------------------------------------------
+        // 등장 연출 — 페이드 인 + 떠오르기 (2026-08-24)
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// <see cref="CanvasGroup"/> 과 «제자리» 를 보장한다.
+        ///
+        /// ★ <b>코드가 붙인다</b> — 씬(MCP 로 만든 <c>HUD_Event</c>)에 컴포넌트가 없어도
+        ///   동작해야 한다. 로비의 <c>EnsureGroup</c> 과 같은 이유·같은 방식이다.
+        /// </summary>
+        void EnsureIntro()
+        {
+            if (_group == null && !TryGetComponent(out _group))
+                _group = gameObject.AddComponent<CanvasGroup>();
+
+            _rect ??= transform as RectTransform;
+
+            if (!_homeKnown && _rect != null)
+            {
+                _home = _rect.anchoredPosition;
+                _homeKnown = true;
+            }
+        }
+
+        void PlayAppear()
+        {
+            EnsureIntro();
+            if (_group == null) return;
+
+            if (_intro != null) StopCoroutine(_intro);
+            _intro = StartCoroutine(Appear());
+        }
+
+        /// <summary>
+        /// 아래에서 제자리로 올라오며 밝아진다. 끝에서 감속한다(<c>1 - (1-t)²</c>) —
+        /// 등속으로 멈추면 툭 서는 느낌이 난다(로비 <c>RiseIn</c> 과 같은 곡선).
+        ///
+        /// ⚠ <see cref="Time.unscaledDeltaTime"/> 을 쓴다 — 일시정지(<c>timeScale = 0</c>)
+        ///   중에 창이 뜨면 <c>deltaTime</c> 이 0 이라 연출이 <b>영영 멈춘다</b>.
+        /// </summary>
+        IEnumerator Appear()
+        {
+            if (appearSeconds <= 0f)
+            {
+                Settle();
+                yield break;
+            }
+
+            float t = 0f;
+            while (t < 1f)
+            {
+                t += Time.unscaledDeltaTime / appearSeconds;
+                float e = Mathf.Clamp01(t);
+                float eased = 1f - (1f - e) * (1f - e);
+
+                _group.alpha = eased;
+                if (_rect != null)
+                    _rect.anchoredPosition =
+                        new Vector2(_home.x, _home.y - appearRisePixels * (1f - eased));
+
+                yield return null;
+            }
+
+            Settle();
+        }
+
+        /// <summary>연출의 마지막 프레임 — 창을 제자리에 완전히 세운다.</summary>
+        void Settle()
+        {
+            _intro = null;
+            if (_group != null) _group.alpha = 1f;
+            if (_rect != null && _homeKnown) _rect.anchoredPosition = _home;
         }
 
         /// <summary>
@@ -222,6 +327,13 @@ namespace LastSanctuary.UI
         public void Close()
         {
             _presenting = false;
+
+            // ⚠ 연출 중에 닫히면 알파가 0.3, 자리가 아래인 채로 굳는다 — 다음에
+            //   연출 없이 열리는 경로(appearSeconds = 0)가 그 상태를 그대로 물려받는다.
+            //   닫을 때 항상 제자리로 세워 둔다.
+            if (_intro != null) { StopCoroutine(_intro); _intro = null; }
+            Settle();
+
             gameObject.SetActive(false);
 
             _service ??= EventService.Instance;

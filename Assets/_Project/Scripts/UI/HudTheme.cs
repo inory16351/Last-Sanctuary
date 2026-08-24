@@ -54,6 +54,31 @@ namespace LastSanctuary.UI
         /// </summary>
         public static readonly Color TextHero       = new Color(1f, 0.72f, 0.22f, 1f);
 
+        /// <summary>
+        /// ★★ <b>부대 색</b> (2026-08-24 · 유저 지시: <i>"같은 부대인 캐릭터를 각기 다른 색의
+        /// 아웃라인으로 묶어서 보여줘"</i>).
+        ///
+        /// <see cref="Units.SquadService"/> 의 부대 상한이 6 이라 여섯 색이면 충분하다.
+        /// ★ <b>색상환에서 고르게 벌렸다</b>(청록 · 주황 · 보라 · 연두 · 하늘 · 분홍) —
+        ///   이웃한 두 부대가 «비슷한 색» 이면 묶음이 안 보인다.
+        /// ⚠ 여기 없는 색을 쓰지 말 것 — 로스터·부대 창·집결지 깃발이 <b>같은 색</b>을
+        ///   써야 «저 색이 저 부대» 가 성립한다.
+        /// ⚠ 체력바(초록·노랑·빨강)·침식(보라·자홍)·각성(금색)과 겹치지 않게 골랐다.
+        /// </summary>
+        static readonly Color[] SquadColors =
+        {
+            new Color(0.35f, 0.85f, 0.95f, 1f),   // 1 청록
+            new Color(0.98f, 0.65f, 0.28f, 1f),   // 2 주황
+            new Color(0.72f, 0.55f, 0.98f, 1f),   // 3 보라
+            new Color(0.62f, 0.90f, 0.42f, 1f),   // 4 연두
+            new Color(0.45f, 0.62f, 0.98f, 1f),   // 5 하늘
+            new Color(0.98f, 0.55f, 0.75f, 1f),   // 6 분홍
+        };
+
+        /// <summary>부대 순번(0부터)의 색. 범위를 넘으면 <b>돌려 쓴다</b>(색이 없어서 안 보이는 것보다 낫다).</summary>
+        public static Color SquadColor(int order) =>
+            SquadColors[((order % SquadColors.Length) + SquadColors.Length) % SquadColors.Length];
+
         public static readonly Color ButtonNormal = new Color(0.13f, 0.17f, 0.22f, 0.95f);
         public static readonly Color ButtonHover  = new Color(0.18f, 0.26f, 0.32f, 0.98f);
         public static readonly Color ButtonOn     = new Color(0.16f, 0.42f, 0.38f, 0.98f);

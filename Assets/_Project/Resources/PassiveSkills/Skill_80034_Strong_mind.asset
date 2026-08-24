@@ -26,7 +26,7 @@ MonoBehaviour:
   value05: 0
   value06: 0
   coolTime: 120
-  iconName: ''
+  iconName: 'icon_heal_cross'
   flavorText: '엘리시아의 정신은 어떠한 상황에도 무너지지 않습니다.'
   detailText: '체력이 크게 떨어지면 일정 시간에 걸쳐 최대 체력의 일부를 스스로 되찾습니다.'
   effectTemplate: '엘리시아의 체력이 최대체력의 {value_01}% 보다 낮아지면 엘리시아가 {value_02}초에 걸쳐 최대체력의 {value_03}%를 회복합니다.'

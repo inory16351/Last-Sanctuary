@@ -85,7 +85,13 @@ def image(path, color, raycast=True):
     comp(path, "Image", {"color": color, "raycastTarget": raycast})
 
 
-def text(path, value, size=18, color=None, align="Left", wrap=True):
+# ⚠⚠ <b>폰트는 여기서 못 넣는다</b> — `m_fontAsset` 은 에셋 «참조» 라 MCP 로 넣을 수
+#   없다(진행상황 8절 4번). 그래서 이 스크립트가 만든 글자는 <b>TMP 기본 폰트</b>로
+#   태어나 한글이 네모로 뜬다(실측 16개).
+#   → 이 스크립트를 돌린 <b>뒤에 반드시</b> 유니티 메뉴
+#     <b>LastSanctuary/폰트/네오 둥근모 TMP 에셋 굽고 씬에 적용</b> 을 실행할 것.
+#     그 메뉴는 «폰트가 다른 것» 만 갈아끼우므로 여러 번 눌러도 안전하다.
+def text(path, value, size=18, color=None, align="Left"):
     """⚠ <b>정렬은 «이름» 으로 준다</b> — MCP 브리지가 enum 을 <b>인덱스</b>로 해석해서
     TMP 의 실제 값(513 = Left)을 넘기면 «Enum index out of range» 로 죽는다(실측).
     쓰는 값: ``Left`` · ``Center`` · ``Right`` · ``TopLeft`` …"""
@@ -102,11 +108,19 @@ def text(path, value, size=18, color=None, align="Left", wrap=True):
     })
 
 
-def label(path, value, size=18, color=None, align="Center", wrap=True,
+def label(path, value, size=18, color=None, align="Center",
           amin=(0, 0), amax=(1, 1), omin=(6, 0), omax=(-6, 0)):
+    """⚠⚠ <b>2026-08-24 — 여기에 인자 밀림 버그가 있었다.</b>
+
+    예전 서명은 ``align`` 다음에 <b>쓰지도 않는 ``wrap``</b> 이 끼어 있었다. 그래서
+    ``label(p, "유물 관리", 22, TEXT, "Left", (0,1), (1,1), (18,-46), (-56,-10))`` 처럼
+    부르면 네 개의 rect 좌표가 <b>한 칸씩 밀려</b> ``wrap=(0,1) · amin=(1,1) ·
+    amax=(18,-46) · omin=(-56,-10)`` 이 됐다 — 앵커에 -46 같은 값이 들어가
+    <b>유물 창의 글자 열두 개가 통째로 엉뚱한 자리</b>에 놓였다(실측).
+    ``wrap`` 은 ``text()`` 가 애초에 쓰지 않던 죽은 칸이라 <b>없앴다</b>."""
     go(path)
     rect(path, amin, amax, omin, omax)
-    text(path, value, size, color, align, wrap)
+    text(path, value, size, color, align)
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -129,7 +143,7 @@ def build_dig_overlay():
     rect(t, (0.5, 0.5), (0.5, 0.5), (-17, -17), (17, 17))
     image(t, MARK_BG)
     comp(t, "Button", {})
-    label(t + "/Label", "!", 22, {"r": 0.10, "g": 0.09, "b": 0.06, "a": 1.0}, "Center", False)
+    label(t + "/Label", "!", 22, {"r": 0.10, "g": 0.09, "b": 0.06, "a": 1.0}, "Center")
     # ⚠ 원본은 <b>꺼둔다</b> — 복제해서 쓰는 모체다(건설 오버레이와 같은 규칙).
     go(t, active=False)
 
@@ -156,7 +170,7 @@ def build_relic_panel():
     rect(c, (1, 1), (1, 1), (-44, -44), (-12, -12))
     image(c, {"r": 0.30, "g": 0.13, "b": 0.15, "a": 0.95})
     comp(c, "Button", {})
-    label(c + "/Label", "X", 18, TEXT, "Center", False)
+    label(c + "/Label", "X", 18, TEXT, "Center")
 
     label(p + "/Hint", "유물을 고르면 설명이 나옵니다.", 14, DIM, "Left",
           (0, 0), (1, 0), (18, 10), (-18, 34))
@@ -214,7 +228,7 @@ def build_relic_panel():
     rect(e, (0, 0), (0, 0), (14, 8), (150, 44))
     image(e, BTN_BG)
     comp(e, "Button", {})
-    label(e + "/Label", "장착", 16, TEXT, "Center", False)
+    label(e + "/Label", "장착", 16, TEXT, "Center")
 
     # ⚠ 창은 <b>꺼둔 상태</b>로 저장한다 — 다른 HUD 창과 같은 규칙(ActionPanel 이 연다).
     go(p, active=False)
@@ -233,27 +247,61 @@ def build_action_button():
     image(b, {"r": 0.13, "g": 0.17, "b": 0.22, "a": 0.95})
     comp(b, "Button", {})
     comp(b, "LayoutElement", {"minHeight": 40, "preferredHeight": 40})
-    label(b + "/Label", "유물 관리", 16, TEXT, "Center", False)
+    label(b + "/Label", "유물 관리", 16, TEXT, "Center")
 
 
 # ══════════════════════════════════════════════════════════════════════════
-# ④ 성장 창의 유물 칸 (유저 지시 10번)
+# ④ 성장 창의 유물 칸 (유저 지시 10번 · 2026-08-24 전면 재배치)
+#
+# ⚠⚠ <b>예전 자리는 «없는 것과 같았다».</b> 처음에는 ``HUD_Growth/Stats/RelicSlot`` 에
+#   넣었는데, ``Stats``(906x640)는 이미 위에서 아래까지 꽉 차 있다 —
+#   Head(-16) · GrowthLabel(-50) · GrowthTypes(-76) · Grid(-120~-414) ·
+#   PassiveHead(-424) · PassiveGrid(-456~-632). 바닥에 놓은 칸이 <b>패시브 카드에 깔려</b>
+#   보이지 않았다(유저 리포트: *"성장 ui에 유물 장착 칸 있어야 하는데 없음"*).
+#
+# ★ 그래서 <b>창을 84px 늘리고</b>(830 → 924) 두 열 아래에 <b>가로로 긴 띠</b>를 새로 깐다.
+#   두 열(Info 250 · Stats 906)은 손대지 않는다 — 그 안을 비집으면 다른 칸이 밀린다.
+#   창 높이 924 는 화면(1080)에서 위 110 을 뺀 970 안에 들어간다(바닥 여백 46px).
+# ★ 「변경」 버튼은 <b>유물 관리 창을 열 뿐</b>이다 — 고르는 일은 그 창 한 곳에서만 한다
+#   (UI-50 의 규칙). 두 곳에서 구현하면 규칙이 두 벌이 된다.
 # ══════════════════════════════════════════════════════════════════════════
-def build_growth_slot():
-    s = "UI_Root/HUD_Growth/Stats/RelicSlot"
-    go(s)
-    rect(s, (0, 0), (1, 0), (12, 8), (-12, 66))
-    image(s, BOX_BG)
-    comp(s, "Button", {})
+def build_growth_relicbar():
+    # 창을 늘린다 — 아래에 띠 하나가 들어갈 만큼만.
+    comp("UI_Root/HUD_Growth", "RectTransform", {"sizeDelta": {"x": 1220, "y": 924}})
 
-    label(s + "/Head", "유물", 14, DIM, "Left", (0, 1), (0, 1), (10, -26), (60, -6))
+    # 예전 칸은 <b>끈다</b>. 지우지 않는 이유 — 씬 오브젝트 삭제는 되돌리기 어렵고,
+    # 꺼두면 «여기 있었다» 는 흔적이 남아 다음 사람이 헷갈리지 않는다.
+    go("UI_Root/HUD_Growth/Stats/RelicSlot", active=False)
 
-    ico = s + "/Icon"
+    b = "UI_Root/HUD_Growth/RelicBar"
+    go(b)
+    # 다른 형제(Info·Stats)와 같은 규약 — 좌상단 고정 · pivot(0,1) · anchoredPosition.
+    comp(b, "RectTransform", {
+        "anchorMin": {"x": 0, "y": 1}, "anchorMax": {"x": 0, "y": 1},
+        "pivot": {"x": 0, "y": 1},
+        "anchoredPosition": {"x": 24, "y": -762},
+        "sizeDelta": {"x": 1172, "y": 84},
+    })
+    image(b, BOX_BG, raycast=False)
+
+    ico = b + "/Icon"
     go(ico)
-    rect(ico, (0, 0), (0, 0), (10, 6), (48, 44))
+    rect(ico, (0, 1), (0, 1), (12, -74), (76, -10))
     image(ico, {"r": 1, "g": 1, "b": 1, "a": 1}, raycast=False)
 
-    label(s + "/Name", "없음", 16, DIM, "Left", (0, 0), (1, 1), (56, 4), (-12, -28))
+    label(b + "/Head", "장착한 유물", 13, DIM, "Left",
+          (0, 1), (0, 1), (88, -24), (288, -6))
+    label(b + "/Name", "없음", 18, TEXT, "Left",
+          (0, 1), (0, 1), (88, -50), (708, -24))
+    label(b + "/Effect", "", 14, DIM, "Left",
+          (0, 1), (0, 1), (88, -76), (968, -52))
+
+    ch = b + "/ChangeButton"
+    go(ch)
+    rect(ch, (1, 1), (1, 1), (-172, -62), (-16, -22))
+    image(ch, BTN_BG)
+    comp(ch, "Button", {})
+    label(ch + "/Label", "유물 관리 열기", 14, TEXT, "Center")
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -268,7 +316,7 @@ def run():
     build_dig_overlay()
     build_relic_panel()
     build_action_button()
-    build_growth_slot()
+    build_growth_relicbar()
     build_services()
     call("save_scene", {})
 

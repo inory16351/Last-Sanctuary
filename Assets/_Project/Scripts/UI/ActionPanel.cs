@@ -69,6 +69,12 @@ namespace LastSanctuary.UI
         [SerializeField] string settingsIdle = "환경 설정";
         [SerializeField] string settingsOpen = "환경 설정 닫기";
 
+        [Header("칸 높이 (2026-08-24 — 하드코딩 제거)")]
+        [Tooltip("켜면 <b>켜져 있는 버튼 수</b>에 맞춰 이 패널의 높이를 스스로 맞춘다.\n" +
+                 "예전에는 씬에 박힌 값이라 버튼이 하나 늘 때마다 <b>칸 밖으로 넘쳤다</b> " +
+                 "— 유물 관리를 더한 뒤 8개가 되어 96px 이 잘려 나갔다(2026-08-24 실측)")]
+        [SerializeField] bool autoFitHeight = true;
+
         [Header("색")]
         [SerializeField] Color buttonNormal = new Color(0.13f, 0.17f, 0.22f, 0.95f);
         [SerializeField] Color buttonOn = new Color(0.16f, 0.42f, 0.38f, 0.98f);
@@ -140,10 +146,66 @@ namespace LastSanctuary.UI
                 Debug.LogWarning("[Actions] CharacterCreationService 를 찾지 못했습니다. " +
                                  "GameSystems 오브젝트에 붙어 있는지 확인하세요.", this);
 
+            FitHeight();
             Refresh(force: true);
         }
 
         void Update() => Refresh(force: false);
+
+        /// <summary>
+        /// ★★ <b>패널 높이를 버튼 수에서 계산한다</b> (2026-08-24 · 유저 지시:
+        /// <i>"지금 허드 액션이 하드 코딩 되어 있음 … 허드 액션 크기 맞춰"</i>).
+        ///
+        /// 예전에는 씬의 <c>sizeDelta.y</c> 가 정본이었다. 버튼을 하나 더할 때 그 값을 같이
+        /// 고치지 않으면 <b>조용히 칸 밖으로 넘친다</b> — 실제로 유물 관리 버튼이 들어오면서
+        /// 8개가 되어 <b>96px 이 잘려 있었다</b>. 세는 것이 기억하는 것보다 안전하다.
+        ///
+        /// ★ 높이는 <see cref="LayoutElement.preferredHeight"/> 를 먼저 본다 —
+        ///   <see cref="VerticalLayoutGroup"/> 가 실제로 쓰는 값이 그것이다(칸의 현재 높이는
+        ///   레이아웃이 아직 돌기 전이면 엉뚱한 값일 수 있다).
+        /// ⚠ <c>Buttons</c> 는 <b>늘어나는(stretch) 자식</b>이라 자기 높이가
+        ///   <c>부모 높이 + sizeDelta.y</c> 다. 그래서 부모에게 필요한 높이는
+        ///   <c>내용 높이 − sizeDelta.y</c> 다(sizeDelta.y 가 −20 이면 20 을 더하는 셈).
+        /// </summary>
+        void FitHeight()
+        {
+            if (!autoFitHeight) return;
+
+            var self = transform as RectTransform;
+            var box = transform.Find("Buttons") as RectTransform;
+            if (self == null || box == null) return;
+
+            // 세로로 늘어나 있지 않으면 이 계산이 성립하지 않는다 — 손대지 않는다.
+            if (!Mathf.Approximately(box.anchorMin.y, 0f) ||
+                !Mathf.Approximately(box.anchorMax.y, 1f)) return;
+
+            var layout = box.GetComponent<VerticalLayoutGroup>();
+            float spacing = layout != null ? layout.spacing : 0f;
+            float padding = layout != null ? layout.padding.top + layout.padding.bottom : 0f;
+
+            float content = padding;
+            int shown = 0;
+            for (int i = 0; i < box.childCount; i++)
+            {
+                var child = box.GetChild(i) as RectTransform;
+                if (child == null || !child.gameObject.activeSelf) continue;
+
+                var element = child.GetComponent<LayoutElement>();
+                float h = element != null && element.preferredHeight > 0f
+                        ? element.preferredHeight
+                        : child.rect.height;
+
+                content += h;
+                shown++;
+            }
+            if (shown == 0) return;
+            content += spacing * (shown - 1);
+
+            float want = content - box.sizeDelta.y;
+            if (Mathf.Abs(want - self.sizeDelta.y) < 0.5f) return;
+
+            self.sizeDelta = new Vector2(self.sizeDelta.x, want);
+        }
 
         // ------------------------------------------------------------------
 

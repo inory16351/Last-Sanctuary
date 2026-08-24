@@ -62,6 +62,14 @@ namespace LastSanctuary.UI
         [Tooltip("HP·행동·비용을 다시 읽는 주기(초). 0 이면 매 프레임")]
         [Min(0f)] [SerializeField] float refreshInterval = 0.2f;
 
+        [Header("부대 묶음 (2026-08-24)")]
+        [Tooltip("켜면 목록을 <b>부대 단위로 모아</b> 정렬하고, 같은 부대에 같은 색 테두리를 두른다.\n" +
+                 "끄면 예전처럼 생성순으로만 늘어선다")]
+        [SerializeField] bool groupBySquad = true;
+
+        [Tooltip("부대 테두리 두께(px). 너무 두꺼우면 행 사이가 붙어 보인다")]
+        [SerializeField] Vector2 squadOutlineThickness = new Vector2(2.5f, 2.5f);
+
         [Header("색")]
         [SerializeField] Color rowNormal = new Color(0.10f, 0.12f, 0.16f, 0.70f);
         [SerializeField] Color rowSelected = new Color(0.13f, 0.28f, 0.26f, 0.90f);
@@ -105,6 +113,13 @@ namespace LastSanctuary.UI
             public GameObject Root;
             public Image Background;
             public Button SelectButton;
+
+            /// <summary>
+            /// ★ <b>부대 아웃라인</b>(2026-08-24). 행 배경에 붙은 <see cref="Outline"/> 이
+            /// 같은 부대끼리 <b>같은 색 테두리</b>를 두른다. 부대가 없으면 알파 0 이라
+            /// 컴포넌트는 있어도 <b>보이지 않는다</b> — 붙였다 뗐다 하면 레이아웃이 흔들린다.
+            /// </summary>
+            public Outline SquadOutline;
 
             /// <summary>행을 꾹 누르면 캐릭터 성장 창을 여는 판정(유저 확정 2026-08-12).
             /// 모체(<c>RowTemplate</c>)에 붙어 있어서 복제되는 모든 행이 물려받는다.</summary>
@@ -490,6 +505,18 @@ namespace LastSanctuary.UI
                 Duty = FindText(clone, "Duty"),
             };
 
+            // ★ 아웃라인은 <b>코드가 붙인다</b> — 행 모체(RowTemplate)를 손대지 않아도
+            //   모든 행에 생긴다(보호막 막대 EnsureShieldBar 와 같은 방식).
+            if (row.Background != null)
+            {
+                row.SquadOutline = row.Background.GetComponent<Outline>();
+                if (row.SquadOutline == null)
+                    row.SquadOutline = row.Background.gameObject.AddComponent<Outline>();
+                row.SquadOutline.effectDistance = squadOutlineThickness;
+                row.SquadOutline.useGraphicAlpha = false;
+                row.SquadOutline.effectColor = Color.clear;
+            }
+
             Transform hpBack = clone.Find("HpBack");
             if (hpBack != null)
             {
@@ -712,6 +739,9 @@ namespace LastSanctuary.UI
         void ApplyDeadAppearance(Row row)
         {
             if (row.Background != null) row.Background.color = rowDead;
+
+            // 죽으면 부대에서 빠진다(SquadService 가 OnAnyDied 로 정리한다) — 테두리도 지운다.
+            if (row.SquadOutline != null) row.SquadOutline.effectColor = Color.clear;
             if (row.Name != null) { row.Name.text = row.CachedName; row.Name.color = deadTextColor; }
             if (row.Duty != null) { row.Duty.text = "사망"; row.Duty.color = deadTextColor; }
 
@@ -907,7 +937,51 @@ namespace LastSanctuary.UI
 
                 if (row.Background != null)
                     row.Background.color = ReferenceEquals(unit, selected) ? rowSelected : rowNormal;
+
+                ApplySquadOutline(row, unit);
             }
+        }
+
+        // ------------------------------------------------------------------
+        // 부대 묶음 (2026-08-24 유저 지시)
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// 이 캐릭터가 속한 부대의 <b>순번</b>(0부터). 없으면 <see cref="int.MaxValue"/>.
+        ///
+        /// ★ 부대 <b>id</b> 가 아니라 <b>목록에서의 순번</b>을 쓴다 — id 는 지웠다 만들면
+        ///   1,2,5 처럼 띄엄띄엄해져 색이 건너뛴다. 순번이면 «위에서 몇 번째 부대» 와
+        ///   색이 언제나 같이 간다(부대 창의 카드 순서와도 맞는다).
+        /// </summary>
+        static int SquadOrderOf(CharacterUnit unit)
+        {
+            if (unit == null) return int.MaxValue;
+
+            SquadService squads = SquadService.Instance;
+            if (squads == null) return int.MaxValue;
+
+            SquadService.Squad squad = squads.SquadOf(unit);
+            if (squad == null) return int.MaxValue;
+
+            var list = squads.Squads;
+            for (int i = 0; i < list.Count; i++)
+                if (ReferenceEquals(list[i], squad)) return i;
+
+            return int.MaxValue;
+        }
+
+        /// <summary>
+        /// 행 테두리를 그 캐릭터의 부대 색으로 칠한다. 부대가 없으면 <b>투명</b>이다 —
+        /// «없음» 을 회색 테두리로 표현하면 그것도 하나의 부대처럼 보인다.
+        /// </summary>
+        void ApplySquadOutline(Row row, CharacterUnit unit)
+        {
+            if (row.SquadOutline == null) return;
+
+            int order = groupBySquad ? SquadOrderOf(unit) : int.MaxValue;
+            row.SquadOutline.effectColor = order == int.MaxValue
+                ? Color.clear
+                : HudTheme.SquadColor(order);
         }
 
         /// <summary>
@@ -929,9 +1003,18 @@ namespace LastSanctuary.UI
         /// </summary>
         void ReorderRows()
         {
-            var active = _rows.Where(r => r.Root.activeSelf)
-                              .OrderBy(r => CreationIndexOf(r.Unit))
-                              .ToList();
+            // ★★ 2026-08-24 — <b>부대가 먼저, 그 안에서 생성순</b>(유저 지시:
+            //   *"캐릭터 로스터 배열 정렬을 같은 부대 기준으로"*).
+            //   부대에 안 든 캐릭터는 <b>맨 아래로</b> 모인다(순번 int.MaxValue).
+            //   ⚠ <c>OrderBy().ThenBy()</c> 는 <b>안정 정렬</b>이라 같은 부대 안의 순서는
+            //     생성순 그대로다 — 카드가 손 밑에서 튀지 않는다(아래 ★★ 와 같은 이유).
+            var active = (groupBySquad
+                    ? _rows.Where(r => r.Root.activeSelf)
+                           .OrderBy(r => SquadOrderOf(r.Unit))
+                           .ThenBy(r => CreationIndexOf(r.Unit))
+                    : _rows.Where(r => r.Root.activeSelf)
+                           .OrderBy(r => CreationIndexOf(r.Unit)))
+                .ToList();
 
             for (int i = 0; i < active.Count; i++)
                 active[i].Root.transform.SetSiblingIndex(i);
