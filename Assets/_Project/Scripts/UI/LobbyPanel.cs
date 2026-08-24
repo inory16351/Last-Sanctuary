@@ -74,6 +74,19 @@ namespace LastSanctuary.UI
         [Tooltip("게임 본편 씬 이름. 빌드 세팅에 들어 있어야 한다")]
         [SerializeField] string gameSceneName = "Proto_01";
 
+        /// <summary>
+        /// <b>새로하기</b>만 거쳐 가는 오프닝 씬 (2026-08-24 · 유저 지시
+        /// <i>"오프닝 … 새 게임 시작하면 나오는 거고"</i>).
+        ///
+        /// ★ <b>이어하기와 갈라놓은 이유</b> — 두 버튼이 <see cref="gameSceneName"/> 하나를
+        ///   같이 쓰고 있었다. 거기에 오프닝을 끼우면 <b>이어하기에도</b> 오프닝이 붙어,
+        ///   판을 이어갈 때마다 90초짜리 연출을 다시 보게 된다.
+        /// ⚠ 비워두면 오프닝을 건너뛰고 곧바로 <see cref="gameSceneName"/> 으로 간다 —
+        ///   오프닝 씬을 빌드 세팅에서 뺀 채로도 새로하기가 죽지 않게 하는 안전판이다.
+        /// </summary>
+        [Tooltip("새로하기에서 거쳐 갈 오프닝 씬. 비우면 오프닝 없이 바로 본편으로 간다")]
+        [SerializeField] string openingSceneName = "Opening";
+
         [Header("페이드 인")]
         [Tooltip("흰 화면이 걷히는 시간(초). 이것이 <b>완전히</b> 끝난 뒤에 타이틀이 시작한다 " +
                  "(유저 지시 2026-08-18)")]
@@ -615,15 +628,20 @@ namespace LastSanctuary.UI
 
             SaveService.Delete();
             SaveService.PendingLoad = null;
-            LoadGame();
+
+            // ★ 2026-08-24 — 새로하기만 오프닝을 거친다(openingSceneName 주석).
+            //   오프닝이 끝나면 OpeningDirector 가 본편 씬을 연다.
+            LoadGame(string.IsNullOrWhiteSpace(openingSceneName) ? gameSceneName : openingSceneName);
         }
 
-        void LoadGame()
+        void LoadGame() => LoadGame(gameSceneName);
+
+        void LoadGame(string sceneName)
         {
             // 게임에서 일시정지·배속을 걸어둔 채 나왔을 수 있다. 씬을 넘겨도 timeScale 은
             // 유지되므로(GameSpeedPanel 의 그 함정) 반드시 되돌려 놓는다.
             Time.timeScale = 1f;
-            SceneManager.LoadScene(gameSceneName);
+            SceneManager.LoadScene(sceneName);
         }
 
         void HandleSettings()

@@ -1,7 +1,7 @@
 {
   "mcpServers": {
     "mcp-unity": {
-      "command": "C:/Users/user/AppData/Local/hermes/node/node.exe",
+      "command": "node",
       "args": [
         "Library/PackageCache/com.gamelovers.mcp-unity@0e9fdb65b3cc/Server~/build/index.js"
       ],

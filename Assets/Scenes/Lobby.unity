@@ -2970,6 +2970,7 @@ MonoBehaviour:
   backgroundResource: UI/Lobby/LobbyBg
   titleResource: UI/Lobby/LobbyTitle
   gameSceneName: Proto_01
+  openingSceneName: Opening
   screenFadeSeconds: 2
   titleFadeSeconds: 2.4
   titleRisePixels: 311
