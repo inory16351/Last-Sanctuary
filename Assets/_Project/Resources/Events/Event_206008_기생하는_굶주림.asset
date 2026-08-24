@@ -20,12 +20,12 @@ MonoBehaviour:
   repeatable: 1
   choiceGroupId: 600036
   eventBg: "bg_supply"
-  eventScript: "곳간의 양분이 아무도 먹지 않았는데 줄어들고 있습니다.\n성역 안에 우리 말고 무언가가 먹고 있습니다."
+  eventScript: "곳간의 양분이 아무도 먹지 않았는데 줄어들고 있습니다.\n성역 안에서 우리가 아닌 것이 먹고 있습니다."
   choices:
   - choiceId: 300071
     choiceOrder: 1
     choiceText: "찾아내서 도려낸다."
-    resultScript: "곳간 벽을 뜯어내 붙어 있던 것을 긁어냈습니다.\n잃은 양분은 돌아오지 않지만 적의 몸에도 같은 자국이 남았습니다."
+    resultScript: "곳간 벽을 뜯어내 달라붙은 것을 긁어냈습니다.\n잃은 양분은 돌아오지 않지만 적의 몸에도 같은 자국이 남았습니다."
     resultEffect: "효과 : 에너지 −150 · 적 전체 체력 −10% (최대 체력 기준)"
     rewardType01: "energy_loss"
     rewardValue01: 150
@@ -36,7 +36,7 @@ MonoBehaviour:
   - choiceId: 300072
     choiceOrder: 2
     choiceText: "먹는 만큼 더 벌어온다."
-    resultScript: "도둑은 그대로 둔 채, 밖에서 더 물어왔습니다.\n곳간은 찼고, 그 안의 손님도 함께 살이 오릅니다."
+    resultScript: "도둑은 그대로 둔 채, 밖에서 더 물어왔습니다.\n곳간은 찼고, 그 안의 손님도 나란히 살이 오릅니다."
     resultEffect: "효과 : 에너지 +250 · 천사 전체 침식 +6"
     rewardType01: "energy_gain"
     rewardValue01: 250

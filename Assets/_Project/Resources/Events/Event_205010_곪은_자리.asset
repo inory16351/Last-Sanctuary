@@ -36,7 +36,7 @@ MonoBehaviour:
   - choiceId: 300020
     choiceOrder: 2
     choiceText: "덮어두고 계속 싸운다."
-    resultScript: "붕대가 곪은 자리를 덮었습니다.\n통증은 분노로 바뀌었고, 가려 둔 것은 가려진 채로 자랍니다."
+    resultScript: "붕대가 곪은 살을 덮었습니다.\n통증은 분노로 바뀌었고, 가려 둔 것은 가려진 채로 자랍니다."
     resultEffect: "효과 : 천사 전체 침식 +10 · 천사 전체 근거리 공격력 +7% (240초)"
     rewardType01: "char_all_erosion_up"
     rewardValue01: 10

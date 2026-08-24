@@ -36,13 +36,13 @@ MonoBehaviour:
     situation: 3
     choiceGroupId: 640001
     weight: 10
-    script: "대열은 그 자리를 멀찍이 돌아갑니다.\n부푼 흙은 부푼 채로 남았습니다."
+    script: "천사들은 그곳을 멀찍이 돌아갑니다.\n부푼 흙은 부푼 채로 남았습니다."
   - dialogueId: 650105
     groupId: 1
     situation: 4
     choiceGroupId: 640001
     weight: 10
-    script: "파낸 자리에서 흙이 우수수 흘러내립니다."
+    script: "파낸 구멍으로 흙이 우수수 흘러내립니다."
   - dialogueId: 650106
     groupId: 1
     situation: 4
@@ -72,7 +72,7 @@ MonoBehaviour:
     situation: 3
     choiceGroupId: 640002
     weight: 10
-    script: "덮인 것은 덮인 채로 둡니다.\n아무는 중인 자리를 굳이 열 이유는 없습니다."
+    script: "덮인 것을 그대로 둡니다.\n아물고 있는 살을 굳이 열 이유는 없습니다."
   - dialogueId: 650205
     groupId: 2
     situation: 4
@@ -90,7 +90,7 @@ MonoBehaviour:
     situation: 1
     choiceGroupId: 640003
     weight: 10
-    script: "삭은 뼛조각이 흙 위로 삐죽 솟아 있습니다.\n무엇이 여기서 최후를 맞았는지는 기록에 남은 바가 없습니다."
+    script: "삭은 뼛조각이 지면 위로 삐죽 솟아 있습니다.\n무엇이 여기서 최후를 맞았는지는 기록에 남은 바가 없습니다."
   - dialogueId: 650302
     groupId: 3
     situation: 1
@@ -126,25 +126,25 @@ MonoBehaviour:
     situation: 1
     choiceGroupId: 640004
     weight: 10
-    script: "그 자리만 유독 따뜻합니다.\n발바닥으로 전해지는 온기가 성역의 것과 닮았습니다."
+    script: "그 땅만 유독 따뜻합니다.\n발바닥으로 전해지는 온기가 성역의 것과 닮았습니다."
   - dialogueId: 650402
     groupId: 4
     situation: 1
     choiceGroupId: 640004
     weight: 10
-    script: "눈이 닿지 않는 깊이에서 무언가가 열을 냅니다.\n좋은 징조로 여기기에는 지나치게 뜨겁습니다."
+    script: "눈이 닿지 않는 깊이에서 열이 올라옵니다.\n좋은 징조로 여기기에는 지나치게 뜨겁습니다."
   - dialogueId: 650403
     groupId: 4
     situation: 2
     choiceGroupId: 640004
     weight: 10
-    script: "온기를 좇아 흙을 걷어냅니다.\n손이 데일 만큼 뜨거워집니다."
+    script: "온기를 좇아 흙을 걷어냅니다.\n깊어질수록 손끝이 익어 갑니다."
   - dialogueId: 650404
     groupId: 4
     situation: 3
     choiceGroupId: 640004
     weight: 10
-    script: "온기를 등지고 돌아섭니다.\n따뜻한 것이 언제나 안전하지는 않습니다."
+    script: "그 열을 등지고 돌아섭니다.\n따뜻한 것이 곧 안전한 것은 아닙니다."
   - dialogueId: 650405
     groupId: 4
     situation: 4
@@ -156,7 +156,7 @@ MonoBehaviour:
     situation: 4
     choiceGroupId: 640004
     weight: 10
-    script: "다 식은 자리에서 무언가를 집어 올렸습니다."
+    script: "열이 식은 뒤에야 하나를 집어 올렸습니다."
   - dialogueId: 650501
     groupId: 5
     situation: 1
@@ -174,7 +174,7 @@ MonoBehaviour:
     situation: 2
     choiceGroupId: 640002
     weight: 10
-    script: "남의 손이 닿았던 자리를 다시 엽니다.\n두 번째로 파는 자리는 언제나 더 쉽게 열립니다."
+    script: "남의 손이 닿았던 곳을 다시 헤칩니다.\n한 번 열린 땅은 훨씬 수월하게 벌어집니다."
   - dialogueId: 650504
     groupId: 5
     situation: 3
@@ -192,19 +192,19 @@ MonoBehaviour:
     situation: 4
     choiceGroupId: 640002
     weight: 10
-    script: "덮여 있던 것을 마저 걷어냈습니다."
+    script: "덮여 있던 나머지를 걷어냈습니다."
   - dialogueId: 650601
     groupId: 6
     situation: 1
     choiceGroupId: 640001
     weight: 10
-    script: "성역의 결이 그 자리를 향해 미세하게 쏠립니다.\n몸이 스스로 무언가를 가리키고 있습니다."
+    script: "성역의 결이 한 지점을 향해 미세하게 쏠립니다.\n몸이 제 안의 어딘가를 짚고 있습니다."
   - dialogueId: 650602
     groupId: 6
     situation: 1
     choiceGroupId: 640001
     weight: 10
-    script: "넥서스의 박동이 그 방향에서 한 박자 어긋납니다.\n어긋난 자리는 대개 비어 있지 않습니다."
+    script: "넥서스의 맥이 그 방향에서 한 박자 어긋납니다.\n어긋난 곳이 비어 있는 경우는 드뭅니다."
   - dialogueId: 650603
     groupId: 6
     situation: 2
@@ -246,7 +246,7 @@ MonoBehaviour:
     situation: 5
     choiceGroupId: 0
     weight: 10
-    script: "삼키던 자를 삼켰습니다.\n빼앗은 것에는 아직 그 온도가 남아 있습니다."
+    script: "삼키던 자를 삼켰습니다.\n빼앗은 것에서 아직 그 온도가 느껴집니다."
   - dialogueId: 650904
     groupId: 0
     situation: 5
@@ -279,7 +279,7 @@ MonoBehaviour:
     choiceId: 340004
     choiceOrder: 2
     kind: 2
-    choiceText: "지금은 아니다. 자리만 기억해 둔다."
+    choiceText: "지금은 아니다. 어디였는지만 기억해 둔다."
   - choiceGroupId: 640003
     choiceId: 340005
     choiceOrder: 1

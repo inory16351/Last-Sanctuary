@@ -25,7 +25,7 @@ MonoBehaviour:
   - choiceId: 300053
     choiceOrder: 1
     choiceText: "마를 동안 앞을 두껍게 세운다."
-    resultScript: "쏘는 일을 잠시 접고 벽을 세웠습니다.\n화살이 짧아진 만큼 방패는 두꺼워졌습니다."
+    resultScript: "쏘는 일을 잠시 접고 벽을 세웠습니다.\n화살은 짧아지고 방패는 두꺼워졌습니다."
     resultEffect: "효과 : 천사 전체 원거리 공격력 −8% (240초) · 천사 전체 방어력 +9% (240초)"
     rewardType01: "char_long_distance_atk_durat_down"
     rewardValue01: 8
@@ -36,7 +36,7 @@ MonoBehaviour:
   - choiceId: 300054
     choiceOrder: 2
     choiceText: "젖은 채로 쏜다."
-    resultScript: "천사들은 늘어진 시위를 쉬지 않고 당겼습니다.\n빨라진 손이 정확함을 대신합니다."
+    resultScript: "천사들은 늘어진 시위를 쉬지 않고 당겼습니다.\n빨라진 손이 정확함을 메웁니다."
     resultEffect: "효과 : 천사 전체 공격 속도 +9% (240초) · 천사 전체 명중률 −7% (240초)"
     rewardType01: "char_atk_spd_durat_up"
     rewardValue01: 9

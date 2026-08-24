@@ -25,7 +25,7 @@ MonoBehaviour:
   - choiceId: 300017
     choiceOrder: 1
     choiceText: "앞을 더 두껍게 세워라."
-    resultScript: "방패를 든 천사들이 어깨를 붙이고 벽이 되었습니다.\n두꺼워진 벽은 좀처럼 자리를 옮기지 못합니다."
+    resultScript: "방패를 든 천사들이 어깨를 붙이고 벽이 되었습니다.\n두꺼워진 벽은 좀처럼 걸음을 옮기지 못합니다."
     resultEffect: "효과 : 천사 전체 방어력 +10% (240초) · 천사 전체 이동 속도 −6% (240초)"
     rewardType01: "char_def_durat_up"
     rewardValue01: 10

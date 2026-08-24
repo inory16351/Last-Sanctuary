@@ -36,7 +36,7 @@ MonoBehaviour:
   - choiceId: 300070
     choiceOrder: 2
     choiceText: "자리를 지킨다."
-    resultScript: "부름은 무시되었습니다.\n제자리에 박힌 천사들은 느리지만 쉽게 뚫리지 않습니다."
+    resultScript: "부름은 끝내 무시되었습니다.\n발을 붙이고 선 천사들은 느리지만 쉽게 뚫리지 않습니다."
     resultEffect: "효과 : 천사 전체 방어력 +10% (180초) · 천사 전체 이동 속도 −6% (180초)"
     rewardType01: "char_def_durat_up"
     rewardValue01: 10

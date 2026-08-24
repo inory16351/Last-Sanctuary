@@ -25,7 +25,7 @@ MonoBehaviour:
   - choiceId: 300015
     choiceOrder: 1
     choiceText: "몸에 박아 넣는다."
-    resultScript: "이질적인 파편이 천사들의 살에 자리를 잡았습니다.\n힘은 분명히 늘었고, 그 자리는 이제 성역의 것이 아닙니다."
+    resultScript: "이질적인 파편이 천사들의 살에 박혀 뿌리를 내렸습니다.\n힘은 분명히 늘었고, 그 살은 더 이상 이 몸의 것이 아닙니다."
     resultEffect: "효과 : 천사 전체 근거리 공격력 +10% (120초) · 천사 전체 저항력 −8% (240초)"
     rewardType01: "char_melee_atk_durat_up"
     rewardValue01: 10

@@ -25,7 +25,7 @@ MonoBehaviour:
   - choiceId: 300073
     choiceOrder: 1
     choiceText: "안개를 끌어안는다."
-    resultScript: "성역은 안개를 더 짙게 눌렀습니다.\n적들이 진창에 박혔고, 천사들의 발도 같이 무거워졌습니다."
+    resultScript: "성역은 안개를 더 짙게 눌렀습니다.\n적들이 진창에 박혔고, 천사들의 발 또한 무거워졌습니다."
     resultEffect: "효과 : 적 전체 구속 4초 · 천사 전체 이동 속도 −6% (180초)"
     rewardType01: "enemy_bind"
     rewardValue01: 0

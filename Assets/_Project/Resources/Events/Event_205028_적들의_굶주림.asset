@@ -36,7 +36,7 @@ MonoBehaviour:
   - choiceId: 300056
     choiceOrder: 2
     choiceText: "지금 쳐서 무리를 흩는다."
-    resultScript: "천사들은 굶주린 무리 속으로 뛰어들어 대열을 끊었습니다.\n흩어진 것들은 느려졌고, 뛰어든 쪽은 제 살을 잃었습니다."
+    resultScript: "천사들은 굶주린 무리 속으로 뛰어들어 대열을 끊었습니다.\n흩어진 것들은 느려졌고, 뛰어든 쪽도 살을 잃었습니다."
     resultEffect: "효과 : 적 전체 공격 속도 −10% (120초) · 천사 전체 체력 −8% (최대 체력 기준)"
     rewardType01: "enemy_atk_spd_durat_down"
     rewardValue01: 10

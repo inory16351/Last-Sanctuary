@@ -25,7 +25,7 @@ MonoBehaviour:
   - choiceId: 300065
     choiceOrder: 1
     choiceText: "심장을 채운다."
-    resultScript: "성역의 중심이 먼저 부풀었습니다.\n박동이 굵어지자 바닥까지 함께 떨립니다."
+    resultScript: "성역의 중심이 먼저 부풀었습니다.\n박동이 굵어지자 바닥까지 떨립니다."
     resultEffect: "효과 : 성역 체력 +20%"
     rewardType01: "nexus_percent_heal"
     rewardValue01: 20

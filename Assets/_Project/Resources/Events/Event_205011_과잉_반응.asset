@@ -20,7 +20,7 @@ MonoBehaviour:
   repeatable: 1
   choiceGroupId: 600011
   eventBg: "bg_heat"
-  eventScript: "파도가 끝났음에도 천사들이 무기를 놓지 않습니다.\n적이 없는 자리를 향해 칼을 휘두르는 이들도 보입니다."
+  eventScript: "파도가 끝났음에도 천사들이 무기를 놓지 않습니다.\n적이 없는 허공을 향해 칼을 휘두르는 이들도 보입니다."
   choices:
   - choiceId: 300021
     choiceOrder: 1

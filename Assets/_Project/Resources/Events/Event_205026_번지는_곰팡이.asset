@@ -20,12 +20,12 @@ MonoBehaviour:
   repeatable: 1
   choiceGroupId: 600026
   eventBg: "bg_wound"
-  eventScript: "성역의 그늘진 자리마다 흰 곰팡이가 피었습니다.\n마나를 다루는 천사들의 손끝에서 가장 먼저 번지기 시작했습니다."
+  eventScript: "성역의 그늘진 틈마다 흰 곰팡이가 피었습니다.\n마나를 다루는 천사들의 손끝에서 먼저 번졌습니다."
   choices:
   - choiceId: 300051
     choiceOrder: 1
     choiceText: "그늘을 태워 없앤다."
-    resultScript: "곰팡이가 붙은 살까지 함께 태웠습니다.\n성역은 아파하면서도 자기 것을 되찾았습니다."
+    resultScript: "곰팡이가 붙은 살까지 아울러 태웠습니다.\n성역은 아파하면서도 자기 것을 되찾았습니다."
     resultEffect: "효과 : 천사 전체 체력 −8% (최대 체력 기준) · 천사 전체 침식 −8"
     rewardType01: "char_hp_percent_loss"
     rewardValue01: 8
@@ -36,7 +36,7 @@ MonoBehaviour:
   - choiceId: 300052
     choiceOrder: 2
     choiceText: "걷어내서 양분으로 삼는다."
-    resultScript: "곰팡이는 곳간으로 옮겨져 양분이 되었습니다.\n손끝에 남은 것은 아직 마르지 않았습니다."
+    resultScript: "곰팡이는 걷혀 양분으로 바뀌었습니다.\n손끝에 남은 것은 아직 마르지 않았습니다."
     resultEffect: "효과 : 에너지 +250 · 천사 전체 마법 공격력 −8% (240초)"
     rewardType01: "energy_gain"
     rewardValue01: 250

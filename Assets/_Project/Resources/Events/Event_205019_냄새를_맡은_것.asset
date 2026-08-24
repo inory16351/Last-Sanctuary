@@ -25,7 +25,7 @@ MonoBehaviour:
   - choiceId: 300037
     choiceOrder: 1
     choiceText: "오기 전에 먼저 친다."
-    resultScript: "천사들은 연기를 등지고 먼저 달려나갔습니다.\n먼저 치는 쪽은 언제나 제 살을 먼저 내놓습니다."
+    resultScript: "천사들은 연기를 등지고 먼저 달려나갔습니다.\n선수를 치는 쪽은 제 살을 앞서 내놓습니다."
     resultEffect: "효과 : 천사 전체 체력 −10% (최대 체력 기준) · 천사 전체 근거리 공격력 +14% (120초)"
     rewardType01: "char_hp_percent_loss"
     rewardValue01: 10

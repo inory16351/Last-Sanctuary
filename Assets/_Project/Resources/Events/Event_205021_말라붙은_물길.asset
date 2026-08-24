@@ -25,7 +25,7 @@ MonoBehaviour:
   - choiceId: 300041
     choiceOrder: 1
     choiceText: "남은 것을 짜낸다."
-    resultScript: "마른 물길에서 마지막 한 줌을 얻었습니다.\n짜낸 자리마다 성역의 살이 얇아졌습니다."
+    resultScript: "마른 물길에서 마지막 한 줌을 얻었습니다.\n짜낼수록 성역의 살은 얇아졌습니다."
     resultEffect: "효과 : 에너지 +220 · 천사 전체 체력 −12% (최대 체력 기준)"
     rewardType01: "energy_gain"
     rewardValue01: 220

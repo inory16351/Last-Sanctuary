@@ -20,12 +20,12 @@ MonoBehaviour:
   repeatable: 1
   choiceGroupId: 600025
   eventBg: "bg_wound"
-  eventScript: "오래 같은 자리를 벤 손끝이 무뎌졌습니다.\n몸은 아직 움직이는데, 정확히 어디를 찔러야 하는지를 조금씩 잊어가고 있습니다."
+  eventScript: "오래 같은 곳만 베어 온 손끝이 무뎌졌습니다.\n몸은 아직 움직이는데, 정확히 어디를 찔러야 하는지를 조금씩 잊어가고 있습니다."
   choices:
   - choiceId: 300049
     choiceOrder: 1
     choiceText: "손을 다시 가르친다."
-    resultScript: "양분을 내어주고 훈련할 시간을 얻었습니다.\n다시 배운 손은 예전 자리를 정확히 찾아냅니다."
+    resultScript: "양분을 내어주고 훈련할 시간을 얻었습니다.\n다시 배운 손은 겨눌 곳을 정확히 찾아냅니다."
     resultEffect: "효과 : 에너지 −200 · 천사 전체 명중률 +8% (240초)"
     rewardType01: "energy_loss"
     rewardValue01: 200

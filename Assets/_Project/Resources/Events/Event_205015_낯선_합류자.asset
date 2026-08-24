@@ -36,7 +36,7 @@ MonoBehaviour:
   - choiceId: 300030
     choiceOrder: 2
     choiceText: "베어버린다."
-    resultScript: "칼이 먼저 움직였습니다.\n남은 것은 익숙한 형태의 양분이었고, 대열의 의심은 사라졌습니다."
+    resultScript: "칼이 먼저 움직였습니다.\n바닥에 놓인 형체는 익숙한 양분이었고, 의심은 그것으로 걷혔습니다."
     resultEffect: "효과 : 에너지 +150 · 천사 전체 침식 −5"
     rewardType01: "energy_gain"
     rewardValue01: 150

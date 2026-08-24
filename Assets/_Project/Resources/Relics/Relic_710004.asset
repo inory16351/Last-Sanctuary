@@ -22,7 +22,7 @@ MonoBehaviour:
   value03: 0
   value04: 0
   relicDesc: "받은 근접 피해의 15% 를 때린 적에게 되돌립니다."
-  relicFlavor: "건드리면 터진다. 터지면 온 자리가 부어오른다."
+  relicFlavor: "건드리면 터진다. 터지면 그 둘레가 부어오른다."
   source: 1
   sourceId: 0
   dropWeight: 9

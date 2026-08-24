@@ -20,12 +20,12 @@ MonoBehaviour:
   repeatable: 1
   choiceGroupId: 600006
   eventBg: "bg_fog"
-  eventScript: "파도가 물러난 자리에 낯선 표식이 남았습니다.\n누군가가—혹은 무언가가—성역의 안쪽을 향해 길을 알려 두었습니다."
+  eventScript: "파도가 물러난 뒤 낯선 표식이 남았습니다.\n누군가가—혹은 무언가가—성역의 안쪽을 향해 길을 알려 두었습니다."
   choices:
   - choiceId: 300011
     choiceOrder: 1
     choiceText: "표식을 따라가 본다."
-    resultScript: "천사들은 표식을 좇아 안개 밖으로 눈을 뻗었습니다.\n시야가 트인 자리까지 화살이 따라갑니다."
+    resultScript: "천사들은 표식을 좇아 안개 밖으로 눈을 뻗었습니다.\n눈이 닿는 데까지 화살이 뒤따릅니다."
     resultEffect: "효과 : 천사 전체 시야 +10% (240초) · 천사 전체 공격 사거리 +8% (240초)"
     rewardType01: "char_vision_durat_up"
     rewardValue01: 10
