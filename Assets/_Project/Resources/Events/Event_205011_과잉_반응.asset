@@ -25,7 +25,7 @@ MonoBehaviour:
   - choiceId: 300021
     choiceOrder: 1
     choiceText: "그대로 두어라. 곧 적이 온다."
-    resultScript: "휘둘리는 칼은 멈추지 않았습니다.\n빨라진 손은 자주 헛것을 베지만, 멈추지 않는 것 자체가 힘입니다."
+    resultScript: "휘둘리는 칼은 끝내 멎지 않았습니다.\n빨라진 손이 자주 헛것을 베어도, 멈추지 않는다는 것 자체가 힘입니다."
     resultEffect: "효과 : 천사 전체 공격 속도 +12% (120초) · 천사 전체 명중률 −8% (240초)"
     rewardType01: "char_atk_spd_durat_up"
     rewardValue01: 12
@@ -36,7 +36,7 @@ MonoBehaviour:
   - choiceId: 300022
     choiceOrder: 2
     choiceText: "손에서 칼을 빼앗는다."
-    resultScript: "천사들의 손에서 억지로 무기를 걷어냈습니다.\n느려진 대신, 스스로를 베는 일은 없어졌습니다."
+    resultScript: "천사들의 손에서 억지로 무기를 걷어냈습니다.\n동작은 느려졌고, 스스로를 베는 일은 사라졌습니다."
     resultEffect: "효과 : 천사 전체 침식 −8 · 천사 전체 공격 속도 −5% (240초)"
     rewardType01: "char_all_erosion_down"
     rewardValue01: 8

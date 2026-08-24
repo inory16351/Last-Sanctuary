@@ -36,7 +36,7 @@ MonoBehaviour:
   - choiceId: 300074
     choiceOrder: 2
     choiceText: "안개를 걷어낸다."
-    resultScript: "시야가 트이자 성역의 끝까지 보입니다.\n대신 저쪽의 발걸음도 다시 가벼워졌습니다."
+    resultScript: "시야가 트이자 성역의 끝까지 눈에 들어옵니다.\n저쪽의 발걸음 또한 다시 가벼워졌습니다."
     resultEffect: "효과 : 천사 전체 시야 +12% (180초) · 적 전체 이동 속도 +6% (180초)"
     rewardType01: "char_vision_durat_up"
     rewardValue01: 12

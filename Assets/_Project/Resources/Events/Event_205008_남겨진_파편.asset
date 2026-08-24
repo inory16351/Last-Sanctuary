@@ -20,7 +20,7 @@ MonoBehaviour:
   repeatable: 1
   choiceGroupId: 600008
   eventBg: "bg_aftermath"
-  eventScript: "유해를 걷어낸 자리에 적의 파편이 반짝입니다.\n성역의 것이 아닌 재료입니다. 쓸 수야 있겠지만, 몸에 맞을지는 아무도 모릅니다."
+  eventScript: "유해를 걷어낸 자리에 적의 파편이 반짝입니다.\n성역의 것이 아닌 재료입니다. 쓸 수야 있겠으나, 이 몸이 받아들일지는 별개의 문제입니다."
   choices:
   - choiceId: 300015
     choiceOrder: 1

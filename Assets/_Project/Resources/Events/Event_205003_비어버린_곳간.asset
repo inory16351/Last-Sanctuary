@@ -36,7 +36,7 @@ MonoBehaviour:
   - choiceId: 300006
     choiceOrder: 2
     choiceText: "굶는 데 익숙해질 것이다."
-    resultScript: "천사들은 허리띠를 졸랐습니다.\n곳간에는 여유가 생겼고, 아무는 속도는 그만큼 늦어집니다."
+    resultScript: "천사들은 제 몫을 스스로 줄였습니다.\n곳간에는 여유가 생겼고, 상처가 아무는 속도는 느려졌습니다."
     resultEffect: "효과 : 천사 전체 회복력 −8% (240초) · 에너지 +150"
     rewardType01: "char_heal_durat_down"
     rewardValue01: 8

@@ -25,7 +25,7 @@ MonoBehaviour:
   - choiceId: 300055
     choiceOrder: 1
     choiceText: "굶주림이 깊어질 때까지 기다린다."
-    resultScript: "천사들은 문 안쪽에서 놈들이 마르는 것을 지켜봤습니다.\n다음에 문을 두드릴 손은 훨씬 가벼울 것입니다."
+    resultScript: "문 안쪽에서, 저들이 말라가는 것을 지켜보았습니다.\n다음에 문을 두드릴 손은 훨씬 가벼울 것입니다."
     resultEffect: "효과 : 적 전체 공격력 −10% (120초) · 적 전체 방어력 −10% (120초)"
     rewardType01: "enemy_atk_durat_down"
     rewardValue01: 10
@@ -36,7 +36,7 @@ MonoBehaviour:
   - choiceId: 300056
     choiceOrder: 2
     choiceText: "지금 쳐서 무리를 흩는다."
-    resultScript: "천사들은 굶주린 무리 속으로 뛰어들어 대열을 끊었습니다.\n흩어진 놈들은 느려졌고, 뛰어든 값은 자기 살입니다."
+    resultScript: "천사들은 굶주린 무리 속으로 뛰어들어 대열을 끊었습니다.\n흩어진 것들은 느려졌고, 뛰어든 쪽은 제 살을 잃었습니다."
     resultEffect: "효과 : 적 전체 공격 속도 −10% (120초) · 천사 전체 체력 −8% (최대 체력 기준)"
     rewardType01: "enemy_atk_spd_durat_down"
     rewardValue01: 10

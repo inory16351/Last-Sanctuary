@@ -24,8 +24,8 @@ MonoBehaviour:
   choices:
   - choiceId: 300013
     choiceOrder: 1
-    choiceText: "실컷 취하게 두어라."
-    resultScript: "천사들은 잠시 전쟁을 잊었습니다.\n흐려진 눈빛이 오히려 그들의 정신을 지켜냅니다."
+    choiceText: "취하도록 내버려 둔다."
+    resultScript: "대열은 잠시 전쟁을 잊었습니다.\n흐려진 눈빛이 오히려 그들의 정신을 지켜냅니다."
     resultEffect: "효과 : 천사 전체 침식 −10 · 천사 전체 공격 속도 −5% (240초)"
     rewardType01: "char_all_erosion_down"
     rewardValue01: 10
@@ -36,7 +36,7 @@ MonoBehaviour:
   - choiceId: 300014
     choiceOrder: 2
     choiceText: "도취를 끊고 대열을 세운다."
-    resultScript: "웃음이 끊기고 다시 줄이 맞습니다.\n또렷해진 시선의 값은 밤에 치르게 될 것입니다."
+    resultScript: "웃음이 끊기고 다시 줄이 맞습니다.\n시선은 또렷해졌으나, 그 또렷함은 밤이 되면 그들을 괴롭힐 것입니다."
     resultEffect: "효과 : 천사 전체 명중률 +8% (240초) · 천사 전체 침식 +5"
     rewardType01: "char_hit_durat_up"
     rewardValue01: 8

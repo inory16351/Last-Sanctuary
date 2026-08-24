@@ -36,7 +36,7 @@ MonoBehaviour:
   - choiceId: 300072
     choiceOrder: 2
     choiceText: "먹는 만큼 더 벌어온다."
-    resultScript: "천사들은 도둑을 두고 밖으로 나가 더 물어왔습니다.\n곳간은 찼고, 안쪽의 것은 계속 자랍니다."
+    resultScript: "도둑은 그대로 둔 채, 밖에서 더 물어왔습니다.\n곳간은 찼고, 그 안의 손님도 함께 살이 오릅니다."
     resultEffect: "효과 : 에너지 +250 · 천사 전체 침식 +6"
     rewardType01: "energy_gain"
     rewardValue01: 250

@@ -36,7 +36,7 @@ MonoBehaviour:
   - choiceId: 300046
     choiceOrder: 2
     choiceText: "무기를 벼린다."
-    resultScript: "쉬는 대신 쇠를 두드리는 소리가 성역을 채웠습니다.\n상처는 남았지만 칼은 예리해졌습니다."
+    resultScript: "쇠를 두드리는 소리가 성역을 채웠습니다.\n상처는 그대로 남았고 칼끝만 예리해졌습니다."
     resultEffect: "효과 : 천사 전체 근거리 공격력 +8% (240초) · 천사 전체 원거리 공격력 +8% (240초)"
     rewardType01: "char_melee_atk_durat_up"
     rewardValue01: 8

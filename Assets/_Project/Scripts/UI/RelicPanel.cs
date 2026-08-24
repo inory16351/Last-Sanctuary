@@ -303,7 +303,7 @@ namespace LastSanctuary.UI
             RectTransform clone = Instantiate(_rowTemplate, _list);
             clone.gameObject.SetActive(true);
             clone.name = $"RelicRow_{_rows.Count + 1}";
-            return new Row
+            var row = new Row
             {
                 Root = clone.gameObject,
                 Background = clone.GetComponent<Image>(),
@@ -312,6 +312,12 @@ namespace LastSanctuary.UI
                 Name = clone.Find("Name")?.GetComponent<TMP_Text>(),
                 Count = clone.Find("Count")?.GetComponent<TMP_Text>(),
             };
+
+            // ★ 이름 칸은 <b>한 줄</b>로 둔다(칸 높이가 42px 뿐이다) — 「각성한 수지상세포」
+            //   처럼 긴 이름은 줄바꿈 대신 글자가 줄어들어 들어간다.
+            HudTheme.FitText(row.Name, 11f, wrap: false);
+            HudTheme.FitText(row.Count, 10f, wrap: false);
+            return row;
         }
 
         void EnsureBound()
@@ -340,6 +346,8 @@ namespace LastSanctuary.UI
             _equipButton = transform.Find("Detail/EquipButton")?.GetComponent<Button>();
             _equipLabelText = FindText(transform, "Detail/EquipButton/Label");
 
+            FitDetailTexts();
+
             var close = transform.Find("CloseButton")?.GetComponent<Button>();
             if (close != null)
             {
@@ -348,6 +356,34 @@ namespace LastSanctuary.UI
             }
 
             BindScrollRect();
+        }
+
+        /// <summary>
+        /// ★★ <b>상세 칸의 글자가 칸을 넘지 않게 한다</b> (2026-08-24 · 유저 지시:
+        /// *"유물 ui안에 텍스트 배치할때 텍스트가 짤리지 않도록"*).
+        ///
+        /// 유물 45종의 설명은 길이가 제각각이다 — 「명중률이 2 증가합니다.」(11자)부터
+        /// 「웨이브가 시작될 때 최대 체력의 15% 만큼 보호막을 20초 동안 두릅니다.」(38자)까지
+        /// 세 배 넘게 차이가 난다. 서사(<c>relicFlavor</c>)는 더 길어 45자에 이른다.
+        /// <b>가장 긴 것에 칸을 맞추면 짧은 것이 허전하고, 짧은 것에 맞추면 긴 것이 넘친다</b> —
+        /// 그래서 칸은 넉넉히 두고 <b>글자 쪽이 줄어들게</b> 했다(<see cref="HudTheme.FitText"/>).
+        ///
+        /// ★ <b>최소 크기를 칸마다 다르게</b> 준다 — 이름·설명은 반드시 읽혀야 하므로 덜
+        ///   줄이고(15·12), 서사·출처는 곁들이는 글이라 더 줄여도 된다(11·10).
+        /// ⚠ <b>목록 칸의 이름은 <see cref="MakeRow"/> 에서</b> 따로 맞춘다 — 그 칸은
+        ///   여기서 배선할 때 아직 복제되지 않았다.
+        /// </summary>
+        void FitDetailTexts()
+        {
+            HudTheme.FitText(_detailName, 15f);
+            HudTheme.FitText(_detailGrade, 11f);
+            HudTheme.FitText(_detailEffect, 12f);
+            HudTheme.FitText(_detailFlavor, 11f);
+            HudTheme.FitText(_detailSource, 10f);
+            HudTheme.FitText(_detailWearer, 10f);
+            HudTheme.FitText(_hint, 10f);
+            // 버튼 문구는 <b>한 줄</b>이다 — 「장착」/「해제」 두 글자라 줄바꿈이 필요 없다.
+            HudTheme.FitText(_equipLabelText, 12f, wrap: false);
         }
 
         /// <summary>

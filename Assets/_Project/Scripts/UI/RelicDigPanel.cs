@@ -110,6 +110,19 @@ namespace LastSanctuary.UI
 
             if (_confirm != null) _confirm.onClick.AddListener(Close);
             if (_close != null) _close.onClick.AddListener(Close);
+
+            // ★★ <b>글자가 칸을 넘지 않게</b> (2026-08-24 · 유저 지시:
+            //   *"텍스트가 짤리지 않도록"*). 이 창의 본문은 <b>길이를 미리 알 수 없다</b> —
+            //   발견 대사 한 벌(두 줄)일 때도 있고, 결과 대사 + 발굴 결과 문구가 빈 줄을
+            //   사이에 두고 붙을 때도 있다(<see cref="Join"/>). 그래서 <b>가장 긴 경우에
+            //   칸을 맞추는 대신</b> 글자 쪽이 줄어들게 한다.
+            // ⚠ 선택지 버튼 문구는 <b>한 줄</b>이다 — 「방심은 금물이다. 그냥 두자.」처럼
+            //   긴 문구도 줄바꿈 없이 글자가 줄어 들어가야 버튼 높이(44px)를 안 넘는다.
+            HudTheme.FitText(_title, 15f, wrap: false);
+            HudTheme.FitText(_body, 12f);
+            HudTheme.FitText(_choice0Label, 11f, wrap: false);
+            HudTheme.FitText(_choice1Label, 11f, wrap: false);
+            HudTheme.FitText(_confirmLabel, 12f, wrap: false);
         }
 
         TMP_Text Find(string path) => transform.Find(path)?.GetComponent<TMP_Text>();

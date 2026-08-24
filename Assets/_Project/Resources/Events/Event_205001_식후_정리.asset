@@ -24,8 +24,8 @@ MonoBehaviour:
   choices:
   - choiceId: 300001
     choiceOrder: 1
-    choiceText: "모조리 불태워라!!"
-    resultScript: "유해가 타오르며 성역의 온도가 오릅니다.\n열기에 감화된 천사들의 손놀림이 눈에 띄게 빨라졌습니다."
+    choiceText: "모조리 불태워라."
+    resultScript: "유해가 타오르며 성역의 온도가 오릅니다.\n열기를 받아든 손놀림이 한층 급해졌습니다."
     resultEffect: "효과 : 천사 전체 공격 속도 +8% (240초)"
     rewardType01: "char_atk_spd_durat_up"
     rewardValue01: 8
@@ -35,8 +35,8 @@ MonoBehaviour:
     rewardDuration02: 0
   - choiceId: 300002
     choiceOrder: 2
-    choiceText: "먹어치우자!!"
-    resultScript: "천사들은 유해를 삼켜 성역의 양분으로 바꿉니다.\n목을 넘긴 뒤의 뒷맛은 생각보다 오래 남습니다."
+    choiceText: "남김없이 삼켜라."
+    resultScript: "유해는 삼켜져 성역의 양분이 되었습니다.\n목을 넘긴 뒤의 뒷맛은 생각보다 오래 남습니다."
     resultEffect: "효과 : 에너지 +200 · 천사 전체 침식 +5"
     rewardType01: "energy_gain"
     rewardValue01: 200

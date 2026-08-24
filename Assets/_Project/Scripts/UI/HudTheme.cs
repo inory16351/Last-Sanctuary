@@ -140,5 +140,52 @@ namespace LastSanctuary.UI
                 return _font;
             }
         }
+
+        // ── 글자가 칸을 넘지 않게 ────────────────────────────────────────
+
+        /// <summary>
+        /// ★★ <b>글자가 칸 밖으로 나가지 않게 만든다</b> (2026-08-24 · 유저 지시:
+        /// *"유물 ui안에 텍스트 배치할때 텍스트가 짤리지 않도록"*).
+        ///
+        /// <b>왜 코드에서 하나</b> — 이 게임의 창은 MCP 로 만든다. 그런데 TMP 의
+        /// 줄바꿈·자동 크기 칸(<c>m_TextWrappingMode</c> · <c>m_enableAutoSizing</c>)은
+        /// MCP 브리지가 넘기지 못한다(진행상황 8절 4번 · UI-50 실측). 그래서 <b>칸의
+        /// 크기는 MCP 가</b>, <b>넘침 규칙은 코드가</b> 맡는다. 창을 배선하는 자리
+        /// (<c>EnsureBound</c>/<c>Bind</c>)에서 한 번만 부르면 된다.
+        ///
+        /// <b>무엇을 하나</b> — ① 줄바꿈을 켠다 ② <b>자동 크기</b>를 켠다
+        /// (지금 글자 크기가 최대, <paramref name="minSize"/> 가 최소) ③ 넘침 모드는
+        /// <c>Overflow</c> 로 둔다.
+        ///
+        /// ★ <b>왜 <c>Ellipsis</c>(…)나 <c>Truncate</c> 가 아닌가</b> — 그 둘은 «잘라서»
+        ///   맞춘다. 유물 설명은 «방어력이 8, 체력이 5 증가합니다» 처럼 <b>뒤쪽에 숫자가
+        ///   있는</b> 문장이라 뒤를 자르면 정보가 사라진다. 자동 크기는 <b>줄여서</b>
+        ///   맞추므로 아무것도 잃지 않는다.
+        /// ⚠ 그래도 안 들어가는 극단(칸이 지나치게 작을 때)에는 <c>Overflow</c> 라
+        ///   <b>넘쳐서라도 보인다</b> — «안 보이는 것» 보다 «삐져나온 것» 이 낫다.
+        ///   그 상태가 눈에 띄면 그때 칸을 키우면 된다(칸 크기는 MCP 스크립트에 있다).
+        /// </summary>
+        /// <param name="text">대상. null 이면 아무 일도 하지 않는다.</param>
+        /// <param name="minSize">여기까지만 줄인다. 0 이하면 지금 크기의 70%.</param>
+        /// <param name="wrap">
+        /// 줄바꿈 허용 여부. <b>한 줄짜리 띠</b>(성장 창의 유물 띠처럼 높이가 한 줄인 칸)는
+        /// <c>false</c> 로 줘야 한다 — 줄바꿈을 켜면 두 번째 줄이 칸 아래로 흘러버린다.
+        /// </param>
+        public static void FitText(TMP_Text text, float minSize = 0f, bool wrap = true)
+        {
+            if (text == null) return;
+
+            text.textWrappingMode = wrap ? TextWrappingModes.Normal : TextWrappingModes.NoWrap;
+            text.overflowMode = TextOverflowModes.Overflow;
+
+            // ⚠ 자동 크기를 켜기 <b>전에</b> 지금 크기를 최대값으로 잡아 둔다 —
+            //   켜고 나면 fontSize 가 «계산된 값» 으로 덮여서 원래 크기를 잃는다.
+            float max = text.fontSize;
+            if (max <= 0f) max = FontBody;
+
+            text.fontSizeMax = max;
+            text.fontSizeMin = minSize > 0f ? Mathf.Min(minSize, max) : max * 0.7f;
+            text.enableAutoSizing = true;
+        }
     }
 }

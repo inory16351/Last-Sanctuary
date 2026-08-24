@@ -35,8 +35,8 @@ MonoBehaviour:
     rewardDuration02: 0
   - choiceId: 300008
     choiceOrder: 2
-    choiceText: "아껴서 담아둔다."
-    resultScript: "천사들은 과립을 몸 안쪽 깊이 눌러 담았습니다.\n터지지 않은 힘은 상처를 메우는 데 쓰입니다."
+    choiceText: "아껴서 담아 둔다."
+    resultScript: "과립은 몸 안쪽 깊이 눌려 담겼습니다.\n터지지 않은 힘은 상처를 메우는 데 쓰입니다."
     resultEffect: "효과 : 천사 전체 회복력 +8% (240초) · 천사 전체 보호막 (최대 체력의 6%, 240초)"
     rewardType01: "char_heal_durat_up"
     rewardValue01: 8

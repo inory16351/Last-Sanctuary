@@ -36,7 +36,7 @@ MonoBehaviour:
   - choiceId: 300084
     choiceOrder: 2
     choiceText: "구덩이에서 나오는 것을 받아 담는다."
-    resultScript: "천사들은 숨구멍에서 흘러나오는 것을 그릇에 받았습니다.\n곳간은 넘쳤고, 받아 든 손은 오래 씻어야 합니다."
+    resultScript: "숨구멍에서 흘러나오는 것을 그릇에 받았습니다.\n곳간은 넘쳤고, 받아 든 손은 오래 씻어야 합니다."
     resultEffect: "효과 : 에너지 +400 · 천사 전체 침식 +12"
     rewardType01: "energy_gain"
     rewardValue01: 400

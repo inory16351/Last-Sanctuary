@@ -36,7 +36,7 @@ MonoBehaviour:
   - choiceId: 300080
     choiceOrder: 2
     choiceText: "자리를 피해 돌아간다."
-    resultScript: "천사들은 종양을 등지고 물러났습니다.\n도려내지 않은 것은 반드시 자랍니다. 그 사실을 모두가 알고 있습니다."
+    resultScript: "대열은 종양을 등지고 물러났습니다.\n도려내지 않은 것은 반드시 자랍니다. 그 사실을 모두가 알고 있습니다."
     resultEffect: "효과 : 에너지 +200 · 천사 전체 침식 +8"
     rewardType01: "energy_gain"
     rewardValue01: 200

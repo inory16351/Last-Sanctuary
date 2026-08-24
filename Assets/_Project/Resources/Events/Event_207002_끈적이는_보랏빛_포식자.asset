@@ -25,7 +25,7 @@ MonoBehaviour:
   - choiceId: 300081
     choiceOrder: 1
     choiceText: "점액을 태워 길을 끊는다."
-    resultScript: "타오르는 점액이 성역의 살에서 떨어져 나갑니다.\n길이 끊긴 자리마다 천사들의 몸에 얇은 막이 남았습니다."
+    resultScript: "타오르는 점액이 성역의 살에서 떨어져 나갑니다.\n길이 끊긴 곳에 천사들의 몸을 감싼 얇은 막이 남았습니다."
     resultEffect: "효과 : 천사 전체 보호막 (최대 체력의 15%, 300초) · 천사 전체 저항력 +10% (300초)"
     rewardType01: "char_shield_gain"
     rewardValue01: 15
@@ -36,7 +36,7 @@ MonoBehaviour:
   - choiceId: 300082
     choiceOrder: 2
     choiceText: "길을 따라 안쪽까지 본다."
-    resultScript: "천사들은 점액의 길을 끝까지 따라갔습니다.\n성역의 안쪽이 어떻게 파먹혔는지 알게 된 값이 있습니다."
+    resultScript: "점액이 낸 길을 끝까지 따라갔습니다.\n성역의 안쪽이 어떻게 파먹혔는지 낱낱이 드러났습니다."
     resultEffect: "효과 : 천사 전체 시야 +15% (300초) · 천사 전체 침식 +10"
     rewardType01: "char_vision_durat_up"
     rewardValue01: 15

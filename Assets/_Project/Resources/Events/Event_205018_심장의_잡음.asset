@@ -36,7 +36,7 @@ MonoBehaviour:
   - choiceId: 300036
     choiceOrder: 2
     choiceText: "심장은 버틴다. 손발을 먹여라."
-    resultScript: "박동은 여전히 거칠지만 천사들의 상처가 메워졌습니다.\n지금 걸어야 하는 것은 손발이라는 판단입니다."
+    resultScript: "박동은 여전히 거칠지만 천사들의 상처는 메워졌습니다.\n심장보다 손발이 먼저라는 결정이었습니다."
     resultEffect: "효과 : 천사 전체 체력 회복 (최대 체력의 12%)"
     rewardType01: "char_hp_percent_heal"
     rewardValue01: 12

@@ -25,7 +25,7 @@ MonoBehaviour:
   - choiceId: 300031
     choiceOrder: 1
     choiceText: "저 하나를 끌어올려라."
-    resultScript: "성역은 한 사람에게 힘을 몰아주었습니다.\n달라진 손은 영구히 달라진 손으로 남습니다."
+    resultScript: "성역은 한 사람에게 힘을 몰아주었습니다.\n한번 달라진 손은 두 번 다시 예전으로 돌아가지 않습니다."
     resultEffect: "효과 : 랜덤 천사 1명 능력치 1종 +2 (영구)"
     rewardType01: "char_upgrade"
     rewardValue01: 2

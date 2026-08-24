@@ -1081,6 +1081,13 @@ namespace LastSanctuary.UI
             _relicSlotIcon = transform.Find(bar + "/Icon")?.GetComponent<Image>();
             _relicSlotName = FindText(bar + "/Name");
             _relicSlotEffect = FindText(bar + "/Effect");
+
+            // ★★ 유물 띠의 글자는 <b>한 줄짜리 칸</b>에 들어간다(이름 26px · 효과 24px).
+            //   줄바꿈을 켜면 두 번째 줄이 띠 밖으로 흘러 아래 UI 를 덮으므로
+            //   <b>줄바꿈을 끄고 글자가 줄어들게</b> 한다 (2026-08-24 · 유저 지시:
+            //   *"유물 ui안에 텍스트 배치할때 텍스트가 짤리지 않도록"*).
+            HudTheme.FitText(_relicSlotName, 13f, wrap: false);
+            HudTheme.FitText(_relicSlotEffect, 10f, wrap: false);
             if (_relicSlotButton != null)
             {
                 _relicSlotButton.onClick.RemoveAllListeners();

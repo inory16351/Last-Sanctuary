@@ -36,7 +36,7 @@ MonoBehaviour:
   - choiceId: 300052
     choiceOrder: 2
     choiceText: "걷어내서 양분으로 삼는다."
-    resultScript: "곰팡이는 곳간으로 옮겨져 양분이 됐습니다.\n손끝에 남은 것은 아직 마르지 않았습니다."
+    resultScript: "곰팡이는 곳간으로 옮겨져 양분이 되었습니다.\n손끝에 남은 것은 아직 마르지 않았습니다."
     resultEffect: "효과 : 에너지 +250 · 천사 전체 마법 공격력 −8% (240초)"
     rewardType01: "energy_gain"
     rewardValue01: 250

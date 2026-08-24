@@ -25,7 +25,7 @@ MonoBehaviour:
   - choiceId: 300077
     choiceOrder: 1
     choiceText: "한 사람을 내준다."
-    resultScript: "성역은 받은 것을 곧바로 양분으로 바꿨습니다.\n대열에서 한 자리가 비었고, 아무도 그 이름을 부르지 않았습니다."
+    resultScript: "성역은 받은 것을 곧바로 양분으로 바꾸었습니다.\n대열에서 한 자리가 비었고, 아무도 그 이름을 부르지 않았습니다."
     resultEffect: "효과 : 천사 1명 사망 (확률 100%) · 에너지 +400"
     rewardType01: "char_die"
     rewardValue01: 100
@@ -36,7 +36,7 @@ MonoBehaviour:
   - choiceId: 300078
     choiceOrder: 2
     choiceText: "아무도 내주지 않는다."
-    resultScript: "성역의 요구는 거절당했습니다.\n대신 누군가 혼자서 그 몫을 앓기 시작했고, 심장의 박동이 얕아졌습니다."
+    resultScript: "성역의 요구는 거절당했습니다.\n누군가 홀로 그 몫을 앓기 시작했고, 심장의 박동은 얕아졌습니다."
     resultEffect: "효과 : 천사 1명 침식 +30 · 성역 체력 −8%"
     rewardType01: "char_erosion_up"
     rewardValue01: 30

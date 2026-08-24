@@ -25,7 +25,7 @@ MonoBehaviour:
   - choiceId: 300061
     choiceOrder: 1
     choiceText: "같이 부르게 한다."
-    resultScript: "성역 전체가 같은 박자로 흔들렸습니다.\n노래가 닿은 자리마다 갉힌 정신이 조금씩 메워집니다."
+    resultScript: "성역 전체가 같은 박자로 흔들렸습니다.\n노래가 닿은 곳에서 갉힌 정신이 조금씩 메워집니다."
     resultEffect: "효과 : 천사 전체 침식 −12"
     rewardType01: "char_all_erosion_down"
     rewardValue01: 12
