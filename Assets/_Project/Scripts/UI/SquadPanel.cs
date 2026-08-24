@@ -426,8 +426,23 @@ namespace LastSanctuary.UI
                     card.Count.color = labelActive;
                 }
 
+                // ★★ 2026-08-24 — <b>카드 색을 로스터의 부대 테두리 색과 맞춘다</b>
+                //   (유저 지시: *"부대 설정에서 부대 선택했을때 표시되는 색이 캐릭터 로스터에서
+                //   같은 부대로 묶이는 색으로 … 어떤 부대에 설정되었는지 더욱 알기 쉽게"*).
+                //
+                // ★ <b>부대 순번</b>으로 색을 고른다 — 로스터가 쓰는 기준과 <b>같아야</b>
+                //   «저 색이 저 부대» 가 성립한다(`CharacterRosterPanel.SquadOrderOf`).
+                //   여기서는 <c>_squads.Squads[i]</c> 를 도는 중이므로 <b>i 가 곧 순번</b>이다.
+                // ★ 고른 카드는 <b>그 색으로 칠하고</b>, 안 고른 카드는 평소 색 위에
+                //   <b>같은 색 테두리</b>만 둘러 «항상 어느 색인지» 보이게 한다.
+                Color tint = HudTheme.SquadColor(i);
                 if (card.Background != null)
-                    card.Background.color = squad.Id == SelectedSquadId ? squadSelected : squadNormal;
+                {
+                    card.Background.color = squad.Id == SelectedSquadId
+                        ? Blend(tint, squadSelected)
+                        : squadNormal;
+                }
+                ApplySquadOutline(card, tint);
 
                 RefreshCoopButton(card, squad);
                 RefreshRallyButtons(card, squad.Id, rally);
@@ -451,6 +466,35 @@ namespace LastSanctuary.UI
         /// 협동 탐험 버튼 — <b>켜짐/꺼짐이 글자와 색 둘 다로 보인다.</b>
         /// 색만 쓰면 "그냥 버튼 색"으로 읽혀서 지금 상태를 알 수 없다.
         /// </summary>
+        /// <summary>
+        /// 부대 색과 «선택됨» 색을 섞는다 — 부대 색을 그대로 칠하면 <b>글자가 안 보인다</b>
+        /// (부대 색은 밝은 파스텔이고 카드 글자는 흰색이다). 어두운 선택색 쪽에 무게를 둔다.
+        /// </summary>
+        static Color Blend(Color squadColor, Color selected)
+        {
+            Color c = Color.Lerp(selected, squadColor, 0.45f);
+            c.a = selected.a;
+            return c;
+        }
+
+        /// <summary>
+        /// 카드에 <b>부대 색 테두리</b>를 두른다 — 로스터 행과 같은 방식(<c>Outline</c> 컴포넌트를
+        /// 코드가 붙인다). 고르지 않은 카드도 «몇 번 부대인지» 를 색으로 알 수 있게 한다.
+        /// </summary>
+        static void ApplySquadOutline(Card card, Color tint)
+        {
+            if (card.Background == null) return;
+
+            var outline = card.Background.GetComponent<Outline>();
+            if (outline == null)
+            {
+                outline = card.Background.gameObject.AddComponent<Outline>();
+                outline.effectDistance = new Vector2(2.5f, 2.5f);
+                outline.useGraphicAlpha = false;
+            }
+            outline.effectColor = tint;
+        }
+
         void RefreshCoopButton(Card card, SquadService.Squad squad)
         {
             if (card.CoopButton == null) return;

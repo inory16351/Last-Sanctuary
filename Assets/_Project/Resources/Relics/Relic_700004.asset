@@ -16,9 +16,12 @@ MonoBehaviour:
   relicName: "붉은 실"
   grade: 1
   effectType: 7
-  value01: 12
+  value01: 1
   value02: 0
-  relicDesc: "체력 재생이 12% 증가합니다."
+  effectType2: 0
+  value03: 0
+  value04: 0
+  relicDesc: "체력 재생이 1 증가합니다."
   relicFlavor: "상처 밑으로 새 실핏줄이 뻗는다. 피가 닿는 곳까지가 아직 살아 있는 곳이다."
   source: 1
   sourceId: 0

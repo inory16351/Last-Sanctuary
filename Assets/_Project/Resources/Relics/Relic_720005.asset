@@ -16,9 +16,12 @@ MonoBehaviour:
   relicName: "잿빛 담뱃대"
   grade: 3
   effectType: 2
-  value01: 20
+  value01: 2
   value02: 0
-  relicDesc: "근거리 공격력이 20% 증가합니다."
+  effectType2: 10
+  value03: 4
+  value04: 0
+  relicDesc: "근거리 공격력이 2, 크리티컬 확률이 4 증가합니다."
   relicFlavor: "재가 식지 않았다. 쥐고 있으면 손끝까지 뜨거워진다."
   source: 3
   sourceId: 120005

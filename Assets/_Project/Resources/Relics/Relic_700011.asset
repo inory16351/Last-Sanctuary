@@ -18,6 +18,9 @@ MonoBehaviour:
   effectType: 32
   value01: 30
   value02: 0
+  effectType2: 0
+  value03: 0
+  value04: 0
   relicDesc: "이 캐릭터의 발굴 속도가 30% 빨라집니다."
   relicFlavor: "긁어내는 데 익숙해진 끝. 파헤치는 것도 몸이 배운 기술이다."
   source: 1

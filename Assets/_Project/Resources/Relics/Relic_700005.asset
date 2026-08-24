@@ -16,9 +16,12 @@ MonoBehaviour:
   relicName: "마른 각질"
   grade: 1
   effectType: 6
-  value01: 6
+  value01: 4
   value02: 0
-  relicDesc: "저항력이 6% 증가합니다."
+  effectType2: 0
+  value03: 0
+  value04: 0
+  relicDesc: "저항력이 4 증가합니다."
   relicFlavor: "벗겨지면서 붙어 있던 것을 함께 데려간다. 버리는 것도 방어다."
   source: 1
   sourceId: 0

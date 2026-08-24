@@ -16,9 +16,12 @@ MonoBehaviour:
   relicName: "두꺼워진 가피"
   grade: 2
   effectType: 24
-  value01: 25
+  value01: 5
   value02: 40
-  relicDesc: "체력이 40% 이하일 때 방어력이 25% 증가합니다."
+  effectType2: 0
+  value03: 0
+  value04: 0
+  relicDesc: "체력이 40% 이하일 때 방어력이 5 증가합니다."
   relicFlavor: "깊이 파일수록 두껍게 앉는다. 몰릴수록 단단해지는 몸이 있다."
   source: 1
   sourceId: 0

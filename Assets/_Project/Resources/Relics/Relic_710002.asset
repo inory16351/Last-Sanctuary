@@ -16,9 +16,12 @@ MonoBehaviour:
   relicName: "보체의 사슬"
   grade: 2
   effectType: 3
-  value01: 12
+  value01: 2
   value02: 0
-  relicDesc: "원거리 공격력이 12% 증가합니다."
+  effectType2: 0
+  value03: 0
+  value04: 0
+  relicDesc: "원거리 공격력이 2 증가합니다."
   relicFlavor: "닿기만 하면 이어져 터진다. 하나가 열을 부른다."
   source: 1
   sourceId: 0

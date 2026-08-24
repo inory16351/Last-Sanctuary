@@ -16,9 +16,12 @@ MonoBehaviour:
   relicName: "굳은 딱지"
   grade: 1
   effectType: 5
-  value01: 6
+  value01: 2
   value02: 0
-  relicDesc: "방어력이 6% 증가합니다."
+  effectType2: 0
+  value03: 0
+  value04: 0
+  relicDesc: "방어력이 2 증가합니다."
   relicFlavor: "찢어진 자리 위에 가장 먼저 앉는 것. 보기 흉해도 그 아래에서 살이 자란다."
   source: 1
   sourceId: 0

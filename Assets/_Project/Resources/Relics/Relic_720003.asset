@@ -16,9 +16,12 @@ MonoBehaviour:
   relicName: "유혹하는 피주머니"
   grade: 3
   effectType: 20
-  value01: 15
+  value01: 12
   value02: 0
-  relicDesc: "입힌 피해의 15% 만큼 자신의 체력을 회복합니다."
+  effectType2: 1
+  value03: 2
+  value04: 0
+  relicDesc: "입힌 피해의 12% 를 회복하고, 체력이 2 증가합니다."
   relicFlavor: "피 냄새로 불러 모으던 것. 이제는 그 냄새가 제 상처를 아물게 한다."
   source: 3
   sourceId: 120003

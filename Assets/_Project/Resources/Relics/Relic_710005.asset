@@ -18,6 +18,9 @@ MonoBehaviour:
   effectType: 20
   value01: 8
   value02: 0
+  effectType2: 0
+  value03: 0
+  value04: 0
   relicDesc: "입힌 피해의 8% 만큼 자신의 체력을 회복합니다."
   relicFlavor: "삼킨 것이 곧 제 살이 된다. 배가 부른 적이 없다."
   source: 1

@@ -16,9 +16,12 @@ MonoBehaviour:
   relicName: "곤두선 솜털"
   grade: 1
   effectType: 9
-  value01: 6
+  value01: 2
   value02: 0
-  relicDesc: "명중률이 6% 증가합니다."
+  effectType2: 0
+  value03: 0
+  value04: 0
+  relicDesc: "명중률이 2 증가합니다."
   relicFlavor: "털이 먼저 떨린다. 눈보다 빠른 감각이 있다."
   source: 1
   sourceId: 0

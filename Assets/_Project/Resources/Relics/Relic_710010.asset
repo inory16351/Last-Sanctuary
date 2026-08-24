@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8d79840638937e4796aeac340e7fbdd, type: 3}
+  m_Name: Relic_710010
+  m_EditorClassIdentifier:
+  relicId: 710010
+  relicName: "부푼 림프절"
+  grade: 2
+  effectType: 1
+  value01: 1
+  value02: 0
+  effectType2: 5
+  value03: 2
+  value04: 0
+  relicDesc: "체력이 1, 방어력이 2 증가합니다."
+  relicFlavor: "싸움이 벌어진 자리마다 붓는다. 부은 만큼 안에서 무언가 만들어지고 있다."
+  source: 1
+  sourceId: 0
+  dropWeight: 8
+  iconKey: "relic_lymphnode"
+  icon: {fileID: 21300000, guid: 843d584e3e4765aea27e02adeda2af09, type: 3}

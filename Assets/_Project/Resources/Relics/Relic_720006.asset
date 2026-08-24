@@ -16,9 +16,12 @@ MonoBehaviour:
   relicName: "증식하는 촉수"
   grade: 3
   effectType: 7
-  value01: 35
+  value01: 2
   value02: 0
-  relicDesc: "체력 재생이 35% 증가합니다."
+  effectType2: 1
+  value03: 2
+  value04: 0
+  relicDesc: "체력 재생이 2, 체력이 2 증가합니다."
   relicFlavor: "잘라내도 자란다. 그 성질만 남기고 나머지를 태웠다."
   source: 3
   sourceId: 120006

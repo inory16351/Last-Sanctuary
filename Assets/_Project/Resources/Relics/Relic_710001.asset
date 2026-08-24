@@ -16,9 +16,12 @@ MonoBehaviour:
   relicName: "항체의 낙인"
   grade: 2
   effectType: 2
-  value01: 12
+  value01: 2
   value02: 0
-  relicDesc: "근거리 공격력이 12% 증가합니다."
+  effectType2: 0
+  value03: 0
+  value04: 0
+  relicDesc: "근거리 공격력이 2 증가합니다."
   relicFlavor: "한 번 새겨진 모양은 잊히지 않는다. 같은 얼굴이 다시 오면 손이 먼저 나간다."
   source: 1
   sourceId: 0

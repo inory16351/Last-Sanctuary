@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8d79840638937e4796aeac340e7fbdd, type: 3}
+  m_Name: Relic_700012
+  m_EditorClassIdentifier:
+  relicId: 700012
+  relicName: "배인 멍"
+  grade: 1
+  effectType: 2
+  value01: 1
+  value02: 0
+  effectType2: 0
+  value03: 0
+  value04: 0
+  relicDesc: "근거리 공격력이 1 증가합니다."
+  relicFlavor: "터진 피가 살 아래 고여 굳었다. 아픈 자리를 몸은 오래 기억한다."
+  source: 1
+  sourceId: 0
+  dropWeight: 10
+  iconKey: "relic_bruise"
+  icon: {fileID: 21300000, guid: 1df96a79809936ab2131d8ab246cc7e0, type: 3}

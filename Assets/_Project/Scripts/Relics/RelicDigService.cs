@@ -27,6 +27,14 @@ namespace LastSanctuary.Relics
         /// <summary>이 자리를 맡은 캐릭터. <b>한 자리에 한 명</b>(건설과 같은 규칙).</summary>
         public CharacterBehavior Digger;
 
+        /// <summary>
+        /// ★★ 이 자리가 쓸 <b>대사 묶음</b> (2026-08-24 · 표 Ver02 <c>Dialogue</c> 시트).
+        ///
+        /// 자리를 만들 때 한 번 뽑아 <b>여기에 기억해 둔다</b> — 창을 다시 열 때마다 말투가
+        /// 바뀌면 «다른 자리를 보고 있나» 싶어진다. 발견의 말투와 결과의 말투는 이어져야 한다.
+        /// </summary>
+        public int DialogueGroup;
+
         public float Ratio(float required) => required > 0f ? Mathf.Clamp01(Progress / required) : 0f;
     }
 
@@ -150,12 +158,27 @@ namespace LastSanctuary.Relics
             RelicEffectService.Unhook();
         }
 
+        /// <summary>발굴 대사표(표 Ver02). 없으면 창이 <c>Fallback</c> 한 줄로 뜬다.</summary>
+        RelicDialogueTableSO _dialogue;
+
+        /// <summary>대사 묶음 번호들 — 자리를 만들 때 여기서 하나 뽑는다.</summary>
+        readonly List<int> _dialogueGroups = new List<int>();
+
+        /// <summary>마지막으로 본 웨이브 번호. 바뀌는 순간이 «웨이브가 넘어갔다» 다.</summary>
+        int _seenWave = -1;
+
+        Wave.WaveManager _wave;
+
         void Start()
         {
             _camera = Camera.main;
             _map = FindAnyObjectByType<MapGenerator>();
             _fog = FindAnyObjectByType<FogOfWarService>();
             _table = RelicDigTableSO.Load();
+            _dialogue = Resources.Load<RelicDialogueTableSO>("Relics/RelicDialogueTable");
+            if (_dialogue != null) _dialogueGroups.AddRange(_dialogue.GroupIds());
+            else Debug.LogWarning("[유물] Resources/Relics/RelicDialogueTable 이 없습니다 — "
+                                  + "발굴 창이 기본 문구로 뜹니다. gen_relic_assets.py 를 돌려주세요.", this);
 
             ResolveOverlay();
 
@@ -226,7 +249,8 @@ namespace LastSanctuary.Relics
                     if (((Vector2)(world - _sites[i].Center)).sqrMagnitude < spaceSqr) { tooClose = true; break; }
                 if (tooClose) continue;
 
-                _sites.Add(new DigSite { Cell = cell, Center = world });
+                _sites.Add(new DigSite { Cell = cell, Center = world,
+                                         DialogueGroup = RollDialogueGroup() });
             }
 
             if (logChanges)
@@ -246,10 +270,15 @@ namespace LastSanctuary.Relics
         // 매 프레임
         // ==================================================================
 
+        /// <summary>대사 묶음 하나를 고른다. 표가 없으면 0(창이 Fallback 문구로 뜬다).</summary>
+        int RollDialogueGroup() =>
+            _dialogueGroups.Count > 0 ? _dialogueGroups[Random.Range(0, _dialogueGroups.Count)] : 0;
+
         void Update()
         {
             UpdateReveal();
             UpdateMarkers();
+            WatchWave();
 
             // ★ 문턱형 유물(「두꺼워진 가피」)을 여기서 함께 재운다 — 그 하나 때문에
             //   MonoBehaviour 를 새로 두지 않는다(RelicEffectService.Tick 의 주석).
@@ -264,6 +293,39 @@ namespace LastSanctuary.Relics
         ///   ⚠ 한 번 본 칸은 <b>계속 보인다</b>(기억) — 시야를 벗어날 때마다 느낌표가
         ///   사라지면 «분명 봤는데 없어졌다» 가 된다.
         /// </summary>
+        /// <summary>
+        /// ★★ <b>웨이브 계열 유물의 통로</b> (2026-08-24 · 표 Ver02 의
+        /// <c>relic_wave_shield</c> · <c>relic_wave_energy</c> · <c>relic_wave_heal</c>).
+        ///
+        /// <b>왜 여기서 보나</b> — <see cref="Wave.WaveManager"/> 의 이벤트는 <b>정적이 아니라
+        /// 인스턴스</b> 것이라 <see cref="RelicEffectService"/>(정적 클래스)가 붙을 수 없다.
+        /// 매니저가 유물을 알아야 하게 만드는 것도 방향이 거꾸로다(유물은 나중에 생긴 것이다).
+        /// 그래서 <b>이미 매 프레임 도는 이 서비스</b>가 웨이브 번호가 바뀌는 것을 보고
+        /// 알려준다 — 「두꺼워진 가피」를 이 <c>Update</c> 에 얹은 것과 <b>같은 이유</b>다.
+        ///
+        /// ⚠ 첫 프레임(<c>_seenWave &lt; 0</c>)에는 «바뀌었다» 로 보지 않는다 —
+        ///   판을 켜자마자 보호막이 공짜로 걸리면 안 된다.
+        /// </summary>
+        void WatchWave()
+        {
+            // ⚠ WaveManager 에는 static Instance 가 없다 — 한 번 찾아서 들고 있는다.
+            if (_wave == null)
+            {
+                _wave = FindAnyObjectByType<Wave.WaveManager>();
+                if (_wave == null) return;
+            }
+
+            int now = _wave.WaveNumber;
+            if (now == _seenWave) return;
+
+            bool first = _seenWave < 0;
+            _seenWave = now;
+            if (first) return;
+
+            RelicEffectService.OnWaveEnded();     // 지난 웨이브가 끝났고
+            RelicEffectService.OnWaveSpawned();   // 새 웨이브가 시작된다
+        }
+
         void UpdateReveal()
         {
             if (_fog == null || !_fog.IsReady) return;
@@ -335,7 +397,7 @@ namespace LastSanctuary.Relics
                 {
                     DigSite captured = s;
                     button.onClick.RemoveAllListeners();
-                    button.onClick.AddListener(() => Order(captured));
+                    button.onClick.AddListener(() => Open(captured));
                     button.interactable = !captured.Ordered;
                 }
             }
@@ -344,8 +406,26 @@ namespace LastSanctuary.Relics
                 if (_markers[i].gameObject.activeSelf) _markers[i].gameObject.SetActive(false);
         }
 
-        /// <summary>느낌표를 눌렀다 — «파라» 고 지시한다.</summary>
-        public void Order(DigSite site)
+        /// <summary>
+        /// ★★ <b>느낌표를 눌렀다 — 곧바로 파지 않고 «묻는다»</b> (2026-08-24 · 유저 지시:
+        /// <i>"유물 자동 발굴 되게 하지말고 … 해당 칸을 누를 경우 발굴 ui가 나와서
+        /// 발굴하기를 누르면 가장 가까운 캐릭터가 가서 발굴하게"</i>).
+        ///
+        /// 창이 없으면(씬을 아직 안 만들었으면) <b>예전처럼 곧바로 지시한다</b> —
+        /// UI 하나 때문에 기능이 통째로 죽으면 안 된다.
+        /// </summary>
+        public void Open(DigSite site)
+        {
+            if (site == null || site.Ordered) return;
+
+            var panel = UI.RelicDigPanel.Instance;
+            if (panel == null) { Confirm(site); return; }
+
+            panel.PresentSite(site, _dialogue);
+        }
+
+        /// <summary>창에서 «파러 간다» 를 골랐다 — 이제야 지시가 나간다.</summary>
+        public void Confirm(DigSite site)
         {
             if (site == null || site.Ordered) return;
             site.Ordered = true;
@@ -467,6 +547,21 @@ namespace LastSanctuary.Relics
                            ? HudLogKind.Warn
                            : HudLogKind.Good);
 
+            // ★ 결과 창 — 같은 대사 묶음의 result 줄 + 표의 결과 문구(2026-08-24).
+            var panel = UI.RelicDigPanel.Instance;
+            if (panel != null)
+            {
+                string flavor = _dialogue != null
+                    ? _dialogue.Roll(site.DialogueGroup, RelicDialogueSituation.Result) : "";
+                if (string.IsNullOrWhiteSpace(flavor))
+                    flavor = RelicDialogueTableSO.Fallback(RelicDialogueSituation.Result);
+
+                string line = row.outcomeScript;
+                if (!string.IsNullOrEmpty(what)) line += "\n" + what;
+                panel.PresentResult(flavor, line, _lastGrantedIcon);
+            }
+            _lastGrantedIcon = null;
+
             if (logChanges) Debug.Log($"[유물] 발굴 완료 {site.Cell} → {row.outcomeType}", this);
         }
 
@@ -523,11 +618,15 @@ namespace LastSanctuary.Relics
             return "";
         }
 
+        /// <summary>방금 발굴로 얻은 유물의 아이콘 — 결과 창이 그린다. 없으면 null.</summary>
+        Sprite _lastGrantedIcon;
+
         string GrantRelic(RelicGrade grade, bool digOnly)
         {
             RelicDefinitionSO relic = RelicRegistry.RollGrade(grade, digOnly);
             if (relic == null) return "";
             RelicInventory.Instance?.Grant(relic);
+            _lastGrantedIcon = relic.icon;
             return $"유물 「{relic.DisplayName}」 ({RelicDefinitionSO.NameOf(grade)})";
         }
 
@@ -572,6 +671,10 @@ namespace LastSanctuary.Relics
                     Revealed = (flags & 1) != 0,
                     Ordered = (flags & 2) != 0,
                     Progress = v.w,
+                    // ⚠ 대사 묶음은 <b>저장하지 않는다</b> — 세이브 형식(Vector4)에 칸이 없고,
+                    //   말투가 이어하기 뒤에 달라지는 것은 «틀린» 것이 아니다.
+                    //   자리·진행도처럼 «맞아야 하는» 값과 구분한다.
+                    DialogueGroup = RollDialogueGroup(),
                 });
             }
             if (logChanges) Debug.Log($"[유물] 발굴 칸 {_sites.Count}개 복원", this);

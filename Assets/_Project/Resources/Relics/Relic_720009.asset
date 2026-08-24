@@ -16,9 +16,12 @@ MonoBehaviour:
   relicName: "얼금뱅이 뿔"
   grade: 3
   effectType: 5
-  value01: 18
+  value01: 3
   value02: 0
-  relicDesc: "방어력이 18% 증가합니다."
+  effectType2: 6
+  value03: 8
+  value04: 0
+  relicDesc: "방어력이 3, 저항력이 8 증가합니다."
   relicFlavor: "패이고 곪은 자국투성이인데도 부러지지 않았다. 흉이 곧 두께다."
   source: 3
   sourceId: 1103

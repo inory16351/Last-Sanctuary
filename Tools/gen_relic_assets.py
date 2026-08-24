@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """유물 테이블(xlsx) → `RelicDefinitionSO` 에셋 + `RelicDigTableSO` + <b>임시 아이콘</b>.
 
-원본: ``<볼트>/데이터 테이블/Last_Sanctuary_유물테이블_Ver01.xlsx``
+원본: ``<볼트>/데이터 테이블/Last_Sanctuary_유물테이블_Ver02.xlsx``
 결과: ``Assets/_Project/Resources/Relics/*.asset``
       ``Assets/_Project/Resources/RelicIcons/*.png``   ← 임시 이미지(유저 지시 11번)
 
@@ -42,7 +42,7 @@ try:
 except Exception:
     pass
 
-XLSX = os.path.join(TABLE_DIR, "Last_Sanctuary_유물테이블_Ver01.xlsx")
+XLSX = os.path.join(TABLE_DIR, "Last_Sanctuary_유물테이블_Ver02.xlsx")
 OUT_DIR = os.path.join(PROJECT, "Assets", "_Project", "Resources", "Relics")
 ICON_DIR = os.path.join(PROJECT, "Assets", "_Project", "Resources", "RelicIcons")
 
@@ -63,7 +63,13 @@ EFFECT = {
     "relic_lifesteal": 20, "relic_thorns": 21, "relic_kill_energy": 22,
     "relic_kill_heal": 23, "relic_low_hp_def_up": 24, "relic_revive_once": 25,
     "relic_erosion_slow": 30, "relic_vision_up": 31, "relic_dig_speed": 32,
+    # ── 표 Ver02 신설 (RelicEffectType 과 <b>번호까지</b> 같아야 한다) ──
+    "relic_kill_erosion_down": 40, "relic_kill_growth": 41,
+    "relic_low_hp_lifesteal": 42, "relic_wave_shield": 43,
+    "relic_wave_energy": 44, "relic_wave_heal": 45,
 }
+SITUATION = {"discover": 1, "accept": 2, "decline": 3, "result": 4, "boss_drop": 5}
+CHOICE_KIND = {"accept": 1, "decline": 2}
 GRADE_RGB = {"common": (184, 196, 207), "rare": (111, 195, 232), "epic": (216, 155, 255)}
 
 ASSET_META = """fileFormatVersion: 2
@@ -346,11 +352,14 @@ def main():
 
     relic_guid = script_guid("Relics/RelicDefinitionSO.cs")
     table_guid = script_guid("Relics/RelicDigTableSO.cs")
+    dialogue_guid = script_guid("Relics/RelicDialogueTableSO.cs")
 
     wb = openpyxl.load_workbook(XLSX, data_only=True)
     relics = rows_of(wb["Relic"])
     outcomes = rows_of(wb["DigOutcome"])
     drops = rows_of(wb["Drop"])
+    dialogues = rows_of(wb["Dialogue"])
+    dig_choices = rows_of(wb["DigChoice"])
 
     os.makedirs(OUT_DIR, exist_ok=True)
     os.makedirs(ICON_DIR, exist_ok=True)
@@ -379,9 +388,12 @@ def main():
             continue
         name = "Relic_%d" % rid
         grade = str(r.get("grade") or "common").strip()
-        eff = str(r.get("effect_type") or "").strip()
+        eff = str(r.get("effect_type_01") or "").strip()
+        eff2 = str(r.get("effect_type_02") or "").strip()
         if eff not in EFFECT:
             unknown_effect.append((rid, eff))
+        if eff2 and eff2 not in EFFECT:
+            unknown_effect.append((rid, eff2))
         key = str(r.get("icon") or "")
 
         body = HEADER.format(script_guid=relic_guid, name=name)
@@ -391,6 +403,9 @@ def main():
         body += "  effectType: %d\n" % EFFECT.get(eff, 0)
         body += "  value01: %d\n" % num(r.get("value_01"))
         body += "  value02: %d\n" % num(r.get("value_02"))
+        body += "  effectType2: %d\n" % EFFECT.get(eff2, 0)
+        body += "  value03: %d\n" % num(r.get("value_03"))
+        body += "  value04: %d\n" % num(r.get("value_04"))
         body += "  relicDesc: %s\n" % yaml_str(r.get("relic_desc"))
         body += "  relicFlavor: %s\n" % yaml_str(r.get("relic_flavor"))
         body += "  source: %d\n" % SOURCE.get(str(r.get("source") or "").strip(), 0)
@@ -432,11 +447,49 @@ def main():
     rel = os.path.relpath(path, PROJECT).replace("\\", "/")
     write(path + ".meta", ASSET_META.format(guid=guid_for(rel)))
 
+    # ── 대사표 에셋 (표 Ver02) ─────────────────────────────────────────
+    #
+    # ⚠ <b>enum 을 못 알아보면 그 줄은 영영 안 뜬다</b> — 조용히 넘기지 않고 세어서 알린다.
+    bad_enum = []
+    body = HEADER.format(script_guid=dialogue_guid, name="RelicDialogueTable")
+    body += "  lines:\n"
+    for d in dialogues:
+        sit = str(d.get("situation") or "").strip()
+        if sit not in SITUATION:
+            bad_enum.append((num(d.get("dialogue_id")), sit))
+        body += "  - dialogueId: %d\n" % num(d.get("dialogue_id"))
+        body += "    groupId: %d\n" % num(d.get("dialogue_group_id"))
+        body += "    situation: %d\n" % SITUATION.get(sit, 0)
+        body += "    choiceGroupId: %d\n" % num(d.get("choice_group_id"))
+        body += "    weight: %d\n" % max(0, num(d.get("weight"), 10))
+        body += "    script: %s\n" % yaml_str(d.get("script"))
+    body += "  choices:\n"
+    for c in dig_choices:
+        kind = str(c.get("choice_kind") or "").strip()
+        if kind not in CHOICE_KIND:
+            bad_enum.append((num(c.get("choice_id")), kind))
+        body += "  - choiceGroupId: %d\n" % num(c.get("choice_group_id"))
+        body += "    choiceId: %d\n" % num(c.get("choice_id"))
+        body += "    choiceOrder: %d\n" % num(c.get("choice_order"))
+        body += "    kind: %d\n" % CHOICE_KIND.get(kind, 0)
+        body += "    choiceText: %s\n" % yaml_str(c.get("choice_text"))
+
+    path = os.path.join(OUT_DIR, "RelicDialogueTable.asset")
+    write(path, body)
+    rel = os.path.relpath(path, PROJECT).replace("\\", "/")
+    write(path + ".meta", ASSET_META.format(guid=guid_for(rel)))
+
     # ── 보고 ───────────────────────────────────────────────────────────
     print("[유물 에셋]")
     print("  유물 %d개  →  %s" % (made, os.path.relpath(OUT_DIR, PROJECT)))
     print("  임시 아이콘 %d장  →  %s" % (len(icon_guid), os.path.relpath(ICON_DIR, PROJECT)))
     print("  발굴 결과 %d줄 · 드랍 %d줄  →  RelicDigTable.asset" % (len(outcomes), len(drops)))
+    print("  대사 %d줄 · 선택지 %d줄  →  RelicDialogueTable.asset"
+          % (len(dialogues), len(dig_choices)))
+    if bad_enum:
+        print("  ⚠ 코드가 못 알아보는 상황/분기 %d개 — 그 줄은 영영 안 뜹니다:" % len(bad_enum))
+        for i, v in bad_enum:
+            print("      %d  [%s]" % (i, v))
     if unknown_effect:
         print("  ⚠ 코드에 없는 효과 타입 %d개 — 장착해도 아무 일이 없습니다:" % len(unknown_effect))
         for rid, eff in unknown_effect:

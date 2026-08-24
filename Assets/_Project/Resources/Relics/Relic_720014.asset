@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8d79840638937e4796aeac340e7fbdd, type: 3}
+  m_Name: Relic_720014
+  m_EditorClassIdentifier:
+  relicId: 720014
+  relicName: "마르지 않는 샘"
+  grade: 3
+  effectType: 45
+  value01: 12
+  value02: 0
+  effectType2: 44
+  value03: 40
+  value04: 0
+  relicDesc: "웨이브가 끝날 때마다 최대 체력의 12% 를 회복하고 에너지를 40 얻습니다."
+  relicFlavor: "퍼내도 다음 날이면 다시 차 있다. 아무도 그 아래를 본 적이 없다."
+  source: 2
+  sourceId: 0
+  dropWeight: 14
+  iconKey: "relic_spring"
+  icon: {fileID: 21300000, guid: e787d38eeecdc7b345dd47cfdced3daa, type: 3}

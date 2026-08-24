@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8d79840638937e4796aeac340e7fbdd, type: 3}
+  m_Name: Relic_710013
+  m_EditorClassIdentifier:
+  relicId: 710013
+  relicName: "삼킨 숨"
+  grade: 2
+  effectType: 40
+  value01: 2
+  value02: 0
+  effectType2: 0
+  value03: 0
+  value04: 0
+  relicDesc: "적을 처치할 때마다 침식이 2 감소합니다."
+  relicFlavor: "하나를 끝낼 때마다 숨을 고른다. 그 한 번이 정신을 붙잡는다."
+  source: 1
+  sourceId: 0
+  dropWeight: 7
+  iconKey: "relic_breath"
+  icon: {fileID: 21300000, guid: cc1763c58effed7f26d696edbfea12ef, type: 3}

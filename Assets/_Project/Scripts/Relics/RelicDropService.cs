@@ -134,6 +134,37 @@ namespace LastSanctuary.Relics
             HudLog.Add($"{victimName} 이(가) 「{relic.DisplayName}」 을(를) 남겼습니다 " +
                        $"({RelicDefinitionSO.NameOf(relic.grade)})",
                        relic.grade == RelicGrade.Epic ? HudLogKind.Good : HudLogKind.Info);
+
+            // ★★ <b>보스가 남긴 것만 창을 띄운다</b> (2026-08-24 · 유저 지시:
+            //   *"보스 유물 획득 다이얼로그도 따로 넣어주고"*).
+            //
+            // ⚠ <b>일반 몹 드랍에는 띄우지 않는다</b> — 한 웨이브에 수십 마리가 죽고
+            //   확률이 1.2% 라 창이 계속 튀어나온다. 보스는 한 판에 몇 번뿐이다.
+            if (relic.grade != RelicGrade.Epic) return;
+            ShowBossDialogue(relic);
+        }
+
+        /// <summary>
+        /// 보스 드랍 대사 — 표 <c>Dialogue</c> 시트의 <c>boss_drop</c> 풀에서 균등 추첨한다
+        /// (그룹 0 · 발굴 흐름과 이어지지 않는 독립 풀).
+        /// 창이 없으면 <b>조용히 넘어간다</b> — 로그에는 이미 남았다.
+        /// </summary>
+        static void ShowBossDialogue(RelicDefinitionSO relic)
+        {
+            var panel = UI.RelicDigPanel.Instance;
+            if (panel == null) return;
+
+            var table = Resources.Load<RelicDialogueTableSO>("Relics/RelicDialogueTable");
+            string flavor = table != null
+                ? table.Roll(0, RelicDialogueSituation.BossDrop) : "";
+            if (string.IsNullOrWhiteSpace(flavor))
+                flavor = RelicDialogueTableSO.Fallback(RelicDialogueSituation.BossDrop);
+
+            panel.PresentBossDrop(
+                flavor,
+                $"유물 「{relic.DisplayName}」 ({RelicDefinitionSO.NameOf(relic.grade)})" +
+                "\n" + relic.relicDesc,
+                relic.icon);
         }
     }
 }

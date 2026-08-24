@@ -18,6 +18,9 @@ MonoBehaviour:
   effectType: 30
   value01: 20
   value02: 0
+  effectType2: 0
+  value03: 0
+  value04: 0
   relicDesc: "침식이 쌓이는 속도가 20% 느려집니다."
   relicFlavor: "끓던 것이 가라앉는다. 태우지 않고 이기는 방법도 있다."
   source: 1

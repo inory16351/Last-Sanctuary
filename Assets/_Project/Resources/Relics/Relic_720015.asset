@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8d79840638937e4796aeac340e7fbdd, type: 3}
+  m_Name: Relic_720015
+  m_EditorClassIdentifier:
+  relicId: 720015
+  relicName: "최후의 발버둥"
+  grade: 3
+  effectType: 42
+  value01: 20
+  value02: 35
+  effectType2: 0
+  value03: 0
+  value04: 0
+  relicDesc: "체력이 35% 이하일 때 입힌 피해의 20% 를 회복합니다."
+  relicFlavor: "죽는 줄 알았던 순간에만 열리는 문. 열고 나면 왜 열렸는지 알 수 없다."
+  source: 2
+  sourceId: 0
+  dropWeight: 12
+  iconKey: "relic_lastgasp"
+  icon: {fileID: 21300000, guid: 175fc80ef252b27713017c99a6c3f0d4, type: 3}

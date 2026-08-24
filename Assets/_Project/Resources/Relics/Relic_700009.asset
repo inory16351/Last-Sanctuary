@@ -16,9 +16,12 @@ MonoBehaviour:
   relicName: "맑은 진물"
   grade: 1
   effectType: 8
-  value01: 8
+  value01: 1
   value02: 0
-  relicDesc: "회복력이 8% 증가합니다."
+  effectType2: 0
+  value03: 0
+  value04: 0
+  relicDesc: "회복력이 1 증가합니다."
   relicFlavor: "고름이 되기 전의 물. 씻어내려는 몸의 첫 시도다."
   source: 1
   sourceId: 0

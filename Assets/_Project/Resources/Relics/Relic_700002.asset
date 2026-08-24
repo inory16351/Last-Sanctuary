@@ -16,9 +16,12 @@ MonoBehaviour:
   relicName: "오른 열"
   grade: 1
   effectType: 11
-  value01: 6
+  value01: 1
   value02: 0
-  relicDesc: "공격 속도가 6% 증가합니다."
+  effectType2: 0
+  value03: 0
+  value04: 0
+  relicDesc: "공격 속도가 1 증가합니다."
   relicFlavor: "몸이 스스로 체온을 올린다. 태워 죽이려는 것이지, 아파하려는 것이 아니다."
   source: 1
   sourceId: 0

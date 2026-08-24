@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace LastSanctuary.Relics
@@ -63,8 +64,18 @@ namespace LastSanctuary.Relics
         None = 0,
 
         // ── 능력치 (장착한 동안 계속) ─────────────────────────────────
-        // ★ value_01 = %. 장착 순간의 «지금 능력치» 에 대한 %를 <b>고정 수치</b>로 환산해
-        //   더한다(이벤트 보상 ApplyStat 과 같은 방식) — 그래서 뗐다 끼면 값이 다시 계산된다.
+        // ★★ <b>2026-08-24 (표 Ver02) — value_01 이 «%» 가 아니라 «정수» 다.</b>
+        //   표의 값을 <b>그대로</b> <c>AddFlatStatBonus</c> 에 넣는다. 그래서
+        //   ① 누구에게 붙여도 크기가 같고 ② <b>능력치 상한(100)을 초월</b>한다
+        //   (패시브 「로 아이아스」 방어 +8 · 「명사수」 크리 +20 이 쓰는 그 통로다).
+        //
+        //   왜 바꿨나 — 이 게임의 능력치는 <b>한 자리 수</b>다(체력 2~12 · 근거리 1~10).
+        //   %로 주면 «높은 캐릭터가 더 많이 받는» 부익부가 되고, 낮은 캐릭터는 반올림에서
+        //   +1 로 뭉개져 «장착해도 그대로» 가 된다.
+        //
+        //   ⚠ 밸런스 기준(표 Info) — <b>강화 1회 = 총 +2.5 포인트</b>가 여러 능력치에 흩어진다.
+        //     그래서 유물은 일반 +1 · 레어 +2 · 에픽 +2를 두 칸이다(집중되므로 강화보다 세다).
+        //     공격 1 포인트 = 피해 +2 · 체력 1 포인트 = HP +10 · 크리 1 포인트 = +1%p 다.
         HpUp = 1,
         MeleeAttackUp = 2,
         RangedAttackUp = 3,
@@ -106,6 +117,28 @@ namespace LastSanctuary.Relics
 
         /// <summary>이 캐릭터의 발굴 속도 +v1%.</summary>
         DigSpeed = 32,
+
+        // ── 2026-08-24 (표 Ver02) 신설 ────────────────────────────────
+        /// <summary>처치할 때마다 침식 −v1.</summary>
+        KillErosionDown = 40,
+
+        /// <summary>
+        /// 처치할 때마다 <b>근거리 공격력 +v1</b>, <b>최대 v2 회</b>까지 누적.
+        /// ⚠ 누적은 이 판 동안만 — 벗으면 쌓인 만큼 그대로 빠진다.
+        /// </summary>
+        KillGrowth = 41,
+
+        /// <summary>체력이 v2% 이하일 때만 흡혈 v1%.</summary>
+        LowHpLifesteal = 42,
+
+        /// <summary>웨이브가 <b>소환될 때</b> 최대 체력 v1% 보호막을 v2 초.</summary>
+        WaveShield = 43,
+
+        /// <summary>웨이브가 <b>끝날 때마다</b> 에너지 +v1.</summary>
+        WaveEnergy = 44,
+
+        /// <summary>웨이브가 <b>끝날 때마다</b> 최대 체력 v1% 회복.</summary>
+        WaveHeal = 45,
     }
 
     /// <summary>
@@ -142,8 +175,26 @@ namespace LastSanctuary.Relics
         [Tooltip("value_01 — 효과의 주 수치. 대개 %, KillEnergy 만 절대값")]
         public int value01;
 
-        [Tooltip("value_02 — «두 번째 조건» 이 필요한 타입만 쓴다(지금은 체력 문턱 하나)")]
+        [Tooltip("value_02 — «두 번째 조건» 이 필요한 타입만 쓴다(체력 문턱·지속시간·누적 상한)")]
         public int value02;
+
+        [Header("효과 슬롯 2 (표 Ver02 — «두 능력치가 함께 오르는 유물»)")]
+        [Tooltip("effect_type_02 — 비어 있으면(None) 이 슬롯은 없는 것이다.\n" +
+                 "규약은 이벤트 보상의 reward_type_02 와 같다")]
+        public RelicEffectType effectType2 = RelicEffectType.None;
+
+        [Tooltip("value_03 — 두 번째 효과의 주 수치")]
+        public int value03;
+
+        [Tooltip("value_04 — 두 번째 효과의 보조 수치")]
+        public int value04;
+
+        /// <summary>이 유물이 쓰는 효과 슬롯을 <b>순서대로</b> 돌려준다(빈 칸은 건너뛴다).</summary>
+        public IEnumerable<(RelicEffectType type, int v1, int v2)> Effects()
+        {
+            if (effectType != RelicEffectType.None) yield return (effectType, value01, value02);
+            if (effectType2 != RelicEffectType.None) yield return (effectType2, value03, value04);
+        }
 
         [TextArea(2, 4)]
         [Tooltip("relic_desc — 효과 설명(유저에게 그대로 보여준다)")]

@@ -16,9 +16,12 @@ MonoBehaviour:
   relicName: "저린 손끝"
   grade: 1
   effectType: 12
-  value01: 6
+  value01: 1
   value02: 0
-  relicDesc: "이동 속도가 6% 증가합니다."
+  effectType2: 0
+  value03: 0
+  value04: 0
+  relicDesc: "이동 속도가 1 증가합니다."
   relicFlavor: "신호는 언제나 끝에서부터 온다. 저린 것은 아직 이어져 있다는 뜻이다."
   source: 1
   sourceId: 0

@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8d79840638937e4796aeac340e7fbdd, type: 3}
+  m_Name: Relic_700016
+  m_EditorClassIdentifier:
+  relicId: 700016
+  relicName: "얕은 잠"
+  grade: 1
+  effectType: 1
+  value01: 1
+  value02: 0
+  effectType2: 7
+  value03: 1
+  value04: 0
+  relicDesc: "체력이 1, 체력 재생이 1 증가합니다."
+  relicFlavor: "깊이 자지 못한 밤에도 몸은 제 할 일을 한다. 조금씩, 그러나 멈추지 않고."
+  source: 1
+  sourceId: 0
+  dropWeight: 8
+  iconKey: "relic_shallowsleep"
+  icon: {fileID: 21300000, guid: 5b17c2ebe6987d38a89dc054bed524e0, type: 3}
