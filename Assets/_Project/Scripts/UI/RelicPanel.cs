@@ -319,7 +319,11 @@ namespace LastSanctuary.UI
             if (_bound) return;
             _bound = true;
 
-            _list = transform.Find("List/Items");
+            // ★ 목록 칸은 «스크롤 뷰 안» 으로 옮겨졌다 (2026-08-24) — 유물이 많아지면
+            //   칸이 창 밖으로 삐져나오던 것을 막기 위해서다. 옛 경로(List/Items)도 그대로
+            //   찾는다 — 씬이 아직 옛 구조인 상태에서도 창이 조용히 비지 않게 하는 폴백이다.
+            _list = transform.Find("List/ScrollView/Viewport/Items")
+                 ?? transform.Find("List/Items");
             _rowTemplate = transform.Find("List/RowTemplate") as RectTransform;
             if (_rowTemplate != null) _rowTemplate.gameObject.SetActive(false);
             else Debug.LogWarning("[유물] List/RowTemplate 을 찾지 못했습니다.", this);
@@ -341,6 +345,49 @@ namespace LastSanctuary.UI
             {
                 close.onClick.RemoveAllListeners();
                 close.onClick.AddListener(Close);
+            }
+
+            BindScrollRect();
+        }
+
+        /// <summary>
+        /// ★★ 목록을 <b>스크롤로 넘긴다</b> (2026-08-24 · 유저 지시:
+        /// *"유물 획득 많이 하면 UI 아래로 창 삐져 나오는거 막고 스크롤바로 컨트롤하게"*).
+        ///
+        /// 유물이 45종이고 칸 하나가 44+4 px 이라 <b>여덟 칸</b>이면 목록 틀(388 px)을 넘는다.
+        /// 그 위는 그동안 <b>잘리지도 않고</b> 창 밖으로 계속 그려지고 있었다 —
+        /// <c>Items</c> 가 <c>ContentSizeFitter</c> 로 자기 키를 늘리기만 했기 때문이다.
+        ///
+        /// <b>구조는 로스터 창과 같다</b>(<see cref="CharacterRosterPanel"/>) —
+        /// <c>List/ScrollView</c>(ScrollRect) → <c>Viewport</c>(RectMask2D) → <c>Items</c>(내용),
+        /// 그 옆에 <c>List/Scrollbar</c>. 창이 하나 늘 때마다 조작감이 갈리지 않게 하려는 것이다.
+        ///
+        /// ⚠ <c>ScrollRect</c>·<c>Scrollbar</c> 의 <b>object-참조 필드</b>
+        ///   (content / viewport / verticalScrollbar / handleRect / targetGraphic)는
+        ///   MCP 로 넣을 수 없다(진행상황 8절 4번) — 그래서 이름으로 찾아 코드가 꽂는다.
+        ///   인스펙터에서 이미 연결돼 있으면 <b>건드리지 않는다</b>(사람이 맞춘 값이 우선).
+        /// </summary>
+        void BindScrollRect()
+        {
+            var scroll = transform.Find("List/ScrollView")?.GetComponent<ScrollRect>();
+            if (scroll == null) return;
+
+            if (scroll.content == null) scroll.content = _list as RectTransform;
+            if (scroll.viewport == null)
+                scroll.viewport = transform.Find("List/ScrollView/Viewport") as RectTransform;
+
+            if (scroll.verticalScrollbar == null)
+            {
+                var bar = transform.Find("List/Scrollbar")?.GetComponent<Scrollbar>();
+                if (bar != null)
+                {
+                    scroll.verticalScrollbar = bar;
+
+                    if (bar.handleRect == null)
+                        bar.handleRect = transform.Find("List/Scrollbar/Handle") as RectTransform;
+                    if (bar.targetGraphic == null)
+                        bar.targetGraphic = transform.Find("List/Scrollbar/Handle")?.GetComponent<Image>();
+                }
             }
         }
 

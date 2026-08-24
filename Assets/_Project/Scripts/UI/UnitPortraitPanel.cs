@@ -3,6 +3,7 @@ using UnityEngine.UI;
 using TMPro;
 using LastSanctuary.Combat;
 using LastSanctuary.Units;
+using LastSanctuary.Relics;
 
 namespace LastSanctuary.UI
 {
@@ -112,6 +113,15 @@ namespace LastSanctuary.UI
         Transform _rageRoot;
         TMP_Text _rageLabel;
         Image _rageFill;
+
+        // ── 장착 유물 한 줄 (2026-08-24 · 유저 지시: *"캐릭터 선택하면 나오는 ui
+        //   스킬 아래에 장착한 유물도 나오게 해줘"*) ─────────────────────────────
+        //   하이라키: <c>Relic</c> ▸ <c>Icon</c> + <c>Label</c>
+        //   ★ 성장 창의 유물 띠(<see cref="CharacterGrowthPanel"/>)와 <b>같은 것을 읽는다</b>
+        //     (<c>RelicInventory.EquippedOn</c>) — 두 창이 어긋나지 않게.
+        Transform _relicRoot;
+        Image _relicIcon;
+        TMP_Text _relicLabel;
 
         /// <summary>체력 묶음(보스·몬스터 전용).</summary>
         Transform _hpRoot;
@@ -375,6 +385,7 @@ namespace LastSanctuary.UI
                     : string.Empty;
 
             ShowSkills(character);
+            ShowRelic(character);
             if (_hpRoot != null) _hpRoot.gameObject.SetActive(character == null);
 
             RefreshVolatile();
@@ -513,6 +524,46 @@ namespace LastSanctuary.UI
             }
         }
 
+        /// <summary>
+        /// ★ <b>장착한 유물 한 줄</b> (2026-08-24 · 유저 지시:
+        /// *"캐릭터 선택하면 나오는 ui 스킬 아래에 장착한 유물도 나오게 해줘"*).
+        ///
+        /// 스킬 세 줄 <b>아래</b>에 아이콘 + 이름을 그린다. 이름 색은 <b>등급 색</b>
+        /// (<see cref="RelicDefinitionSO.GradeColor"/>)이라 «무슨 등급을 끼고 있나»가 한눈에 보인다 —
+        /// 유물 관리 창의 목록과 <b>같은 규칙</b>이다.
+        ///
+        /// ★ <b>장착 열쇠는 캐릭터 정의 ID 다</b> — <see cref="RelicInventory.EquippedOn"/> 를
+        ///   그대로 부른다. 여기서 «누가 무엇을 끼고 있나»를 따로 세지 않는다(장부가 둘이 되면
+        ///   죽고 다시 난 캐릭터에서 두 창의 답이 갈린다).
+        ///
+        /// 아무것도 안 끼웠거나 캐릭터가 아니면 <b>줄을 통째로 숨긴다</b> — 빈 줄을 남기면
+        /// 그 자리가 «비어 있다»가 아니라 «깨졌다»로 보인다(스킬 줄과 같은 판단).
+        /// </summary>
+        void ShowRelic(CharacterUnit character)
+        {
+            RelicInventory inv = RelicInventory.Instance;
+            RelicDefinitionSO relic = character != null && inv != null
+                ? inv.EquippedOn(character)
+                : null;
+
+            if (_relicRoot != null) _relicRoot.gameObject.SetActive(relic != null);
+            if (relic == null) return;
+
+            if (_relicLabel != null)
+            {
+                _relicLabel.text = relic.DisplayName;
+                _relicLabel.color = relic.GradeColor;
+            }
+
+            if (_relicIcon != null)
+            {
+                Sprite icon = relic.icon;
+                _relicIcon.sprite = icon;
+                // 아이콘이 없는 유물은 흰 사각형이 남지 않게 알파로 지운다(스킬 아이콘과 같은 규칙).
+                _relicIcon.color = icon == null ? new Color(1f, 1f, 1f, 0f) : Color.white;
+            }
+        }
+
         // ------------------------------------------------------------------
         // 계속 변하는 칸 — 상태 · 체력
         //
@@ -541,6 +592,10 @@ namespace LastSanctuary.UI
             // ★ 분노는 <b>체력 칸보다 먼저</b> 갱신한다 — 아래 체력 칸은 캐릭터일 때
             //   비활성이라 그 자리에서 return 하고, 그러면 분노가 영영 안 갱신된다.
             RefreshRage();
+
+            // ★ 유물은 <b>창이 열려 있는 동안에도 바뀐다</b> — 유물 관리 창에서 끼우거나
+            //   벗으면 이 카드가 즉시 따라와야 한다. 조회는 사전 한 번이라 주기 갱신으로 충분하다.
+            ShowRelic(_shown as CharacterUnit);
 
             if (_hpRoot == null || !_hpRoot.gameObject.activeSelf) return;
 
@@ -636,6 +691,12 @@ namespace LastSanctuary.UI
                 _skillIcons[slot] = FindOptional<Image>($"Skills/Slot{slot}/Icon");
                 _skillLabels[slot] = FindOptional<TMP_Text>($"Skills/Slot{slot}/Label");
             }
+
+            // ── 장착 유물 한 줄 — 2026-08-24 ────────────────────────────────
+            //   ⚠ 위 ⚠ 와 같은 이유로 <b>없어도 죽지 않는다</b>.
+            _relicRoot = transform.Find("Relic");
+            _relicIcon = FindOptional<Image>("Relic/Icon");
+            _relicLabel = FindOptional<TMP_Text>("Relic/Label");
 
             _hpRoot = transform.Find("Hp");
             _hpFill = FindOptional<Image>("Hp/HpBack/HpFill");
