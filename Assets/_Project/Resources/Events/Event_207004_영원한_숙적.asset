@@ -25,7 +25,7 @@ MonoBehaviour:
   - choiceId: 300085
     choiceOrder: 1
     choiceText: "이번에 끝을 낸다."
-    resultScript: "오래된 흉터 앞에서 마지막이라는 말이 나왔습니다.\n같은 흉을 다시 여는 손은 무엇을 끊어야 하는지 압니다."
+    resultScript: "천사들은 오래된 흉터 앞에서 마지막이라는 말을 꺼냈습니다.\n같은 자리를 다시 여는 손은 어디를 찢어야 하는지 압니다."
     resultEffect: "효과 : 천사 전체 크리티컬 확률 +15% (300초) · 천사 전체 보호막 (최대 체력의 15%, 300초)"
     rewardType01: "char_critical_durat_up"
     rewardValue01: 15
@@ -36,10 +36,10 @@ MonoBehaviour:
   - choiceId: 300086
     choiceOrder: 2
     choiceText: "흉터를 덮고 물러난다."
-    resultScript: "흉터는 다시 덮였고 성역은 그 위에 새 살을 깔았습니다.\n덮어둔 것은 언젠가 그 밑에서 다시 열립니다."
-    resultEffect: "효과 : 에너지 +500 · 천사 전체 침식 +15"
-    rewardType01: "energy_gain"
-    rewardValue01: 500
+    resultScript: "흉터는 다시 덮였고 성역은 그 위에 새 살을 깔았습니다.\n덮어둔 것은 언젠가 같은 자리에서 다시 열립니다."
+    resultEffect: "효과 : 성역 체력 +12% · 천사 전체 침식 +15"
+    rewardType01: "nexus_percent_heal"
+    rewardValue01: 12
     rewardDuration01: 0
     rewardType02: "char_all_erosion_up"
     rewardValue02: 15

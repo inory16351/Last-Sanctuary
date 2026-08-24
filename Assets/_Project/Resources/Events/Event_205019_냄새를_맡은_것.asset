@@ -25,7 +25,7 @@ MonoBehaviour:
   - choiceId: 300037
     choiceOrder: 1
     choiceText: "오기 전에 먼저 친다."
-    resultScript: "천사들은 연기를 등지고 먼저 달려나갔습니다.\n선수를 치는 쪽은 제 살을 앞서 내놓습니다."
+    resultScript: "천사들은 연기를 등지고 먼저 달려나갔습니다.\n선공의 값은 언제나 자기 살로 치릅니다."
     resultEffect: "효과 : 천사 전체 체력 −10% (최대 체력 기준) · 천사 전체 근거리 공격력 +14% (120초)"
     rewardType01: "char_hp_percent_loss"
     rewardValue01: 10
@@ -36,11 +36,11 @@ MonoBehaviour:
   - choiceId: 300038
     choiceOrder: 2
     choiceText: "문을 열고 기다린다."
-    resultScript: "성역은 문을 열어 그것들을 안으로 들였습니다.\n안에서 잡는 편이 밖으로 쫓는 것보다 손실이 적습니다."
-    resultEffect: "효과 : 현재 웨이브 일반 몬스터 6마리 소환 · 에너지 +250"
+    resultScript: "성역은 문을 열어 놈들을 안으로 들였습니다.\n안에서 잡는 것이 남는 장사입니다 — 성역의 살이 천사들의 어깨를 먼저 덮습니다."
+    resultEffect: "효과 : 현재 웨이브 일반 몬스터 6마리 소환 · 천사 전체 보호막 (최대 체력의 8%, 120초)"
     rewardType01: "summon_enemy"
     rewardValue01: 6
     rewardDuration01: 0
-    rewardType02: "energy_gain"
-    rewardValue02: 250
-    rewardDuration02: 0
+    rewardType02: "char_shield_gain"
+    rewardValue02: 8
+    rewardDuration02: 120

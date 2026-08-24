@@ -25,7 +25,7 @@ MonoBehaviour:
   - choiceId: 300041
     choiceOrder: 1
     choiceText: "남은 것을 짜낸다."
-    resultScript: "마른 물길에서 마지막 한 줌을 얻었습니다.\n짜낼수록 성역의 살은 얇아졌습니다."
+    resultScript: "마른 물길에서 마지막 한 줌이 나왔습니다.\n짜낸 만큼 성역의 살은 얇아졌습니다."
     resultEffect: "효과 : 에너지 +220 · 천사 전체 체력 −12% (최대 체력 기준)"
     rewardType01: "energy_gain"
     rewardValue01: 220
@@ -36,7 +36,7 @@ MonoBehaviour:
   - choiceId: 300042
     choiceOrder: 2
     choiceText: "흐름을 되살린다."
-    resultScript: "곳간을 털어 물길을 다시 열었습니다.\n흐름이 돌아오자 천사들의 걸음이 가벼워집니다."
+    resultScript: "곳간을 털어 물길을 다시 열었습니다.\n흐르기 시작한 자리마다 천사들의 걸음이 가벼워집니다."
     resultEffect: "효과 : 에너지 −250 · 천사 전체 이동 속도 +10% (240초)"
     rewardType01: "energy_loss"
     rewardValue01: 250

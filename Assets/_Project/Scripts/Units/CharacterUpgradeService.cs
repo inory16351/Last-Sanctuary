@@ -14,6 +14,10 @@ namespace LastSanctuary.Units
     /// 캐릭터를 새로 만들면 횟수 0 이라 자동으로 기본 비용부터 시작한다.
     ///
     ///   비용 = baseCost + costIncreasePerUpgrade × (그 캐릭터의 강화 횟수)
+    ///
+    /// ★★ <b>Lv30 부터는 그 선형 곡선이 끝나고 등비로 꺾인다</b> (2026-08-24 · 유저 지시:
+    /// *"30lv 이상부터 강화 밸류 엄청 올리기 … 30LV 이상 부터는 강화에 소모되는 자원
+    /// 소모량을 급진적으로 올려야 할듯"*). <see cref="steepStartLevel"/> 절 참조.
     /// </summary>
     public class CharacterUpgradeService : MonoBehaviour
     {
@@ -23,6 +27,49 @@ namespace LastSanctuary.Units
 
         [Tooltip("그 캐릭터를 한 번 강화할 때마다 다음 비용에 더해지는 양")]
         [Min(0)] [SerializeField] int costIncreasePerUpgrade = 10;
+
+        // ──────────────────────────────────────────────────────────────────
+        // ★★ Lv30 이후의 «벽» (2026-08-24 신설)
+        //
+        // <b>왜 필요했나</b> — 밸런스 기획서는 후반부(21~30웨이브)를 «성장·생성에
+        // 하드캡이 걸리는 구간» 으로 정의하고, 30웨이브 레기미아를 «Lv30 3부대와 싸워도
+        // 근소하게 승리» 로 못박았다. 그런데 비용이 `40 + 10n` 선형이면 Lv30 을 넘긴 뒤에도
+        // 다음 한 칸이 그 앞 칸보다 3% 밖에 안 비싸다 — 후반의 남는 에너지가 그대로
+        // 레벨로 환산되어 <b>천장이 없다</b>. 136절이 잡은 «w30 = Lv30» 착지도 그 위쪽이
+        // 열려 있으면 «목표» 가 아니라 «지나가는 점» 이 된다.
+        //
+        // <b>어떻게</b> — <see cref="steepStartLevel"/> 미만은 <b>예전 그대로</b>(선형)이고,
+        // 그 이상은 «그 레벨의 선형 비용» 에서 시작해 레벨마다
+        // <see cref="steepGrowthPerLevel"/> 배씩 곱한다. 즉 Lv30 에 <b>도달하는</b> 비용은
+        // 한 톨도 안 변하고(= 136절의 경제 모델이 그대로 유효하다), Lv30 <b>을 넘어서는</b>
+        // 값만 급격해진다. 유저 지시의 «30LV 이상 부터» 가 정확히 이 뜻이다.
+        //
+        //      n < 30 : 40 + 10n                    (Lv29 → 330 · 예전과 같다)
+        //      n ≥ 30 : (40 + 10×30) × 1.35^(n−30)  (Lv30 340 · Lv35 1,520 · Lv40 6,830)
+        //
+        // ⚠ <b>반올림 자리를 못박는다</b>(<see cref="costRoundTo"/>) — 등비로 곱하면
+        //   1,523 같은 값이 나오는데, 이 게임의 다른 비용은 전부 10 단위다(생성 200+150n ·
+        //   강화 40+10n). 화면에 찍히는 숫자의 «자리» 가 갑자기 달라지면 값을 잘못 넣은 것처럼
+        //   보인다. 그래서 10 단위로 맞춘다.
+        //
+        // ⚠ 저장·복원은 손댈 것이 없다 — 이 프로젝트는 비용을 <b>장부에 적지 않고</b>
+        //   강화 횟수에서 매번 계산한다(위 클래스 주석). 곡선을 바꾸면 옛 세이브도 새 곡선을 쓴다.
+        // ──────────────────────────────────────────────────────────────────
+
+        [Tooltip("★ 이 강화 횟수(=레벨)부터 비용이 <b>선형에서 등비로</b> 꺾인다. " +
+                 "0 이면 꺾이지 않는다(예전 동작).\n" +
+                 "밸런스 기획서의 «후반부는 성장에 하드캡» 을 값으로 옮긴 자리다 — " +
+                 "Lv30 까지 올라가는 비용은 이 값을 바꿔도 <b>변하지 않는다</b>")]
+        [Min(0)] [SerializeField] int steepStartLevel = 30;
+
+        [Tooltip("★ steepStartLevel 이후 <b>레벨 하나당 비용에 곱하는 배율</b>. " +
+                 "1.35 면 다섯 레벨마다 약 4.5배다(Lv30 340 → Lv35 1,520 → Lv40 6,830).\n" +
+                 "1 이하면 등비가 걸리지 않는다(선형과 같아진다)")]
+        [Min(1f)] [SerializeField] float steepGrowthPerLevel = 1.35f;
+
+        [Tooltip("등비 구간의 비용을 이 단위로 반올림한다. 이 게임의 다른 비용이 전부 " +
+                 "10 단위여서 자리를 맞춘다. 0·1 이면 반올림하지 않는다")]
+        [Min(0)] [SerializeField] int costRoundTo = 10;
 
         // ──────────────────────────────────────────────────────────────────
         // 성장량 — 유저 지시 2026-08-14로 전면 교체됐다.
@@ -83,7 +130,37 @@ namespace LastSanctuary.Units
 
         /// <summary>이 캐릭터를 지금 강화하는 데 드는 비용.</summary>
         public int CostFor(CharacterUnit unit) =>
-            unit == null ? 0 : baseCost + costIncreasePerUpgrade * unit.UpgradeCount;
+            unit == null ? 0 : CostForLevel(unit.UpgradeCount);
+
+        /// <summary>
+        /// 강화 횟수 <paramref name="level"/> 인 캐릭터의 다음 강화 비용.
+        ///
+        /// ★ <b>유닛 없이도 부를 수 있게</b> 갈라 뒀다 — 곡선을 표(`능력치 및 공식 정리.xlsx`)와
+        /// 대조할 때 필요하고, 에디터 도구·시뮬레이션이 캐릭터를 만들지 않고 값을 확인할 수 있다.
+        /// </summary>
+        public int CostForLevel(int level)
+        {
+            if (level < 0) level = 0;
+
+            int linear = baseCost + costIncreasePerUpgrade * level;
+
+            // 선형 구간 — 예전과 <b>한 톨도 다르지 않다</b>.
+            if (steepStartLevel <= 0 || level < steepStartLevel || steepGrowthPerLevel <= 1f)
+                return linear;
+
+            // 등비 구간 — 꺾이는 지점의 «선형 비용» 에서 출발한다. 그래서 Lv30 의 비용은
+            // 예전과 같고(연속이다), 그 위로만 급해진다.
+            int atStart = baseCost + costIncreasePerUpgrade * steepStartLevel;
+            double cost = atStart * System.Math.Pow(steepGrowthPerLevel, level - steepStartLevel);
+
+            if (costRoundTo > 1)
+                cost = System.Math.Round(cost / costRoundTo) * costRoundTo;
+
+            // ⚠ int 로 넘치지 않게 자른다 — 1.35^n 은 Lv90 쯤에서 int 를 넘는다.
+            //   무한 모드에서 그 레벨에 닿을 일은 없지만, 넘치면 <b>음수 비용</b>이 되어
+            //   «공짜로 무한 강화» 가 된다(가장 나쁜 방향의 고장이다).
+            return cost >= int.MaxValue ? int.MaxValue : (int)cost;
+        }
 
         /// <summary>
         /// 지금 강화할 수 있는지 (대상이 살아있고 <b>강화가 허용되며</b> 에너지가 충분한지).

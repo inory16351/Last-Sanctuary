@@ -49,3 +49,4 @@ MonoBehaviour:
   resistanceStat: 50
   hpPercent: 100
   growthPerKill: 0.01
+  firstSpawnDelaySeconds: 0

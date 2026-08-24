@@ -25,7 +25,7 @@ MonoBehaviour:
   - choiceId: 300073
     choiceOrder: 1
     choiceText: "안개를 끌어안는다."
-    resultScript: "성역은 안개를 더 짙게 눌렀습니다.\n적들이 진창에 박혔고, 천사들의 발 또한 무거워졌습니다."
+    resultScript: "성역은 안개를 더 짙게 눌렀습니다.\n적들이 진창에 박혔고, 천사들의 발도 같이 무거워졌습니다."
     resultEffect: "효과 : 적 전체 구속 4초 · 천사 전체 이동 속도 −6% (180초)"
     rewardType01: "enemy_bind"
     rewardValue01: 0
@@ -36,7 +36,7 @@ MonoBehaviour:
   - choiceId: 300074
     choiceOrder: 2
     choiceText: "안개를 걷어낸다."
-    resultScript: "시야가 트이자 성역의 끝까지 눈에 들어옵니다.\n저쪽의 발걸음 또한 다시 가벼워졌습니다."
+    resultScript: "시야가 트이자 성역의 끝까지 보입니다.\n대신 저쪽의 발걸음도 다시 가벼워졌습니다."
     resultEffect: "효과 : 천사 전체 시야 +12% (180초) · 적 전체 이동 속도 +6% (180초)"
     rewardType01: "char_vision_durat_up"
     rewardValue01: 12

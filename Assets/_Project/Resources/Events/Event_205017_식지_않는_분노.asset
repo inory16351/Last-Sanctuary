@@ -20,12 +20,12 @@ MonoBehaviour:
   repeatable: 1
   choiceGroupId: 600017
   eventBg: "bg_heat"
-  eventScript: "광폭해진 파도를 끝까지 받아낸 천사들의 숨이 아직 거칩니다.\n이 분노를 어디로 흘려보낼 것인가만이 남았습니다."
+  eventScript: "광폭해진 파도를 끝까지 받아낸 천사들의 숨이 아직 거칩니다.\n이 분노를 어디로 흘려보낼지 정해야 합니다."
   choices:
   - choiceId: 300033
     choiceOrder: 1
     choiceText: "다음 놈들에게 쏟아라."
-    resultScript: "분노는 흩어지지 않고 칼끝에 모였습니다.\n급소를 찾는 눈은 밝아졌고, 제 몸을 돌볼 여유는 사라졌습니다."
+    resultScript: "분노는 흩어지지 않고 칼끝에 모였습니다.\n급소를 찾는 눈이 밝아진 만큼, 자기 몸을 챙길 여유는 사라졌습니다."
     resultEffect: "효과 : 천사 전체 크리티컬 확률 +12% (120초) · 천사 전체 방어력 −6% (240초)"
     rewardType01: "char_critical_durat_up"
     rewardValue01: 12
@@ -36,7 +36,7 @@ MonoBehaviour:
   - choiceId: 300034
     choiceOrder: 2
     choiceText: "삼켜서 굳혀라."
-    resultScript: "분노는 안쪽으로 눌려 굳었습니다.\n걸음은 굼떠졌으나 무엇에도 쉬이 흔들리지 않습니다."
+    resultScript: "천사들은 분노를 안으로 눌러 굳혔습니다.\n느려진 대신 무엇에도 잘 흔들리지 않게 되었습니다."
     resultEffect: "효과 : 천사 전체 저항력 +10% (240초) · 천사 전체 공격 속도 −5% (240초)"
     rewardType01: "char_resist_durat_up"
     rewardValue01: 10

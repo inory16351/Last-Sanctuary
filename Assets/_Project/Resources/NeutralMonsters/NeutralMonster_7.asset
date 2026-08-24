@@ -56,3 +56,4 @@ MonoBehaviour:
   - 2006
   hpPercent: 100
   growthPerKill: 0.13
+  firstSpawnDelaySeconds: 300

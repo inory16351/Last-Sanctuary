@@ -1057,6 +1057,10 @@ def sync_neutral_monsters():
             # ★★ growth_per_kill(2026-08-24 신설, S6) - 종별 사냥 성장 배율.
             #   0 이면 씬 NeutralGrowthService 의 전역 값으로 떨어진다.
             'growthPerKill': num(row.get('growth_per_kill'), 0),
+            # ★★ first_spawn_delay(2026-08-24 신설) - 게임 시작 뒤 «첫 등장» 까지의 초.
+            #   유저 지시: "에픽 보스 몬스터의 생성 시간을 게임 시작 이후 300초 뒤로".
+            #   0 이면 예전처럼 시작과 함께 나온다(잡몹 중립).
+            'firstSpawnDelaySeconds': num(row.get('first_spawn_delay'), 0),
 
             # ★ 공격 유형이 표에서 온다(2026-08-15). 예전에는 스포너가 근거리로 못박아
             #   `atk_type: ranged` 인 1002 도 붙어서 싸웠다.
@@ -1150,6 +1154,7 @@ def sync_neutral_monsters():
 
         total += patch_fields(path, changes, asset,
                               add_missing=('maxAlive', 'respawnSeconds', 'growthPerKill',
+                                           'firstSpawnDelaySeconds',
                                            'spawnRangeMinTiles', 'spawnRangeMaxTiles')
                                           + NEUTRAL_NEW_FIELDS)
         # ⚠ 2026-08-16 부터 등장 범위는 <b>정사각형</b>이다(유저 확정) — 표 값은 "한 변",

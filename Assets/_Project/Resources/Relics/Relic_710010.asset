@@ -22,7 +22,7 @@ MonoBehaviour:
   value03: 4
   value04: 0
   relicDesc: "체력이 2, 방어력이 4 증가합니다."
-  relicFlavor: "싸움이 스친 곳마다 붓는다. 부은 안쪽에서 무엇이 만들어지고 있다."
+  relicFlavor: "싸움이 벌어진 자리마다 붓는다. 부은 만큼 안에서 무언가 만들어지고 있다."
   source: 1
   sourceId: 0
   dropWeight: 8

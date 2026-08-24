@@ -110,6 +110,17 @@ namespace LastSanctuary.Units
                  "똑같이 동작한다")]
         [Min(0f)] public float growthPerKill;
 
+        [Tooltip("★★ <b>게임을 시작한 뒤 이 종이 처음 나타나기까지 기다리는 시간(초)</b> " +
+                 "(표 `임시용 중립 몬스터.xlsx` 의 `first_spawn_delay`, 2026-08-24 신설).\n\n" +
+                 "<b>왜 필요한가</b> — 유저 지시 «에픽 보스 몬스터의 생성 시간을 게임 시작 이후 " +
+                 "300초 뒤로». 예전에는 스포너가 <b>Start 에서 상한까지 한꺼번에</b> 채웠기 때문에 " +
+                 "에픽 넷이 <b>0초에</b> 서식지까지 완성된 채로 서 있었다. 밸런스 기획서는 " +
+                 "카르시노스 첫 조우를 «Lv10 1부대» 로 잡고 있는데, 판이 시작된 순간 이미 " +
+                 "맵에 있으면 그 조우 시점을 게임이 통제할 수 없다.\n\n" +
+                 "0 이면 <b>예전처럼 시작과 함께</b> 나온다(잡몹 중립이 그 값이다).\n" +
+                 "⚠ 이 값은 <b>첫 등장에만</b> 걸린다 — 그 뒤의 재생성 간격은 respawnSeconds 다")]
+        [Min(0f)] public float firstSpawnDelaySeconds;
+
         [Header("능력치 1~100 (테이블 first_Stat 시트)")]
         [Tooltip("웨이브 몬스터와 같은 BalanceConfigSO 치환 공식을 그대로 쓴다.\n" +
                  "★ 2026-08-13 부터 `임시용 중립 몬스터.xlsx` 의 <b>first_Stat 시트</b>가 정본이다 — " +

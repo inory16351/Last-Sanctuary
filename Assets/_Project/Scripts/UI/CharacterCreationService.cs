@@ -143,6 +143,37 @@ namespace LastSanctuary.UI
         /// <b>비용을 먼저 차감하고 성공했을 때만 생성한다</b> — 순서를 반대로 하면
         /// 에너지가 모자랄 때 캐릭터만 생기는 구멍이 난다.
         /// </summary>
+        /// <summary>
+        /// ★★ <b>에너지를 쓰지 않고</b> 한 명 합류시킨다 (2026-08-24 신설 — 이벤트 보상
+        /// <c>char_join</c> 이 쓰는 통로).
+        ///
+        /// 표(RewardType 시트): *"{value_01}% 확률로 캐릭터 1명이 새로 합류합니다.
+        /// <b>인원 상한에 걸리면 아무 일도 일어나지 않습니다</b>"*.
+        ///
+        /// ★ <b>비용만 빼고 나머지는 전부 같다</b> — 인원 상한 · 인물 소진 · <see cref="OnCreated"/>
+        ///   통지를 <see cref="TryCreate"/> 와 같은 순서로 지난다. 그래서 이벤트로 들어온
+        ///   캐릭터도 로스터·부대·저장에서 «생성된 캐릭터» 와 똑같이 다뤄진다.
+        /// ⚠ <b>다음 생성 비용은 올라간다</b> — <see cref="NextCreationNumber"/> 가 실제 인원에서
+        ///   나오기 때문이다. 공짜로 받은 한 명이 다음 «생성» 을 비싸게 만드는 것은 의도한
+        ///   동작이다(그렇지 않으면 이 보상이 «생성 비용 할인» 을 겸하게 된다).
+        /// </summary>
+        /// <returns>합류한 캐릭터. 상한·소진으로 못 하면 null.</returns>
+        public CharacterUnit CreateFree(string reason)
+        {
+            if (_spawner == null) return null;
+            if (AtLimit || OutOfCandidates) return null;
+
+            CharacterUnit unit = _spawner.SpawnOneCharacter();
+            if (unit == null) return null;
+
+            if (logCreation)
+                Debug.Log($"[Create] {unit.name} 합류(무료 · {reason}) · 다음 생성 비용 {CurrentCost}", unit);
+            HudLog.Add($"{unit.name} 합류 ({reason})", HudLogKind.Good);
+
+            OnCreated?.Invoke(unit, 0);
+            return unit;
+        }
+
         public CharacterUnit TryCreate()
         {
             if (_spawner == null)

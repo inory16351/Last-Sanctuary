@@ -25,7 +25,7 @@ MonoBehaviour:
   - choiceId: 300057
     choiceOrder: 1
     choiceText: "귀를 막게 한다."
-    resultScript: "귀를 덮은 천사들은 자기 숨소리만 들었습니다.\n안은 조용해졌고, 바깥의 기척 또한 지워졌습니다."
+    resultScript: "천사들은 귀를 덮고 자기 숨소리만 들었습니다.\n조용해진 대신 바깥의 기척도 함께 사라졌습니다."
     resultEffect: "효과 : 천사 전체 침식 −8 · 천사 전체 시야 −5% (180초)"
     rewardType01: "char_all_erosion_down"
     rewardValue01: 8
@@ -36,7 +36,7 @@ MonoBehaviour:
   - choiceId: 300058
     choiceOrder: 2
     choiceText: "무슨 말인지 들어본다."
-    resultScript: "목소리는 천사들이 잊고 있던 이름을 불렀습니다.\n알아듣는 사이 안쪽이 열렸습니다."
+    resultScript: "목소리는 천사들이 잊고 있던 이름을 불렀습니다.\n알아들은 만큼, 안쪽이 그만큼 열렸습니다."
     resultEffect: "효과 : 천사 전체 침식 +12 · 천사 전체 마법 공격력 +12% (180초)"
     rewardType01: "char_all_erosion_up"
     rewardValue01: 12

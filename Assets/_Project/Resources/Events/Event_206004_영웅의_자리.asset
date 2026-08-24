@@ -25,7 +25,7 @@ MonoBehaviour:
   - choiceId: 300063
     choiceOrder: 1
     choiceText: "앞에 세운다."
-    resultScript: "성역은 한 사람을 골라 그 이름을 앞에 세웠습니다.\n어깨에 실린 무게는 대개 힘으로 바뀝니다. 대개는 말입니다."
+    resultScript: "성역은 한 사람에게 기대를 걸었습니다.\n어깨에 실린 무게는 대개 힘으로 바뀝니다. 대개는 말입니다."
     resultEffect: "효과 : 랜덤 천사 1명 처치 기록 +20 · 랜덤 천사 1명 능력치 1종 +2 (영구)"
     rewardType01: "char_kill_grant"
     rewardValue01: 20
@@ -36,11 +36,11 @@ MonoBehaviour:
   - choiceId: 300064
     choiceOrder: 2
     choiceText: "이름을 부르지 않는다."
-    resultScript: "누구도 앞에 나서지 않았습니다.\n영웅이 없는 전선은 고요하고, 잃을 것도 적습니다."
-    resultEffect: "효과 : 천사 전체 침식 −6 · 에너지 +150"
+    resultScript: "아무도 앞에 서지 않았습니다.\n영웅이 없는 대열은 조용하고, 서로의 상처를 들여다볼 여유가 생깁니다."
+    resultEffect: "효과 : 천사 전체 침식 −6 · 천사 전체 받는 회복량 +15% (180초)"
     rewardType01: "char_all_erosion_down"
     rewardValue01: 6
     rewardDuration01: 0
-    rewardType02: "energy_gain"
-    rewardValue02: 150
-    rewardDuration02: 0
+    rewardType02: "char_heal_receive_up"
+    rewardValue02: 15
+    rewardDuration02: 180

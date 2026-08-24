@@ -25,7 +25,7 @@ MonoBehaviour:
   - choiceId: 300067
     choiceOrder: 1
     choiceText: "틈을 메운다."
-    resultScript: "양분을 부어 갈라진 틈을 눌러 덮었습니다.\n값비싼 미봉책이나, 미봉책도 시간을 법니다."
+    resultScript: "곳간을 털어 갈라진 자리를 눌러 덮었습니다.\n비싸게 산 시간이지만 시간은 시간입니다."
     resultEffect: "효과 : 에너지 −250 · 성역 체력 +5%"
     rewardType01: "energy_loss"
     rewardValue01: 250

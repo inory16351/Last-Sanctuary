@@ -24,7 +24,7 @@ MonoBehaviour:
     value01: 300
     value02: 0
     outcomeDesc: "에너지를 {value_01} 얻습니다."
-    outcomeScript: "두껍게 뭉친 양분층입니다. 한동안은 곳간을 걱정하지 않아도 됩니다."
+    outcomeScript: "두껍게 뭉친 양분층입니다. 한동안 성역이 배부릅니다."
   - outcomeType: "dig_heal"
     weight: 12
     value01: 25
@@ -36,7 +36,7 @@ MonoBehaviour:
     value01: 18
     value02: 0
     outcomeDesc: "발굴한 캐릭터가 최대 체력의 {value_01}% 를 잃습니다(이 피해로 죽지 않습니다)."
-    outcomeScript: "파 내려간 곳에서 굳은 가시가 손을 갈랐습니다."
+    outcomeScript: "파낸 자리에서 굳은 가시가 손을 갈랐습니다."
   - outcomeType: "dig_erosion_up"
     weight: 8
     value01: 10
@@ -60,7 +60,7 @@ MonoBehaviour:
     value01: 0
     value02: 0
     outcomeDesc: "일반 등급 유물 하나를 얻습니다."
-    outcomeScript: "이 몸이 만들어 굳힌 흔적이 나왔습니다."
+    outcomeScript: "몸이 스스로 만들어 굳힌 흔적이 나왔습니다."
   - outcomeType: "dig_relic_rare"
     weight: 4
     value01: 0

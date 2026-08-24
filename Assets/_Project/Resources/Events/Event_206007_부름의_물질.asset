@@ -25,7 +25,7 @@ MonoBehaviour:
   - choiceId: 300069
     choiceOrder: 1
     choiceText: "부름을 따른다."
-    resultScript: "부르는 쪽으로 대열이 통째로 쏟아져 나갔습니다.\n걸음은 빨라지고 시야는 넓어졌으나, 등 뒤가 비었습니다."
+    resultScript: "천사들은 부르는 쪽으로 쏟아져 나갔습니다.\n빨라진 걸음과 넓어진 시야의 값은 비어버린 뒤통수입니다."
     resultEffect: "효과 : 천사 전체 이동 속도 +12% (180초) · 천사 전체 방어력 −6% (180초)"
     rewardType01: "char_move_spd_durat_up"
     rewardValue01: 12
@@ -36,7 +36,7 @@ MonoBehaviour:
   - choiceId: 300070
     choiceOrder: 2
     choiceText: "자리를 지킨다."
-    resultScript: "부름은 끝내 무시되었습니다.\n발을 붙이고 선 천사들은 느리지만 쉽게 뚫리지 않습니다."
+    resultScript: "부름은 무시되었습니다.\n제자리에 박힌 천사들은 느리지만 쉽게 뚫리지 않습니다."
     resultEffect: "효과 : 천사 전체 방어력 +10% (180초) · 천사 전체 이동 속도 −6% (180초)"
     rewardType01: "char_def_durat_up"
     rewardValue01: 10

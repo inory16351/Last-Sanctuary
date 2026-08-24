@@ -25,7 +25,7 @@ MonoBehaviour:
   - choiceId: 300019
     choiceOrder: 1
     choiceText: "살을 잘라내라."
-    resultScript: "곪은 살이 통째로 떨어져 나갔습니다.\n아프기는 하나, 성역 안에서 남의 것이 한 조각 줄었습니다."
+    resultScript: "곪은 살이 통째로 떨어져 나갔습니다.\n아프지만, 성역 안에서 남의 것이 그만큼 줄었습니다."
     resultEffect: "효과 : 천사 전체 체력 −10% (최대 체력 기준) · 천사 전체 침식 −12"
     rewardType01: "char_hp_percent_loss"
     rewardValue01: 10
@@ -36,7 +36,7 @@ MonoBehaviour:
   - choiceId: 300020
     choiceOrder: 2
     choiceText: "덮어두고 계속 싸운다."
-    resultScript: "붕대가 곪은 살을 덮었습니다.\n통증은 분노로 바뀌었고, 가려 둔 것은 가려진 채로 자랍니다."
+    resultScript: "천사들은 붕대로 자리를 가렸습니다.\n통증은 분노로 바뀌었고, 자라는 것은 계속 자랍니다."
     resultEffect: "효과 : 천사 전체 침식 +10 · 천사 전체 근거리 공격력 +7% (240초)"
     rewardType01: "char_all_erosion_up"
     rewardValue01: 10

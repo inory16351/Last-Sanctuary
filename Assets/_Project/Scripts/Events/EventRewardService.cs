@@ -50,6 +50,75 @@ namespace LastSanctuary.Events
 
         static readonly List<Applied> _live = new List<Applied>();
 
+        // ==================================================================
+        // ★★ <b>능력치가 아닌 지속 효과</b> — 2026-08-24 신설
+        //
+        // <b>왜 필요했나</b> — 유저 지시 *"이벤트의 효과를 자원생성보다 더욱 다양화 하여
+        // 배치"*. 표(RewardType 시트)에는 처음부터 51종이 있었는데 <b>코드가 아는 것은
+        // 31종</b>뿐이었고(능력치 20 + 체력 2 + 침식 4 + 처치기록 + 에너지 2 + 성역 2),
+        // 나머지 20종은 <see cref="Apply"/> 의 <c>default</c> 로 빠져 <b>경고만 찍고
+        // 아무 일도 하지 않았다</b> — 선택지 161칸 가운데 31칸이 «누르면 아무 일도
+        // 안 일어나는 칸» 이었다. 그래서 표를 아무리 다양하게 짜도 플레이어가 실제로
+        // 체감하는 것은 «에너지와 능력치» 뿐이었다. 표를 고치기 <b>전에</b> 이것을 먼저
+        // 메꾼다 — 그러지 않으면 «다양화» 가 화면에 나타나지 않는다.
+        //
+        // <b>어떻게</b> — 보호막·시야·사거리·회복 증폭처럼 <see cref="StatType"/> 이 아닌
+        // 효과는 «되돌리는 방법» 이 저마다 다르다. 그래서 <b>되돌리는 일 자체</b>를
+        // 델리게이트로 들고 있는 목록을 하나 둔다. 「걸었으면 반드시 되돌린다」는
+        // <see cref="CharacterPassives"/> 의 규칙은 그대로다.
+        //
+        // ⚠ <b>스스로 시간이 지나면 풀리는 효과는 여기 넣지 않는다</b> —
+        //   보호막(GrantShield) · 화상(ApplyBurn) · 구속(ApplyBind) · 허약(ApplyWeaken) ·
+        //   부식(ApplyCorrosion) · 이벤트 속도 보정은 <b>자기 만료 시각</b>을 갖고 있다.
+        //   같은 것을 두 곳에서 되돌리면 값이 두 번 빠진다.
+        // ==================================================================
+
+        /// <summary>시간이 되면 <see cref="revert"/> 를 부르는 예약 하나.</summary>
+        class Timed
+        {
+            public float expiresAt;
+            public System.Action revert;
+        }
+
+        static readonly List<Timed> _timed = new List<Timed>();
+
+        /// <summary>
+        /// <paramref name="revert"/> 를 <paramref name="seconds"/> 초 뒤에 부르도록 예약한다.
+        /// 0 이하면 <b>예약하지 않는다</b> — 즉시 효과이거나 «되돌리지 않는» 효과다.
+        /// </summary>
+        static void ScheduleRevert(float seconds, System.Action revert)
+        {
+            if (revert == null || seconds <= 0f) return;
+            _timed.Add(new Timed { expiresAt = Time.time + seconds, revert = revert });
+        }
+
+        /// <summary>지금 살아 있는 캐릭터 전부(소환수 제외 여부는 인자로).</summary>
+        static List<CharacterUnit> Characters(bool includeSummoned)
+        {
+            var list = new List<CharacterUnit>();
+            var all = UnitRegistry.All;
+            for (int i = 0; i < all.Count; i++)
+                if (all[i] is CharacterUnit c && c.IsAlive && (includeSummoned || !c.IsSummoned))
+                    list.Add(c);
+            return list;
+        }
+
+        /// <summary>
+        /// 지금 전장에 살아 있는 <b>웨이브 몬스터</b> 전부.
+        ///
+        /// ⚠ <b>중립은 넣지 않는다</b> — 표가 전부 «웨이브 몬스터 전체» 라고 적고 있다.
+        ///   중립까지 걸면 «성역 밖의 서식지에 있는 에픽» 이 이벤트 한 번에 묶이거나
+        ///   불타는데, 그것은 사냥의 난이도를 이벤트가 결정한다는 뜻이 된다.
+        /// </summary>
+        static List<MonsterUnit> WaveMonsters()
+        {
+            var list = new List<MonsterUnit>();
+            var all = UnitRegistry.All;
+            for (int i = 0; i < all.Count; i++)
+                if (all[i] is MonsterUnit m && m.IsAlive) list.Add(m);
+            return list;
+        }
+
         /// <summary>
         /// ★★ <b>지속시간이 다 된 보정을 되돌린다</b> (Ver013 · <see cref="EventService"/> 가
         /// 매 프레임 부른다).
@@ -71,6 +140,14 @@ namespace LastSanctuary.Events
 
                 if (a.unit != null) a.unit.AddFlatStatBonus(a.stat, -a.delta);
                 _live.RemoveAt(i);
+            }
+
+            // ★ 능력치가 아닌 지속 효과(시야·사거리·회복 증폭 …) — 위 ★★ 참조.
+            for (int i = _timed.Count - 1; i >= 0; i--)
+            {
+                if (now < _timed[i].expiresAt) continue;
+                _timed[i].revert?.Invoke();
+                _timed.RemoveAt(i);
             }
         }
 
@@ -228,6 +305,284 @@ namespace LastSanctuary.Events
                     return $"성역 손상 −{amount}";
                 }
 
+                // ══════════════════════════════════════════════════════════
+                //  아래부터 2026-08-24 신설 — 위 ★★ 「능력치가 아닌 지속 효과」 참조
+                // ══════════════════════════════════════════════════════════
+
+                // ── 보호막 (자기 만료 · 되돌릴 것 없음) ──
+                case "char_shield_gain":
+                {
+                    var chars = Characters(includeSummoned: true);
+                    int touched = 0;
+                    for (int i = 0; i < chars.Count; i++)
+                    {
+                        int amount = Mathf.Max(1, Mathf.RoundToInt(chars[i].MaxHp * Mathf.Abs(value) * 0.01f));
+                        // ⚠ 지속시간이 0 이면 표가 «초» 를 안 적은 것이다 — 그때는 한 웨이브
+                        //   분량(120초)으로 둔다. 0 을 그대로 넘기면 GrantShield 가 아무 일도 안 한다.
+                        chars[i].GrantShield(amount, durationSeconds > 0 ? durationSeconds : 120f);
+                        touched++;
+                    }
+                    if (touched == 0) return "";
+                    return $"보호막 최대 체력의 {Mathf.Abs(value)}% ({touched}명)";
+                }
+
+                // ── 받는 회복량 증폭 (되돌려야 한다) ──
+                case "char_heal_receive_up":
+                {
+                    var chars = Characters(includeSummoned: true);
+                    int percent = Mathf.Abs(value);
+                    int touched = 0;
+                    for (int i = 0; i < chars.Count; i++)
+                    {
+                        CharacterUnit c = chars[i];
+                        c.AddHealReceivedPercent(percent);
+                        ScheduleRevert(durationSeconds, () =>
+                        {
+                            if (c != null) c.AddHealReceivedPercent(-percent);
+                        });
+                        touched++;
+                    }
+                    if (touched == 0) return "";
+                    return $"받는 회복량 +{percent}%{Span(durationSeconds)} ({touched}명)";
+                }
+
+                // ── 정신 이상 해제 (즉시) ──
+                case "char_mental_cure":
+                {
+                    // 표: *"정신 이상이 발동 중인 캐릭터 {value_01}명"*. 침식 수치는 안 건드린다.
+                    var chars = Characters(includeSummoned: false);
+                    int want = Mathf.Max(1, Mathf.Abs(value));
+                    int cured = 0;
+                    for (int i = 0; i < chars.Count && cured < want; i++)
+                    {
+                        var er = CharacterErosion.Of(chars[i]);
+                        if (er == null || !er.HasActive) continue;
+                        er.ClearActiveExternally();
+                        cured++;
+                    }
+                    // ⚠ 아무도 정신 이상이 아니면 <b>아무 일도 안 일어난다</b> — 그것이 표의 뜻이다.
+                    //   억지로 침식을 깎아 «비슷한 것» 을 주지 않는다.
+                    return cured == 0 ? "" : $"정신 이상 해제 ({cured}명)";
+                }
+
+                // ── 공격 사거리 (되돌려야 한다) ──
+                case "char_range_durat_up":
+                case "char_range_durat_down":
+                {
+                    // ★ 사거리는 능력치가 아니라 <b>공격 유형이 정하는 값</b>이라
+                    //   (UnitCombat.EffectiveAttackRange) StatType 통로가 없다. 그래서 지금
+                    //   사거리의 퍼센트만큼을 «보너스 타일» 로 환산해 더하고, 끝날 때 뺀다.
+                    int sign = rewardType.EndsWith("_up") ? 1 : -1;
+                    float percent = sign * Mathf.Abs(value);
+                    var chars = Characters(includeSummoned: true);
+                    int touched = 0;
+                    for (int i = 0; i < chars.Count; i++)
+                    {
+                        var combat = chars[i].GetComponent<UnitCombat>();
+                        if (combat == null) continue;
+                        float delta = combat.EffectiveAttackRange * percent * 0.01f;
+                        if (Mathf.Abs(delta) < 0.01f) continue;
+                        combat.AddAttackRangeBonus(delta);
+                        ScheduleRevert(durationSeconds, () =>
+                        {
+                            if (combat != null) combat.AddAttackRangeBonus(-delta);
+                        });
+                        touched++;
+                    }
+                    if (touched == 0) return "";
+                    return $"공격 사거리 {Signed(percent)}%{Span(durationSeconds)} ({touched}명)";
+                }
+
+                // ── 시야 (되돌려야 한다) ──
+                case "char_vision_durat_up":
+                case "char_vision_durat_down":
+                {
+                    int sign = rewardType.EndsWith("_up") ? 1 : -1;
+                    float percent = sign * Mathf.Abs(value);
+                    var chars = Characters(includeSummoned: true);
+                    int touched = 0;
+                    for (int i = 0; i < chars.Count; i++)
+                    {
+                        var vision = chars[i].GetComponent<Fog.VisionSource>();
+                        if (vision == null) continue;
+                        float before = vision.VisionTiles;
+                        float after = Mathf.Max(1f, before * (1f + percent * 0.01f));
+                        if (Mathf.Abs(after - before) < 0.01f) continue;
+                        vision.SetVision(after);
+                        // ⚠ <b>«원래 값으로» 되돌린다</b>(차액을 다시 빼지 않는다) —
+                        //   시야는 곱셈으로 걸었으므로 차액을 빼면 소수점이 어긋난다.
+                        ScheduleRevert(durationSeconds, () =>
+                        {
+                            if (vision != null) vision.SetVision(before);
+                        });
+                        touched++;
+                    }
+                    if (touched == 0) return "";
+                    return $"시야 {Signed(percent)}%{Span(durationSeconds)} ({touched}명)";
+                }
+
+                // ── 영구 성장 (즉시 · 되돌리지 않는다) ──
+                case "char_upgrade":
+                {
+                    // 표: *"저항력을 제외한 능력치 중 한 가지를 랜덤 추첨해, 랜덤 캐릭터 1명의
+                    //      그 능력치를 {value_01} 만큼 영구히 올립니다"*.
+                    // ⚠ <b>_live 에 넣지 않는다</b> — 넣으면 웨이브가 끝날 때 ClearAll 이
+                    //   «영구히» 를 걷어간다. 저항력을 빼는 이유는 그 칸이 캐릭터 고유 고정값이라
+                    //   강화로도 오르지 않기 때문이다(HeroAwakeningService 주석과 같은 규칙).
+                    var pool = Characters(includeSummoned: false);
+                    if (pool.Count == 0) return "";
+
+                    CharacterUnit pick = pool[Random.Range(0, pool.Count)];
+                    StatType stat;
+                    do { stat = (StatType)Random.Range(0, (int)StatType.COUNT); }
+                    while (stat == StatType.Resistance);
+
+                    int amount = Mathf.Max(1, Mathf.Abs(value));
+                    pick.AddFlatStatBonus(stat, amount);
+                    return $"{pick.DisplayName} {StatBlock.DisplayName(stat)} +{amount} (영구)";
+                }
+
+                // ── 합류 / 사망 (즉시 · 확률) ──
+                case "char_join":
+                {
+                    if (!Roll(value)) return "";
+                    var create = UI.CharacterCreationService.Instance;
+                    CharacterUnit joined = create != null ? create.CreateFree("이벤트") : null;
+                    return joined == null ? "" : $"{joined.DisplayName} 합류";
+                }
+
+                case "char_die":
+                {
+                    if (!Roll(value)) return "";
+                    // ⚠ 소환수는 제외한다 — «천사 1명» 이 사라져야 하는 자리에서 골렘이
+                    //   죽으면 표의 문장(«부활 대상이 아닙니다»)과 뜻이 어긋난다.
+                    var pool = Characters(includeSummoned: false);
+                    if (pool.Count == 0) return "";
+                    CharacterUnit victim = pool[Random.Range(0, pool.Count)];
+                    string name = victim.DisplayName;
+                    victim.ApplyDamage(victim.CurrentHp);
+                    return $"{name} 사망";
+                }
+
+                // ── 적 — 지속 상태 (전부 자기 만료 · 되돌릴 것 없음) ──
+                case "enemy_atk_spd_durat_up":
+                case "enemy_atk_spd_durat_down":
+                case "enemy_move_spd_durat_up":
+                case "enemy_move_spd_durat_down":
+                {
+                    bool atk = rewardType.StartsWith("enemy_atk_spd");
+                    int sign = rewardType.EndsWith("_up") ? 1 : -1;
+                    float percent = sign * Mathf.Abs(value);
+                    float seconds = durationSeconds > 0 ? durationSeconds : 120f;
+
+                    var mobs = WaveMonsters();
+                    int touched = 0;
+                    for (int i = 0; i < mobs.Count; i++)
+                    {
+                        var combat = mobs[i].GetComponent<UnitCombat>();
+                        if (combat == null) continue;
+                        if (atk) combat.ApplyEventAttackSpeedPercent(percent, seconds);
+                        else combat.ApplyEventMoveSpeedPercent(percent, seconds);
+                        touched++;
+                    }
+                    if (touched == 0) return "";
+                    string what = atk ? "적 공격 속도" : "적 이동 속도";
+                    return $"{what} {Signed(percent)}%{Span((int)seconds)} ({touched}마리)";
+                }
+
+                case "enemy_atk_durat_down":
+                {
+                    // 「허약」과 <b>같은 통로</b>다(표가 그렇게 적고 있다).
+                    var mobs = WaveMonsters();
+                    float seconds = durationSeconds > 0 ? durationSeconds : 120f;
+                    int touched = 0;
+                    for (int i = 0; i < mobs.Count; i++)
+                    {
+                        var combat = mobs[i].GetComponent<UnitCombat>();
+                        if (combat == null) continue;
+                        combat.ApplyWeaken(Mathf.Abs(value), seconds);
+                        touched++;
+                    }
+                    return touched == 0 ? ""
+                        : $"적 공격력 −{Mathf.Abs(value)}%{Span((int)seconds)} ({touched}마리)";
+                }
+
+                case "enemy_def_durat_down":
+                {
+                    // 「부식」 장부를 쓴다 — 만료·중첩 규칙을 두 벌로 만들지 않는다.
+                    //   ⚠ 표의 값은 <b>퍼센트</b>이고 부식은 <b>방어력 절대값</b>을 깎으므로
+                    //     지금 방어력의 그 퍼센트만큼으로 환산한다.
+                    var mobs = WaveMonsters();
+                    float seconds = durationSeconds > 0 ? durationSeconds : 120f;
+                    int touched = 0;
+                    for (int i = 0; i < mobs.Count; i++)
+                    {
+                        int amount = Mathf.Max(1,
+                            Mathf.RoundToInt(mobs[i].Stats.defense * Mathf.Abs(value) * 0.01f));
+                        PassiveSkillService.ApplyCorrosion(mobs[i], amount, seconds);
+                        touched++;
+                    }
+                    return touched == 0 ? ""
+                        : $"적 방어력 −{Mathf.Abs(value)}%{Span((int)seconds)} ({touched}마리)";
+                }
+
+                case "enemy_hp_percent_loss":
+                {
+                    var mobs = WaveMonsters();
+                    int touched = 0;
+                    for (int i = 0; i < mobs.Count; i++)
+                    {
+                        int amount = Mathf.Max(1,
+                            Mathf.RoundToInt(mobs[i].MaxHp * Mathf.Abs(value) * 0.01f));
+                        mobs[i].ApplyDamage(amount);
+                        touched++;
+                    }
+                    return touched == 0 ? "" : $"적 체력 −{Mathf.Abs(value)}% ({touched}마리)";
+                }
+
+                case "enemy_burn":
+                {
+                    var mobs = WaveMonsters();
+                    float seconds = durationSeconds > 0 ? durationSeconds : 120f;
+                    int touched = 0;
+                    for (int i = 0; i < mobs.Count; i++)
+                    {
+                        int perSecond = Mathf.Max(1,
+                            Mathf.RoundToInt(mobs[i].MaxHp * Mathf.Abs(value) * 0.01f));
+                        var combat = mobs[i].GetComponent<UnitCombat>();
+                        if (combat == null) continue;
+                        combat.ApplyBurn(perSecond, seconds, "이벤트");
+                        touched++;
+                    }
+                    return touched == 0 ? ""
+                        : $"적 화상 초당 {Mathf.Abs(value)}%{Span((int)seconds)} ({touched}마리)";
+                }
+
+                case "enemy_bind":
+                {
+                    var mobs = WaveMonsters();
+                    // ★ 구속은 <b>시간만</b> 쓴다 — 표의 value_01 은 이 보상에서 뜻이 없다.
+                    float seconds = durationSeconds > 0 ? durationSeconds : Mathf.Abs(value);
+                    if (seconds <= 0f) return "";
+                    int touched = 0;
+                    for (int i = 0; i < mobs.Count; i++)
+                    {
+                        var combat = mobs[i].GetComponent<UnitCombat>();
+                        if (combat == null) continue;
+                        combat.ApplyBind(seconds, "이벤트");
+                        touched++;
+                    }
+                    return touched == 0 ? "" : $"적 구속 {seconds:0}초 ({touched}마리)";
+                }
+
+                case "summon_enemy":
+                {
+                    var spawner = Object.FindFirstObjectByType<MonsterSpawner>();
+                    if (spawner == null) return "";
+                    int n = spawner.SpawnExtraNormals(Mathf.Max(1, Mathf.Abs(value)));
+                    return n == 0 ? "" : $"적 {n}마리 추가 소환";
+                }
+
                 default:
                     // ⚠⚠ 맨 위 ⚠⚠ — 지어내지 않고 알린다.
                     Debug.LogWarning($"[이벤트] 보상 '{rewardType}'({value}) 은 아직 구현되지 않았습니다 — " +
@@ -235,6 +590,20 @@ namespace LastSanctuary.Events
                     return "";
             }
         }
+
+        /// <summary>«{n}초» 꼬리 — 지속시간이 0 이면 빈 문자열.</summary>
+        static string Span(int seconds) => seconds > 0 ? $" {seconds}초" : "";
+
+        /// <summary>부호를 붙인 정수 문구(+8 / −8). 로그가 표의 result_effect 와 같은 모양이 되게.</summary>
+        static string Signed(float percent) =>
+            percent > 0 ? $"+{Mathf.RoundToInt(percent)}" : $"−{Mathf.RoundToInt(-percent)}";
+
+        /// <summary>
+        /// 확률 판정 — 표의 값이 <b>퍼센트</b>인 보상(<c>char_join</c>·<c>char_die</c>)이 쓴다.
+        /// 100 이상이면 반드시 발동하고, 0 이하면 발동하지 않는다.
+        /// </summary>
+        static bool Roll(int percent) =>
+            percent >= 100 || (percent > 0 && Random.Range(0, 100) < percent);
 
         static string ApplyStat(StatType stat, int percent, int durationSeconds)
         {
@@ -281,9 +650,12 @@ namespace LastSanctuary.Events
                 if (a.unit != null) a.unit.AddFlatStatBonus(a.stat, -a.delta);
             }
             _live.Clear();
+
+            for (int i = 0; i < _timed.Count; i++) _timed[i].revert?.Invoke();
+            _timed.Clear();
         }
 
         /// <summary>지금 걸려 있는 보정 개수 — 디버그·로그용.</summary>
-        public static int LiveCount => _live.Count;
+        public static int LiveCount => _live.Count + _timed.Count;
     }
 }

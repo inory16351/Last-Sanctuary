@@ -31,6 +31,10 @@ namespace LastSanctuary.Units
     /// 보충한다. 한 번에 상한까지 다 채우면 리스폰이 몰려 티가 나므로 나눠서 채운다.
     /// 2026-08-05, 진행상황.md 22절 참조.
     ///
+    /// ★★ <b>첫 등장만은 미룰 수 있다</b> (2026-08-24) — 표의 <c>first_spawn_delay</c> 가
+    /// 0 보다 큰 종은 «게임 시작 + 그 초» 가 되어야 처음 나타난다(에픽 넷이 300초다).
+    /// 자세한 이유는 아래 <see cref="_awaitingFirstSpawn"/> 의 ★★ 주석에 있다.
+    ///
     /// <b>등장 범위</b> (유저 확정 2026-08-13): 표(`임시용 중립 몬스터.xlsx`)의
     /// <c>spawn_range_min</c> / <c>spawn_range_max</c> 두 칸이 정본이고, 값은 <b>넥서스를 중심에 둔
     /// 원의 지름(타일)</b>이다("지름 15의 원에서부터 99의 원까지"). 판정은 <b>360도 원형(유클리드)</b> —
@@ -112,6 +116,30 @@ namespace LastSanctuary.Units
         System.Random _rng;
         readonly Dictionary<NeutralMonsterDefinitionSO, List<NeutralMonsterUnit>> _alive =
             new Dictionary<NeutralMonsterDefinitionSO, List<NeutralMonsterUnit>>();
+
+        // ==================================================================
+        // ★★ <b>첫 등장을 미루는 종</b> (2026-08-24 · 유저 지시
+        //   *"에픽 보스 몬스터의 생성 시간을 게임 시작 이후 300초 뒤로 수정"*)
+        //
+        // 예전에는 <see cref="Start"/> 가 <b>전 종을 상한까지 한꺼번에</b> 채웠다
+        // (`RestockAll(fillToCapImmediately: true)`). 그래서 에픽 넷이 <b>0초에</b>
+        // 서식지까지 완성된 채로 서 있었고, 밸런스 기획서가 정한 «카르시노스 첫 조우 =
+        // Lv10 1부대» 라는 시점을 게임이 통제할 수 없었다.
+        //
+        // ★ <b>표가 정본</b>이다 — 종마다 다른 지연을 줄 수 있게
+        //   `first_spawn_delay`(NeutralMonsterDefinitionSO.firstSpawnDelaySeconds) 를 읽는다.
+        //   0 인 종(잡몹 중립)은 <b>예전과 완전히 같이</b> 시작과 함께 나온다.
+        //
+        // 이 집합에 든 종은 «아직 한 번도 안 나온» 종이다. 지연이 끝나 처음 채울 때는
+        // <b>상한까지 한꺼번에</b> 채운다(최초 서식이므로 나눠 채울 이유가 없다 — Start 와 같다).
+        //
+        // ⚠ <b>불러온 판</b>: 세이브에 이미 살아 있던 개체는 <see cref="RestoreNeutral"/> 로
+        //   돌아오고, 그러면 상한이 차서 이 예약은 아무 일도 하지 않는다. 다만 «에픽이 아직
+        //   안 나온 시점의 세이브» 를 불러오면 지연이 <b>불러온 시점부터</b> 다시 300초다 —
+        //   판 시작 시각을 저장하지 않기 때문이다(restockInterval 도 원래 그렇게 동작한다).
+        // ==================================================================
+        readonly HashSet<NeutralMonsterDefinitionSO> _awaitingFirstSpawn =
+            new HashSet<NeutralMonsterDefinitionSO>();
 
         /// <summary>
         /// 다음에 매길 <see cref="NeutralMonsterUnit.SpawnId"/>. 0 은 "아직 안 매김"의 뜻으로
@@ -378,14 +406,33 @@ namespace LastSanctuary.Units
                 }
                 else
                 {
+                    // ★★ 첫 등장을 미루는 종 — 위 ★★ 참조. 표의 first_spawn_delay 가 정본이다.
+                    float delay = e.definition.firstSpawnDelaySeconds;
+                    if (delay > 0f)
+                    {
+                        _nextRestockTime[e.definition] = Time.time + delay;
+                        _awaitingFirstSpawn.Add(e.definition);
+                        Debug.Log($"[NeutralMonsterSpawner] {e.definition.name} 은 게임 시작 " +
+                                  $"{delay:0}초 뒤에 처음 나타납니다(표 first_spawn_delay).", this);
+                        continue;
+                    }
+
                     _nextRestockTime[e.definition] = Time.time + RestockSecondsFor(e.definition);
                 }
 
                 List<NeutralMonsterUnit> list = PruneAndGet(e.definition);
                 int need = CapFor(e) - list.Count;
-                if (need <= 0) continue;
+                if (need <= 0)
+                {
+                    // 상한이 이미 찼다면(세이브 복원 등) 예약은 소용이 없으므로 지운다.
+                    _awaitingFirstSpawn.Remove(e.definition);
+                    continue;
+                }
 
-                int spawnNow = fillToCapImmediately ? need : Mathf.Min(need, maxSpawnPerRestock);
+                // ★ 지연이 끝나 <b>처음</b> 채우는 차례라면 Start 와 똑같이 상한까지 한꺼번에 채운다.
+                bool firstFill = fillToCapImmediately || _awaitingFirstSpawn.Remove(e.definition);
+
+                int spawnNow = firstFill ? need : Mathf.Min(need, maxSpawnPerRestock);
                 for (int i = 0; i < spawnNow; i++) SpawnOne(e);
             }
         }

@@ -36,11 +36,11 @@ MonoBehaviour:
   - choiceId: 300030
     choiceOrder: 2
     choiceText: "베어버린다."
-    resultScript: "칼이 먼저 움직였습니다.\n바닥에 놓인 형체는 익숙한 양분이었고, 의심은 그것으로 걷혔습니다."
-    resultEffect: "효과 : 에너지 +150 · 천사 전체 침식 −5"
-    rewardType01: "energy_gain"
-    rewardValue01: 150
+    resultScript: "칼이 먼저 움직였습니다.\n바닥에 남은 것은 우리와 같은 살이었고, 대열을 갉던 의심은 그 자리에서 걷혔습니다."
+    resultEffect: "효과 : 천사 전체 침식 −5 · 천사 1명의 정신 이상 해제"
+    rewardType01: "char_all_erosion_down"
+    rewardValue01: 5
     rewardDuration01: 0
-    rewardType02: "char_all_erosion_down"
-    rewardValue02: 5
+    rewardType02: "char_mental_cure"
+    rewardValue02: 1
     rewardDuration02: 0

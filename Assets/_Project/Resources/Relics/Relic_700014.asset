@@ -22,7 +22,7 @@ MonoBehaviour:
   value03: 0
   value04: 0
   relicDesc: "마법이 1 증가합니다."
-  relicFlavor: "다 식지 않은 열이 손끝에 남아 자꾸 새것을 빚어낸다."
+  relicFlavor: "다 식지 않은 열이 손끝에 남아 자꾸 무언가를 만들어 낸다."
   source: 1
   sourceId: 0
   dropWeight: 10

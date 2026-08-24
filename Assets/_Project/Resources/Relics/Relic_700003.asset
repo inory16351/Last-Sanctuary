@@ -22,7 +22,7 @@ MonoBehaviour:
   value03: 0
   value04: 0
   relicDesc: "체력이 1 증가합니다."
-  relicFlavor: "부풀어 오른 살은 약해 보이지만, 그 안에 더 많은 것을 가두고 있다."
+  relicFlavor: "부풀어 오른 살은 약해 보이지만, 그만큼 더 많은 것을 가두고 있다."
   source: 1
   sourceId: 0
   dropWeight: 10

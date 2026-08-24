@@ -20,12 +20,12 @@ MonoBehaviour:
   repeatable: 1
   choiceGroupId: 600022
   eventBg: "bg_fog"
-  eventScript: "물러간 악마들이 성역의 기운을 훔쳐 삼킨 듯합니다.\n다음에 오는 것들은 이번보다 클 것입니다."
+  eventScript: "물러간 악마들이 성역의 기운을 훔쳐 삼킨 듯합니다.\n다음에 올 놈들은 이번 놈들보다 클 것입니다."
   choices:
   - choiceId: 300043
     choiceOrder: 1
     choiceText: "살을 도로 뺏는다."
-    resultScript: "물러가는 등에 칼이 꽂혔고, 훔쳐 간 것을 되받았습니다.\n뒤를 쫓는 일은 정신을 갉아 놓습니다."
+    resultScript: "천사들은 물러가는 등에 칼을 꽂아 훔쳐간 것을 되받았습니다.\n뒤를 쫓는 일은 언제나 정신을 갉습니다."
     resultEffect: "효과 : 적 전체 체력 −12% (최대 체력 기준) · 천사 전체 침식 +6"
     rewardType01: "enemy_hp_percent_loss"
     rewardValue01: 12
@@ -36,7 +36,7 @@ MonoBehaviour:
   - choiceId: 300044
     choiceOrder: 2
     choiceText: "커지게 두고 목만 노린다."
-    resultScript: "몸이 커지면 급소도 함께 커집니다.\n천사들은 저들이 부풀기를 기다리기로 했습니다."
+    resultScript: "커진 몸은 급소도 커집니다.\n천사들은 놈들이 부풀기를 기다리기로 했습니다."
     resultEffect: "효과 : 적 전체 공격 속도 +8% (240초) · 천사 전체 크리티컬 확률 +12% (240초)"
     rewardType01: "enemy_atk_spd_durat_up"
     rewardValue01: 8

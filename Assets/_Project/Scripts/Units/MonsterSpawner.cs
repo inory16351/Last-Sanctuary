@@ -292,15 +292,82 @@ namespace LastSanctuary.Units
             //   나올지는 무리마다 돌아가며 정한다(_reinforceBatchIndex).
             Vector3Int portal = PortalAt(_reinforceBatchIndex++);
             int spread = GroupSpread(queue.Count);
+
+            // ⚠⚠ <b>공격 배율은 체력 배율과 다른 열이다</b> (2026-08-24 고침).
+            //   136-2절(S1)이 체력/공격 배율을 갈랐을 때 <see cref="SpawnRoutine"/> 만 고쳐서,
+            //   <b>증원만</b> 공격 배율에 체력 배율을 쓰고 있었다 — 30웨이브에서 증원 한 마리의
+            //   타격이 초기 소환분의 3.7배(3721% vs 1000%)였다. 폴백 규칙은 그쪽과 같다
+            //   (열이 0 이면 statPercent — 그 열이 없던 옛 에셋이 예전처럼 동작한다).
+            int atkScale = comp.attackPercent > 0 ? comp.attackPercent : comp.statPercent;
+
             for (int i = 0; i < queue.Count; i++)
                 SpawnOne(queue[i].def, queue[i].template, portal,
-                         comp.statPercent, comp.statPercent, rng, spread);
+                         comp.statPercent, atkScale, rng, spread);
 
             // 지금 광폭화 중이었다면(이론상 드묾 — 증원은 Battle 구간에서만 돌지만, 안전하게)
             // 방금 온 증원도 곧바로 같은 배율을 받는다.
             if (_currentEnragePercent != 100) SetEnragePercent(_currentEnragePercent);
 
             Debug.Log($"[MonsterSpawner] 웨이브 {wave} 증원 · {queue.Count}마리 (근거리{meleeN}/원거리{rangedN})", this);
+        }
+
+        /// <summary>
+        /// ★★ <b>이벤트 보상 <c>summon_enemy</c> 가 쓰는 통로</b> (2026-08-24 신설) —
+        /// 지금 웨이브의 <b>일반 몬스터</b>를 <paramref name="count"/> 마리 추가로 소환한다.
+        ///
+        /// 표(RewardType 시트): *"웨이브 포탈 위치에 현재 웨이브의 일반 몬스터를
+        /// {value_01}마리 추가 소환합니다"*.
+        ///
+        /// ★ <b>증원과 완전히 같은 짜임</b>이다 — 근거리/원거리 절반씩 · 이미 열려 있는
+        ///   포탈 하나에서 통째로 · 그 웨이브의 체력/공격 배율. 소환 규칙을 두 벌로 적으면
+        ///   웨이브표 열이 하나 늘 때 한쪽을 반드시 빠뜨린다(준수사항 §10 H-3).
+        /// ⚠ <b>보스는 섞이지 않는다</b> — «일반 몬스터» 라고 표가 못박았고, 보스는
+        ///   웨이브표가 정하는 것이라 이벤트가 늘릴 것이 아니다.
+        /// </summary>
+        /// <returns>실제로 소환한 마리 수(0 이면 아무 일도 안 했다).</returns>
+        public int SpawnExtraNormals(int count)
+        {
+            if (count <= 0 || balance == null) return 0;
+
+            if (_root == null)
+            {
+                _root = new GameObject("Monsters").transform;
+                _root.SetParent(transform, false);
+            }
+
+            // 배율은 «지금 웨이브» 의 것이다. 웨이브 정의가 없으면(무한 모드 밖 등) 아무것도 안 한다 —
+            // 배율을 짐작해서 넣으면 이벤트 하나가 난이도 곡선을 조용히 흔든다.
+            if (waveDefinitions == null ||
+                !waveDefinitions.TryGetWave(waveNumber, out WaveMonsterComposition comp))
+            {
+                Debug.LogWarning($"[MonsterSpawner] 웨이브 {waveNumber} 의 정의가 없어 " +
+                                 "이벤트 추가 소환을 건너뜁니다.", this);
+                return 0;
+            }
+
+            int meleeN = count / 2;
+            int rangedN = count - meleeN;
+
+            var queue = new List<(MonsterDefinitionSO def, MonsterUnit template)>();
+            AppendToQueue(queue, meleeSlot, meleeN);
+            AppendToQueue(queue, rangedSlot, rangedN);
+            if (queue.Count == 0) return 0;
+
+            var rng = new System.Random(seed + waveNumber * 104729 + 977 + _alive.Count);
+            Vector3Int portal = PortalAt(_reinforceBatchIndex++);
+            int spread = GroupSpread(queue.Count);
+            int atkScale = comp.attackPercent > 0 ? comp.attackPercent : comp.statPercent;
+
+            for (int i = 0; i < queue.Count; i++)
+                SpawnOne(queue[i].def, queue[i].template, portal,
+                         comp.statPercent, atkScale, rng, spread);
+
+            // 광폭화 중이면 방금 온 것들도 곧바로 같은 배율을 받는다(증원과 같은 이유).
+            if (_currentEnragePercent != 100) SetEnragePercent(_currentEnragePercent);
+
+            Debug.Log($"[MonsterSpawner] 이벤트 추가 소환 · {queue.Count}마리 " +
+                      $"(근거리{meleeN}/원거리{rangedN}) · 웨이브 {waveNumber} 배율", this);
+            return queue.Count;
         }
 
         public void ClearAll()

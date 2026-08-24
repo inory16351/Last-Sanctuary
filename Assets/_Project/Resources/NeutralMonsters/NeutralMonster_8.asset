@@ -57,3 +57,4 @@ MonoBehaviour:
   - 2008
   - 2009
   growthPerKill: 0.2
+  firstSpawnDelaySeconds: 300

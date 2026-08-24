@@ -795,6 +795,57 @@ namespace LastSanctuary.Combat
         public bool IsHastened => Time.time < _hasteUntil;
 
         // ------------------------------------------------------------------
+        // ★★ 「이벤트 보정」 — 공격속도·이동속도를 <b>올리고 내리는 한 벌</b>
+        //   (2026-08-24 · 이벤트 보상 `enemy_atk_spd_durat_up/down` ·
+        //    `enemy_move_spd_durat_up/down` 을 걸 통로)
+        //
+        // <b>왜 새로 만들었나</b> — 이미 있는 통로는 방향이 <b>한쪽뿐</b>이다:
+        //   · 「허약」 (<see cref="ApplyWeaken"/>)  — 공격속도를 <b>깎기만</b> 한다
+        //   · 「고통의 기쁨」(<see cref="ApplyHaste"/>) — <c>Mathf.Max(1f, …)</c> 라 <b>올리기만</b> 한다
+        //   · 이동속도에는 배율 통로가 <b>아예 없었다</b>
+        // 이벤트 표는 넷을 모두 요구한다(적 공속 ±, 적 이속 ±). 스킬 통로에 억지로
+        // 얹으면 «스킬이 걸렸다» 는 판정(<see cref="IsWeakened"/>·<see cref="IsHastened"/>)이
+        // 이벤트 때문에 켜져 상태 표시·중첩 규칙이 어긋난다 — 그래서 <b>다른 원인은 다른 칸</b>이다.
+        //
+        // ★ 능력치를 건드리지 않고 <b>쓰는 자리에서 곱한다</b> — 「허약」과 같은 짜임이다.
+        //   그래서 로스터·성장 창의 표시값은 그대로다.
+        // ⚠ 캐릭터의 공속·이속 이벤트 보상은 이 통로를 <b>쓰지 않는다</b> —
+        //   그쪽은 능력치가 있으므로 `EventRewardService` 가 StatType 으로 걸고,
+        //   화면 표시도 같이 움직이는 편이 맞다. 이 통로는 <b>능력치가 없는 유닛</b>
+        //   (몬스터·중립)을 위한 것이다.
+        // ------------------------------------------------------------------
+
+        float _eventAtkSpeedMul = 1f;
+        float _eventAtkSpeedUntil;
+        float _eventMoveSpeedMul = 1f;
+        float _eventMoveSpeedUntil;
+
+        /// <summary>
+        /// 이벤트 보정 — 공격속도에 <paramref name="percent"/> % 를 더한 배율을 곱한다
+        /// (+20 이면 1.2배 · −20 이면 0.8배). 또 걸면 <b>새 값으로 덮고 시간도 새로 잡는다</b>.
+        /// </summary>
+        public void ApplyEventAttackSpeedPercent(float percent, float seconds)
+        {
+            if (seconds <= 0f) return;
+            _eventAtkSpeedMul = Mathf.Max(0.05f, 1f + percent / 100f);
+            _eventAtkSpeedUntil = Time.time + seconds;
+        }
+
+        /// <summary>이벤트 보정 — 이동속도. <see cref="ApplyEventAttackSpeedPercent"/> 와 같은 규칙.</summary>
+        public void ApplyEventMoveSpeedPercent(float percent, float seconds)
+        {
+            if (seconds <= 0f) return;
+            _eventMoveSpeedMul = Mathf.Max(0.05f, 1f + percent / 100f);
+            _eventMoveSpeedUntil = Time.time + seconds;
+        }
+
+        /// <summary>지금 곱해야 하는 이벤트 공격속도 배율(안 걸렸으면 1).</summary>
+        float EventAttackSpeedMul => Time.time < _eventAtkSpeedUntil ? _eventAtkSpeedMul : 1f;
+
+        /// <summary>지금 곱해야 하는 이벤트 이동속도 배율(안 걸렸으면 1).</summary>
+        float EventMoveSpeedMul => Time.time < _eventMoveSpeedUntil ? _eventMoveSpeedMul : 1f;
+
+        // ------------------------------------------------------------------
         // ★★ 「중독」 — 초당 최대 체력 비례 지속 피해 (2026-08-20 · 베일 「담배 연기」)
         //
         // 정의문(`skill_type_desc_Pipe_smoke`): <i>"…{value_04}초 만큼 중독상태가 됩니다.
@@ -2059,6 +2110,9 @@ namespace LastSanctuary.Combat
             //   둘 다 곱해진다(하나가 다른 하나를 지우지 않는다) — 서로 다른 원인이므로.
             if (IsHastened) aps *= _hasteAttackSpeedMul;
 
+            // ★ 이벤트 보정 — 위 ★★ 참조. 스킬과 <b>다른 칸</b>이라 같이 곱해진다.
+            aps *= EventAttackSpeedMul;
+
             if (aps <= 0f) return;
 
             _nextAttackTime = Time.time + 1f / aps;
@@ -2354,12 +2408,15 @@ namespace LastSanctuary.Combat
         float CurrentSpeed()
         {
             // 능력치(이동속도)가 있으면 그게 최우선. 몬스터·포탑은 0 이라 기존 경로를 그대로 탄다.
-            float statSpeed = _self != null ? _self.StatMoveSpeedTiles : 0f;
-            if (statSpeed > 0f) return statSpeed;
+            // ★ 이벤트 보정은 <b>어느 경로에나</b> 곱한다 — 안 걸렸으면 1 이라 동작이 같다.
+            float mul = EventMoveSpeedMul;
 
-            return moveSpeedTiles > 0f
+            float statSpeed = _self != null ? _self.StatMoveSpeedTiles : 0f;
+            if (statSpeed > 0f) return statSpeed * mul;
+
+            return mul * (moveSpeedTiles > 0f
                 ? moveSpeedTiles
-                : (_self != null && _self.Balance != null ? _self.Balance.moveSpeedTilesPerSecond : 3f);
+                : (_self != null && _self.Balance != null ? _self.Balance.moveSpeedTilesPerSecond : 3f));
         }
 
         /// <summary>
