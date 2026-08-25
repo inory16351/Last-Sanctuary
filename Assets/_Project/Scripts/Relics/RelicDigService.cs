@@ -415,6 +415,29 @@ namespace LastSanctuary.Relics
             RelicEffectService.OnWaveSpawned();   // 새 웨이브가 시작된다
         }
 
+        /// <summary>
+        /// ★★★ <b>«가 본 자리» 면 찾은 것으로 본다</b> (2026-08-25 · 유저 지시:
+        /// *"발굴 다시 가능하게 만들고 느낌표 넣고 발굴 가능 칸에 바운스효과와 함께"*).
+        ///
+        /// ══════════════════════════════════════════════════════════════
+        ///  왜 바꿨나 — <b>«지금 보이는가» 로는 사실상 아무도 못 찾는다</b>
+        /// ══════════════════════════════════════════════════════════════
+        /// 예전 판정은 <c>IsVisible</c>(«<b>지금</b> 누군가의 시야 칸인가»)였다. 그런데
+        /// 발굴 칸은 <b>24개</b>가 320×320(102,400칸) 위에 흩어져 있고 서로 10칸 이상
+        /// 떨어져 있다. 캐릭터가 <b>그 위를 지나가는 순간</b> 시야에 들어와야만 찾아지는데,
+        /// 탐험은 안개를 걷으며 <b>지나가 버리는</b> 것이라 그 순간을 놓치면 끝이다 —
+        /// 안개는 이미 걷혔고, 다시는 «지금 보이는» 상태가 되지 않는다.
+        ///
+        /// ★ <b>이 프로젝트는 같은 결론을 이미 한 번 냈다.</b>
+        ///   <see cref="Units.EpicSubjugationService"/> 가 «폴리르만 안 뜬다» 를 쫓다가
+        ///   <c>IsVisibleWorld</c> → <c>IsExploredWorld</c> 로 바꾼 그 판단과 <b>같은 것</b>이다.
+        ///   이 게임의 안개는 «한 번 밝히면 지형이 기억되는» 방식이고, «찾았다» 도 같은
+        ///   성질이어야 앞뒤가 맞는다.
+        ///
+        /// ⚠ <b>«한꺼번에 다 뜨는» 것이 아니다</b> — 밝힌 자리에 있는 칸만 뜬다. 맵을
+        ///   넓혀 갈수록 표식이 하나씩 늘고, 그것이 «탐험의 보상» 으로 읽힌다.
+        /// ⚠ 로그는 <b>여전히 한 칸에 한 번</b>이다(<c>Revealed</c> 로 막는다).
+        /// </summary>
         void UpdateReveal()
         {
             if (_fog == null || !_fog.IsReady) return;
@@ -422,7 +445,7 @@ namespace LastSanctuary.Relics
             {
                 DigSite s = _sites[i];
                 if (s.Revealed) continue;
-                if (!_fog.IsVisible(s.Cell)) continue;
+                if (!_fog.IsExplored(s.Cell)) continue;
 
                 s.Revealed = true;
                 HudLog.Add("발굴할 수 있는 자리를 찾았습니다", HudLogKind.Good);
@@ -644,6 +667,19 @@ namespace LastSanctuary.Relics
 
         /// <summary>캐릭터가 이 거리 안에 들어와야 삽질이 진행된다.</summary>
         public float WorkRange => digWorkRange;
+
+        /// <summary>
+        /// ★ <b>미니맵도 같은 리듬으로 튄다</b> (2026-08-25 · 유저 지시:
+        /// *"발굴 가능 칸이 발견되면 느낌표를 미니맵에도 추가해줘"*).
+        ///
+        /// ⚠ 튀는 계산을 미니맵에 <b>복사하지 않는다</b> — 두 벌이 되면 인스펙터에서 주기를
+        ///   바꿨을 때 한쪽만 따라간다. 계산의 정본은 여기 하나다.
+        /// <paramref name="scale"/> 로 크기만 줄여 쓴다(미니맵은 좁아서 9px 이 과하다).
+        /// </summary>
+        public float BounceFor(int index, float scale = 1f) => BounceOffset(index) * scale;
+
+        /// <summary>미니맵 표식이 쓸 원화. 못 구웠으면 null(그때는 점으로 그린다).</summary>
+        public Sprite MarkerSprite => _markerSprite;
 
         /// <summary>
         /// 현장에서 <paramref name="seconds"/> 만큼 판다. 한 자리에 한 명이므로 사람이 늘어도

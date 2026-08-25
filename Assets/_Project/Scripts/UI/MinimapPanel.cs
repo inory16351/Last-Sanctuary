@@ -108,6 +108,25 @@ namespace LastSanctuary.UI
         [Tooltip("클릭 직후 강조색")]
         [SerializeField] Color cameraViewFlashColor = new Color(1f, 0.92f, 0.4f, 1f);
 
+        [Header("발굴 표식 (2026-08-25)")]
+        [Tooltip("발견한 발굴 칸을 미니맵에도 느낌표로 찍는다 (유저 지시).\n" +
+                 "끄면 미니맵에는 안 나오고 화면의 표식만 남는다")]
+        [SerializeField] bool showDigMarks = true;
+
+        [Tooltip("느낌표 한 개의 크기(픽셀). 미니맵이 좁으므로 화면 표식보다 작게 둔다")]
+        [Min(4f)] [SerializeField] float digMarkPixels = 14f;
+
+        [Tooltip("화면 표식이 튀는 높이의 <b>몇 배</b>로 튈지. 0 이면 미니맵에서는 안 튄다.\n" +
+                 "⚠ 리듬(주기·공중 비율)은 RelicDigService 의 값을 <b>그대로</b> 쓴다 — " +
+                 "두 곳이 따로 놀면 «같은 것» 으로 안 보인다")]
+        [Range(0f, 1f)] [SerializeField] float digMarkBounceScale = 0.35f;
+
+        [Tooltip("아직 아무도 안 간 칸의 색")]
+        [SerializeField] Color digMarkIdle = new Color(1f, 0.62f, 0.16f, 1f);
+
+        [Tooltip("이미 파러 간 칸의 색 — 주의를 끌 일이 끝났다")]
+        [SerializeField] Color digMarkOrdered = new Color(0.52f, 0.56f, 0.62f, 0.85f);
+
         MapGenerator _map;
         FogOfWarService _fog;
         WaveManager _wave;
@@ -131,6 +150,17 @@ namespace LastSanctuary.UI
 
         /// <summary>이 시각까지는 시야 사각형을 강조색으로 그린다(클릭 직후).</summary>
         float _viewFlashUntil;
+
+        // ── 발굴 표식 (2026-08-25) ────────────────────────────────────────
+        /// <summary>모체. <c>HUD_Minimap/DigMarks/MarkTemplate</c> 를 이름으로 찾는다.</summary>
+        RectTransform _digMarkTemplate;
+
+        /// <summary>복제를 담는 칸. <c>View</c> 와 <b>같은 자리·같은 크기</b>여야 좌표가 맞는다.</summary>
+        RectTransform _digMarkParent;
+
+        readonly List<RectTransform> _digMarks = new List<RectTransform>();
+        Relics.RelicDigService _dig;
+        bool _digMarkResolved;
 
         void Start()
         {
@@ -168,6 +198,36 @@ namespace LastSanctuary.UI
             // (기본 RawImage 는 켜져 있지만 미니맵은 "클릭을 가로막지 않게" 꺼둘 수 있는 자리다)
             // 클릭 이동을 켠 이상 여기서 맞춰준다 — 값 보정이라 §10 H-1 위반이 아니다.
             if (clickToMoveCamera && view != null) view.raycastTarget = true;
+
+            ResolveDigMarks();
+        }
+
+        /// <summary>
+        /// ★ 모체를 <b>이름으로</b> 찾는다 — MCP 로는 씬 오브젝트 참조를 인스펙터에 넣을 수
+        /// 없어서(8절 4번) 이 프로젝트의 모든 HUD 패널이 쓰는 방식 그대로다.
+        /// ⚠ 없으면 <b>조용히 넘어간다</b> — 미니맵 자체는 계속 돌아야 한다.
+        /// </summary>
+        void ResolveDigMarks()
+        {
+            if (_digMarkResolved) return;
+            _digMarkResolved = true;
+
+            _digMarkParent = transform.Find("DigMarks") as RectTransform;
+            if (_digMarkParent == null)
+            {
+                Debug.LogWarning("[Minimap] HUD_Minimap/DigMarks 를 찾지 못했습니다 — " +
+                                 "미니맵에 발굴 느낌표가 안 나옵니다.", this);
+                return;
+            }
+
+            _digMarkTemplate = _digMarkParent.Find("MarkTemplate") as RectTransform;
+            if (_digMarkTemplate == null)
+            {
+                Debug.LogWarning("[Minimap] DigMarks/MarkTemplate 을 찾지 못했습니다.", this);
+                return;
+            }
+
+            _digMarkTemplate.gameObject.SetActive(false);
         }
 
         void OnDestroy()
@@ -194,6 +254,8 @@ namespace LastSanctuary.UI
 
             _texture.SetPixels32(_pixels);
             _texture.Apply(false);
+
+            DrawDigMarks();
         }
 
         // ------------------------------------------------------------------
@@ -432,6 +494,88 @@ namespace LastSanctuary.UI
         // ------------------------------------------------------------------
         // 픽셀 그리기
         // ------------------------------------------------------------------
+
+        // ------------------------------------------------------------------
+        // 발굴 표식 (2026-08-25 · 유저 지시: "발굴 가능 칸이 발견되면 느낌표를 미니맵에도")
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// ★★★ <b>발견한 발굴 칸을 미니맵에 느낌표로 찍는다.</b>
+        ///
+        /// ★ <b>왜 픽셀이 아니라 UI 이미지인가</b> — 미니맵은 «맵 한 칸 = 텍스처 한 픽셀» 이라
+        ///   느낌표를 픽셀로 그리면 <b>3×5 픽셀짜리 뭉개진 점</b>이 된다. 원화를 그대로 쓰려면
+        ///   텍스처 위에 <b>겹치는 한 겹</b>이 필요하다(시야 사각형은 굵기가 1~2픽셀이라
+        ///   픽셀로 그려도 되지만 글자 모양은 다르다).
+        ///
+        /// ★ <b>좌표는 «정규화» 로 옮긴다</b> — <see cref="TryScreenToWorld"/> 가 화면→월드로
+        ///   쓰는 그 비율의 <b>역</b>이다. 텍스처 크기·화면 크기·줌과 무관하게 맞는다.
+        ///
+        /// ⚠ <b>복제는 재사용한다</b> — 발견 칸이 늘었다 줄었다 할 때마다 만들고 지우면
+        ///   GC 가 튄다. 남는 것은 꺼 둔다(화면 표식이 쓰는 것과 같은 방식).
+        /// ⚠ <b>튀는 리듬은 <see cref="Relics.RelicDigService.BounceFor"/> 에서 가져온다</b> —
+        ///   계산을 복사하면 인스펙터에서 주기를 바꿨을 때 한쪽만 따라간다.
+        /// </summary>
+        void DrawDigMarks()
+        {
+            if (!showDigMarks || _digMarkParent == null || _digMarkTemplate == null) return;
+            if (_map == null || _size.x <= 0 || _size.y <= 0) return;
+
+            if (_dig == null) _dig = Relics.RelicDigService.Instance;
+            if (_dig == null) { HideDigMarksFrom(0); return; }
+
+            IReadOnlyList<Relics.DigSite> sites = _dig.Sites;
+            Rect area = _digMarkParent.rect;
+            Sprite art = _dig.MarkerSprite;
+
+            int slot = 0;
+            for (int i = 0; i < sites.Count; i++)
+            {
+                Relics.DigSite site = sites[i];
+                if (site == null || !site.Revealed) continue;
+
+                while (_digMarks.Count <= slot)
+                {
+                    RectTransform clone = Instantiate(_digMarkTemplate, _digMarkParent);
+                    clone.name = $"DigMark_{_digMarks.Count + 1:00}";
+                    _digMarks.Add(clone);
+                }
+
+                RectTransform item = _digMarks[slot];
+                Vector2Int local = WorldToLocal(site.Center);
+
+                // 칸 <b>가운데</b>를 가리킨다(+0.5) — 안 하면 한 칸씩 왼쪽·아래로 치우친다.
+                float u = (local.x + 0.5f) / _size.x;
+                float v = (local.y + 0.5f) / _size.y;
+                if (u < 0f || u > 1f || v < 0f || v > 1f) { slot++; continue; }
+
+                float bounce = _dig.BounceFor(slot, site.Ordered ? 0f : digMarkBounceScale);
+                item.anchoredPosition = new Vector2(
+                    Mathf.Lerp(area.xMin, area.xMax, u),
+                    Mathf.Lerp(area.yMin, area.yMax, v) + bounce);
+                item.sizeDelta = new Vector2(digMarkPixels, digMarkPixels);
+
+                if (item.TryGetComponent(out Image img))
+                {
+                    if (art != null && img.sprite != art)
+                    {
+                        img.sprite = art;
+                        img.preserveAspect = true;
+                    }
+                    img.color = site.Ordered ? digMarkOrdered : digMarkIdle;
+                }
+
+                if (!item.gameObject.activeSelf) item.gameObject.SetActive(true);
+                slot++;
+            }
+
+            HideDigMarksFrom(slot);
+        }
+
+        void HideDigMarksFrom(int from)
+        {
+            for (int i = from; i < _digMarks.Count; i++)
+                if (_digMarks[i].gameObject.activeSelf) _digMarks[i].gameObject.SetActive(false);
+        }
 
         Vector2Int WorldToLocal(Vector3 world)
         {
