@@ -55,7 +55,7 @@ namespace LastSanctuary.EditorTools
         /// <summary>상시 떠 있는 판, 그리고 창 안의 속판. 창보다 조용해야 전장이 보인다.</summary>
         static readonly string[] Plates =
         {
-            "HUD_Roster", "HUD_Log", "HUD_Wave", "HUD_Energy", "HUD_Actions",
+            "HUD_Roster", "HUD_Log", "HUD_Energy", "HUD_Actions",
             "HUD_Minimap", "HUD_Speed", "HUD_Portrait",
             "HUD_Boss/Body",
             "HUD_Growth/Info", "HUD_Growth/Stats", "HUD_Growth/RelicBar",
@@ -162,6 +162,9 @@ namespace LastSanctuary.EditorTools
                 }
 
                 // ── 판 ────────────────────────────────────────────────
+                // ★ 웨이브 표시는 판이 아니라 <b>매달린 현수막</b>이다 — 화면 정중앙 위라
+                //   다른 판과 같은 그림을 쓰면 «또 하나의 창» 으로 보인다.
+                if (path == "HUD_Wave") { Set(img, Load("Wave_Banner"), Image.Type.Sliced); plates++; continue; }
                 if (Windows.Contains(path)) { Set(img, Load("Win_Frame"), Image.Type.Sliced); windows++; continue; }
                 if (Plates.Contains(path)) { Set(img, Load("Hud_Plate"), Image.Type.Sliced, 0.95f); plates++; continue; }
             }
@@ -248,6 +251,9 @@ namespace LastSanctuary.EditorTools
         {
             if (path.StartsWith("HUD_Actions/Buttons/")) return "Action";
             if (Choices.Contains(path)) return "Choice";
+            // ★ 배속·정지는 <b>전용 그림</b>이 있다(2026-08-25 2차). 비율(57×40 = 1.4:1)만
+            //   보면 「닫기」로 떨어지는데, 닫기는 정사각이라 가로로 늘리면 모서리가 뭉갠다.
+            if (path.StartsWith("HUD_Speed/")) return "Speed";
 
             float w = Mathf.Max(1f, r.width), h = Mathf.Max(1f, r.height);
             float ratio = w / h;

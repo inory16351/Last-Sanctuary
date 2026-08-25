@@ -26,9 +26,14 @@ namespace LastSanctuary.EditorTools
     ///   (<see cref="SpriteImportFixer"/> 는 이걸 안 건드린다 — 거기는 일러스트·아이콘용이라
     ///   늘릴 일이 없어서 Tight 가 오히려 낫다. 그래서 파일을 나눴다.)
     ///
-    /// ⚠ <b>PPU 200</b>: 그림을 표시 크기의 2배로 내보냈다. PPU 를 캔버스 기준(100)의
-    ///   두 배로 줘야 경계가 화면에서 절반 크기로 그려진다. 100 으로 두면 액션 버튼
-    ///   (240×40)에 장식이 134+134=268px 로 붙어 <b>버튼보다 장식이 커진다</b>.
+    /// ⚠ <b>Filter Mode 는 반드시 <see cref="FilterMode.Point"/></b> (2026-08-25 2차 ·
+    ///   픽셀 아트로 갈아엎으면서). 기본값 <c>Bilinear</c> 는 이웃 픽셀을 섞어서 <b>1픽셀
+    ///   테두리를 뭉갠다</b> — 이 그림들은 테두리가 1픽셀이고 옆에 놓이는 글자가
+    ///   비트맵 폰트(네오둥근모)라, 하나만 흐려도 «UI 만 따로 노는» 그 느낌이 된다.
+    ///
+    /// ⚠ <b>PPU 100</b>: 이제 그림을 <b>표시 크기 그대로</b>(1배) 내보낸다. 그림 1픽셀 =
+    ///   화면 1픽셀 = 폰트 1픽셀이어야 한다. 지난 painted 세트는 2배로 뽑아 PPU 200 이었는데,
+    ///   픽셀 아트에 그걸 하면 <b>격자가 절반으로 리샘플링되어</b> 통째로 뭉갠다.
     ///
     /// ⚠ <b>압축 없음</b>: UI 는 압축하면 테두리 그라데이션에 블록 얼룩이 뜬다.
     ///   장수가 36 장뿐이라 메모리도 문제되지 않는다.
@@ -88,11 +93,12 @@ namespace LastSanctuary.EditorTools
 
                     im.textureType = TextureImporterType.Sprite;
                     im.spriteImportMode = SpriteImportMode.Single;
-                    im.spritePixelsPerUnit = 200f;              // 2배로 뽑았으므로
+                    im.spritePixelsPerUnit = 100f;              // 1배(네이티브)로 뽑았으므로
                     im.mipmapEnabled = false;
-                    im.filterMode = FilterMode.Bilinear;
+                    im.filterMode = FilterMode.Point;           // ★ 픽셀 아트 — 절대 Bilinear 금지
                     im.alphaIsTransparency = true;
                     im.textureCompression = TextureImporterCompression.Uncompressed;
+                    im.maxTextureSize = 2048;
                     im.npotScale = TextureImporterNPOTScale.None;
 
                     string name = Path.GetFileNameWithoutExtension(e.path);
