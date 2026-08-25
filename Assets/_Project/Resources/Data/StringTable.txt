@@ -42,13 +42,6 @@ mon_name_1002	종양귀	Tumorling
 mon_name_1003	종양 두더지	TumorMole
 skill_name_2001	할퀴기	
 skill_name_2002	죽음의 포효	
-skill_name_2003	꼬리치기	
-skill_name_2004	거대한 위협	
-skill_name_2005	소름 끼치는 흉터	
-skill_name_2006	치명적인 맹독	
-skill_name_2007	화염 방출	
-skill_name_2008	급속 재생	
-skill_name_2009	공포	
 monster_name_100001	지옥 송곳니	HellFang
 monster_name_100002	영혼 사수	SoulArcher
 monster_name_120001	단탈리온	Dantalian
@@ -943,3 +936,70 @@ relic_name_720016	세 겹의 방벽
 relic_name_720017	값이 붙지 않은 은혜	
 relic_name_720018	스스로 메운 살	
 relic_name_720019	돌아갈 곳의 기억	
+skill_name_2003	꼬리치기	Tail Strike
+skill_name_2004	거대한 위협	Huge Threat
+skill_name_2005	소름 끼치는 흉터	Creepy Scar
+skill_name_2006	치명적인 맹독	Deadly Venom
+skill_name_2007	화염 방출	Flame Emission
+skill_name_2008	급속 재생	Rapid Playback
+skill_name_2009	공포	Dread
+relic_desc_700017	원거리 공격력이 1, 명중률이 1 증가합니다.	
+relic_desc_700018	근거리 공격력이 1, 공격 속도가 1 증가합니다.	
+relic_desc_700019	체력이 2 증가합니다.	
+relic_desc_700020	이동 속도가 1, 저항력이 3 증가합니다.	
+relic_desc_700021	크리티컬 확률이 2, 근거리 공격력이 1 증가합니다.	
+relic_desc_700022	체력 재생이 2 증가합니다.	
+relic_desc_700023	시야가 15% 넓어집니다.	
+relic_desc_700024	적을 처치할 때마다 최대 체력의 2% 를 회복합니다.	
+relic_desc_710014	적을 처치할 때 50% 확률로 에너지를 8 얻습니다.	
+relic_desc_710015	받은 근접 피해의 8% 를 되돌리고, 방어력이 3 증가합니다.	
+relic_desc_710016	체력이 40% 이하일 때, 입힌 피해의 15% 만큼 회복합니다.	
+relic_desc_710017	공격 속도가 3, 이동 속도가 2 증가합니다.	
+relic_desc_710018	저항력이 12 증가합니다.	
+relic_desc_710019	적을 처치할 때마다 근거리 공격력이 1씩 오릅니다(최대 8회).	
+relic_desc_710020	시야가 25% 넓어지고, 명중률이 3 증가합니다.	
+relic_desc_720020	마법이 6, 저항력이 15 증가합니다.	
+relic_desc_720021	체력이 8, 체력 재생이 6 증가합니다.	
+relic_desc_720022	웨이브가 끝날 때마다 에너지를 4 얻고, 최대 체력의 10% 를 회복합니다.	
+relic_flavor_700017	밀어내려고 터지는 소리다. 조준은 언제나 뱉어내는 쪽이 정확하다.	
+relic_flavor_700018	살갗 아래로 길이 도드라진다. 급할 때 몸은 숨길 것을 숨기지 않는다.	
+relic_flavor_700019	늘어난 만큼 갈라졌고, 갈라진 자리는 다음에 더 늘어난다.	
+relic_flavor_700020	몸이 먼저 알아채고 식힌다. 머리가 아는 것은 언제나 그다음이다.	
+relic_flavor_700021	쥐는 것이 아니라 걸어 두는 것. 놓지 않으려고 단단해진 끝이다.	
+relic_flavor_700022	쉬라는 신호를 몸이 스스로 보낸다. 듣는 쪽은 대개 늦는다.	
+relic_flavor_700023	붓느라 좁아진 줄 알았는데, 오히려 멀리 있는 것이 먼저 들어왔다.	
+relic_flavor_700024	마른 자리가 벌어질 때마다 조금씩 새 살이 밀려 올라온다.	
+relic_flavor_710014	삼킨 것을 곧바로 헐어 쓴다. 남겨 둘 만큼 여유로운 몸이 아니다.	
+relic_flavor_710015	닿는 것마다 표를 남긴다. 표가 남은 것은 다음에 더 빨리 죽는다.	
+relic_flavor_710016	바깥에서 오지 않으면 안에서 꺼내 쓴다. 몸은 그렇게까지 한다.	
+relic_flavor_710017	미리 데워 둔 것은 부르면 곧바로 온다.	
+relic_flavor_710018	한 번 겪은 모양은 잊지 않는다. 잊지 않는 것이 곧 견디는 것이다.	
+relic_flavor_710019	하나를 지울 때마다 둘을 부른다. 부름은 멈추는 법을 모른다.	
+relic_flavor_710020	덮고 있던 것이 닳아 없어졌다. 아픈 대신 더 보인다.	
+relic_flavor_720020	무엇을 막으려고 만든 것인지 아무도 모른다. 막을 것이 사라진 뒤에도 남았다.	
+relic_flavor_720021	아직 뛴다. 무엇을 위해 뛰는지는 오래전에 잊었다.	
+relic_flavor_720022	내쉬다 만 것이 그대로 굳었다. 들이쉴 차례가 아직 오지 않았다.	
+relic_name_700017	마른 기침	
+relic_name_700018	선 핏줄	
+relic_name_700019	튼 살	
+relic_name_700020	식은 땀	
+relic_name_700021	굳은 손톱	
+relic_name_700022	잦은 하품	
+relic_name_700023	부은 눈	
+relic_name_700024	갈라진 입술	
+relic_name_710014	굶주린 포식포	
+relic_name_710015	보체의 그물	
+relic_name_710016	스스로 먹는 살	
+relic_name_710017	예열된 대사	
+relic_name_710018	굳어진 항원	
+relic_name_710019	증식 신호	
+relic_name_710020	얇아진 각막	
+relic_name_720020	잊힌 항체	
+relic_name_720021	묻힌 심장	
+relic_name_720022	굳어버린 숨	
+skill_explain_2001		
+skill_explain_2002		
+skill_explain_2003		
+skill_explain_2004		
+skill_explain_2005		
+skill_explain_2006		

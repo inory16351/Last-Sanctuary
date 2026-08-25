@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8d79840638937e4796aeac340e7fbdd, type: 3}
+  m_Name: Relic_700023
+  m_EditorClassIdentifier:
+  relicId: 700023
+  relicName: "부은 눈"
+  grade: 1
+  effectType: 31
+  value01: 15
+  value02: 0
+  effectType2: 0
+  value03: 0
+  value04: 0
+  relicDesc: "시야가 15% 넓어집니다."
+  relicFlavor: "붓느라 좁아진 줄 알았는데, 오히려 멀리 있는 것이 먼저 들어왔다."
+  source: 1
+  sourceId: 0
+  dropWeight: 9
+  nameKey: "relic_name_700023"
+  descKey: "relic_desc_700023"
+  flavorKey: "relic_flavor_700023"
+  iconKey: "relic_swolleneye"
+  icon: {fileID: 21300000, guid: 5fe8485d4336932932814efae3fa8401, type: 3}

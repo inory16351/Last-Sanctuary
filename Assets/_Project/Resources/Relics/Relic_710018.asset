@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8d79840638937e4796aeac340e7fbdd, type: 3}
+  m_Name: Relic_710018
+  m_EditorClassIdentifier:
+  relicId: 710018
+  relicName: "굳어진 항원"
+  grade: 2
+  effectType: 6
+  value01: 12
+  value02: 0
+  effectType2: 0
+  value03: 0
+  value04: 0
+  relicDesc: "저항력이 12 증가합니다."
+  relicFlavor: "한 번 겪은 모양은 잊지 않는다. 잊지 않는 것이 곧 견디는 것이다."
+  source: 1
+  sourceId: 0
+  dropWeight: 9
+  nameKey: "relic_name_710018"
+  descKey: "relic_desc_710018"
+  flavorKey: "relic_flavor_710018"
+  iconKey: "relic_antigen"
+  icon: {fileID: 21300000, guid: 79fd50dfce5e3fa73e4546122a3721c0, type: 3}

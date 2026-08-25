@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8d79840638937e4796aeac340e7fbdd, type: 3}
+  m_Name: Relic_710014
+  m_EditorClassIdentifier:
+  relicId: 710014
+  relicName: "굶주린 포식포"
+  grade: 2
+  effectType: 22
+  value01: 8
+  value02: 50
+  effectType2: 0
+  value03: 0
+  value04: 0
+  relicDesc: "적을 처치할 때 50% 확률로 에너지를 8 얻습니다."
+  relicFlavor: "삼킨 것을 곧바로 헐어 쓴다. 남겨 둘 만큼 여유로운 몸이 아니다."
+  source: 1
+  sourceId: 0
+  dropWeight: 9
+  nameKey: "relic_name_710014"
+  descKey: "relic_desc_710014"
+  flavorKey: "relic_flavor_710014"
+  iconKey: "relic_hungrycell"
+  icon: {fileID: 21300000, guid: 924719b8b5f0c40aed6b47c4f359f7b1, type: 3}

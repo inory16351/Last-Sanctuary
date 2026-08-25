@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8d79840638937e4796aeac340e7fbdd, type: 3}
+  m_Name: Relic_700021
+  m_EditorClassIdentifier:
+  relicId: 700021
+  relicName: "굳은 손톱"
+  grade: 1
+  effectType: 10
+  value01: 2
+  value02: 0
+  effectType2: 2
+  value03: 1
+  value04: 0
+  relicDesc: "크리티컬 확률이 2, 근거리 공격력이 1 증가합니다."
+  relicFlavor: "쥐는 것이 아니라 걸어 두는 것. 놓지 않으려고 단단해진 끝이다."
+  source: 1
+  sourceId: 0
+  dropWeight: 10
+  nameKey: "relic_name_700021"
+  descKey: "relic_desc_700021"
+  flavorKey: "relic_flavor_700021"
+  iconKey: "relic_hardnail"
+  icon: {fileID: 21300000, guid: 077dcc39cc7512a612997fee605ed1ef, type: 3}

@@ -86,6 +86,12 @@ namespace LastSanctuary.Relics
         [Tooltip("성역에서 이만큼(타일) 떨어진 곳에만 둔다 — 시작하자마자 다 캐지 않게")]
         [Min(0f)] [SerializeField] float minDistanceFromNexus = 14f;
 
+        [Tooltip("★★ 성역에서 이 거리(타일) <b>안쪽</b>에만 자리를 둔다. 0 이면 맵 전체.\n" +
+                 "⚠ 맵은 320x320(102,400칸) 이지만 플레이어가 실제로 오가는 곳은 성역 주변\n" +
+                 "100타일 남짓이다. 맵 전체에 흩뿌리면 <b>평생 못 찾는 칸</b>이 대부분이 된다\n" +
+                 "— 그것이 «발굴이 없는 기능» 처럼 보이던 두 번째 이유다 (2026-08-25)")]
+        [Min(0f)] [SerializeField] float maxDistanceFromNexus = 110f;
+
         [Tooltip("발굴 칸끼리 이만큼(타일)은 떨어뜨린다 — 한곳에 몰리면 «한 번 가서 다 캔다» 가 된다")]
         [Min(0f)] [SerializeField] float minSpacing = 10f;
 
@@ -313,6 +319,10 @@ namespace LastSanctuary.Relics
             float nexusSqr = minDistanceFromNexus * minDistanceFromNexus;
             float spaceSqr = minSpacing * minSpacing;
 
+            // ★★ 바깥 한계 — 0 이면 맵 전체(예전 동작).
+            float farSqr = maxDistanceFromNexus > 0f
+                ? maxDistanceFromNexus * maxDistanceFromNexus : float.PositiveInfinity;
+
             Vector2Int size = _map.MapSize;
             Vector2Int origin = _map.Origin;
             if (size.x <= 0 || size.y <= 0)
@@ -331,7 +341,9 @@ namespace LastSanctuary.Relics
                 if (!_map.IsCellPlaceable(cell)) continue;
 
                 Vector3 world = _map.CellCenterWorld(cell);
-                if (((Vector2)(world - nexus)).sqrMagnitude < nexusSqr) continue;
+                float fromNexus = ((Vector2)(world - nexus)).sqrMagnitude;
+                if (fromNexus < nexusSqr) continue;
+                if (fromNexus > farSqr) continue;        // ★ 너무 먼 곳은 아무도 못 간다
 
                 bool tooClose = false;
                 for (int i = 0; i < _sites.Count; i++)

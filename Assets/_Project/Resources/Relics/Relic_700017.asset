@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8d79840638937e4796aeac340e7fbdd, type: 3}
+  m_Name: Relic_700017
+  m_EditorClassIdentifier:
+  relicId: 700017
+  relicName: "마른 기침"
+  grade: 1
+  effectType: 3
+  value01: 1
+  value02: 0
+  effectType2: 9
+  value03: 1
+  value04: 0
+  relicDesc: "원거리 공격력이 1, 명중률이 1 증가합니다."
+  relicFlavor: "밀어내려고 터지는 소리다. 조준은 언제나 뱉어내는 쪽이 정확하다."
+  source: 1
+  sourceId: 0
+  dropWeight: 10
+  nameKey: "relic_name_700017"
+  descKey: "relic_desc_700017"
+  flavorKey: "relic_flavor_700017"
+  iconKey: "relic_cough"
+  icon: {fileID: 21300000, guid: 4ce18aa3b14c4871a04a42f07b463b2c, type: 3}

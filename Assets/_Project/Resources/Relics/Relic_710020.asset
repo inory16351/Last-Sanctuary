@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8d79840638937e4796aeac340e7fbdd, type: 3}
+  m_Name: Relic_710020
+  m_EditorClassIdentifier:
+  relicId: 710020
+  relicName: "얇아진 각막"
+  grade: 2
+  effectType: 31
+  value01: 25
+  value02: 0
+  effectType2: 9
+  value03: 3
+  value04: 0
+  relicDesc: "시야가 25% 넓어지고, 명중률이 3 증가합니다."
+  relicFlavor: "덮고 있던 것이 닳아 없어졌다. 아픈 대신 더 보인다."
+  source: 1
+  sourceId: 0
+  dropWeight: 8
+  nameKey: "relic_name_710020"
+  descKey: "relic_desc_710020"
+  flavorKey: "relic_flavor_710020"
+  iconKey: "relic_cornea"
+  icon: {fileID: 21300000, guid: b47c664c43632e4e0238fb1f560b79b2, type: 3}
