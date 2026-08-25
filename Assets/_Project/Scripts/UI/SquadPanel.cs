@@ -504,7 +504,7 @@ namespace LastSanctuary.UI
             // 인원이 1명 이하여도 잠그지 않는다 — 곧 배정할 부대를 미리 켜 둘 수 있어야 한다.
             card.CoopButton.interactable = true;
             if (card.CoopBackground != null)
-                card.CoopBackground.color = on ? buttonOn : buttonOff;
+                Paint(card.CoopBackground, on ? ButtonState.On : ButtonState.Off);
             if (card.CoopLabel != null)
             {
                 card.CoopLabel.text = on ? coopExpeditionOn : coopExpeditionOff;
@@ -521,8 +521,8 @@ namespace LastSanctuary.UI
             {
                 card.RallySetButton.interactable = rally != null;
                 if (card.RallySetBackground != null)
-                    card.RallySetBackground.color = rally == null ? buttonOff
-                                                  : (picking ? buttonOn : buttonNormal);
+                    Paint(card.RallySetBackground, rally == null ? ButtonState.Off
+                                                 : picking ? ButtonState.On : ButtonState.Normal);
                 if (card.RallySetLabel != null)
                     card.RallySetLabel.text = picking ? rallySetPicking
                                             : (hasRally ? rallySetMove : rallySetIdle);
@@ -533,7 +533,7 @@ namespace LastSanctuary.UI
                 // 지울 것이 있을 때만 눌린다 (예전 액션 패널의 '집결지 해제' 와 같은 규칙).
                 card.RallyClearButton.interactable = hasRally;
                 if (card.RallyClearBackground != null)
-                    card.RallyClearBackground.color = hasRally ? buttonNormal : buttonOff;
+                    Paint(card.RallyClearBackground, hasRally ? ButtonState.Normal : ButtonState.Off);
                 if (card.RallyClearLabel != null) card.RallyClearLabel.text = rallyClear;
             }
         }
@@ -597,5 +597,15 @@ namespace LastSanctuary.UI
             Transform node = root.Find(path);
             return node != null ? node.GetComponent<TMP_Text>() : null;
         }
+
+        /// <summary>
+        /// 버튼 배경을 상태에 맞게 칠한다 — <see cref="HudTheme.PaintButton"/> 로 넘긴다.
+        /// 그림이 깔려 있으면 그림이 바뀌고, 없으면 예전처럼 색이 칠해진다.
+        /// </summary>
+        void Paint(Image img, ButtonState state) =>
+            HudTheme.PaintButton(img, state,
+                state == ButtonState.On ? buttonOn :
+                state == ButtonState.Off ? buttonOff : buttonNormal);
+
     }
 }

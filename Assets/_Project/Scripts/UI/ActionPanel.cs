@@ -383,8 +383,8 @@ namespace LastSanctuary.UI
 
             helpButton.interactable = _helpPanel != null;
             if (helpBackground != null)
-                helpBackground.color = _helpPanel == null ? buttonOff
-                                     : (open ? buttonOn : buttonNormal);
+                Paint(helpBackground, _helpPanel == null ? ButtonState.Off
+                                    : open ? ButtonState.On : ButtonState.Normal);
             if (helpLabel != null)
                 helpLabel.text = open ? helpOpen
                                : unread > 0 ? string.Format(helpUnread, unread)
@@ -419,8 +419,8 @@ namespace LastSanctuary.UI
 
             relicButton.interactable = _relicPanel != null;
             if (relicBackground != null)
-                relicBackground.color = _relicPanel == null ? buttonOff
-                                      : (open ? buttonOn : buttonNormal);
+                Paint(relicBackground, _relicPanel == null ? ButtonState.Off
+                                     : open ? ButtonState.On : ButtonState.Normal);
             if (relicLabel != null)
                 relicLabel.text = open ? relicOpen
                                 : found > 0 ? string.Format(relicFound, found)
@@ -451,8 +451,8 @@ namespace LastSanctuary.UI
 
             settingsButton.interactable = _settingsPanel != null;
             if (settingsBackground != null)
-                settingsBackground.color = _settingsPanel == null ? buttonOff
-                                         : (open ? buttonOn : buttonNormal);
+                Paint(settingsBackground, _settingsPanel == null ? ButtonState.Off
+                                        : open ? ButtonState.On : ButtonState.Normal);
             if (settingsLabel != null)
                 settingsLabel.text = open ? settingsOpen : settingsIdle;
         }
@@ -475,8 +475,8 @@ namespace LastSanctuary.UI
 
             subjugateButton.interactable = _subjugationPanel != null;
             if (subjugateBackground != null)
-                subjugateBackground.color = _subjugationPanel == null ? buttonOff
-                                          : (open ? buttonOn : buttonNormal);
+                Paint(subjugateBackground, _subjugationPanel == null ? ButtonState.Off
+                                         : open ? ButtonState.On : ButtonState.Normal);
             if (subjugateLabel != null)
                 subjugateLabel.text = open ? subjugateOpen
                                     : found > 0 ? string.Format(subjugateFound, found)
@@ -498,8 +498,8 @@ namespace LastSanctuary.UI
 
             squadButton.interactable = _squadPanel != null;
             if (squadBackground != null)
-                squadBackground.color = _squadPanel == null ? buttonOff
-                                      : (open || picking ? buttonOn : buttonNormal);
+                Paint(squadBackground, _squadPanel == null ? ButtonState.Off
+                                     : open || picking ? ButtonState.On : ButtonState.Normal);
             if (squadLabel != null)
                 squadLabel.text = picking ? squadPicking : (open ? squadOpen : squadIdle);
         }
@@ -514,8 +514,8 @@ namespace LastSanctuary.UI
 
             tacticsButton.interactable = _tacticsPanel != null;
             if (tacticsBackground != null)
-                tacticsBackground.color = _tacticsPanel == null ? buttonOff
-                                        : (open ? buttonOn : buttonNormal);
+                Paint(tacticsBackground, _tacticsPanel == null ? ButtonState.Off
+                                       : open ? ButtonState.On : ButtonState.Normal);
             if (tacticsLabel != null) tacticsLabel.text = open ? tacticsOpen : tacticsIdle;
         }
 
@@ -528,7 +528,7 @@ namespace LastSanctuary.UI
             {
                 if (!force) return;
                 createButton.interactable = false;
-                if (createBackground != null) createBackground.color = buttonOff;
+                Paint(createBackground, ButtonState.Off);
                 return;
             }
 
@@ -544,7 +544,7 @@ namespace LastSanctuary.UI
             _shownOutOfCandidates = noCandidates;
 
             createButton.interactable = can;
-            if (createBackground != null) createBackground.color = can ? buttonNormal : buttonOff;
+            Paint(createBackground, can ? ButtonState.Normal : ButtonState.Off);
             if (createLabel != null)
                 // ★★ <b>«더 나올 인물이 없다» 를 화면에 적는다</b> (2026-08-21).
                 //   ⚠ 예전에는 이 상태에서도 «캐릭터 생성 170» 이 그대로 떠 있고 버튼만
@@ -558,5 +558,15 @@ namespace LastSanctuary.UI
                                  : atLimit ? createAtLimit
                                  : string.Format(createFormat, cost);
         }
+
+        /// <summary>
+        /// 버튼 배경을 상태에 맞게 칠한다 — <see cref="HudTheme.PaintButton"/> 로 넘긴다.
+        /// 그림이 깔려 있으면 그림이 바뀌고, 없으면 예전처럼 색이 칠해진다.
+        /// </summary>
+        void Paint(Image img, ButtonState state) =>
+            HudTheme.PaintButton(img, state,
+                state == ButtonState.On ? buttonOn :
+                state == ButtonState.Off ? buttonOff : buttonNormal);
+
     }
 }

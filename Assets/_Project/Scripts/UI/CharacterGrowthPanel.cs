@@ -657,7 +657,7 @@ namespace LastSanctuary.UI
                 FocusButton fb = _focusButtons[i];
                 if (fb.Button != null) fb.Button.interactable = has;
                 if (fb.Background != null)
-                    fb.Background.color = has && fb.Focus == current ? focusButtonOn : focusButtonOff;
+                    Paint(fb.Background, has && fb.Focus == current ? ButtonState.On : ButtonState.Normal);
             }
         }
 
@@ -1213,5 +1213,13 @@ namespace LastSanctuary.UI
             Transform node = transform.Find(path);
             return node != null ? node.GetComponent<Image>() : null;
         }
+
+        /// <summary>
+        /// 성장 유형 칩의 «고른 것» 을 그림으로 바꾼다 (2026-08-25 · 버튼 그림 도입).
+        /// 그림이 없으면 예전처럼 <see cref="focusButtonOn"/>·<see cref="focusButtonOff"/> 를 칠한다.
+        /// </summary>
+        void Paint(Image img, ButtonState state) =>
+            HudTheme.PaintButton(img, state, state == ButtonState.On ? focusButtonOn : focusButtonOff);
+
     }
 }

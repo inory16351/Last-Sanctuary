@@ -97,7 +97,7 @@ namespace LastSanctuary.UI
             {
                 if (!force) return;
                 _button.interactable = false;
-                if (_background != null) _background.color = buttonOff;
+                Paint(_background, ButtonState.Off);
                 return;
             }
 
@@ -115,12 +115,23 @@ namespace LastSanctuary.UI
             // 지정 모드 중에는 (취소하려면 눌러야 하므로) 항상 누를 수 있어야 한다.
             _button.interactable = picking || canPlace;
             if (_background != null)
-                _background.color = picking ? buttonOn : (canPlace ? buttonNormal : buttonOff);
+                Paint(_background, picking ? ButtonState.On
+                                 : canPlace ? ButtonState.Normal : ButtonState.Off);
 
             if (label != null)
                 label.text = picking ? pickingText
                            : _service.AtLimit ? atLimitText
                            : string.Format(idleFormat, cost);
         }
+
+        /// <summary>
+        /// 버튼 배경을 상태에 맞게 칠한다 — <see cref="HudTheme.PaintButton"/> 로 넘긴다.
+        /// 그림이 깔려 있으면 그림이 바뀌고, 없으면 예전처럼 색이 칠해진다.
+        /// </summary>
+        void Paint(Image img, ButtonState state) =>
+            HudTheme.PaintButton(img, state,
+                state == ButtonState.On ? buttonOn :
+                state == ButtonState.Off ? buttonOff : buttonNormal);
+
     }
 }

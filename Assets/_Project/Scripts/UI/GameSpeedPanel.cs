@@ -307,12 +307,12 @@ namespace LastSanctuary.UI
                 // 멈춰 있는 동안에는 어느 배속도 "지금 걸려 있다" 가 아니다 —
                 // 재개하면 돌아갈 배속이라 선택 표시를 끄고 글자만 남긴다.
                 bool on = !_paused && i == _index;
-                if (_backgrounds[i] != null) _backgrounds[i].color = on ? activeColor : idleColor;
+                Paint(_backgrounds[i], on ? ButtonState.On : ButtonState.Normal);
                 if (_labels[i] != null) _labels[i].color = on ? activeTextColor : idleTextColor;
             }
 
             if (_pauseBackground != null)
-                _pauseBackground.color = _paused ? activeColor : idleColor;
+                Paint(_pauseBackground, _paused ? ButtonState.On : ButtonState.Normal);
             if (_pauseLabel != null)
             {
                 _pauseLabel.text = _paused ? resumeLabel : pauseLabel;
@@ -325,5 +325,13 @@ namespace LastSanctuary.UI
             Mathf.Approximately(speed, Mathf.Round(speed))
                 ? $"x{Mathf.RoundToInt(speed)}"
                 : $"x{speed:0.##}";
+
+        /// <summary>
+        /// 배속 칩의 «선택됨» 을 그림으로 바꾼다 (2026-08-25 · 버튼 그림 도입).
+        /// 그림이 없으면 예전처럼 <see cref="activeColor"/>·<see cref="idleColor"/> 를 칠한다.
+        /// </summary>
+        void Paint(Image img, ButtonState state) =>
+            HudTheme.PaintButton(img, state, state == ButtonState.On ? activeColor : idleColor);
+
     }
 }

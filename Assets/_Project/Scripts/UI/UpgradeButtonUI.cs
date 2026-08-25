@@ -81,7 +81,8 @@ namespace LastSanctuary.UI
             _button.interactable = _panel != null;
 
             if (_background != null)
-                _background.color = _panel == null ? buttonOff : (open ? buttonOn : buttonNormal);
+                Paint(_background, _panel == null ? ButtonState.Off
+                                 : open ? ButtonState.On : ButtonState.Normal);
 
             if (label != null) label.text = open ? openText : idleText;
         }
@@ -101,5 +102,15 @@ namespace LastSanctuary.UI
             _panel?.Toggle();
             RefreshNow();
         }
+
+        /// <summary>
+        /// 버튼 배경을 상태에 맞게 칠한다 — <see cref="HudTheme.PaintButton"/> 로 넘긴다.
+        /// 그림이 깔려 있으면 그림이 바뀌고, 없으면 예전처럼 색이 칠해진다.
+        /// </summary>
+        void Paint(Image img, ButtonState state) =>
+            HudTheme.PaintButton(img, state,
+                state == ButtonState.On ? buttonOn :
+                state == ButtonState.Off ? buttonOff : buttonNormal);
+
     }
 }

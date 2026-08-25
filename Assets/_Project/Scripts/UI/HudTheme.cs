@@ -1,8 +1,26 @@
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace LastSanctuary.UI
 {
+    /// <summary>
+    /// 버튼이 지금 어떤 상태인지. <see cref="HudTheme.PaintButton"/> 가 받는다.
+    ///
+    /// ⚠ <b>마우스 올림·누름은 여기 없다</b> — 그건 유니티의 <c>Button.transition =
+    /// SpriteSwap</c> 이 <see cref="Image.overrideSprite"/> 로 알아서 한다. 여기 있는
+    /// 것은 <b>게임이 판단하는</b> 상태다: 창이 열려 있음(<see cref="On"/>) ·
+    /// 에너지가 모자람(<see cref="Off"/>).
+    /// </summary>
+    public enum ButtonState
+    {
+        Normal,
+        Hover,
+        On,
+        Off,
+    }
+
     /// <summary>
     /// HUD 의 색·크기·폰트를 한 곳에 모아둔 곳.
     ///
@@ -139,6 +157,62 @@ namespace LastSanctuary.UI
                 }
                 return _font;
             }
+        }
+
+        // ── 버튼 상태를 «색» 이 아니라 «그림» 으로 ────────────────────────
+
+        static readonly Dictionary<string, Sprite> ButtonSprites = new Dictionary<string, Sprite>();
+
+        /// <summary>
+        /// ★★ <b>버튼의 상태를 칠한다</b> (2026-08-25 · 버튼 그림 도입).
+        ///
+        /// <b>왜 생겼나</b> — 예전에는 패널마다 <c>background.color = buttonOn</c> 처럼
+        /// <b>색을 직접</b> 칠했다. 그 자리에 그림(<c>Btn_Action_Normal</c> 등)이 깔리자
+        /// 그 어두운 색이 그림에 <b>곱해져</b> 버튼이 새까매졌다 — «그림을 넣었는데
+        /// 안 보인다» 의 정체다.
+        ///
+        /// <b>무엇을 하나</b> — 지금 붙어 있는 스프라이트 이름에서 <b>계열</b>을 읽어
+        /// (<c>Btn_Action_Normal</c> → <c>Btn_Action</c>) 같은 계열의 다른 상태 그림으로
+        /// 갈아끼우고 색은 흰색으로 되돌린다.
+        ///
+        /// ★ <b>계열을 부르는 쪽이 몰라도 된다</b> — 액션 바 버튼인지 창 안 버튼인지는
+        ///   <b>씬에 이미 붙은 그림</b>이 말해 준다. 그래서 버튼 종류가 늘어도 이 파일도,
+        ///   부르는 쪽도 안 바뀐다.
+        /// ⚠ <b>그림이 없으면 예전처럼 색을 칠한다</b>(<paramref name="fallback"/>).
+        ///   목록의 행처럼 그림을 안 깔 자리도 있고, 그림을 뽑기 전 상태로 돌려도
+        ///   화면이 멀쩡해야 한다.
+        /// </summary>
+        /// <param name="img">버튼의 배경 <see cref="Image"/>. null 이면 아무 일도 하지 않는다.</param>
+        /// <param name="state">게임이 판단한 상태.</param>
+        /// <param name="fallback">그림이 없을 때 칠할 색.</param>
+        public static void PaintButton(Image img, ButtonState state, Color fallback)
+        {
+            if (img == null) return;
+
+            Sprite cur = img.sprite;
+            if (cur != null && cur.name.StartsWith("Btn_"))
+            {
+                int cut = cur.name.LastIndexOf('_');
+                if (cut > 0)
+                {
+                    string key = cur.name.Substring(0, cut + 1) + state;
+                    if (!ButtonSprites.TryGetValue(key, out Sprite next))
+                    {
+                        next = Resources.Load<Sprite>("UI/Buttons/" + key);
+                        ButtonSprites[key] = next;
+                    }
+                    if (next != null)
+                    {
+                        // ⚠ 같은 그림이면 손대지 않는다 — Image.sprite 에 대입하면
+                        //   같은 값이어도 메시를 다시 굽는다(글자 색과 같은 이유).
+                        if (!ReferenceEquals(img.sprite, next)) img.sprite = next;
+                        if (img.color != Color.white) img.color = Color.white;
+                        return;
+                    }
+                }
+            }
+
+            if (img.color != fallback) img.color = fallback;
         }
 
         // ── 글자가 칸을 넘지 않게 ────────────────────────────────────────

@@ -253,9 +253,8 @@ namespace LastSanctuary.UI
                 //   화면에서 알 수 없다. 지금 값은 언제나 강조하고, 나머지만 잠김색으로 눌러
                 //   "고를 수는 없지만 이걸로 정해져 있다"가 한눈에 보이게 한다.
                 bool on = has && option.IsOn();
-                option.Background.color = on
-                    ? optionSelected
-                    : (available ? optionNormal : optionDisabled);
+                Paint(option.Background, on ? ButtonState.On
+                                        : available ? ButtonState.Normal : ButtonState.Off);
             }
 
             if (_hintText != null) _hintText.text = has ? selectionHint : noSelectionHint;
@@ -592,5 +591,15 @@ namespace LastSanctuary.UI
             Transform node = transform.Find(path);
             return node != null ? node.GetComponent<Image>() : null;
         }
+
+        /// <summary>
+        /// 옵션 칸의 «고른 것 / 잠긴 것» 을 그림으로 바꾼다 (2026-08-25 · 버튼 그림 도입).
+        /// 그림이 없으면 예전처럼 색을 칠한다.
+        /// </summary>
+        void Paint(Image img, ButtonState state) =>
+            HudTheme.PaintButton(img, state,
+                state == ButtonState.On ? optionSelected :
+                state == ButtonState.Off ? optionDisabled : optionNormal);
+
     }
 }
