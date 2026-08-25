@@ -205,14 +205,72 @@ namespace LastSanctuary.UI
                     {
                         // ⚠ 같은 그림이면 손대지 않는다 — Image.sprite 에 대입하면
                         //   같은 값이어도 메시를 다시 굽는다(글자 색과 같은 이유).
-                        if (!ReferenceEquals(img.sprite, next)) img.sprite = next;
+                        bool changed = !ReferenceEquals(img.sprite, next);
+                        if (changed) img.sprite = next;
                         if (img.color != Color.white) img.color = Color.white;
+                        // ⚠ 바뀔 때만 손댄다 — 이 함수는 창이 열릴 때마다 불리는데,
+                        //   매번 SpriteState 를 다시 쓰면 헛일이다.
+                        if (changed || img.overrideSprite != null)
+                            ClaimSelectable(img, cur.name.Substring(0, cut + 1), state);
                         return;
                     }
                 }
             }
 
             if (img.color != fallback) img.color = fallback;
+        }
+
+        /// <summary>
+        /// ★★ <b>«눌러도 색이 안 바뀌던» 것을 고친다</b> (2026-08-25 · 유저 보고:
+        /// *"클릭 시 선택했을때 바로 청록색으로 바뀌는게 아니라 클릭하고 다른 곳
+        /// 클릭해야 색 바뀐다"*).
+        ///
+        /// <b>왜 그랬나</b> — 유니티의 <c>SpriteSwap</c> 은 <see cref="Image.sprite"/> 가
+        /// 아니라 <see cref="Image.overrideSprite"/> 를 갈아끼운다. 그리고 그 값이
+        /// <b>언제나 이긴다</b>. 버튼을 누르면 이벤트 시스템이 그 버튼을 «선택됨» 으로
+        /// 붙들고 있으므로 <c>overrideSprite = selectedSprite</c>(= 평시 그림)가 걸려,
+        /// 코드가 <c>sprite</c> 에 넣은 «켜짐» 그림을 <b>덮어버린다</b>.
+        /// 다른 곳을 누르면 선택이 풀려 <c>overrideSprite</c> 가 사라지고 그제야 보였다.
+        ///
+        /// <b>무엇을 하나</b> — 두 가지다.
+        ///   ① <c>overrideSprite</c> 를 <b>지운다</b> — 지금 당장 바뀌어 보이게.
+        ///   ② 버튼의 <see cref="SpriteState"/> 를 <b>지금 상태에 맞게 다시 쓴다</b> —
+        ///      «켜짐» 이면 올림·눌림·선택이 <b>전부 켜짐 그림</b>이 된다.
+        ///
+        /// ★ ②가 없으면 <b>마우스를 얹는 순간 다시 풀린다</b> — 올림 그림이 평시 계열이라
+        ///   켜진 배속 위에 커서를 두면 안 켜진 것처럼 보인다. ①만으로는 모자란다.
+        /// ⚠ 잠김(<see cref="ButtonState.Off"/>)은 건드리지 않는다 — 유니티가
+        ///   <c>interactable</c> 로 알아서 잠김 그림을 쓴다.
+        /// </summary>
+        static void ClaimSelectable(Image img, string family, ButtonState state)
+        {
+            var btn = img.GetComponent<Selectable>();
+            if (btn == null || btn.transition != Selectable.Transition.SpriteSwap) return;
+
+            img.overrideSprite = null;
+
+            Sprite on = LoadButton(family + ButtonState.On);
+            Sprite normal = LoadButton(family + ButtonState.Normal);
+            Sprite hover = LoadButton(family + ButtonState.Hover);
+            Sprite off = LoadButton(family + ButtonState.Off);
+
+            bool lit = state == ButtonState.On;
+            var st = new SpriteState
+            {
+                highlightedSprite = lit ? on : hover,
+                pressedSprite = on,
+                selectedSprite = lit ? on : normal,
+                disabledSprite = off,
+            };
+            btn.spriteState = st;
+        }
+
+        static Sprite LoadButton(string key)
+        {
+            if (ButtonSprites.TryGetValue(key, out Sprite s)) return s;
+            s = Resources.Load<Sprite>("UI/Buttons/" + key);
+            ButtonSprites[key] = s;
+            return s;
         }
 
         // ── 글자가 칸을 넘지 않게 ────────────────────────────────────────

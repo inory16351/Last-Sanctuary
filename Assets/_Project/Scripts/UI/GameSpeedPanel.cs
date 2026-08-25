@@ -68,7 +68,15 @@ namespace LastSanctuary.UI
         [SerializeField] Color idleColor = new Color(0.10f, 0.13f, 0.18f, 0.80f);
 
         [Tooltip("선택된 버튼의 글자색")]
-        [SerializeField] Color activeTextColor = new Color(0.05f, 0.08f, 0.10f, 1f);
+        // ★★ <b>선택된 배속의 글자색</b> (2026-08-25 · 유저 지시: *"배속 선택했을때
+        //   텍스트가 사라지게 하지 말고 다른 것들처럼 초록색으로 표기해줘"*).
+        //
+        // ⚠ 예전 값은 <b>거의 검정</b>(0.05, 0.08, 0.10)이었다 — 그때는 선택된 칩의
+        //   배경이 <b>밝은 청록</b>이라 어두운 글자가 맞았다. 픽셀 UI 로 바꾸면서 «켜짐»
+        //   그림이 <b>어두운 청록 판</b>이 되자 검은 글자가 그대로 묻혀 <b>사라진 것처럼</b>
+        //   보였다. 이제 <see cref="HudTheme.TextAccent"/> 와 같은 청록을 쓴다 —
+        //   각성 금색·부대 색처럼 «강조는 한 곳에서» 규칙 그대로다.
+        [SerializeField] Color activeTextColor = new Color(0.45f, 0.95f, 0.78f, 1f);
 
         [Tooltip("선택되지 않은 버튼의 글자색")]
         [SerializeField] Color idleTextColor = new Color(0.78f, 0.86f, 0.92f, 1f);

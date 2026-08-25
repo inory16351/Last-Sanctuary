@@ -133,8 +133,13 @@ namespace LastSanctuary.UI
         [Tooltip("'★영웅' 표식 색")]
         [SerializeField] Color heroAwakenedColor = new Color(0.98f, 0.62f, 0.30f, 1f);
 
-        [SerializeField] Color rowActive = new Color(0.13f, 0.17f, 0.22f, 0.95f);
-        [SerializeField] Color rowDisabled = new Color(0.09f, 0.10f, 0.12f, 0.75f);
+        // ★★ <b>칸에 그림이 깔리면서 «색» 이 아니라 «명암» 이 됐다</b> (2026-08-25).
+        //   예전에는 이 색들이 <b>칸 자체의 색</b>이었다. 이제 칸에 어두운 슬레이트 판
+        //   그림(<c>Hud_Plate</c>)이 깔려 있고, 이 색은 그 위에 <b>곱해진다</b>.
+        //   그래서 전부 <b>흰 계열</b>이어야 한다 — 예전 어두운 값을 두면 판이 새까매진다.
+        //   «고른 것»(Focused)만 청록 기운을 섞어 판이 청록으로 물들게 한다.
+        [SerializeField] Color rowActive = new Color(1f, 1f, 1f, 0.95f);
+        [SerializeField] Color rowDisabled = new Color(0.45f, 0.48f, 0.52f, 0.75f);
         [SerializeField] Color labelActive = new Color(0.88f, 0.92f, 0.94f, 1f);
         [SerializeField] Color labelDisabled = new Color(0.42f, 0.45f, 0.48f, 1f);
         // ⚠ deltaColor(단색 초록) 는 없앴다 — 유저 지시 2026-08-14 로 <b>오른 폭에 따라 색이
@@ -170,7 +175,7 @@ namespace LastSanctuary.UI
         [Header("색 — 성장 유형 강조")]
         [Tooltip("고른 성장 유형에 묶여 더 잘 오르는 능력치 칸의 배경색 " +
                  "(유저 지시 2026-08-14: \"확률이 높은 스탯은 다른 색으로 표시\")")]
-        [SerializeField] Color rowFocused = new Color(0.16f, 0.34f, 0.30f, 0.98f);
+        [SerializeField] Color rowFocused = new Color(0.55f, 1f, 0.90f, 1f);
 
         [Tooltip("그 칸의 라벨·값 글자색")]
         [SerializeField] Color labelFocused = new Color(0.62f, 1f, 0.82f, 1f);
@@ -182,9 +187,9 @@ namespace LastSanctuary.UI
         [SerializeField] Color focusButtonOff = new Color(0.13f, 0.17f, 0.22f, 0.95f);
 
         [Header("색 — 패시브 스킬")]
-        [SerializeField] Color passiveUnlockedColor = new Color(0.13f, 0.15f, 0.20f, 0.95f);
-        [SerializeField] Color passiveLockedColor = new Color(0.07f, 0.08f, 0.10f, 0.85f);
-        [SerializeField] Color passiveEmptyColor = new Color(0.06f, 0.07f, 0.08f, 0.6f);
+        [SerializeField] Color passiveUnlockedColor = new Color(1f, 1f, 1f, 0.95f);
+        [SerializeField] Color passiveLockedColor = new Color(0.50f, 0.52f, 0.56f, 0.85f);
+        [SerializeField] Color passiveEmptyColor = new Color(0.38f, 0.40f, 0.44f, 0.55f);
         [Tooltip("미해금 아이콘을 눌러 실루엣으로 만드는 색. 알파는 남기고 밝기만 죽인다")]
         [SerializeField] Color passiveSilhouetteColor = new Color(0.06f, 0.06f, 0.08f, 0.95f);
         [SerializeField] Color passiveDescColor = new Color(0.72f, 0.76f, 0.82f, 1f);

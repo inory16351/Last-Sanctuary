@@ -24,7 +24,7 @@ except Exception: pass
 
 def load_scene():
     txt = open(SCENE, encoding="utf-8", errors="replace").read()
-    go, rt, img, tmp = {}, {}, {}, {}
+    go, rt, img, tmp, layout = {}, {}, {}, {}, set()
 
     for m in re.finditer(r'--- !u!1 &(\d+)\n(GameObject:.*?)(?=\n--- |\Z)', txt, re.S):
         nm = re.search(r'm_Name: (.*)', m.group(2))
@@ -49,6 +49,8 @@ def load_scene():
         if 'm_FillMethod' in b and 'm_Sprite' in b:
             g = re.search(r'm_Sprite: \{fileID: [-\d]+, guid: ([0-9a-f]{32})', b)
             img[ow] = g.group(1) if g else None
+        if 'm_Spacing' in b or 'm_CellSize' in b or 'm_HorizontalFit' in b:
+            layout.add(ow)
         if 'm_fontSize' in b:
             fs = re.search(r'm_fontSize: ([\d.]+)', b)
             t = re.search(r'm_text: (.*)', b)
@@ -63,7 +65,7 @@ def load_scene():
             tmp[ow] = dict(size=float(fs.group(1)) if fs else 0, text=raw,
                            halign=int(ha.group(1)) if ha else 2,
                            wrap=int(wm.group(1)) if wm else 1)
-    return go, rt, img, tmp
+    return go, rt, img, tmp, layout
 
 
 def sprite_names():
@@ -91,7 +93,7 @@ def resolve(rt, root_id):
       스트레치된 자식이 통째로 <b>부모 폭의 절반만큼</b> 어긋난다(실측 오진의 원인).
     """
     out = {}
-    def walk(rid, pw, ph, px, py):
+    def walk(rid, pw, ph, px, py, force=None):
         r = rt[rid]
         w = (r['amax'][0] - r['amin'][0]) * pw + r['sd'][0]
         h = (r['amax'][1] - r['amin'][1]) * ph + r['sd'][1]
@@ -101,15 +103,19 @@ def resolve(rt, root_id):
         pivy = cy - r['pos'][1]
         left = pivx - r['piv'][0] * w
         top = pivy - (1.0 - r['piv'][1]) * h
+        if force:
+            # ⚠ UI_Root(캔버스)의 렉트는 YAML 에 0 으로 적혀 있다 — CanvasScaler 가
+            #   런타임에 정하기 때문이다. 기준 해상도로 못박아야 아래가 전부 맞는다.
+            left, top, w, h = 0.0, 0.0, CANVAS[0], CANVAS[1]
         out[rid] = (left, top, left + w, top + h)
         for k in r['kids']:
             if k in rt: walk(k, w, h, left, top)
-    walk(root_id, CANVAS[0], CANVAS[1], 0.0, 0.0)
+    walk(root_id, CANVAS[0], CANVAS[1], 0.0, 0.0, force=True)
     return out
 
 
 def run():
-    go, rt, img, tmp = load_scene()
+    go, rt, img, tmp, layout = load_scene()
     name_of, border_of = sprite_names()
 
     root = next(rid for rid, r in rt.items() if go[r['ow']] == "UI_Root")
@@ -165,9 +171,17 @@ def run():
         ow = r['ow']
         if ow not in tmp: continue
         info = tmp[ow]
-        if not info['text']: continue
         pid = nearest_panel(cid)
         if pid is None: continue
+        # ⚠ 레이아웃 그룹 <b>안</b>의 렉트는 씬 YAML 값이 «비어 있다» — 런타임에
+        #   VerticalLayoutGroup / ContentSizeFitter 가 정하기 때문이다(액션 바 버튼이
+        #   폭 0 으로 읽혔다). 정적으로는 못 재므로 건너뛴다.
+        driven = False
+        cur = rt[cid]['father']
+        while cur in rt:
+            if rt[cur]['ow'] in layout: driven = True; break
+            cur = rt[cur]['father']
+        if driven: continue
         nm, (L, B, R, T) = panel_by_id[pid]
         px0, py0, px1, py1 = rect[pid]
         safe = (px0 + L, py0 + T, px1 - R, py1 - B)
@@ -177,9 +191,15 @@ def run():
         f = font(info['size'])
         # ★ <b>렉트가 아니라 «그려지는 글자» 로 잰다.</b> 버튼 라벨은 렉트가 장식까지
         #   덮지만 가운데 정렬이라 글자는 안 잘린다 — 렉트로 재면 전부 가짜 양성이다.
+        #   ⚠ 다만 <b>글이 비어 있거나 줄바꿈이 켜진</b> 칸은 렉트 그대로 재야 한다 —
+        #     본문·설명은 씬에 빈 문자열로 저장되고 런타임에 채워지며(스킬 설명이 그렇다),
+        #     줄바꿈이 켜진 글은 <b>칸을 가득 채운다</b>. 이 둘을 «글자가 짧다» 고 넘기면
+        #     정작 고쳐야 할 본문이 통째로 빠진다.
         line = info['text'].split('\n')[0].replace('<b>', '').replace('</b>', '')
-        tw = _draw.textlength(line, font=f)
-        if info['wrap'] and tw > boxw: tw = boxw          # 줄바꿈이 켜져 있으면 안 넘친다
+        if not line or info['wrap']:
+            tw = boxw
+        else:
+            tw = _draw.textlength(line, font=f)
         ha = info['halign']
         if ha == 1:   tx0 = cx0
         elif ha == 4: tx0 = cx1 - tw

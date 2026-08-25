@@ -505,6 +505,21 @@ namespace LastSanctuary.UI
                 Duty = FindText(clone, "Duty"),
             };
 
+            // ★ <b>이름이 칸을 넘지 않게</b> (2026-08-25 · 유저 지시: *"캐릭터 로스터에
+            //   텍스트 짤리는거 수정"*).
+            //
+            //   잘리던 주된 원인은 <b>행의 배치</b>였고 그건 씬에서 고쳤다 — 이름 칸이
+            //   «맡은 일» 칸과 6px 겹치고, 체력바가 이름 아래를 8px 파고들고 있었다.
+            //   이건 그 위의 <b>안전망</b>이다: 이름은 «<c>이름</c> Lv.<c>N</c>»
+            //   (<see cref="NameTextOf"/>) 이라 <b>이름이 길면 여전히 넘칠 수 있다</b>.
+            //
+            // ★ <b>잘라내지 않고 «작게» 맞춘다</b> — 뒤를 자르면 레벨이 사라져서
+            //   «누가 더 컸는지» 를 못 본다(<see cref="HudTheme.FitText"/> 의 설계 이유 그대로).
+            // ⚠ 한 줄짜리 띠라 <b>줄바꿈은 끈다</b>(wrap: false) — 켜면 두 번째 줄이
+            //   체력바 위로 흘러내린다.
+            HudTheme.FitText(row.Name, minSize: 12f, wrap: false);
+            HudTheme.FitText(row.Duty, minSize: 11f, wrap: false);
+
             // ★ 아웃라인은 <b>코드가 붙인다</b> — 행 모체(RowTemplate)를 손대지 않아도
             //   모든 행에 생긴다(보호막 막대 EnsureShieldBar 와 같은 방식).
             if (row.Background != null)

@@ -3,6 +3,7 @@ using System.Linq;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using TMPro;
 using UnityEngine.UI;
 
 namespace LastSanctuary.EditorTools
@@ -91,7 +92,7 @@ namespace LastSanctuary.EditorTools
         /// </summary>
         static readonly string[] Skip =
         {
-            "Scrollbar", "NameInput", "RowTemplate", "SquadCard_Template", "PassiveCard",
+            "Scrollbar", "NameInput", "RowTemplate", "SquadCard_Template",
             "DigMarkerTemplate", "BuildRangeTemplate", "RallyRangeTemplate",
             "Slider", "Handle", "Fill Area", "Viewport", "BgMask",
         };
@@ -143,19 +144,51 @@ namespace LastSanctuary.EditorTools
                 // ── 칸 ────────────────────────────────────────────────
                 if (SlotNames.Contains(name))
                 {
-                    Set(img, Load("Slot_Empty"), Image.Type.Simple);
+                    // ★★ <b>정사각 소켓을 가로로 늘리면 테두리도 같이 늘어난다</b>
+                    //   (2026-08-25 · 유저 보고: *"미해금 된 스킬 아이콘이 배너 UI 에
+                    //   미세하게 가려진다"*).
+                    //
+                    //   <c>Slot_Empty</c> 는 43×44 정사각이고 경계가 <b>0</b>(늘리지 않는
+                    //   그림)이다. 그런데 초상화의 스킬 줄은 <b>208×44</b>(비 4.73)라
+                    //   <c>Simple</c> 로 4.8배 늘어나면서 6px 짜리 왼쪽 테두리가
+                    //   <b>29px</b> 이 됐다 — x 8~40 에 있는 아이콘을 그만큼 덮었다.
+                    //
+                    // ★ 그래서 <b>모양으로 갈라 준다</b>: 정사각에 가까운 칸(부대 카드의
+                    //   초상화 82×72)만 소켓을 쓰고, 가로로 긴 줄은 <c>Bar_Track</c> 을 쓴다.
+                    //   그 그림은 경계가 <b>가로에만</b> 있어(L7 R7 · 위아래 0) 늘려도
+                    //   위아래 테두리가 안 생기고, 좌우 마개는 7px 이라 아이콘(8부터)을
+                    //   건드리지 않는다.
+                    Rect rr = img.rectTransform.rect;
+                    bool square = rr.height > 0f && rr.width / rr.height < 1.6f;
+                    if (square) Set(img, Load("Slot_Empty"), Image.Type.Simple);
+                    else Set(img, Load("Bar_Track"), Image.Type.Sliced, 0.95f);
                     slots++; continue;
                 }
 
                 if (name == "Divider") { Set(img, Load("Divider_Plain"), Image.Type.Simple); continue; }
+
+                // ── 성장 창의 «칸» ────────────────────────────────────
+                // ★ 스탯 12칸(280×66)과 스킬 3칸(280×176)은 <b>버튼이지만 판처럼</b> 보여야
+                //   한다 — 비율만 보면 스킬 칸(1.59:1)이 「닫기」 그림으로 떨어져 모서리가
+                //   뭉갠다. 이름으로 먼저 걸러 판 그림을 준다.
+                // ⚠ <c>transition</c> 은 건드리지 않는다 — 잠김/해금/고른 것을 코드가
+                //   <c>Background.color</c> 로 칠하고 있고, 그 색은 흰 계열이라 그림을 안 죽인다.
+                if (name.StartsWith("StatRow_") || name.StartsWith("PassiveCard_"))
+                {
+                    Set(img, Load("Hud_Plate"), Image.Type.Sliced, 0.95f);
+                    LayoutCell(img.rectTransform, name.StartsWith("StatRow_"));
+                    plates++; continue;
+                }
 
                 // ── 버튼 ──────────────────────────────────────────────
                 var btn = img.GetComponent<Button>();
                 if (btn != null && btn.targetGraphic == img)
                 {
                     string kind = ButtonKind(path, img.rectTransform.rect);
-                    Set(img, Load($"Btn_{kind}_Normal"), Image.Type.Sliced);
+                    Sprite face = Load($"Btn_{kind}_Normal");
+                    Set(img, face, Image.Type.Sliced);
                     WireSwap(btn, kind);
+                    InsetLabel(btn, face);
                     buttons++;
                     log.Add($"  버튼 {kind,-6} {path}");
                     continue;
@@ -251,9 +284,12 @@ namespace LastSanctuary.EditorTools
         {
             if (path.StartsWith("HUD_Actions/Buttons/")) return "Action";
             if (Choices.Contains(path)) return "Choice";
-            // ★ 배속·정지는 <b>전용 그림</b>이 있다(2026-08-25 2차). 비율(57×40 = 1.4:1)만
-            //   보면 「닫기」로 떨어지는데, 닫기는 정사각이라 가로로 늘리면 모서리가 뭉갠다.
-            if (path.StartsWith("HUD_Speed/")) return "Speed";
+            // ★ 배속·정지(57×40)는 <b>「칩」</b>을 쓴다. 비율만 보면 「닫기」로 떨어지는데
+            //   닫기는 정사각이라 가로로 늘리면 모서리가 뭉갠다.
+            // ⚠ 전용 그림 `Btn_Speed_*` 도 있지만 <b>안 쓴다</b> — 원화가 3:1 로 나와서
+            //   좌우 장식이 13px 씩이라, 57px 폭에 넣으면 글자 자리가 <b>23px</b> 밖에
+            //   안 남아 «정지»(20pt · 40px)가 삐져나온다. 칩은 장식이 6px 라 45px 이 남는다.
+            if (path.StartsWith("HUD_Speed/")) return "Chip";
 
             float w = Mathf.Max(1f, r.width), h = Mathf.Max(1f, r.height);
             float ratio = w / h;
@@ -298,6 +334,92 @@ namespace LastSanctuary.EditorTools
             };
             btn.spriteState = st;
             EditorUtility.SetDirty(btn);
+        }
+
+        /// <summary>
+        /// ★★ <b>버튼 글자를 장식 안쪽으로 밀어 넣는다</b> (2026-08-25 · 유저 지시:
+        /// *"그 이미지들에 가려서 텍스트 짤리는 것들 수정 좀"*).
+        ///
+        /// <b>왜 생겼나</b> — 예전 단색 버튼은 테두리가 1~2px 이라 라벨을 버튼 전체에
+        /// 늘려 놓아도 됐다. 그림이 깔리자 좌우 <b>24px 짜리 장식</b>이 생겼는데 라벨은
+        /// 그대로 전폭이라, 긴 글(«저장하고 로비로 돌아가기»)이 <b>장식 위로 번졌다</b>.
+        ///
+        /// ★ <b>여백을 스프라이트에서 읽는다</b>(<see cref="Sprite.border"/>) — 그림을 다시
+        ///   뽑아 장식 크기가 바뀌어도 이 코드는 안 고친다. 그래서 배선을 돌릴 때마다
+        ///   여백이 <b>자동으로 다시 맞는다</b>.
+        /// ⚠ <b>가로로 늘어난 라벨만</b> 건드린다. 아이콘 옆에 붙는 라벨처럼 한쪽에
+        ///   고정된 것은 밀면 자리가 어긋난다.
+        /// ⚠ 세로는 손대지 않는다 — 버튼 그림의 위아래 경계는 0 이다(가로로만 늘어난다).
+        /// </summary>
+        static void InsetLabel(Button btn, Sprite face)
+        {
+            if (face == null) return;
+            int pad = 4;                       // 장식에 글자가 «닿는» 것도 막는 최소 숨통
+            float l = face.border.x + pad;
+            float r = face.border.z + pad;
+
+            foreach (TMP_Text t in btn.GetComponentsInChildren<TMP_Text>(true))
+            {
+                if (t.transform.parent != btn.transform) continue;
+                RectTransform lr = t.rectTransform;
+                if (!Mathf.Approximately(lr.anchorMin.x, 0f) ||
+                    !Mathf.Approximately(lr.anchorMax.x, 1f)) continue;   // 늘어난 라벨만
+
+                Undo.RecordObject(lr, "UI 스킨 배선");
+                lr.offsetMin = new Vector2(l, 0f);
+                lr.offsetMax = new Vector2(-r, 0f);
+                EditorUtility.SetDirty(lr);
+            }
+        }
+
+        /// <summary>
+        /// ★★ <b>성장 창 «칸» 의 속 배치를 판 테두리 안으로 넣는다</b> (2026-08-25).
+        ///
+        /// <b>왜 여기서 하나</b> — 이 칸들은 <see cref="Button"/> 이라
+        /// <see cref="UiTextInset"/> 가 «버튼 라벨» 로 보고 건너뛰고, 그렇다고
+        /// <see cref="InsetLabel"/> 이 맡기에는 <b>늘어난 라벨이 아니라</b> 좌상단에
+        /// 고정된 칸 넷~다섯이다. 그래서 이 한 곳에서 <b>값으로</b> 못박는다.
+        ///
+        /// ★ <b>자동으로 «밀기» 를 쓰면 안 되는 자리</b>다 — 이름·값·증감이 위아래로
+        ///   붙어 있어서 각자 안쪽으로 밀면 <b>서로 겹친다</b>. 사람이 한 번 재서
+        ///   넣는 편이 맞다(판 테두리는 위 10 · 아래 8 이라 안쪽이 y 10~58 뿐이다).
+        /// ⚠ 스탯 12칸 · 스킬 3칸이 <b>전부 같은 속</b>이라 이름으로 한 번에 맞춘다.
+        /// </summary>
+        static void LayoutCell(RectTransform cell, bool isStat)
+        {
+            // (자식 이름, 왼쪽, 위, 폭, 높이) — 칸 좌상단 기준. 전부 앵커 (0,1) 피벗 (0,1).
+            (string n, float x, float y, float w, float h)[] plan = isStat
+                ? new (string, float, float, float, float)[]
+                {
+                    ("Label", 12f, 12f, 256f, 18f),
+                    ("Value", 12f, 32f, 150f, 24f),
+                    ("Delta", 168f, 32f, 100f, 24f),
+                }
+                : new (string, float, float, float, float)[]
+                {
+                    ("Icon",     10f,  10f,  68f, 68f),
+                    ("Name",     86f,  12f, 182f, 22f),
+                    ("Lock",     86f,  38f, 182f, 18f),
+                    ("Desc",     10f,  88f, 260f, 58f),
+                    ("Hint",     10f, 148f, 260f, 18f),
+                    ("RageBack", 10f, 148f, 260f, 18f),
+                };
+
+            foreach ((string n, float x, float y, float w, float h) in plan)
+            {
+                Transform t = cell.Find(n);
+                if (t == null) continue;
+                var r = t as RectTransform;
+                if (r == null) continue;
+
+                Undo.RecordObject(r, "UI 스킨 배선");
+                r.anchorMin = new Vector2(0f, 1f);
+                r.anchorMax = new Vector2(0f, 1f);
+                r.pivot = new Vector2(0f, 1f);
+                r.sizeDelta = new Vector2(w, h);
+                r.anchoredPosition = new Vector2(x, -y);
+                EditorUtility.SetDirty(r);
+            }
         }
 
         static string PathOf(Transform t, Transform root)
