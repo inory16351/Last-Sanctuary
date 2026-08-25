@@ -13,6 +13,7 @@ namespace LastSanctuary.UI
     /// <b>하이라키</b>: <c>UI_Root/HUD_Event</c> — MCP 로 직접 만든 오브젝트다(§10 H-1).
     /// <code>
     /// HUD_Event                (이 컴포넌트 · 평소에는 비활성)
+    /// ├─ Bg                    배경 그림 (2026-08-25 신설 · 표의 event_bg 로 갈아 끼운다)
     /// ├─ Title                 이벤트 이름
     /// ├─ Body                  지금 줄의 대사
     /// ├─ Choice0 &gt; Label     선택지 1 (수락 / 첫 보상)
@@ -53,6 +54,34 @@ namespace LastSanctuary.UI
 
         [Tooltip("결과창에서 창을 닫는 버튼의 라벨")]
         [SerializeField] string finishLabel = "확인";
+
+        // ══════════════════════════════════════════════════════════════
+        //  ★★★ 배경 그림 (2026-08-25 신설 — 유저: *"이미지 넣어서 줄테니까 연동해"*)
+        // ══════════════════════════════════════════════════════════════
+        // 표의 <c>event_bg</c> 가 <b>파일 이름</b>이다(`bg_fog` · `bg_aftermath` …).
+        // 그림을 <c>Resources/EventBg/</c> 에 <b>키와 똑같은 이름</b>으로 넣으면 저절로 붙는다.
+        //
+        // ⚠ <b>스프라이트 참조는 인스펙터에 못 넣는다</b>(MCP 로는 오브젝트 참조를 못 쓴다 ·
+        //   진행상황 8절 4번). 그래서 <b>코드가 이름으로 읽어</b> 꽂는다 —
+        //   발굴 표식(<c>RelicDigService</c>)·로비 그림이 쓰는 것과 같은 방식이다.
+        // ★ <b>그림이 없으면 조용히 배경 없이</b> 뜬다. 그림 하나 때문에 사건이 막히면 안 된다.
+
+        [Header("배경 그림")]
+        [Tooltip("Resources 아래 폴더. 표의 event_bg 가 여기서 <b>파일 이름</b>이 된다")]
+        [SerializeField] string bgFolder = "EventBg";
+
+        [Tooltip("배경을 그릴 Image 의 하이라키 이름. 없으면 배경 없이 뜬다")]
+        [SerializeField] string bgPath = "Bg";
+
+        [Tooltip("배경에 곱하는 색. ★ <b>알파를 낮춰 어둡게</b> 깔아야 위에 얹힌 글이 읽힌다 — " +
+                 "그림이 아무리 좋아도 글을 못 읽으면 못 쓴다")]
+        [SerializeField] Color bgTint = new Color(1f, 1f, 1f, 0.55f);
+
+        Image _bg;
+
+        /// <summary>한 번 읽은 그림은 들고 있는다 — 사건마다 <c>Resources.Load</c> 를 다시 돌지 않게.</summary>
+        readonly System.Collections.Generic.Dictionary<string, Sprite> _bgCache =
+            new System.Collections.Generic.Dictionary<string, Sprite>();
 
         TMP_Text _title, _body, _choice0Label, _choice1Label, _closeLabel;
         Button _choice0, _choice1, _close;
@@ -129,6 +158,18 @@ namespace LastSanctuary.UI
             _title = Find("Title");
             _body = Find("Body");
 
+            // ★★ 배경은 <b>맨 뒤로</b> 보낸다. 씬에서 자식 순서가 어떻든 여기서 한 번
+            //   못박으므로, 나중에 칸을 더해도 배경이 글을 덮는 사고가 나지 않는다.
+            //   (UI 는 «형제 순서 = 그리는 순서» 다 — 먼저 그린 것이 아래 깔린다.)
+            _bg = string.IsNullOrWhiteSpace(bgPath)
+                ? null
+                : transform.Find(bgPath)?.GetComponent<Image>();
+            if (_bg != null)
+            {
+                _bg.transform.SetAsFirstSibling();
+                _bg.raycastTarget = false;   // 배경이 선택지 클릭을 먹지 않게
+            }
+
             _choice0 = FindButton("Choice0");
             _choice1 = FindButton("Choice1");
             _close = FindButton("CloseButton");
@@ -144,6 +185,55 @@ namespace LastSanctuary.UI
 
         TMP_Text Find(string path) => transform.Find(path)?.GetComponent<TMP_Text>();
         Button FindButton(string path) => transform.Find(path)?.GetComponent<Button>();
+
+        /// <summary>
+        /// ★★★ 표의 <c>event_bg</c> 로 배경 그림을 갈아 끼운다 (2026-08-25).
+        ///
+        /// <code>
+        ///   event_bg = "bg_fog"  →  Resources/EventBg/bg_fog  →  Bg 이미지에 꽂는다
+        ///   그림이 없다          →  Bg 를 <b>끈다</b>(창은 그대로 뜬다)
+        /// </code>
+        ///
+        /// ⚠ <b>없는 그림을 «없다» 고 한 번만 알린다.</b> 사건이 뜰 때마다 경고를 쏟으면
+        ///   콘솔이 도배돼 진짜 문제를 못 본다 — 캐시에 <c>null</c> 을 넣어 두 번째부터는 조용하다.
+        /// ⚠ <b>textureType 이 Sprite(8)여야 읽힌다.</b> Default 로 들어오면
+        ///   <see cref="Resources.Load{T}"/> 가 <b>조용히 null</b> 을 돌려준다(84-8절 ②의 함정) —
+        ///   그림이 있는데 안 나오면 그 파일의 임포트 설정부터 볼 것.
+        /// </summary>
+        void ApplyBackground(EventDefinitionSO def)
+        {
+            if (_bg == null) return;
+
+            Sprite sprite = LoadBg(def != null ? def.eventBg : null);
+
+            if (sprite == null)
+            {
+                if (_bg.gameObject.activeSelf) _bg.gameObject.SetActive(false);
+                return;
+            }
+
+            if (!_bg.gameObject.activeSelf) _bg.gameObject.SetActive(true);
+            _bg.sprite = sprite;
+            _bg.color = bgTint;
+        }
+
+        /// <summary>이름으로 배경 그림을 읽는다. 못 찾으면 <c>null</c>(캐시에도 그렇게 남긴다).</summary>
+        Sprite LoadBg(string key)
+        {
+            key = (key ?? "").Trim();
+            if (key.Length == 0) return null;
+
+            if (_bgCache.TryGetValue(key, out Sprite cached)) return cached;
+
+            Sprite found = Resources.Load<Sprite>($"{bgFolder}/{key}");
+            _bgCache[key] = found;
+
+            if (found == null)
+                Debug.Log($"[사건] 배경 그림이 없습니다: Resources/{bgFolder}/{key} — " +
+                          "배경 없이 띄웁니다.", this);
+
+            return found;
+        }
 
         // ------------------------------------------------------------------
 
@@ -259,6 +349,8 @@ namespace LastSanctuary.UI
         {
             if (_title != null)
                 _title.text = string.IsNullOrWhiteSpace(def.DisplayName) ? fallbackTitle : def.DisplayName;
+
+            ApplyBackground(def);
 
             bool resultStage = choice != null;
 
