@@ -65,8 +65,46 @@ namespace LastSanctuary.Map
         // 생성 결과 — 다른 시스템(플로우 필드, 스폰 배치)이 참조한다.
         public MapGenerationConfigSO Config => config;
         public bool[] Walkable { get; private set; }
-        public Vector2Int MapSize { get; private set; }
-        public Vector2Int Origin { get; private set; }
+
+        /// <summary>
+        /// ★★★ <b>맵의 칸 수</b> — <b>생성 전에도 옳은 값</b>을 돌려준다 (2026-08-25).
+        ///
+        /// ══════════════════════════════════════════════════════════════
+        ///  ⚠⚠ 무슨 일이 있었나 — <b>발굴 기능이 통째로 죽어 있었다</b>
+        /// ══════════════════════════════════════════════════════════════
+        /// 유저 리포트: *"발굴 기능이 구현이 안된거같은데 한 번 확인해줘"*.
+        ///
+        /// 예전에는 이 둘이 <c>{ get; private set; }</c> 였고 <see cref="Generate"/> 안에서만
+        /// 채워졌다. 그런데 씬의 <see cref="generateOnAwake"/> 는 <b>꺼져 있다</b> — 이 판의
+        /// 지형은 에디터에서 미리 구워 타일맵에 <b>직렬화돼</b> 있고 런타임에는 만들지 않는다.
+        /// 즉 <b><c>MapSize</c> 가 영원히 (0,0)</b> 이었다.
+        ///
+        /// <c>RelicDigService.PickSites</c> 만 이 값을 읽고 있었고
+        /// (다른 다섯 곳은 전부 <c>Config.MapSize</c> 를 읽는다), 거기서
+        /// <c>if (size.x &lt;= 0 || size.y &lt;= 0) return;</c> 로 <b>조용히</b> 빠져나갔다:
+        ///
+        /// <code>
+        ///   발굴 칸 0개  →  표식(느낌표) 0개  →  누를 것이 없다  →  «기능이 없다»
+        ///   ⚠ 그 return 이 <b>로그보다 앞</b>이라 콘솔에 <b>한 줄도</b> 남지 않았다.
+        /// </code>
+        ///
+        /// → <b>값의 정본은 언제나 <see cref="config"/> 다.</b> <see cref="Generate"/> 도
+        ///   <c>config.MapSize</c> 를 그대로 옮겨 담을 뿐이므로 <b>두 값은 늘 같다</b> —
+        ///   생성 전이면 config 를 그대로 돌려주는 것이 «다른 값» 이 아니라 «같은 값» 이다.
+        /// ★ 이렇게 두면 <b>앞으로 이 값을 읽는 코드가 늘어도</b> 같은 함정에 안 빠진다.
+        ///   «Config 를 읽어라» 를 사람이 기억하는 대신 <b>속성이 스스로 맞는다</b>.
+        /// </summary>
+        public Vector2Int MapSize =>
+            _mapSize.x > 0 && _mapSize.y > 0 ? _mapSize
+            : config != null ? config.MapSize : Vector2Int.zero;
+
+        /// <summary>맵의 왼쪽 아래 셀 좌표. <see cref="MapSize"/> 와 같은 이유로 config 폴백이 있다.</summary>
+        public Vector2Int Origin =>
+            _mapSize.x > 0 && _mapSize.y > 0 ? _origin
+            : config != null ? config.Origin : Vector2Int.zero;
+
+        /// <summary>실제로 <see cref="Generate"/> 가 만든 값. 만든 적이 없으면 (0,0) 이다.</summary>
+        Vector2Int _mapSize, _origin;
 
         /// <summary>
         /// 성역 등 고정 구조물이 차지한 칸. 장애물 타일맵과 별개로 관리해서
@@ -127,9 +165,9 @@ namespace LastSanctuary.Map
             // 저장이 읽어갈 값 — 지금 깔린 지형이 어느 씨앗에서 나왔는지.
             ActiveSeed = seed;
 
-            MapSize = config.MapSize;
-            Origin  = config.Origin;
-            int w = MapSize.x, h = MapSize.y;
+            _mapSize = config.MapSize;
+            _origin  = config.Origin;
+            int w = _mapSize.x, h = _mapSize.y;
             Vector2Int cc = config.ChunkCount;
 
             // 1. 청크별 팔레트 — 전체 타일 풀에서 매번 새로 뽑는다

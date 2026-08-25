@@ -353,7 +353,7 @@ MonoBehaviour:
   - helpId: "help_epic"
     stepOrder: 2
     targetPath: "UI_Root/HUD_Subjugate/Squads/List"
-    stepText: "어느 부대를 보낼지 여기서 고릅니다. 지시를 내린 부대만 잡으러 갑니다."
+    stepText: "어느 부대를 보낼지 여기서 고릅니다. 지시를 내린 부대만 잡으러 갑니다.\n중립 에픽 몬스터는 최대 두 개의 부대까지 토벌을 보낼 수 있습니다"
   - helpId: "help_epic"
     stepOrder: 3
     targetPath: "UI_Root/HUD_Subjugate/Hint"

@@ -74,16 +74,41 @@ namespace LastSanctuary.Relics
             return OwnedCount(relicId) - used;
         }
 
-        /// <summary>유물을 하나 얻는다. 획득 로그는 부르는 쪽이 남긴다(문맥이 다르므로).</summary>
-        public void Grant(RelicDefinitionSO relic)
+        /// <summary>
+        /// 유물을 하나 얻는다. 획득 로그는 부르는 쪽이 남긴다(문맥이 다르므로).
+        ///
+        /// ★★★ <b>같은 유물은 두 번 주지 않는다</b> (2026-08-25 · 유저 지시:
+        /// *"유물 중복 획득 안되게 수정해줘"*).
+        ///
+        /// ★ <b>추첨에서 이미 걸렀는데 왜 여기서 또 보는가</b> — 주는 통로가 <b>넷</b>이기
+        ///   때문이다: 발굴 · 일반 처치 드랍 · <b>보스 고유 드랍</b> · <b>사건 보상</b>.
+        ///   뒤의 둘은 추첨을 거치지 않고 <b>정해진 유물을 곧바로</b> 준다. 통로마다 검사를
+        ///   흩어 놓으면 다섯 번째 통로가 생기는 날 반드시 빠뜨린다 —
+        ///   <b>«들어오는 문» 한 곳에서 막는다</b>(HudExclusive 가 창 배타에서 택한 것과 같은 결론).
+        /// ⚠ 그래도 추첨 쪽 <see cref="RelicRegistry.RollGrade"/> 의 거르기는 <b>남긴다</b>.
+        ///   거기서 안 거르면 «뽑았는데 거절당함» 이 되어 <b>체감 확률이 조용히 떨어진다</b>.
+        /// </summary>
+        /// <returns>실제로 새로 얻었으면 <c>true</c>. 이미 가지고 있었으면 <c>false</c>.</returns>
+        public bool Grant(RelicDefinitionSO relic)
         {
-            if (relic == null || relic.relicId <= 0) return;
-            _owned.TryGetValue(relic.relicId, out int n);
-            _owned[relic.relicId] = n + 1;
+            if (relic == null || relic.relicId <= 0) return false;
+
+            if (_owned.TryGetValue(relic.relicId, out int n) && n > 0)
+            {
+                if (logChanges)
+                    Debug.Log($"[유물] 중복 — {relic.DisplayName} 은(는) 이미 가지고 있어 주지 않았습니다");
+                return false;
+            }
+
+            _owned[relic.relicId] = 1;
             if (logChanges)
-                Debug.Log($"[유물] 획득 — {relic.DisplayName} ({RelicDefinitionSO.NameOf(relic.grade)}) x{n + 1}");
+                Debug.Log($"[유물] 획득 — {relic.DisplayName} ({RelicDefinitionSO.NameOf(relic.grade)})");
             OnChanged?.Invoke();
+            return true;
         }
+
+        /// <summary>이 유물을 이미 가지고 있는가 (2026-08-25 · 중복 금지).</summary>
+        public bool Owns(int relicId) => OwnedCount(relicId) > 0;
 
         // ==================================================================
         // 장착

@@ -150,6 +150,12 @@ namespace LastSanctuary.Units
         public float GrowthMultiplier { get; private set; } = 1f;
 
         /// <summary>
+        /// ★ <b>적정 레벨</b> — 표 <c>recommend_level</c> 그대로. 0 이면 «없음» 이다
+        /// (2026-08-25 · 토벌 지시 창이 읽는다).
+        /// </summary>
+        public int RecommendLevel => definition != null ? definition.recommendLevel : 0;
+
+        /// <summary>
         /// ★★★ <b>이 개체의 «자원» 배율</b> — 능력치 배율과 <b>다른 값</b>이다 (2026-08-25).
         ///
         /// 예전에는 <see cref="GrowthMultiplier"/> 하나를 능력치와 보상에 <b>똑같이</b> 썼고,

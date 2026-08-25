@@ -16,6 +16,7 @@ MonoBehaviour:
   nameKey: mon_name_1103
   displayName: NeutralMonster_7
   template: {fileID: 0}
+  recommendLevel: 20
   minEnergy: 600
   maxEnergy: 900
   attackStat: 39
@@ -30,7 +31,7 @@ MonoBehaviour:
   spawnRangeMinTiles: 200
   spawnRangeMaxTiles: 320
   maxAlive: 1
-  respawnSeconds: 600
+  respawnSeconds: 1200
   attackType: 0
   groupMaking: 0
   groupMember: 0

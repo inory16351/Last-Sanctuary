@@ -295,7 +295,19 @@ namespace LastSanctuary.Relics
         public void PickSites()
         {
             _sites.Clear();
-            if (_map == null || digSiteCount <= 0) return;
+            if (digSiteCount <= 0) return;                 // 끄려고 0 을 넣은 것이다 — 조용히 넘어간다
+
+            // ⚠⚠ <b>여기서 조용히 돌아가면 «기능이 없는 것» 이 된다</b> (2026-08-25).
+            //   실제로 그랬다 — MapGenerator.MapSize 가 (0,0) 이라 아래 검사에서 빠져나갔고,
+            //   그 return 이 로그보다 앞이라 <b>콘솔에 한 줄도 남지 않았다</b>.
+            //   유저에게는 «발굴 기능이 구현이 안 된 것» 으로 보였다.
+            //   → 못 하면 <b>반드시 이유를 말한다</b>. 실패는 조용해서는 안 된다.
+            if (_map == null)
+            {
+                Debug.LogWarning("[유물] MapGenerator 를 찾지 못해 발굴 칸을 두지 못했습니다 — " +
+                                 "발굴이 통째로 동작하지 않습니다.", this);
+                return;
+            }
 
             Vector3 nexus = NexusPosition();
             float nexusSqr = minDistanceFromNexus * minDistanceFromNexus;
@@ -303,7 +315,12 @@ namespace LastSanctuary.Relics
 
             Vector2Int size = _map.MapSize;
             Vector2Int origin = _map.Origin;
-            if (size.x <= 0 || size.y <= 0) return;
+            if (size.x <= 0 || size.y <= 0)
+            {
+                Debug.LogWarning($"[유물] 맵 크기가 {size} 라 발굴 칸을 두지 못했습니다 — " +
+                                 "MapGenerator 의 config 가 비어 있는지 확인하세요.", this);
+                return;
+            }
 
             int tries = 0;
             while (_sites.Count < digSiteCount && tries < placementAttempts)
@@ -741,10 +758,18 @@ namespace LastSanctuary.Relics
         /// <summary>방금 발굴로 얻은 유물의 아이콘 — 결과 창이 그린다. 없으면 null.</summary>
         Sprite _lastGrantedIcon;
 
+        /// <summary>
+        /// ★★ <b>이미 가진 유물은 나오지 않는다</b> (2026-08-25 · 유저 지시:
+        /// *"유물 중복 획득 안되게 수정해줘"*). 거르는 일은 <see cref="RelicRegistry.RollGrade"/>
+        /// 가 하고, 여기서는 <b>다 가졌을 때</b> 를 말로 알린다 — 조용히 «아무것도 안 나옴» 이면
+        /// 유저가 «발굴이 또 고장났나» 로 읽는다(위 PickSites 의 ⚠⚠ 와 같은 교훈).
+        /// </summary>
         string GrantRelic(RelicGrade grade, bool digOnly)
         {
             RelicDefinitionSO relic = RelicRegistry.RollGrade(grade, digOnly);
-            if (relic == null) return "";
+            if (relic == null)
+                return $"{RelicDefinitionSO.NameOf(grade)} 유물은 이미 다 모았습니다";
+
             RelicInventory.Instance?.Grant(relic);
             _lastGrantedIcon = relic.icon;
             return $"유물 「{relic.DisplayName}」 ({RelicDefinitionSO.NameOf(grade)})";

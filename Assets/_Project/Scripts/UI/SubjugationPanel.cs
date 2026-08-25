@@ -62,7 +62,31 @@ namespace LastSanctuary.UI
         [SerializeField] string hintNoTarget = "아직 발견한 에픽 몬스터가 없습니다. 부대를 외곽까지 탐험 보내세요.";
         [SerializeField] string memberFormat = "{0}명";
         [SerializeField] string orderNone = "명령 없음";
+        [SerializeField] string orderBusy = "토벌 중";
         [SerializeField] string hpFormat = "{0} / {1}";
+
+        [Header("적정 레벨 (2026-08-25)")]
+        [Tooltip("{0} = 표 recommend_level. 대상 줄 <b>오른쪽 끝</b>에 붙는다")]
+        [SerializeField] string levelFormat = "적정 Lv.{0}";
+
+        [Tooltip("부대 평균 레벨이 적정 레벨 이상일 때의 색 (갈 만하다)")]
+        [SerializeField] Color levelReady = new Color(0.45f, 0.95f, 0.62f, 1f);
+
+        [Tooltip("모자랄 때의 색 (아직 위험하다)")]
+        [SerializeField] Color levelShort = new Color(0.95f, 0.46f, 0.42f, 1f);
+
+        [Tooltip("고른 부대가 없을 때의 색 (견줄 대상이 없으니 그냥 숫자만 보여 준다)")]
+        [SerializeField] Color levelIdle = new Color(0.78f, 0.80f, 0.86f, 1f);
+
+        [Header("정원 (2026-08-25)")]
+        [Tooltip("{0} = 지금 붙은 부대 수 · {1} = 정원. 대상 줄 오른쪽에 함께 뜬다")]
+        [SerializeField] string squadCountFormat = "부대 {0}/{1}";
+
+        [Tooltip("정원이 찬 대상을 눌렀을 때의 안내. {0} = 정원")]
+        [SerializeField] string hintTargetFull = "이 대상에는 이미 {0}개 부대가 가 있습니다.";
+
+        [Tooltip("안내 문구가 이 시간(초)만큼 남아 있다가 원래 안내로 돌아간다")]
+        [Min(0.5f)] [SerializeField] float noticeSeconds = 2.5f;
 
         [Header("색")]
         [SerializeField] Color rowNormal = new Color(0.11f, 0.13f, 0.17f, 0.92f);
@@ -77,6 +101,9 @@ namespace LastSanctuary.UI
             public Button Button;
             public TMP_Text Name;
             public TMP_Text Order;
+
+            /// <summary>★ 오른쪽 끝 — 지금 토벌 보낸 몬스터 이름 (2026-08-25).</summary>
+            public TMP_Text Target;
         }
 
         /// <summary>대상 줄 하나.</summary>
@@ -88,6 +115,9 @@ namespace LastSanctuary.UI
             public Image Art;
             public TMP_Text Name;
             public TMP_Text Hp;
+
+            /// <summary>★ 오른쪽 끝 — 적정 레벨과 «부대 n/2» (2026-08-25).</summary>
+            public TMP_Text Level;
         }
 
         readonly List<SquadRow> _squadRows = new List<SquadRow>();
@@ -103,6 +133,10 @@ namespace LastSanctuary.UI
         int _selectedSquadId;
         float _nextRefresh;
         bool _bound;
+
+        /// <summary>임시 안내(정원 초과 등)가 살아 있는 시각. <c>unscaledTime</c> 기준.</summary>
+        float _noticeUntil;
+        string _notice = "";
 
         void Awake()
         {
@@ -183,6 +217,7 @@ namespace LastSanctuary.UI
                     Button = clone.GetComponent<Button>(),
                     Name = FindText(clone, "Name"),
                     Order = FindText(clone, "Order"),
+                    Target = FindText(clone, "Target"),
                 };
 
                 // 클로저가 인덱스를 잡도록 지역 변수에 복사 — 반복 변수를 그대로 캡처하면
@@ -206,8 +241,17 @@ namespace LastSanctuary.UI
                     row.Name.text = $"{squad.Name}  <size=80%>{string.Format(memberFormat, squad.AliveCount)}</size>";
 
                 NeutralMonsterUnit order = _service != null ? _service.OrderOf(squad.Id) : null;
+
+                // ★ 2026-08-25 — 몬스터 <b>이름</b>은 오른쪽 끝(Target)으로 옮겼다.
+                //   왼쪽 둘째 줄은 «지금 무엇을 하는 중인가» 만 말한다 — 같은 글자를
+                //   한 줄에 두 번 적으면 어느 쪽이 정본인지 알 수 없어진다.
                 if (row.Order != null)
-                    row.Order.text = order != null ? order.DisplayName : orderNone;
+                    row.Order.text = order != null ? orderBusy : orderNone;
+
+                if (row.Target != null)
+                    row.Target.text = order != null
+                        ? $"<color=#{ColorUtility.ToHtmlStringRGB(HudTheme.TextErosion)}>{order.DisplayName}</color>"
+                        : "";
 
                 if (row.Background != null)
                     row.Background.color = squad.Id == _selectedSquadId ? rowSelected
@@ -236,6 +280,7 @@ namespace LastSanctuary.UI
                     Art = clone.Find("Art")?.GetComponent<Image>(),
                     Name = FindText(clone, "Name"),
                     Hp = FindText(clone, "Hp"),
+                    Level = FindText(clone, "Level"),
                 };
 
                 int slot = _targetRows.Count;
@@ -274,14 +319,80 @@ namespace LastSanctuary.UI
                     row.Art.color = art != null ? Color.white : new Color(1f, 1f, 1f, 0f);
                 }
 
+                if (row.Level != null) FillLevel(row.Level, t);
+
                 if (row.Background != null)
                     row.Background.color = ReferenceEquals(t, ordered) ? rowOrdered : rowNormal;
             }
         }
 
+        /// <summary>
+        /// ★★★ <b>적정 레벨과 정원</b>을 대상 줄 오른쪽 끝에 적는다 (2026-08-25 · 유저 지시:
+        /// *"각 중립 에픽 몬스터당 레벨 기준을 … 에픽 몬스터 오른쪽 끝에다가 표시해"*).
+        ///
+        /// <code>
+        ///   적정 Lv.25      ← 표 recommend_level (0 이면 줄 자체를 비운다)
+        ///   부대 1/2        ← 지금 몇 부대가 가 있는가 · 정원
+        /// </code>
+        ///
+        /// ★ <b>색으로 «갈 만한가» 를 말한다</b> — 유저가 정한 기준이 «부대 하나(4명)의 레벨» 이라
+        ///   고른 부대의 <b>평균 레벨</b>과 견준다. 부대를 아직 안 골랐으면 견줄 것이 없으므로
+        ///   회색으로 숫자만 보여 준다(거짓 안심·거짓 경고를 만들지 않는다).
+        /// ⚠ 레벨은 <c>UpgradeCount</c> 다 — 이 게임이 화면 곳곳에서 «Lv.N» 으로 부르는 그 값이다
+        ///   (<c>CharacterRosterPanel</c>·<c>UnitPortraitPanel</c> 과 같은 기준).
+        /// </summary>
+        void FillLevel(TMP_Text label, NeutralMonsterUnit t)
+        {
+            int need = t != null ? t.RecommendLevel : 0;
+            int squads = _service != null ? _service.SquadCountOn(t) : 0;
+            int cap = _service != null ? _service.MaxSquadsPerTarget : 1;
+
+            if (need <= 0)
+            {
+                label.text = squads > 0 ? string.Format(squadCountFormat, squads, cap) : "";
+                label.color = levelIdle;
+                return;
+            }
+
+            float avg = AverageLevelOfSelectedSquad();
+            label.color = avg < 0f ? levelIdle : (avg + 0.0001f >= need ? levelReady : levelShort);
+            label.text = string.Format(levelFormat, need) +
+                         $"{NEWLINE}<size=78%>{string.Format(squadCountFormat, squads, cap)}</size>";
+        }
+
+        /// <summary>
+        /// 고른 부대의 <b>평균 레벨</b>. 부대를 안 골랐거나 살아 있는 사람이 없으면 −1.
+        /// ⚠ 죽은 사람은 세지 않는다 — «4명 기준» 은 실제로 갈 수 있는 사람의 이야기다.
+        /// </summary>
+        float AverageLevelOfSelectedSquad()
+        {
+            if (_squads == null || _selectedSquadId <= 0) return -1f;
+
+            SquadService.Squad squad = _squads.Find(_selectedSquadId);
+            if (squad == null) return -1f;
+
+            int sum = 0, n = 0;
+            for (int i = 0; i < squad.Members.Count; i++)
+            {
+                CharacterUnit m = squad.Members[i];
+                if (m == null || !m.IsAlive) continue;
+                sum += m.UpgradeCount;
+                n++;
+            }
+            return n > 0 ? sum / (float)n : -1f;
+        }
+
         void RefreshHint()
         {
             if (_hint == null) return;
+
+            // ★ 임시 안내(정원 초과)가 살아 있으면 그것을 보여 준다 — 누른 결과가
+            //   화면 어딘가에 남아야 «눌렸는지» 를 안다(2026-08-25).
+            if (Time.unscaledTime < _noticeUntil && !string.IsNullOrEmpty(_notice))
+            {
+                _hint.text = _notice;
+                return;
+            }
 
             bool hasSquad = _squads != null && _squads.Squads.Count > 0;
             bool hasTarget = _service != null && _service.Discovered.Count > 0;
@@ -314,9 +425,18 @@ namespace LastSanctuary.UI
 
             NeutralMonsterUnit t = _service.Discovered[index];
             NeutralMonsterUnit now = _service.OrderOf(_selectedSquadId);
+            bool release = ReferenceEquals(now, t);            // 같은 대상을 다시 누르면 해제
 
-            // 같은 대상을 다시 누르면 해제.
-            _service.SetOrder(_selectedSquadId, ReferenceEquals(now, t) ? null : t);
+            // ★ 정원이 찼으면 «왜 안 되는지» 를 말한다 (2026-08-25).
+            if (!release && !_service.CanOrder(_selectedSquadId, t))
+            {
+                _notice = string.Format(hintTargetFull, _service.MaxSquadsPerTarget);
+                _noticeUntil = Time.unscaledTime + noticeSeconds;
+                _nextRefresh = 0f;
+                return;
+            }
+
+            _service.SetOrder(_selectedSquadId, release ? null : t);
             _nextRefresh = 0f;
         }
 
@@ -348,6 +468,9 @@ namespace LastSanctuary.UI
                 close.onClick.AddListener(Close);
             }
         }
+
+        /// <summary>TMP 리치텍스트 안에 넣을 줄바꿈 — 소스에 실제 개행을 쓰지 않기 위한 상수.</summary>
+        const string NEWLINE = "\n";
 
         static TMP_Text FindText(Transform parent, string path)
         {

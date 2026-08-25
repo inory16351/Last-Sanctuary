@@ -119,8 +119,14 @@ namespace LastSanctuary.Relics
                 Give(RelicRegistry.RollGrade(RelicGrade.Rare), victimName);
         }
 
+        /// <summary>
+        /// 보스 고유 유물 — <b>이미 가지고 있으면 굴리지도 않는다</b> (2026-08-25 · 중복 금지).
+        /// ★ 굴린 뒤에 버리지 않는다 — 그러면 «떴는데 안 준» 로그가 남아 헷갈린다.
+        /// </summary>
         static void TryDrop(RelicDefinitionSO relic, float percent, string victimName)
         {
+            if (relic == null) return;
+            if (RelicInventory.Instance != null && RelicInventory.Instance.Owns(relic.relicId)) return;
             if (Roll(percent)) Give(relic, victimName);
         }
 
@@ -130,7 +136,11 @@ namespace LastSanctuary.Relics
         static void Give(RelicDefinitionSO relic, string victimName)
         {
             if (relic == null || RelicInventory.Instance == null) return;
-            RelicInventory.Instance.Grant(relic);
+
+            // ⚠ 중복이면 <b>아무 말도 하지 않는다</b> — 「남겼습니다」 로그와 보스 창이
+            //   뜨는데 보관함에는 안 늘어나는 것이 가장 나쁘다(2026-08-25).
+            if (!RelicInventory.Instance.Grant(relic)) return;
+
             HudLog.Add($"{victimName} 이(가) 「{relic.DisplayName}」 을(를) 남겼습니다 " +
                        $"({RelicDefinitionSO.NameOf(relic.grade)})",
                        relic.grade == RelicGrade.Epic ? HudLogKind.Good : HudLogKind.Info);

@@ -79,6 +79,22 @@ namespace LastSanctuary.Units
                 ? Mathf.Max(spawnRangeMaxTiles * 0.5f, MinDistanceFromNexus + 1f)
                 : float.PositiveInfinity;
 
+        /// <summary>
+        /// ★★★ <b>적정 레벨</b> — 이 에픽을 감당하려면 <b>부대 하나(4명)</b> 가 몇 레벨이어야
+        /// 하는가 (2026-08-25 · 유저 지시: *"토벌지시 UI에서 중립 에픽 몬스터의 적정 레벨을
+        /// 표시할거야 … 권장 기준은 부대 하나 (4명)의 레벨이 적정 레벨을 달성했을 때"*).
+        ///
+        /// ★ <b>표에 두는 이유</b> — 능력치에서 «계산해서» 뽑을 수도 있지만, 그러면 밸런스를
+        ///   만질 때마다 권장치가 <b>제멋대로 흔들린다</b>. 이것은 계산값이 아니라
+        ///   <b>기획이 정한 문턱</b>이므로 표에 적힌 그대로 보여 준다(몬스터 크기를 상수에서
+        ///   표 컬럼으로 옮긴 118-3절과 같은 판단).
+        /// ⚠ 0 이면 <b>표시하지 않는다</b> — 잡몹 중립에는 이 개념이 없다.
+        /// </summary>
+        [Header("적정 레벨 (테이블 recommend_level · 2026-08-25)")]
+        [Tooltip("이 에픽을 잡으려면 부대 하나(4명)가 몇 레벨이어야 하는가.\n" +
+                 "0 이면 토벌 지시 창에 아무것도 안 뜬다(잡몹 중립).")]
+        [Min(0)] public int recommendLevel;
+
         [Header("에너지 보상 (테이블 min/max_energy)")]
         [Tooltip("처치 시 획득하는 에너지의 최소값")]
         [Min(0)] public int minEnergy = 5;

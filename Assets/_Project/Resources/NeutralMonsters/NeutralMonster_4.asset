@@ -16,6 +16,7 @@ MonoBehaviour:
   nameKey: mon_name_1101
   displayName: 카르시노스
   template: {fileID: 0}
+  recommendLevel: 10
   minEnergy: 600
   maxEnergy: 900
   attackStat: 19
@@ -30,7 +31,7 @@ MonoBehaviour:
   spawnRangeMinTiles: 200
   spawnRangeMaxTiles: 320
   maxAlive: 1
-  respawnSeconds: 600
+  respawnSeconds: 1200
   attackType: 0
   groupMaking: 0
   groupMember: 0

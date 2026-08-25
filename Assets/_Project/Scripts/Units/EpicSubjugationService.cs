@@ -76,6 +76,11 @@ namespace LastSanctuary.Units
         [Tooltip("발견 목록을 다시 훑는 주기(초). 매 프레임 볼 필요가 없는 값이다")]
         [Min(0.05f)] [SerializeField] float discoveryInterval = 0.5f;
 
+        [Tooltip("★ 한 마리에게 동시에 보낼 수 있는 부대 수 (2026-08-25 · 유저 지시:\n" +
+                 "«한 몬스터 토벌은 최대 두개의 부대까지 설정 가능하게»).\n" +
+                 "1 로 두면 예전 동작(한 마리에 한 부대)이다")]
+        [Min(1)] [SerializeField] int maxSquadsPerTarget = 2;
+
         [Header("디버그")]
         [SerializeField] bool logOrders = true;
 
@@ -102,6 +107,9 @@ namespace LastSanctuary.Units
 
         /// <summary>이 거리 안이면 사냥 타겟으로 넘긴다(타일).</summary>
         public float EngageRangeTiles => engageRangeTiles;
+
+        /// <summary>한 마리에게 동시에 보낼 수 있는 부대 수 (2026-08-25).</summary>
+        public int MaxSquadsPerTarget => Mathf.Max(1, maxSquadsPerTarget);
 
         void Awake() => Instance = this;
 
@@ -270,6 +278,35 @@ namespace LastSanctuary.Units
         // 명령
         // ------------------------------------------------------------------
 
+        /// <summary>
+        /// ★★ <b>지금 이 대상에게 붙어 있는 부대 수</b> (2026-08-25 · 유저 지시:
+        /// *"한 몬스터 토벌은 최대 두개의 부대까지 설정 가능하게 기능 구현해"*).
+        ///
+        /// ★ <b>세는 쪽이 «장부» 인 이 클래스인 이유</b> — 명령의 정본이 <see cref="_orders"/>
+        ///   하나뿐이라 여기서 세면 항상 맞는다. UI 가 자기 화면을 세면 «화면에 안 그려진 부대»
+        ///   (스크롤 밖·갱신 전)를 빠뜨린다.
+        /// </summary>
+        public int SquadCountOn(NeutralMonsterUnit target)
+        {
+            if (target == null) return 0;
+
+            int n = 0;
+            foreach (var kv in _orders)
+                if (ReferenceEquals(kv.Value, target)) n++;
+            return n;
+        }
+
+        /// <summary>
+        /// 이 부대가 저 대상에게 <b>지금 지시를 낼 수 있는가</b>.
+        /// 이미 그 대상을 맡고 있으면 참(다시 눌러 해제하는 길을 막지 않는다).
+        /// </summary>
+        public bool CanOrder(int squadId, NeutralMonsterUnit target)
+        {
+            if (target == null) return true;                       // 해제는 언제나 된다
+            if (ReferenceEquals(OrderOf(squadId), target)) return true;
+            return SquadCountOn(target) < MaxSquadsPerTarget;
+        }
+
         /// <summary>이 부대의 토벌 대상. 없으면 null.</summary>
         public NeutralMonsterUnit OrderOf(int squadId)
         {
@@ -295,16 +332,32 @@ namespace LastSanctuary.Units
         /// <summary>
         /// 부대에 토벌 명령을 내린다. <paramref name="target"/> 이 null 이면 <b>명령 해제</b>다.
         /// 같은 대상을 다시 지시하면 아무 일도 하지 않는다.
+        ///
+        /// ★★ <b>한 대상에 <see cref="MaxSquadsPerTarget"/> 부대까지</b> (2026-08-25).
+        ///   넘치면 <b>거절하고 <c>false</c></b> 를 돌려준다 — 조용히 덮어쓰면 유저는
+        ///   «눌렀는데 아무 일도 안 일어난다» 로 읽는다. 부르는 쪽(창)이 이유를 말한다.
         /// </summary>
-        public void SetOrder(int squadId, NeutralMonsterUnit target)
+        /// <returns>명령이 실제로 바뀌었으면 <c>true</c>.</returns>
+        public bool SetOrder(int squadId, NeutralMonsterUnit target)
         {
-            if (squadId <= 0) return;
+            if (squadId <= 0) return false;
 
             NeutralMonsterUnit now = OrderOf(squadId);
-            if (ReferenceEquals(now, target)) return;
+            if (ReferenceEquals(now, target)) return false;
 
             SquadService squads = SquadService.Instance;
             string squadName = squads?.Find(squadId)?.Name ?? $"부대 {squadId}";
+
+            // ★ 정원 검사 — 해제(target == null)는 통과시킨다.
+            if (target != null && !CanOrder(squadId, target))
+            {
+                UI.HudLog.Add($"{target.DisplayName} 에는 이미 {MaxSquadsPerTarget}개 부대가 " +
+                              "가 있습니다", UI.HudLogKind.Warn);
+                if (logOrders)
+                    Debug.Log($"[토벌] {squadName} → {target.DisplayName} 거절 " +
+                              $"(정원 {MaxSquadsPerTarget})", this);
+                return false;
+            }
 
             if (target == null || !target.IsAlive)
             {
@@ -325,6 +378,7 @@ namespace LastSanctuary.Units
             ReleaseHunts(squadId);
 
             OnChanged?.Invoke();
+            return true;
         }
 
         // ------------------------------------------------------------------

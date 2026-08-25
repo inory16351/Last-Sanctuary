@@ -52,23 +52,49 @@ namespace LastSanctuary.Relics
         /// 이 등급에서 하나 뽑는다. <paramref name="digOnly"/> 가 참이면 <b>발굴 전용 풀</b>에서
         /// 뽑는다(발굴 결과 <c>dig_relic_epic</c> 전용 · 표 Info 시트 «③ 보스» 항목).
         /// 풀이 비어 있으면 null.
+        ///
+        /// ★★★ <b>이미 가진 유물은 빼고 뽑는다</b> (2026-08-25 · 유저 지시:
+        /// *"유물 중복 획득 안되게 수정해줘"*).
+        ///
+        /// ★ <b>«뽑고 나서 버리는» 방식이 아니다.</b> 그러면 다 모을수록 «아무것도 안 나오는»
+        ///   판정이 늘어 <b>체감 확률이 조용히 떨어진다</b>. 후보에서 <b>먼저 빼고</b> 가중치를
+        ///   다시 합하면 남은 것들 사이의 비율이 표 그대로 유지된다.
+        /// ⚠ 남은 후보가 없으면 <c>null</c> — 부르는 쪽이 «다 모았습니다» 로 알린다.
+        ///   조용히 넘어가면 유저는 «드랍이 고장났다» 로 읽는다.
+        /// ⚠ <paramref name="excludeOwned"/> 를 <c>false</c> 로 주면 옛 동작이다(치트·시험용).
         /// </summary>
-        public static RelicDefinitionSO RollGrade(RelicGrade grade, bool digOnly = false)
+        public static RelicDefinitionSO RollGrade(RelicGrade grade, bool digOnly = false,
+                                                  bool excludeOwned = true)
         {
             EnsureLoaded();
             var table = digOnly ? _digOnlyPool : _commonPool;
             if (!table.TryGetValue(grade, out var pool) || pool.Count == 0) return null;
 
+            RelicInventory inv = excludeOwned ? RelicInventory.Instance : null;
+
             int total = 0;
-            for (int i = 0; i < pool.Count; i++) total += Mathf.Max(1, pool[i].dropWeight);
-            int pick = Random.Range(0, total);
             for (int i = 0; i < pool.Count; i++)
             {
+                if (IsOwned(inv, pool[i])) continue;
+                total += Mathf.Max(1, pool[i].dropWeight);
+            }
+            if (total <= 0) return null;              // 이 등급은 이미 다 모았다
+
+            int pick = Random.Range(0, total);
+            RelicDefinitionSO last = null;
+            for (int i = 0; i < pool.Count; i++)
+            {
+                if (IsOwned(inv, pool[i])) continue;
+                last = pool[i];
                 pick -= Mathf.Max(1, pool[i].dropWeight);
                 if (pick < 0) return pool[i];
             }
-            return pool[pool.Count - 1];
+            return last;
         }
+
+        /// <summary>이미 가지고 있는가. 보관함이 없으면(로비·테스트) 언제나 <c>false</c>.</summary>
+        static bool IsOwned(RelicInventory inv, RelicDefinitionSO relic) =>
+            inv != null && relic != null && inv.OwnedCount(relic.relicId) > 0;
 
         /// <summary>에디터에서 도메인 리로드 없이 다시 읽고 싶을 때.</summary>
         public static void Reload()

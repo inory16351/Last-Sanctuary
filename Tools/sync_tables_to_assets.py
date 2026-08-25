@@ -1054,6 +1054,10 @@ def sync_neutral_monsters():
             'maxEnergy': int(num(row.get('max_energy'))),
             'maxAlive': int(num(row.get('max_alive'))),
             'respawnSeconds': num(row.get('respawn_seconds')),
+            # ★★ recommend_level(2026-08-25 신설) — 이 에픽을 감당하려면 «부대 하나(4명)» 이
+            #   몇 레벨이어야 하는가. 토벌 지시 창이 «적정 Lv.N» 으로 보여 준다.
+            #   0 이면 표시하지 않는다(잡몹 중립에는 이 개념이 없다).
+            'recommendLevel': int(num(row.get('recommend_level'), 0)),
             # ★★ growth_per_kill(2026-08-24 신설, S6) - 종별 사냥 성장 배율.
             #   0 이면 씬 NeutralGrowthService 의 전역 값으로 떨어진다.
             'growthPerKill': num(row.get('growth_per_kill'), 0),
@@ -1154,6 +1158,7 @@ def sync_neutral_monsters():
 
         total += patch_fields(path, changes, asset,
                               add_missing=('maxAlive', 'respawnSeconds', 'growthPerKill',
+                                           'recommendLevel',
                                            'firstSpawnDelaySeconds',
                                            'spawnRangeMinTiles', 'spawnRangeMaxTiles')
                                           + NEUTRAL_NEW_FIELDS)
