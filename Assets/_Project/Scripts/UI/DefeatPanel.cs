@@ -33,17 +33,43 @@ namespace LastSanctuary.UI
     /// </summary>
     public class DefeatPanel : MonoBehaviour
     {
-        [Header("문구")]
+        // ══════════════════════════════════════════════════════════════════
+        //  ★★ 문구 — <b>이벤트 대사의 어투</b>로 다시 썼다 (2026-08-25 · 유저 지시:
+        //     *"패배 문구도 좀 수정 문어체로 이벤트처럼"*)
+        // ══════════════════════════════════════════════════════════════════
+        // 예전 문구는 <b>기능 설명</b>이었다 — 「중앙 건물이 파괴되었습니다.」는 이 게임의
+        // 화자가 쓰는 말이 아니라 <b>로그</b>의 말이다. 이벤트 결과 대사(<c>resultScript</c>)를
+        // 보면 이 게임의 어투는 정해져 있다 —
+        //
+        //     "천사들은 유해를 삼켜 성역의 양분으로 바꿉니다.
+        //      목을 넘긴 뒤의 뒷맛은 생각보다 오래 남습니다."
+        //
+        // <b>두 줄 · «~습니다» · 첫 줄은 사실, 둘째 줄은 여운</b>. 그 모양을 그대로 따랐다.
+        //
+        // ★ <b>스트링 테이블로 옮겼다</b> — 진행상황 미결 108번(*"패배·승리 화면 문구가
+        //   씬·코드에 하드코딩"*)의 절반을 여기서 닫는다. 필드는 <b>폴백</b>으로 남는다.
+        // ⚠ 그래도 <b>씬에 직렬화된 값이 이 코드보다 이긴다</b> — 씬의 값은 «키가 비었을 때의
+        //   폴백» 으로 쓰이므로, 키가 표에 있으면 표가 이긴다. 그래서 문구를 고칠 자리는
+        //   이제 <b>스트링 키 테이블 하나</b>다.
+
+        [Header("문구 (스트링 키가 정본 · 아래 문자열은 폴백)")]
+        [SerializeField] string titleKey = "defeat_title";
         [SerializeField] string titleText = "패배";
 
-        [Tooltip("사유를 알 수 없을 때 쓰는 기본 문구. 사유별 문구는 아래 두 필드가 쓰인다")]
-        [SerializeField] string reasonText = "중앙 건물이 파괴되었습니다.";
+        [Tooltip("사유를 알 수 없을 때 쓰는 기본 문구. 사유별 문구는 아래 두 쌍이 쓰인다")]
+        [SerializeField] string reasonKey = "defeat_reason_unknown";
+        [SerializeField] string reasonText =
+            "성역이 무너졌습니다.\n무엇이 마지막 한 걸음이었는지는 아무도 적어두지 못했습니다.";
 
         [Tooltip("성역 파괴로 졌을 때")]
-        [SerializeField] string reasonNexusText = "중앙 건물이 파괴되었습니다.";
+        [SerializeField] string reasonNexusKey = "defeat_reason_nexus";
+        [SerializeField] string reasonNexusText =
+            "심장부의 박동이 멎었습니다.\n성역을 지탱하던 빛이 마지막으로 한 번 떨리고, 꺼졌습니다.";
 
         [Tooltip("캐릭터 전멸로 졌을 때 (다시 생성할 에너지도, 남은 포탑도 없는 상태)")]
-        [SerializeField] string reasonPartyText = "캐릭터가 전멸하고, 다시 세울 수단도 남지 않았습니다.";
+        [SerializeField] string reasonPartyKey = "defeat_reason_party";
+        [SerializeField] string reasonPartyText =
+            "문턱을 지키던 이들이 모두 쓰러졌습니다.\n다시 부를 이름도, 그 값을 치를 양분도 남지 않았습니다.";
 
         [Tooltip("{0}=도달 웨이브, {1}=생존 시간, {2}=남은 캐릭터 수")]
         [SerializeField] string summaryFormat = "웨이브 {0} 도달 · 생존 {1} · 남은 인원 {2}명";
@@ -128,19 +154,22 @@ namespace LastSanctuary.UI
             _showAt = Time.unscaledTime + showDelaySeconds;
         }
 
-        /// <summary>패배 사유에 맞는 한 줄. 사유를 모르면 기본 문구로 떨어진다.</summary>
+        /// <summary>
+        /// 패배 사유에 맞는 한 줄. 사유를 모르면 기본 문구로 떨어진다.
+        /// ★ 스트링 테이블이 정본이고 직렬화된 문자열이 폴백이다(위 문구 절의 ★).
+        /// </summary>
         string ReasonLine() => _finalReason switch
         {
-            DefeatReason.NexusDestroyed    => reasonNexusText,
-            DefeatReason.AllCharactersLost => reasonPartyText,
-            _                              => reasonText,
+            DefeatReason.NexusDestroyed    => Data.StringTable.Get(reasonNexusKey, reasonNexusText),
+            DefeatReason.AllCharactersLost => Data.StringTable.Get(reasonPartyKey, reasonPartyText),
+            _                              => Data.StringTable.Get(reasonKey, reasonText),
         };
 
         void Show()
         {
             _shown = true;
 
-            if (_title != null) _title.text = titleText;
+            if (_title != null) _title.text = Data.StringTable.Get(titleKey, titleText);
             if (_reason != null) _reason.text = ReasonLine();
             if (_summary != null)
                 _summary.text = string.Format(summaryFormat, _finalWave,

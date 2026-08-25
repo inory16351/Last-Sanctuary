@@ -75,6 +75,11 @@ namespace LastSanctuary.Save
             //     이 클래스가 생긴 원인(«등장 기록이 씬을 넘어 살아남는다»)의 뿌리가 사라진 것이다.
             NeutralKillTally.ResetRun();
 
+            //   ★ 2026-08-25 — 엔딩 명단용 «누가 있었나» 기록(<see cref="RunRecord"/>).
+            //     ⚠ <b>이 한 줄이 여기 있어야 한다.</b> 안 비우면 <b>지난 판의 전사자가
+            //     다음 판 엔딩에 섞인다</b> — 이 클래스가 생긴 그 사고와 똑같은 종류다.
+            RunRecord.Clear();
+
             // ③ ★ 유물 — 보유·장착·걸어둔 능력치 보정을 전부 되돌린다(2026-08-23).
             //   ⚠ <b>이어하기는 이 문을 지나지 않는다</b> — 그쪽은 GameSnapshot 이
             //     저장된 값으로 되살린다(RelicInventory.ResetRun 의 ⚠).

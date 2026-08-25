@@ -29,5 +29,5 @@ MonoBehaviour:
   nameKey: "relic_name_720013"
   descKey: "relic_desc_720013"
   flavorKey: "relic_flavor_720013"
-  iconKey: "relic_thorn_heart"
-  icon: {fileID: 21300000, guid: 017a3788070d7f49ca9218da006437f5, type: 3}
+  iconKey: "sheet3_0104"
+  icon: {fileID: 21300000, guid: 42a1864b5047b5a21f6a0cb9a145eee2, type: 3}

@@ -29,5 +29,5 @@ MonoBehaviour:
   nameKey: "relic_name_710018"
   descKey: "relic_desc_710018"
   flavorKey: "relic_flavor_710018"
-  iconKey: "relic_antigen"
-  icon: {fileID: 21300000, guid: 79fd50dfce5e3fa73e4546122a3721c0, type: 3}
+  iconKey: "sheet4_0207"
+  icon: {fileID: 21300000, guid: 0c1f421ebb4e8c523f04042d1ac5d4bc, type: 3}

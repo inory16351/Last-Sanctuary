@@ -219,14 +219,14 @@ namespace LastSanctuary.UI
                 Paint();
             }
 
-            if (pauseKeyboardShortcut && kb.pKey.wasPressedThisFrame) TogglePause();
-
-            if (!keyboardShortcuts) return;
-
-            if (kb.digit1Key.wasPressedThisFrame) Select(0);
-            else if (kb.digit2Key.wasPressedThisFrame) Select(1);
-            else if (kb.digit3Key.wasPressedThisFrame) Select(2);
-            else if (kb.digit4Key.wasPressedThisFrame) Select(3);
+            // ★★★ <b>키를 여기서 읽지 않는다</b> (2026-08-25 · 유저 지적:
+            //   *"그 단축키 지금 배속 설정이랑 스페이스도 있지 않냐?"*).
+            //
+            //   P·1·2·3·4 가 <b>이 Update 에 박혀</b> 있어서 «단축키 설정» 창이 그 키들을
+            //   보여주지도, 바꾸지도 못했다. 이제 <see cref="HotkeyService"/> 가 들고
+            //   <c>HudHotkeys</c> 가 읽어 <see cref="TogglePause"/>·<see cref="Select"/> 를 부른다.
+            //   ⚠ 아래 <see cref="ShortcutsEnabled"/>·<see cref="PauseShortcutEnabled"/> 는
+            //     그쪽이 «이 기능을 단축키로 쓸지» 를 물어보는 문이다 — 인스펙터 값의 뜻이 살아 있다.
         }
 
         // ==================================================================
@@ -235,6 +235,12 @@ namespace LastSanctuary.UI
 
         /// <summary>일시정지 ↔ 재개. 버튼과 키보드 P 가 함께 부른다.</summary>
         public void TogglePause() => SetPaused(!_paused);
+
+        /// <summary>배속 단축키를 쓸지 (인스펙터 값). <c>HudHotkeys</c> 가 물어본다.</summary>
+        public bool ShortcutsEnabled => keyboardShortcuts;
+
+        /// <summary>일시정지 단축키를 쓸지 (인스펙터 값). <c>HudHotkeys</c> 가 물어본다.</summary>
+        public bool PauseShortcutEnabled => pauseKeyboardShortcut;
 
         /// <summary>
         /// 게임을 멈추거나 다시 흐르게 한다.

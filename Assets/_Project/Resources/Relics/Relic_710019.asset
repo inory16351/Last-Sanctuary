@@ -29,5 +29,5 @@ MonoBehaviour:
   nameKey: "relic_name_710019"
   descKey: "relic_desc_710019"
   flavorKey: "relic_flavor_710019"
-  iconKey: "relic_mitogen"
-  icon: {fileID: 21300000, guid: aacb0fcdb5db5bf3ddc22bfa586420d3, type: 3}
+  iconKey: "sheet4_0106"
+  icon: {fileID: 21300000, guid: 0d01e8dd4790f59856f6e1cc2e8c7f44, type: 3}

@@ -29,5 +29,5 @@ MonoBehaviour:
   nameKey: "relic_name_720022"
   descKey: "relic_desc_720022"
   flavorKey: "relic_flavor_720022"
-  iconKey: "relic_heldbreath"
-  icon: {fileID: 21300000, guid: a95e10b8ff78ebbdcc883c062dd8013f, type: 3}
+  iconKey: "sheet3_0401"
+  icon: {fileID: 21300000, guid: a32d2dded10fba86d7392ec148724dcb, type: 3}

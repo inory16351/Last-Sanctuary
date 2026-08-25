@@ -29,5 +29,5 @@ MonoBehaviour:
   nameKey: "relic_name_720021"
   descKey: "relic_desc_720021"
   flavorKey: "relic_flavor_720021"
-  iconKey: "relic_buriedheart"
-  icon: {fileID: 21300000, guid: 66c43340ed313679cf4200602202c9c8, type: 3}
+  iconKey: "sheet3_0206"
+  icon: {fileID: 21300000, guid: ee812498f67f3fdadabf36c77fc3d077, type: 3}

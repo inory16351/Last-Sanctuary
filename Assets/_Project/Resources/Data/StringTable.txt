@@ -1003,3 +1003,24 @@ skill_explain_2003
 skill_explain_2004		
 skill_explain_2005		
 skill_explain_2006		
+ending_caption_01_1	울음이 그쳤다.	The howling has stopped.
+ending_caption_01_2	전장의 열기가 잦아든다.	The heat of the battlefield is dying down.
+ending_caption_01_3	떠나간 이들도 남은 이들도, 그 잔열에 몸을 떨고 있을 뿐이다.	Those gone and those left behind alike only shiver in the heat that lingers.
+ending_caption_02_1	성문 앞에 마지막까지 서 있던 이들이 있다.	There were those who stood before the gate until the very end.
+ending_caption_02_2	누구도 제 몸을 아끼지 않고 던졌고,	Not one of them spared themselves,
+ending_caption_02_3	때로는 그 목숨까지 희생했다.	and some gave even their lives.
+ending_caption_02_4	그 이름은 성역에 새겨질 것이다.	Their names will be carved into the sanctuary.
+ending_caption_02_5	잊혀지지 않은채로, 영원히…	Never forgotten — for all time.
+ending_caption_03_1	찢어진 자리에 새 살이 돋는다.	New flesh rises where it was torn.
+ending_caption_03_2	보기 흉해도, 비 온 뒤에 땅은 더 굳어지는 법이다.	It is unsightly, but the ground always hardens after the rain.
+ending_caption_03_3	성벽은 예전 모양으로 돌아가지 않는다.	The wall will not go back to the shape it had.
+ending_caption_03_4	돌아가지 않은 채로, 그 자리를 지킬 뿐…	It only holds its place, without going back.
+ending_caption_04_1	어둠은 그저 물러갔을 뿐이다.	The darkness has only withdrawn.
+ending_caption_04_2	그 뿌리는 그대로 남아 있다.	Its roots are still there.
+ending_caption_04_3	언제 다시 하늘이 붉어질지는 아무도 모른다.	No one knows when the sky will turn red again.
+ending_caption_04_4	그대여, 우리는 그때에도 —	And you — even then,
+ending_caption_04_5	이 땅과 당신을 지킬 것이다.	we will guard this land, and you.
+defeat_title	패배	Defeat
+defeat_reason_nexus	심장부의 박동이 멎었습니다.\n성역을 지탱하던 빛이 마지막으로 한 번 떨리고, 꺼졌습니다.	The beating at the heart has stopped.\nThe light that held the sanctuary trembled once, and went out.
+defeat_reason_party	문턱을 지키던 이들이 모두 쓰러졌습니다.\n다시 부를 이름도, 그 값을 치를 양분도 남지 않았습니다.	Every one who held the threshold has fallen.\nNo name is left to call, and nothing left to pay for the calling.
+defeat_reason_unknown	성역이 무너졌습니다.\n무엇이 마지막 한 걸음이었는지는 아무도 적어두지 못했습니다.	The sanctuary has fallen.\nNo one was left to write down what the last step was.

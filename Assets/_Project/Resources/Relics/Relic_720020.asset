@@ -29,5 +29,5 @@ MonoBehaviour:
   nameKey: "relic_name_720020"
   descKey: "relic_desc_720020"
   flavorKey: "relic_flavor_720020"
-  iconKey: "relic_forgottenab"
-  icon: {fileID: 21300000, guid: 653f83819076534668fdf0c524303246, type: 3}
+  iconKey: "sheet3_0503"
+  icon: {fileID: 21300000, guid: 9aeaa443aff53e0de3b7062c3ee51c79, type: 3}

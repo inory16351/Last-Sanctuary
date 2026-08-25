@@ -29,5 +29,5 @@ MonoBehaviour:
   nameKey: "relic_name_710011"
   descKey: "relic_desc_710011"
   flavorKey: "relic_flavor_710011"
-  iconKey: "relic_dendritic"
-  icon: {fileID: 21300000, guid: 6410579c49ec3a2ae5ed237bfbf7cd50, type: 3}
+  iconKey: "sheet4_0206"
+  icon: {fileID: 21300000, guid: 59923098b2325028d88bcf13fd476394, type: 3}

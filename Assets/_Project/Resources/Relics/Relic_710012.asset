@@ -29,5 +29,5 @@ MonoBehaviour:
   nameKey: "relic_name_710012"
   descKey: "relic_desc_710012"
   flavorKey: "relic_flavor_710012"
-  iconKey: "relic_clot"
-  icon: {fileID: 21300000, guid: d600e8308db25f884ba1fe01a9c12de8, type: 3}
+  iconKey: "sheet4_0605"
+  icon: {fileID: 21300000, guid: 38d306e626a83845250e58220f9dede1, type: 3}

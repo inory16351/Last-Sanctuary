@@ -14,18 +14,18 @@ MonoBehaviour:
   m_EditorClassIdentifier:
   outcomes:
   - outcomeType: "dig_energy"
-    weight: 29
-    value01: 120
+    weight: 24
+    value01: 40
     value02: 0
-    outcomeDesc: "에너지를 {value_01} 얻습니다."
+    outcomeDesc: "에너지를 {value_01} 얻습니다. (웨이브가 오를수록 최대 2.5배까지 늘어납니다)"
     outcomeScript: "묻혀 있던 양분 덩어리를 캐냈습니다."
     descKey: "dig_outcome_desc_dig_energy"
     scriptKey: "dig_outcome_script_dig_energy"
   - outcomeType: "dig_energy_big"
-    weight: 6
-    value01: 300
+    weight: 3
+    value01: 100
     value02: 0
-    outcomeDesc: "에너지를 {value_01} 얻습니다."
+    outcomeDesc: "에너지를 {value_01} 얻습니다. (웨이브가 오를수록 최대 2.5배까지 늘어납니다)"
     outcomeScript: "두껍게 뭉친 양분층입니다. 한동안 성역이 배부릅니다."
     descKey: "dig_outcome_desc_dig_energy_big"
     scriptKey: "dig_outcome_script_dig_energy_big"
@@ -38,16 +38,16 @@ MonoBehaviour:
     descKey: "dig_outcome_desc_dig_heal"
     scriptKey: "dig_outcome_script_dig_heal"
   - outcomeType: "dig_hurt"
-    weight: 10
-    value01: 18
+    weight: 13
+    value01: 22
     value02: 0
     outcomeDesc: "발굴한 캐릭터가 최대 체력의 {value_01}% 를 잃습니다(이 피해로 죽지 않습니다)."
     outcomeScript: "파낸 자리에서 굳은 가시가 손을 갈랐습니다."
     descKey: "dig_outcome_desc_dig_hurt"
     scriptKey: "dig_outcome_script_dig_hurt"
   - outcomeType: "dig_erosion_up"
-    weight: 8
-    value01: 10
+    weight: 12
+    value01: 14
     value02: 0
     outcomeDesc: "발굴한 캐릭터의 침식이 {value_01} 증가합니다."
     outcomeScript: "아래에 고여 있던 변질된 것이 숨을 타고 올라왔습니다."
@@ -62,7 +62,7 @@ MonoBehaviour:
     descKey: "dig_outcome_desc_dig_erosion_down"
     scriptKey: "dig_outcome_script_dig_erosion_down"
   - outcomeType: "dig_nothing"
-    weight: 8
+    weight: 12
     value01: 0
     value02: 0
     outcomeDesc: "아무것도 나오지 않습니다."
@@ -70,7 +70,7 @@ MonoBehaviour:
     descKey: "dig_outcome_desc_dig_nothing"
     scriptKey: "dig_outcome_script_dig_nothing"
   - outcomeType: "dig_relic_common"
-    weight: 16
+    weight: 14
     value01: 0
     value02: 0
     outcomeDesc: "일반 등급 유물 하나를 얻습니다."
@@ -78,7 +78,7 @@ MonoBehaviour:
     descKey: "dig_outcome_desc_dig_relic_common"
     scriptKey: "dig_outcome_script_dig_relic_common"
   - outcomeType: "dig_relic_rare"
-    weight: 4
+    weight: 3
     value01: 0
     value02: 0
     outcomeDesc: "레어 등급 유물 하나를 얻습니다."

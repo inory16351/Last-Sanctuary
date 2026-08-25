@@ -29,5 +29,5 @@ MonoBehaviour:
   nameKey: "relic_name_700022"
   descKey: "relic_desc_700022"
   flavorKey: "relic_flavor_700022"
-  iconKey: "relic_yawn"
-  icon: {fileID: 21300000, guid: 657e6f049fba9f9b967a1d27145470b4, type: 3}
+  iconKey: "sheet2_0101"
+  icon: {fileID: 21300000, guid: 68c177a26a41f6f4e1fff0394fe5e9f3, type: 3}

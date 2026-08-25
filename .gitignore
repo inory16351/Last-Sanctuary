@@ -61,3 +61,13 @@ crashlytics-build.properties
 __pycache__/
 *.pyc
 *.pyo
+
+# ---- 유물 아이콘 «팔레트» (2026-08-25) ----
+# 볼트의 Lelic_icon_01~04.png 를 잘라낸 164칸 중 <b>쓰지 않는 것들</b>이다.
+# 실제로 쓰는 66칸은 Resources/RelicIcons/ 에 있고 그쪽은 커밋한다.
+#
+# 여기는 «다음에 유물을 더할 때 골라 쓸 후보» 라서 게임에 필요하지 않고,
+# Tools/slice_relic_icons.py 로 <b>언제든 똑같이 다시 만들 수 있다</b>(5.4MB).
+# 새 아이콘을 쓰기로 하면 Resources/RelicIcons/ 로 옮기면 그때 커밋된다.
+/[Aa]ssets/_Project/Art/RelicIconPalette/
+/[Aa]ssets/_Project/Art/RelicIconPalette.meta

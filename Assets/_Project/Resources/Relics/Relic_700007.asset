@@ -29,5 +29,5 @@ MonoBehaviour:
   nameKey: "relic_name_700007"
   descKey: "relic_desc_700007"
   flavorKey: "relic_flavor_700007"
-  iconKey: "relic_cilia"
-  icon: {fileID: 21300000, guid: 9e3368afed79971e5e38d3aff213355c, type: 3}
+  iconKey: "sheet4_0503"
+  icon: {fileID: 21300000, guid: cc8b3c10c2ca9252db76d773192f3cc5, type: 3}

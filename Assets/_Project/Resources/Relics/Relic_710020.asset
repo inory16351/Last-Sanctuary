@@ -29,5 +29,5 @@ MonoBehaviour:
   nameKey: "relic_name_710020"
   descKey: "relic_desc_710020"
   flavorKey: "relic_flavor_710020"
-  iconKey: "relic_cornea"
-  icon: {fileID: 21300000, guid: b47c664c43632e4e0238fb1f560b79b2, type: 3}
+  iconKey: "sheet2_0205"
+  icon: {fileID: 21300000, guid: 95306ba19cccf73405ee1d7322a6ed58, type: 3}

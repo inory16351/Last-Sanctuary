@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.Controls;
 
 namespace LastSanctuary.UI
 {
@@ -78,8 +79,132 @@ namespace LastSanctuary.UI
             Keyboard kb = Keyboard.current;
             if (kb == null) return;
 
-            if (kb.escapeKey.wasPressedThisFrame) HandleEscape();
-            if (kb.f1Key.wasPressedThisFrame) HandleHelp();
+            // ★★★ <b>키를 «장부» 에서 읽는다</b> (2026-08-25 · <see cref="HotkeyService"/>).
+            //   예전에는 <c>kb.escapeKey</c>·<c>kb.f1Key</c> 가 여기 <b>박혀</b> 있었다 —
+            //   그래서 «단축키 설정» 창을 만들 수가 없었다(바꿀 값이 없었다).
+            //
+            // ⚠ <b>단축키를 바꾸는 중이면 아무 키도 먹지 않는다</b> — 창이 «다음 키를
+            //   기다리는» 상태에서 여기가 같은 키를 먹으면, 예를 들어 «환경 설정을 B 로»
+            //   바꾸려고 B 를 누르는 순간 건설이 같이 열린다.
+            if (HotkeyPanel.Instance != null && HotkeyPanel.Instance.IsCapturing) return;
+
+            for (int i = 0; i < HotkeyService.All.Length; i++)
+            {
+                HotkeyAction action = HotkeyService.All[i];
+                Key key = HotkeyService.Get(action);
+                if (key == Key.None) continue;
+
+                KeyControl control = kb[key];
+                if (control == null || !control.wasPressedThisFrame) continue;
+
+                Invoke(action);
+            }
+        }
+
+        /// <summary>
+        /// 기능 하나를 수행한다.
+        ///
+        /// ★ <b>Esc(환경 설정)만 특별하다</b> — 우선순위가 셋이나 있다(클래스 doc).
+        ///   나머지는 «그 창을 토글» 이므로 <see cref="ToggleExclusive"/> 하나로 끝난다.
+        /// ⚠ 창을 못 찾으면 <b>경고를 남긴다</b>. 조용히 넘기면 «단축키가 안 먹는다» 로만 보인다.
+        /// </summary>
+        void Invoke(HotkeyAction action)
+        {
+            switch (action)
+            {
+                case HotkeyAction.Settings: HandleEscape(); return;
+                case HotkeyAction.Help:     HandleHelp();   return;
+
+                case HotkeyAction.Hotkeys:
+                    if (HotkeyPanel.Instance != null) HotkeyPanel.Instance.Toggle();
+                    else Debug.LogWarning("[단축키] 단축키 설정 창을 찾지 못했습니다.", this);
+                    return;
+
+                // ★ 창이 아니라 <b>행동</b>이다 — 서비스를 직접 부른다.
+                //   ⚠ 버튼을 흉내내려고 <c>ActionPanel</c> 을 거치지 않았다. 그 패널에는
+                //     싱글턴이 없고, 있다 해도 «버튼을 누른 것처럼» 하는 우회는 버튼 배치가
+                //     바뀔 때 조용히 깨진다. 서비스가 규칙(비용·상한)의 정본이다.
+                case HotkeyAction.CreateCharacter:
+                    Units.CharacterUnit made = CharacterCreationService.Instance?.TryCreate();
+                    if (made == null && logKeys)
+                        Debug.Log("[단축키] 캐릭터 생성 — 지금은 만들 수 없습니다", this);
+                    return;
+
+                case HotkeyAction.Squad:     ToggleExclusive(SquadPanel.Instance);           return;
+                case HotkeyAction.Tactics:   ToggleExclusive(TacticalOrderPanel.Instance);   return;
+                case HotkeyAction.Growth:    ToggleExclusive(CharacterGrowthPanel.Instance); return;
+                case HotkeyAction.Subjugate: ToggleExclusive(SubjugationPanel.Instance);     return;
+                case HotkeyAction.Relics:    ToggleExclusive(RelicPanel.Instance);           return;
+
+                // ── 배속·일시정지 (2026-08-25 · GameSpeedPanel 에서 옮겨 왔다) ──
+                //   ⚠ 그 패널의 인스펙터 게이트를 <b>존중한다</b> — 껐으면 안 먹는다.
+                case HotkeyAction.Pause:
+                {
+                    GameSpeedPanel speed = Speed();
+                    if (speed != null && speed.PauseShortcutEnabled) speed.TogglePause();
+                    return;
+                }
+
+                case HotkeyAction.Speed1: SelectSpeed(0); return;
+                case HotkeyAction.Speed2: SelectSpeed(1); return;
+                case HotkeyAction.Speed3: SelectSpeed(2); return;
+                case HotkeyAction.Speed4: SelectSpeed(3); return;
+
+                // ── 화면 되돌리기 (CameraRigController 에서 옮겨 왔다) ──
+                case HotkeyAction.Recenter:
+                {
+                    if (_camera == null)
+                        _camera = FindAnyObjectByType<CameraControl.CameraRigController>();
+                    if (_camera != null) _camera.Recenter();
+                    else if (logKeys) Debug.Log("[단축키] 카메라를 찾지 못했습니다", this);
+                    return;
+                }
+            }
+
+            // ⚠ 여기까지 왔다 = enum 에 기능을 더하고 <b>가지를 안 더한 것</b>이다.
+            //   조용히 넘기면 «창에는 있는데 눌러도 아무 일이 없다» 가 된다
+            //   (HotkeyService 의 ⚠⚠ «넷 다 해야 한다»).
+            Debug.LogWarning($"[단축키] 「{HotkeyService.Label(action)}」을 수행하는 " +
+                             "가지가 HudHotkeys.Invoke 에 없습니다.", this);
+        }
+
+        /// <summary>
+        /// 배타 창을 토글한다. <b>열 때는 <see cref="HudExclusive.OpenOnly"/> 규칙을 그 창이
+        /// 스스로 따른다</b> — 여기서 다른 창을 닫지 않는다(그 규칙이 두 벌이 되면 어긋난다).
+        /// </summary>
+        // 캐시 — 클릭할 때만 도는 경로가 아니라 <b>키를 누를 때마다</b> 도므로 찾아 두고 쓴다.
+        GameSpeedPanel _speed;
+        CameraControl.CameraRigController _camera;
+
+        GameSpeedPanel Speed()
+        {
+            if (_speed == null) _speed = FindAnyObjectByType<GameSpeedPanel>(FindObjectsInactive.Include);
+            return _speed;
+        }
+
+        /// <summary>배속 단계를 고른다. ⚠ 패널의 인스펙터 게이트를 존중한다.</summary>
+        void SelectSpeed(int index)
+        {
+            GameSpeedPanel speed = Speed();
+            if (speed == null)
+            {
+                if (logKeys) Debug.Log("[단축키] 배속 패널을 찾지 못했습니다", this);
+                return;
+            }
+            if (!speed.ShortcutsEnabled) return;
+            speed.Select(index);
+        }
+
+        void ToggleExclusive(IExclusiveHudPanel panel)
+        {
+            if (panel == null)
+            {
+                if (logKeys) Debug.Log("[단축키] 그 창이 이 씬에 없습니다.", this);
+                return;
+            }
+
+            if (panel.IsOpen) panel.Close();
+            else HudExclusive.OpenOnly(panel);
         }
 
         /// <summary>

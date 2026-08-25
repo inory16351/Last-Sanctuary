@@ -974,13 +974,28 @@ namespace LastSanctuary.Units
         /// ⚠ 교전이 붙으면(<c>_combat.Target</c>) 목적지를 건드리지 않는다 — 평소 전투와
         /// 같은 규칙이다. 다만 <b>전술 포지션에 따른 교전 거리</b>는 계속 밀어 넣는다.
         /// </summary>
+        /// <summary>
+        /// 토벌 대상을 향해 걸어갈 때 «목적지가 이만큼(타일) 움직이면» 경로를 다시 잡는다.
+        /// 0 이면 매 프레임 다시 잡아 <b>렉이 돌아온다</b> — TickSubjugation 의 ★★★ 참조.
+        /// </summary>
+        [Min(0.1f)] [SerializeField] float subjugationRepathTiles = 1f;
+
+        /// <summary>이번 토벌에서 <see cref="UnitCombat.SetHome"/> 를 한 번이라도 불렀는가.</summary>
+        bool _subjugationHomeSet;
+
         bool TickSubjugation()
         {
             EpicSubjugationService service = EpicSubjugationService.Instance;
             if (service == null) return false;
 
             NeutralMonsterUnit target = service.TargetFor(_character);
-            if (target == null || !target.IsAlive) return false;
+            if (target == null || !target.IsAlive)
+            {
+                // ⚠ 명령이 없어졌으면 깃발을 내린다 — 안 내리면 <b>다음 토벌의 첫 프레임</b>에
+                //   «움직이지 않았다» 로 읽혀 옛 목적지로 걸어간다.
+                _subjugationHomeSet = false;
+                return false;
+            }
 
             // ★ <b>웨이브가 오면 전술 지침을 따른다</b> (유저 확정 2026-08-16, 미결 191번).
             //   웨이브 반응이 '즉시 방어'면 토벌을 <b>잠시 놓고</b> 아래의 평소 판단으로
@@ -992,6 +1007,7 @@ namespace LastSanctuary.Units
             if (IsWaveTimePhase() && _waveReaction == TacticalWaveReaction.DefendNow)
             {
                 _combat.ClearHuntTarget();
+                _subjugationHomeSet = false;   // 웨이브가 끝나고 돌아올 때 경로를 새로 잡는다
                 return false;
             }
 
@@ -1011,7 +1027,7 @@ namespace LastSanctuary.Units
                 return true;
             }
 
-            // 아직 멀다 — 걸어간다. 목적지를 매 프레임 갱신해 대상이 움직여도 따라간다.
+            // 아직 멀다 — 걸어간다.
             //
             // ⚠ 귀환 지점(SetHome)도 대상 자리로 옮긴다. 안 그러면 목줄(leash)이 성역
             //   기준으로 남아 <b>걸어가는 도중에 되끌려온다</b> — 77-1절이 고친 그 래칫의
@@ -1019,8 +1035,32 @@ namespace LastSanctuary.Units
             _combat.SetStandoff(0f);
             _combat.ClearHuntTarget();
             _duty = CharacterDuty.Expedition;
-            _destination = target.transform.position;
-            _combat.SetHome(_destination, service.EngageRangeTiles);
+
+            // ★★★ <b>목적지를 «움직였을 때만» 갱신한다</b> (2026-08-25 · 유저 리포트:
+            //   *"토벌 여러 부대 보내면 렉 걸리는 현상 수정"*).
+            //
+            // <b>원인</b> — 예전에는 이 두 줄이 <b>조건 없이 매 프레임</b> 돌았다.
+            // <see cref="UnitCombat.SetHome"/> 는 안에서 <c>ResetPathState()</c> 를 부르는데
+            // 그것이 <b>계산해 둔 경로를 지우고</b> <c>_nextRepathTime</c> 을 0 으로 되돌린다.
+            // 그래서 —
+            // <code>
+            //   ① 매 프레임 A* 를 새로 돌린다        (320타일 맵 · 부대 3개면 캐릭터 12명)
+            //   ② 그 경로를 <b>한 번도 쓰지 못한다</b> — 다음 프레임에 또 지워지니까
+            // </code>
+            // 렉만이 아니라 «토벌 보낸 애들이 이상하게 걷는다» 도 같은 뿌리다.
+            //
+            // ★ <b>같은 판단이 이미 이 파일에 있었다</b> — <see cref="TickInvestigate"/> 는
+            //   경보 지점이 «움직였을 때만» <c>SetHome</c> 을 부른다. 그 규칙을 여기에도 맞췄다.
+            // ⚠ 문턱을 0 으로 두면 안 된다 — 에픽은 배회하므로(NeutralMonsterWander) 좌표가
+            //   미세하게 계속 흔들리고, 그러면 «움직였다» 가 매 프레임 참이 되어 원래대로 돌아간다.
+            Vector3 want = target.transform.position;
+            float moved = subjugationRepathTiles * subjugationRepathTiles;
+            if (!_subjugationHomeSet || (want - _destination).sqrMagnitude > moved)
+            {
+                _destination = want;
+                _combat.SetHome(_destination, service.EngageRangeTiles);
+                _subjugationHomeSet = true;
+            }
             return true;
         }
 

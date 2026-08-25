@@ -51,3 +51,4 @@ MonoBehaviour:
   hpPercent: 100
   growthPerKill: 0.01
   firstSpawnDelaySeconds: 0
+  recommendLevel: 0

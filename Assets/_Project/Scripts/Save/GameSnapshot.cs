@@ -131,7 +131,23 @@ namespace LastSanctuary.Save
             if (unit is not CharacterUnit character) return;
             if (character.IsRevivePending) return;
 
+            // ★ 엔딩의 전사자 명단에 이름을 남긴다 (2026-08-25 · <see cref="RunRecord"/>).
+            //   <b>새 구독을 만들지 않고 여기에 붙였다</b> — 이 함수가 이미 «캐릭터가
+            //   진짜로 죽었는가»(소환수 아님 · 부활 대기 아님)를 가려내고 있어서, 따로
+            //   구독하면 그 판단이 두 벌이 되고 반드시 갈린다.
+            RunRecord.NoteDeath(character, CurrentWaveNumber());
+
             AutoSave($"{character.DisplayName} 사망");
+        }
+
+        /// <summary>
+        /// 지금 몇 웨이브인가 — 전사자 명단에 «몇 웨이브에 쓰러졌는지» 를 적기 위한 것.
+        /// <see cref="WaveManager"/> 가 없으면(테스트 씬) 0 을 준다.
+        /// </summary>
+        static int CurrentWaveNumber()
+        {
+            Wave.WaveManager wave = FindAnyObjectByType<Wave.WaveManager>();
+            return wave != null ? wave.WaveNumber : 0;
         }
 
         /// <summary>

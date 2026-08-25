@@ -72,6 +72,15 @@ namespace LastSanctuary.UI
         [Tooltip("분노가 가득 찼을 때(= 부활 준비) 숫자 색")]
         [SerializeField] Color rageFullColor = new Color(1f, 0.42f, 0.36f, 1f);
 
+        [Header("문구 · 색 — 영혼 수 (시안 「영혼 흡수」 · 2026-08-25)")]
+        [Tooltip("{0} = 지금까지 거둔 영혼 수. ⚠ 상한이 없어 «/ 최대» 가 없다.\n" +
+                 "★ 성장 창(CharacterGrowthPanel.soulFormat)과 <b>같은 형식</b>으로 둔다 — " +
+                 "두 창이 다른 문구를 쓰면 «어느 쪽이 맞지» 가 된다")]
+        [SerializeField] string soulFormat = "획득한 영혼 수: {0:0}개";
+
+        [Tooltip("영혼 숫자 색 — 성장 창과 같은 값")]
+        [SerializeField] Color soulTextColor = new Color(0.78f, 0.72f, 0.92f, 1f);
+
         [Header("체력바 색 (보스·몬스터)")]
         [SerializeField] Color barHigh = new Color(0.40f, 0.85f, 0.52f, 1f);
         [SerializeField] Color barLow = new Color(0.92f, 0.38f, 0.38f, 1f);
@@ -111,6 +120,7 @@ namespace LastSanctuary.UI
         //   하이라키: <c>Rage</c> ▸ <c>RageLabel</c>(글씨) + <c>RageBack</c> ▸ <c>RageFill</c>(바)
         //   ★ 유저 지시대로 <b>글씨 아래에 바</b>가 온다.
         Transform _rageRoot;
+        Transform _rageBack;      // 막대 — 분노일 때만 켠다 (영혼은 글자만)
         TMP_Text _rageLabel;
         Image _rageFill;
 
@@ -209,6 +219,11 @@ namespace LastSanctuary.UI
         {
             if (_selector != null) _selector.OnUnitSelectionChanged -= HandleUnitSelected;
 
+            // ⚠ <b>정적 이벤트는 반드시 떼야 한다</b> — 씬을 다시 열면 파괴된 이 패널이
+            //   구독자로 남아 «없어진 오브젝트» 를 건드린다(GameSnapshot 이 같은 이유로
+            //   OnDestroy 에서 떼는 것과 같다).
+            DamageableUnit.OnAnyDied -= HandleAnyDied;
+
             Units.CharacterUpgradeService service = Units.CharacterUpgradeService.Instance;
             if (service != null) service.OnUpgraded -= HandleUpgraded;
             _upgradeHooked = false;
@@ -231,7 +246,39 @@ namespace LastSanctuary.UI
                 _selector.OnUnitSelectionChanged += HandleUnitSelected;
             }
 
+            // ★★ 보고 있는 대상이 죽으면 닫는다 (2026-08-25 · HandleAnyDied 의 설명).
+            //   ⚠ <b>정적 이벤트</b>라 두 번 걸면 두 번 불린다 — 먼저 떼고 다시 건다
+            //     (위 선택 이벤트와 같은 방식).
+            DamageableUnit.OnAnyDied -= HandleAnyDied;
+            DamageableUnit.OnAnyDied += HandleAnyDied;
+
             HookUpgrades();
+        }
+
+        /// <summary>
+        /// ★★★ <b>보고 있던 대상이 죽으면 창을 닫는다</b> (2026-08-25 · 유저 지시:
+        /// *"초상화 ui 가 죽지 않은 대상을 잡고 있을때 해당 대상이 죽으면 비활성화 되고
+        /// 다시 다른 살아있는 대상을 클릭했을 때 활성화 되게 해줘"*).
+        ///
+        /// <b>왜 필요한가</b> — 이 창은 «선택이 바뀔 때만» 다시 그린다(정적 카드라 폴링이 없다).
+        /// 그래서 몬스터를 눌러 두고 그 몬스터가 죽으면 <b>시체의 정보가 그대로 남아</b>
+        /// 체력 0%인 카드가 화면에 붙어 있었다. 선택은 여전히 그 유닛을 가리키고 있으므로
+        /// 다른 유닛을 누를 때까지 사라지지 않는다.
+        ///
+        /// ★ <b>«다시 활성화» 는 따로 할 일이 없다.</b> 살아 있는 대상을 클릭하면
+        /// <see cref="UnitSelector"/> 가 선택 변경을 알리고 <see cref="Show"/> 가 창을 켠다 —
+        /// 원래 있던 경로다. 여기서는 <b>닫는 것만</b> 맡는다.
+        ///
+        /// ⚠ <b>부활 대기 중이면 닫지 않는다</b> — 히스톤 「분노」가 되살릴 캐릭터는
+        ///   «죽었다» 이벤트가 나지만 곧 일어난다. 그때 창이 깜빡이면 오히려 고장으로 보인다
+        ///   (<see cref="Save.GameSnapshot.HandleAnyDied"/> 가 저장을 건너뛰는 것과 같은 판단).
+        /// </summary>
+        void HandleAnyDied(DamageableUnit unit)
+        {
+            if (unit == null || !ReferenceEquals(unit, _shown)) return;
+            if (unit is CharacterUnit c && c.IsRevivePending) return;
+
+            Close();
         }
 
         /// <summary>
@@ -418,42 +465,81 @@ namespace LastSanctuary.UI
         //  ⚠ 캐릭터가 아니면(몬스터) 항상 끈다.
         // ------------------------------------------------------------------
 
-        void RefreshRage()
+        /// <summary>
+        /// ★★★ <b>«스스로 쌓이는 수치» 칸</b> — 지금 둘이 이 한 칸을 나눠 쓴다
+        /// (2026-08-25 · 유저 지시: *"시안 초상화 ui 의 첫번째 스킬에 획득한 영혼 표기"*).
+        ///
+        /// <code>
+        ///   히스톤 「분노」    0~100 이라 «몇 분의 몇» 이 성립한다  →  <b>막대 + 글자</b>
+        ///   시안   「영혼 흡수」 상한이 없다                        →  <b>글자만</b>
+        /// </code>
+        ///
+        /// ★ <b>칸을 새로 만들지 않았다.</b> 성장 창이 같은 결론에 먼저 도달했다
+        /// (<c>CharacterGrowthPanel.ShowSkillCounter</c>) — 한 캐릭터가 둘을 <b>동시에</b>
+        /// 가지는 경우가 없으므로 칸 하나로 충분하고, 새 오브젝트를 만들면 씬에 배선할 것이
+        /// 하나 더 늘고 <b>둘 중 어느 것도 없는 캐릭터</b>에서 빈 칸을 또 숨겨야 한다.
+        /// ⚠ 그래서 하이라키 이름은 여전히 <c>Rage</c> 다 — 이름만 보고 «분노 전용» 으로 읽지 말 것.
+        ///
+        /// ★ <b>어느 «스킬 칸» 인지로 찾지 않는다</b> — 히스톤의 분노는 둘째 칸, 시안의 영혼은
+        /// 첫째 칸이지만 그것은 <b>캐릭터 정의가 정하는</b> 것이다(82-8절의 원칙).
+        /// «스킬 종류» 로만 판정한다.
+        /// ⚠ 둘 다 <b>해금되어야</b> 보인다 — 잠긴 스킬의 수치가 새어나가면 안 된다.
+        /// </summary>
+        void RefreshSkillCounter()
         {
             if (_rageRoot == null) return;
 
-            bool show = false;
-            float rage = 0f;
+            var character = _shown as CharacterUnit;
+            bool rageOn = character != null && HasSkillUnlocked(character, PassiveSkillType.RageOn);
+            bool soulOn = !rageOn && character != null
+                          && HasSkillUnlocked(character, PassiveSkillType.SoulAbsorption);
 
-            if (_shown is CharacterUnit character && HasRageSkillUnlocked(character))
-            {
-                show = true;
-                // 성장 창의 RageOf 와 같은 방식 — 컴포넌트를 만들지 않고 있으면 읽는다.
-                var passives = character.GetComponent<CharacterPassives>();
-                rage = passives != null ? passives.Rage : 0f;
-            }
-
+            bool show = rageOn || soulOn;
             if (_rageRoot.gameObject.activeSelf != show) _rageRoot.gameObject.SetActive(show);
             if (!show) return;
 
-            float ratio = Mathf.Clamp01(rage / CharacterPassives.RageMax);
-            if (_rageFill != null)
+            var passives = character.GetComponent<CharacterPassives>();
+
+            // ── 막대는 <b>분노일 때만</b> 켠다 (영혼은 상한이 없어 «몇 분의 몇» 이 없다) ──
+            if (_rageBack != null && _rageBack.gameObject.activeSelf != rageOn)
+                _rageBack.gameObject.SetActive(rageOn);
+
+            if (rageOn)
             {
-                UiFillBar.Prepare(_rageFill);
-                _rageFill.fillAmount = ratio;
+                float rage = passives != null ? passives.Rage : 0f;
+                float ratio = Mathf.Clamp01(rage / CharacterPassives.RageMax);
+
+                if (_rageFill != null)
+                {
+                    UiFillBar.Prepare(_rageFill);
+                    _rageFill.fillAmount = ratio;
+                }
+                if (_rageLabel != null)
+                {
+                    _rageLabel.text = string.Format(rageFormat, rage, CharacterPassives.RageMax);
+                    _rageLabel.color = ratio >= 1f ? rageFullColor : rageTextColor;
+                }
+                return;
             }
+
+            // ── 영혼 — 글자만 ──
+            int souls = passives != null ? passives.SoulCount : 0;
             if (_rageLabel != null)
             {
-                _rageLabel.text = string.Format(rageFormat, rage, CharacterPassives.RageMax);
-                _rageLabel.color = ratio >= 1f ? rageFullColor : rageTextColor;
+                _rageLabel.text = string.Format(soulFormat, souls);
+                _rageLabel.color = soulTextColor;
             }
         }
 
         /// <summary>
-        /// 이 캐릭터가 「분노」를 <b>해금했는가</b>. 성장 창과 같은 조건이다 —
-        /// 스킬 종류가 <c>rage_on</c> 이고 강화 횟수가 해금 기준을 넘었을 때.
+        /// 이 캐릭터가 <paramref name="want"/> 종류의 스킬을 <b>해금했는가</b>.
+        /// 성장 창과 같은 조건이다 — 스킬 종류가 맞고 강화 횟수가 해금 기준을 넘었을 때.
+        ///
+        /// ★ 2026-08-25 — 「분노」 전용이던 것을 <b>종류를 받는 형태</b>로 넓혔다
+        /// (시안 「영혼 흡수」가 같은 판정을 필요로 한다). 슬롯 번호는 캐릭터마다 다르므로
+        /// <b>세 칸을 다 훑어</b> 그 종류를 찾는다.
         /// </summary>
-        static bool HasRageSkillUnlocked(CharacterUnit character)
+        static bool HasSkillUnlocked(CharacterUnit character, PassiveSkillType want)
         {
             if (character == null || character.Definition == null) return false;
 
@@ -461,7 +547,7 @@ namespace LastSanctuary.UI
             {
                 PassiveSkillSO skill = character.Definition.PassiveAt(slot);
                 if (skill == null) continue;
-                if (PassiveSkillTypes.Parse(skill.skillType) != PassiveSkillType.RageOn) continue;
+                if (PassiveSkillTypes.Parse(skill.skillType) != want) continue;
                 return character.IsPassiveUnlocked(slot);
             }
             return false;
@@ -591,7 +677,7 @@ namespace LastSanctuary.UI
 
             // ★ 분노는 <b>체력 칸보다 먼저</b> 갱신한다 — 아래 체력 칸은 캐릭터일 때
             //   비활성이라 그 자리에서 return 하고, 그러면 분노가 영영 안 갱신된다.
-            RefreshRage();
+            RefreshSkillCounter();
 
             // ★ 유물은 <b>창이 열려 있는 동안에도 바뀐다</b> — 유물 관리 창에서 끼우거나
             //   벗으면 이 카드가 즉시 따라와야 한다. 조회는 사전 한 번이라 주기 갱신으로 충분하다.
@@ -708,6 +794,7 @@ namespace LastSanctuary.UI
             //   ⚠ 위 ⚠ 와 같은 이유로 <b>없어도 죽지 않는다</b>.
             _rageRoot = transform.Find("Rage");
             _rageLabel = FindOptional<TMP_Text>("Rage/RageLabel");
+            _rageBack = transform.Find("Rage/RageBack");
             _rageFill = FindOptional<Image>("Rage/RageBack/RageFill");
             UiFillBar.Prepare(_rageFill);
         }

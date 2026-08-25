@@ -29,5 +29,5 @@ MonoBehaviour:
   nameKey: "relic_name_710016"
   descKey: "relic_desc_710016"
   flavorKey: "relic_flavor_710016"
-  iconKey: "relic_autophagy"
-  icon: {fileID: 21300000, guid: eadc96f04b3bde8f986e7c455dc37475, type: 3}
+  iconKey: "sheet4_0507"
+  icon: {fileID: 21300000, guid: b7b0f55764e323123b781564f4332916, type: 3}

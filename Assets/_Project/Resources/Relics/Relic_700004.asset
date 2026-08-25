@@ -29,5 +29,5 @@ MonoBehaviour:
   nameKey: "relic_name_700004"
   descKey: "relic_desc_700004"
   flavorKey: "relic_flavor_700004"
-  iconKey: "relic_capillary"
-  icon: {fileID: 21300000, guid: 5d87115728f8dfc04aaee696593f4bbb, type: 3}
+  iconKey: "sheet4_0703"
+  icon: {fileID: 21300000, guid: 859ff02f57de67f6f64892a8bd41302d, type: 3}

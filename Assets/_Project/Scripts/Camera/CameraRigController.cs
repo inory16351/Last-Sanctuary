@@ -455,14 +455,28 @@ namespace LastSanctuary.CameraControl
             float Ramp(float distFromEdge) => Mathf.Clamp01(1f - distFromEdge / edgeThickness);
         }
 
+        /// <summary>
+        /// ★★★ <b>키를 여기서 읽지 않는다</b> (2026-08-25 · 유저 지적:
+        /// *"그 단축키 지금 배속 설정이랑 스페이스도 있지 않냐?"*).
+        ///
+        /// 스페이스가 <b>이 Update 에 박혀</b> 있어서 «단축키 설정» 창이 그 키를 보여주지도,
+        /// 바꾸지도 못했다. 이제 <see cref="UI.HotkeyService"/> 가 들고
+        /// <c>HudHotkeys</c> 가 읽어 <see cref="Recenter"/> 를 부른다.
+        /// ⚠ 함수 자체는 남겨 둔다 — <c>Update</c> 가 이것을 부르는 자리가 그대로 있고,
+        ///   여기서 «키 말고 다른 이유로 되돌리는» 조건이 생길 수 있다.
+        /// </summary>
         void HandleRecenter()
         {
-            var kb = Keyboard.current;
-            if (kb != null && kb.spaceKey.wasPressedThisFrame)
-            {
-                _inertia = Vector2.zero;
-                FocusOn(Vector3.zero);
-            }
+        }
+
+        /// <summary>
+        /// 화면을 <b>성역(원점)으로</b> 되돌린다. 관성도 함께 끊는다 — 안 끊으면
+        /// 되돌린 직후에도 이전 드래그의 힘이 남아 화면이 스르륵 밀린다.
+        /// </summary>
+        public void Recenter()
+        {
+            _inertia = Vector2.zero;
+            FocusOn(Vector3.zero);
         }
 
         // ------------------------------------------------------------------ 적용

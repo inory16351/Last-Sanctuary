@@ -29,5 +29,5 @@ MonoBehaviour:
   nameKey: "relic_name_720012"
   descKey: "relic_desc_720012"
   flavorKey: "relic_flavor_720012"
-  iconKey: "relic_thymus"
-  icon: {fileID: 21300000, guid: 8619a3182267e540674fc3d4a4450dae, type: 3}
+  iconKey: "sheet3_0201"
+  icon: {fileID: 21300000, guid: 3ccc40b0c9a544b67a32fbc57d77ad52, type: 3}

@@ -62,6 +62,11 @@ namespace LastSanctuary.UI
         [SerializeField] string lobbyButtonPath = "Body/LobbyButton";
         [SerializeField] string restartButtonPath = "Body/RestartButton";
         [SerializeField] string quitButtonPath = "Body/QuitButton";
+
+        // ★★ 단축키 설정 (2026-08-25 · 유저 확정: *"단축키 설정은 생각해보니까 허드 액션이
+        //     아니라 환경설정으로 가야할듯"*). 처음엔 HUD 액션에 넣었다가 이쪽으로 옮겼다 —
+        //     «한 번 정해 두고 잘 안 만지는 값» 이라 상시 버튼 줄보다 이 창이 맞다.
+        [SerializeField] string hotkeyButtonPath = "Body/HotkeyButton";
         [SerializeField] string closeButtonPath = "Header/CloseButton";
         [SerializeField] string statusPath = "Body/Status";
 
@@ -90,6 +95,7 @@ namespace LastSanctuary.UI
         Button _saveButton;
         Button _lobbyButton;
         Button _restartButton;
+        Button _hotkeyButton;
         Button _quitButton;
         Button _closeButton;
         TMP_Text _status;
@@ -128,6 +134,7 @@ namespace LastSanctuary.UI
             _saveButton = FindComponent<Button>(saveButtonPath);
             _lobbyButton = FindComponent<Button>(lobbyButtonPath);
             _restartButton = FindComponent<Button>(restartButtonPath);
+            _hotkeyButton = FindComponent<Button>(hotkeyButtonPath);
             _quitButton = FindComponent<Button>(quitButtonPath);
             _closeButton = FindComponent<Button>(closeButtonPath);
             _status = FindComponent<TMP_Text>(statusPath);
@@ -153,6 +160,17 @@ namespace LastSanctuary.UI
                 // 이건 이번에 새로 만든 오브젝트라, 없다면 씬이 옛 버전이라는 뜻이다.
                 Debug.LogWarning($"[환경설정] '{restartButtonPath}' 을 찾지 못했습니다 — " +
                                  "Tools/scene_add_restart_button.py 를 돌렸는지 확인해주세요.", this);
+            }
+
+            if (_hotkeyButton != null)
+            {
+                _hotkeyButton.onClick.RemoveAllListeners();
+                _hotkeyButton.onClick.AddListener(HandleHotkeys);
+            }
+            else
+            {
+                Debug.LogWarning($"[환경설정] '{hotkeyButtonPath}' 을 찾지 못했습니다 — " +
+                                 "단축키 설정 버튼이 씬에 없습니다.", this);
             }
 
             if (_quitButton != null)
@@ -237,6 +255,26 @@ namespace LastSanctuary.UI
             Time.timeScale = 1f;
 
             SceneManager.LoadScene(lobbySceneName);
+        }
+        /// <summary>
+        /// ★ <b>단축키 설정 창</b>을 연다 (2026-08-25).
+        ///
+        /// ⚠ <b>이 창(환경 설정)을 먼저 닫는다.</b> 단축키 창도 배타 창이라
+        ///   <see cref="HudExclusive.OpenOnly"/> 가 어차피 이 창을 닫지만, 그 순서에 맡기면
+        ///   «닫히면서 열린다» 가 한 프레임 겹쳐 두 창이 같이 보인다. 여기서 먼저 닫는다.
+        /// ⚠ 창을 못 찾으면 <b>말해 준다</b> — 조용히 아무 일도 없으면 버튼이 고장난 것으로 읽힌다.
+        /// </summary>
+        void HandleHotkeys()
+        {
+            HotkeyPanel panel = HotkeyPanel.Instance;
+            if (panel == null)
+            {
+                HudLog.Add("단축키 설정 창을 찾지 못했습니다", HudLogKind.Warn);
+                return;
+            }
+
+            Close();
+            panel.SetOpen(true);
         }
 
         /// <summary>

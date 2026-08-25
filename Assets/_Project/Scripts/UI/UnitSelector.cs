@@ -55,6 +55,12 @@ namespace LastSanctuary.UI
                  "보이지도 않는 몬스터의 정보가 뜨면 안개가 무의미해진다")]
         [SerializeField] bool respectFogOfWar = true;
 
+        [Tooltip("★ 겹쳐 있을 때 <b>캐릭터에게 주는 가중치</b> (2026-08-25 · PickAt 의 ★★★).\n" +
+                 "거리에 이 값을 곱해 비교한다 — 1보다 작으면 캐릭터가 «더 가까운 것처럼» 취급된다.\n" +
+                 "1 = 가중치 없음(순수하게 가까운 쪽) · 0.5 = 캐릭터를 꽤 우대.\n" +
+                 "⚠ 너무 낮추면 몬스터를 정확히 눌러도 옆 천사가 잡혀 예전 버그로 돌아간다")]
+        [Range(0.1f, 1f)] [SerializeField] float characterPickBias = 0.7f;
+
         [Header("선택 표시")]
         [Tooltip("선택된 캐릭터의 스프라이트에 곱해지는 색. UI 가 아직 없어 이게 유일한 표시다")]
         [SerializeField] Color selectedTint = new Color(0.55f, 1f, 0.7f, 1f);
@@ -182,7 +188,8 @@ namespace LastSanctuary.UI
             Vector3 world = _camera.ScreenToWorldPoint(screenPosition);
             world.z = 0f;
 
-            DamageableUnit boxedOther = null;      // 경계 안에 든 캐릭터 아닌 유닛
+            DamageableUnit boxed = null;           // 경계 안에 든 것 중 <b>가장 가까운</b> 것
+            float boxedScore = float.MaxValue;
             DamageableUnit nearest = null;         // 경계 밖이지만 보정 반경 안
             float nearestSqr = float.MaxValue;
             float assistSqr = pickAssistRadiusTiles * pickAssistRadiusTiles;
@@ -198,7 +205,7 @@ namespace LastSanctuary.UI
                 if (!isCharacter && !pickNonCharacters) continue;
                 if (!isCharacter && !IsVisible(u)) continue;
 
-                // 스프라이트 경계 안이면 후보다. 캐릭터면 그 자리에서 확정한다.
+                // 스프라이트 경계 안이면 후보다.
                 var sr = u.GetComponent<SpriteRenderer>();
                 if (sr != null && sr.enabled)
                 {
@@ -206,8 +213,25 @@ namespace LastSanctuary.UI
                     if (world.x >= b.min.x && world.x <= b.max.x &&
                         world.y >= b.min.y && world.y <= b.max.y)
                     {
-                        if (isCharacter) return u;
-                        if (boxedOther == null) boxedOther = u;
+                        // ★★★ <b>«캐릭터면 그 자리에서 확정» 을 버렸다</b> (2026-08-25 · 유저
+                        //   리포트: *"얘네(지옥 송곳니·영혼 사수) 클릭 안될 때 있는 거 같은데"*).
+                        //
+                        // <b>원인</b> — 예전에는 <c>if (isCharacter) return u;</c> 였다.
+                        // 전투 중에는 천사와 몬스터가 <b>겹쳐 서 있다</b>. 그 상태에서 몬스터를
+                        // 정확히 눌러도, 그 점이 <b>옆 천사의 스프라이트 경계</b>에도 들어 있으면
+                        // 천사가 <b>먼저 순회되는 순서만으로</b> 이겼다. 게다가 «가장 가까운» 도
+                        // 아니라 «배열에서 먼저 나온» 천사였다 — 그래서 «될 때도 있고 안 될 때도
+                        // 있다» 로 보였다(FindObjectsByType 의 순서는 보장되지 않는다).
+                        //
+                        // ★ 이제 경계 안에 든 것을 <b>모두 모아 «클릭한 점에 가장 가까운 것»</b>
+                        //   을 고른다. 순서에 의존하지 않으므로 <b>같은 자리를 누르면 항상 같은
+                        //   것이 잡힌다</b>.
+                        // ★ 캐릭터에게는 <see cref="characterPickBias"/> 만큼의 <b>가중치</b>를
+                        //   준다(거리에 곱한다, 1보다 작다). «애매할 때는 조작 대상인 캐릭터» 라는
+                        //   예전 의도를 살리면서, 몬스터를 <b>정확히</b> 눌렀을 때는 몬스터가 이긴다.
+                        float d = ((Vector2)(u.transform.position - world)).sqrMagnitude;
+                        if (isCharacter) d *= characterPickBias;
+                        if (d < boxedScore) { boxedScore = d; boxed = u; }
                         continue;
                     }
                 }
@@ -221,7 +245,7 @@ namespace LastSanctuary.UI
             }
 
             // 경계 안에 든 것이 우선, 없으면 보정 반경 안의 가장 가까운 것.
-            return boxedOther != null ? boxedOther : nearest;
+            return boxed != null ? boxed : nearest;
         }
 
         /// <summary>

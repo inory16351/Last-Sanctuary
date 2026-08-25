@@ -29,5 +29,5 @@ MonoBehaviour:
   nameKey: "relic_name_700003"
   descKey: "relic_desc_700003"
   flavorKey: "relic_flavor_700003"
-  iconKey: "relic_swelling"
-  icon: {fileID: 21300000, guid: 2fdcaa05dbb9618c5564b32c1923e8a3, type: 3}
+  iconKey: "sheet4_0602"
+  icon: {fileID: 21300000, guid: e090c98648cad98516f3364c5a1e69d1, type: 3}

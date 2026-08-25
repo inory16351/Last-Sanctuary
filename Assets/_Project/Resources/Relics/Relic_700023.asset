@@ -29,5 +29,5 @@ MonoBehaviour:
   nameKey: "relic_name_700023"
   descKey: "relic_desc_700023"
   flavorKey: "relic_flavor_700023"
-  iconKey: "relic_swolleneye"
-  icon: {fileID: 21300000, guid: 5fe8485d4336932932814efae3fa8401, type: 3}
+  iconKey: "sheet4_0403"
+  icon: {fileID: 21300000, guid: 2c4d5e7cbf997716852deb78d04a5546, type: 3}

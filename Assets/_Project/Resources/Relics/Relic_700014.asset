@@ -29,5 +29,5 @@ MonoBehaviour:
   nameKey: "relic_name_700014"
   descKey: "relic_desc_700014"
   flavorKey: "relic_flavor_700014"
-  iconKey: "relic_afterfever"
-  icon: {fileID: 21300000, guid: c0c60385c02c7848986d9a189c8615b9, type: 3}
+  iconKey: "sheet2_0105"
+  icon: {fileID: 21300000, guid: 48c69c4bf3be6f00f9a665d3aec216ee, type: 3}

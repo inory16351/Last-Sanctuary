@@ -29,5 +29,5 @@ MonoBehaviour:
   nameKey: "relic_name_710003"
   descKey: "relic_desc_710003"
   flavorKey: "relic_flavor_710003"
-  iconKey: "relic_interferon"
-  icon: {fileID: 21300000, guid: f10c89363e112ccbcdcf4867d1cf494b, type: 3}
+  iconKey: "sheet3_0105"
+  icon: {fileID: 21300000, guid: d7be23ef0931e8b4ed8e238d725f5811, type: 3}

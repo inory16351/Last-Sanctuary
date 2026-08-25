@@ -29,5 +29,5 @@ MonoBehaviour:
   nameKey: "relic_name_700024"
   descKey: "relic_desc_700024"
   flavorKey: "relic_flavor_700024"
-  iconKey: "relic_chappedlip"
-  icon: {fileID: 21300000, guid: 18ce0e59700c347f84b6207883d6440b, type: 3}
+  iconKey: "sheet2_0203"
+  icon: {fileID: 21300000, guid: 9c304be02faa538cbb4dd4f8a0d17fa5, type: 3}

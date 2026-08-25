@@ -441,6 +441,21 @@ def top_boss_rows():
             for row in read_rows(XLSX_WAVE_MON, 'wave_top_boss')}
 
 
+def wave_nom_rows():
+    """`wave_nom` 시트를 id 로 색인 — <b>잡몹</b>(지옥 송곳니·영혼 사수)이 여기 있다.
+
+    ★★ 왜 새로 생겼나 (2026-08-25) — 유저 리포트:
+       *"영혼 사수랑 지옥 송곳니 일러스트 추가했는데 초상화 ui 에 연동"*
+
+    `sync_monsters` 는 일러스트를 <b>`wave_top_boss` 시트에서만</b> 읽고 있었다
+    (그 코드의 주석도 *"잡몹은 그 시트에 행이 없어 빈 문자열이 된다"* 고 적어 두었다).
+    그런데 유저가 <b>`wave_nom` 시트의 `illust` 칸</b>에 이름을 넣었으므로, 표에는
+    값이 있는데 에셋에는 안 들어가는 상태였다 — 그래서 눌러도 그림이 안 떴다.
+    """
+    return {int(num(row.get('monster_id'))): row
+            for row in read_rows(XLSX_WAVE_MON, 'wave_nom')}
+
+
 def create_monster_asset(path, mid, asset, r, top):
     """
     <b>에셋 파일이 아예 없을 때</b> 표 값으로 새로 만든다 (2026-08-18, 말파스).
@@ -506,6 +521,7 @@ def sync_monsters():
     print('[웨이브 몬스터]')
     stats = {int(r[0]): r for r in read_sheet(XLSX_WAVE_MON, 'first_Stat')}
     tops = top_boss_rows()
+    noms = wave_nom_rows()          # ★ 2026-08-25 — 잡몹의 illust 는 이쪽에 있다
     titled = boss_title_ids()
     folder = os.path.join(ASSETS, 'Data', 'Units')
     total = 0
@@ -553,9 +569,14 @@ def sync_monsters():
         if mid in titled:
             changes['titleKey'] = 'boss_title_%d' % mid
 
-        # ★ 일러스트 (2026-08-18) - `wave_top_boss.illust` 그대로. 잡몹은 그 시트에 행이
-        #   없어 빈 문자열이 되고, 그러면 클릭해도 초상화 창이 안 뜬다(중립과 같은 규칙).
-        changes['illustName'] = str(tops.get(mid, {}).get('illust') or '').strip()
+        # ★ 일러스트 (2026-08-18) - 표의 `illust` 칸 그대로.
+        #   ★★ 2026-08-25 - <b>두 시트를 다 본다</b>. 보스는 `wave_top_boss`, 잡몹은
+        #      `wave_nom` 에 행이 있다. 예전에는 보스 시트만 읽어서 잡몹은 표에 이름을
+        #      적어도 <b>빈 문자열</b>이 됐다(유저 리포트: 지옥 송곳니·영혼 사수).
+        #      ⚠ 보스 시트를 <b>먼저</b> 본다 — 같은 id 가 양쪽에 있으면 보스 쪽이 정본이다.
+        illust = (str(tops.get(mid, {}).get('illust') or '').strip()
+                  or str(noms.get(mid, {}).get('illust') or '').strip())
+        changes['illustName'] = illust
 
         total += patch_fields(os.path.join(folder, asset + '.asset'), changes, asset,
                               add_missing=('titleKey', 'monsterId', 'illustName') + NEW_STAT_FIELDS)

@@ -291,6 +291,11 @@ def ensure_folder_meta(path):
 #     0 세포(원 + 핵) · 1 항체(Y) · 2 결정(마름모) · 3 나선(고리 셋) · 4 가시(별)
 # ──────────────────────────────────────────────────────────────────────────
 
+# ★ 1 이면 임시 아이콘을 <b>다시 그린다</b>(원화를 덮는다). 평소에는 0 —
+#   자세한 이유는 main() 의 아이콘 블록 ★★★ 참조.
+REDRAW_ICONS = os.environ.get("REDRAW_ICONS", "0") == "1"
+
+
 def draw_icon(path, relic_id, grade, name_seed):
     s = ICON_SIZE
     img = Image.new("RGBA", (s, s), (0, 0, 0, 0))
@@ -373,7 +378,19 @@ def main():
         if key in icon_guid:
             continue
         png = os.path.join(ICON_DIR, key + ".png")
-        draw_icon(png, num(r["relic_id"]), str(r.get("grade") or "common"), key)
+
+        # ★★★ <b>이미 그림이 있으면 덮지 않는다</b> (2026-08-25).
+        #
+        # 이 파일 맨 위가 *"원화가 오면 같은 파일 이름으로 덮으면 된다"* 고 적어 두었는데,
+        # 정작 이 줄이 <b>조건 없이 임시 아이콘을 다시 그려</b> 덮어쓰고 있었다. 그래서
+        # 볼트에서 잘라 넣은 원화가 <b>이 스크립트를 한 번 돌리면 사라졌다</b> —
+        # 표를 고칠 때마다(밸런스 조정 등) 아이콘이 통째로 임시 그림으로 돌아간다.
+        #
+        # ★ 이제 «없을 때만» 그린다. 새 유물이 표에 추가되면 그것만 임시 아이콘을 받고,
+        #   원화가 있는 것은 그대로 남는다.
+        # ⚠ 일부러 다시 그리려면 REDRAW_ICONS=1 을 주고 돌릴 것.
+        if REDRAW_ICONS or not os.path.exists(png):
+            draw_icon(png, num(r["relic_id"]), str(r.get("grade") or "common"), key)
         rel = os.path.relpath(png, PROJECT).replace("\\", "/")
         g = guid_for(rel)
         icon_guid[key] = g

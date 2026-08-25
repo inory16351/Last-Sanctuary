@@ -50,6 +50,15 @@ namespace LastSanctuary.UI
                  "Time.unscaledTime 기준이라 게임이 멈춰도 흐른다")]
         [Min(0f)] [SerializeField] float showDelaySeconds = 1.2f;
 
+        [Header("엔딩 (2026-08-25)")]
+        [Tooltip("★ 켜면 승리 화면 <b>대신</b> 엔딩 씬을 연다 (유저 지시: 엔딩 구현).\n" +
+                 "끄면 예전처럼 결과 3줄 + «다시 시작» 화면이 뜬다 — 엔딩을 건너뛰고 " +
+                 "승리 판정만 확인하고 싶을 때 쓴다")]
+        [SerializeField] bool useEnding = true;
+
+        [Tooltip("엔딩 씬 이름. 빌드 세팅에 들어 있어야 한다")]
+        [SerializeField] string endingSceneName = "Ending";
+
         GameObject _body;
         TMP_Text _title, _reason, _summary, _restartTextLabel;
         Button _restartButton;
@@ -105,12 +114,34 @@ namespace LastSanctuary.UI
             _finalSeconds = Time.unscaledTime - _startedAt;
             _finalAlive = CountAliveCharacters();
 
+            // ★★ 엔딩의 명단에 쓸 «끝까지 남은 이들» 을 <b>지금</b> 찍는다 (2026-08-25).
+            //   ⚠ 엔딩 씬으로 넘어간 뒤에는 유닛이 이미 없다 — 여기서 안 찍으면
+            //     생존자 명단이 영원히 빈칸이다. 전사자는 죽는 그 순간에
+            //     <see cref="Save.GameSnapshot"/> 이 이미 적어 두었다.
+            Save.RunRecord.CaptureSurvivors(_finalWave, _finalSeconds);
+
             _showAt = Time.unscaledTime + showDelaySeconds;
         }
 
         void Show()
         {
             _shown = true;
+
+            // ★★ 엔딩으로 간다 — 결과 화면을 <b>띄우지 않는다</b> (2026-08-25).
+            //   오프닝이 «로비 클릭 → 바로 연출» 이었던 것과 대칭이다. 결과 숫자는
+            //   엔딩 컷 2 의 명단이 대신 보여준다.
+            //   ⚠ <b>timeScale 을 0 으로 만들기 전에</b> 나간다 — 0 인 채로 엔딩 씬에
+            //     들어가면 코루틴이 unscaledTime 을 쓰긴 하지만, 다른 컴포넌트가 멈춘
+            //     상태로 시작하는 위험을 만들 이유가 없다.
+            if (useEnding && !string.IsNullOrWhiteSpace(endingSceneName))
+            {
+                Combat.CombatProjectileFx.ClearAll();
+                HudLog.Add($"승리 — 웨이브 {_finalWave} 클리어", HudLogKind.Good);
+
+                Time.timeScale = 1f;
+                SceneManager.LoadScene(endingSceneName);
+                return;
+            }
 
             if (_title != null) _title.text = titleText;
             if (_reason != null) _reason.text = string.Format(reasonFormat, _finalWave);

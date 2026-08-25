@@ -81,7 +81,12 @@ namespace LastSanctuary.Relics
         [Tooltip("맵 전체에 뿌릴 발굴 가능 칸 수.\n" +
                  "★ 기본 24 — 맵이 넓어 한 판에 다 밝히기 어렵고, 이 정도면 «탐험하다 가끔 만난다» " +
                  "가 된다. 너무 많으면 발굴이 주 수입원이 되어 웨이브를 미루는 것이 최적 전략이 된다")]
-        [Min(0)] [SerializeField] int digSiteCount = 24;
+        // ★★ 110 → 45 (2026-08-25 · 유저 리포트 *"발굴 가능 칸이 너무 많고"*).
+        //   110 은 «맵 전체로 넓혔으니 밀도를 지키자» 로 올린 값인데(2026-08-25 오전),
+        //   칸 하나가 곧 발굴 <b>한 번</b>이라 그것이 한 판의 발굴 횟수 상한이 된다.
+        //   에너지 성장(ScaledEnergy)과 함께 줄여 «한 판 약 990 에너지» 로 맞췄다.
+        // ⚠ 이 값은 <b>씬에도 있다</b> — 씬 값이 이긴다. 둘을 같이 고쳐야 한다.
+        [Min(0)] [SerializeField] int digSiteCount = 45;
 
         [Tooltip("성역에서 이만큼(타일) 떨어진 곳에만 둔다 — 시작하자마자 다 캐지 않게")]
         [Min(0f)] [SerializeField] float minDistanceFromNexus = 14f;
@@ -94,7 +99,10 @@ namespace LastSanctuary.Relics
         [Min(0f)] [SerializeField] float maxDistanceFromNexus = 0f;
 
         [Tooltip("발굴 칸끼리 이만큼(타일)은 떨어뜨린다 — 한곳에 몰리면 «한 번 가서 다 캔다» 가 된다")]
-        [Min(0f)] [SerializeField] float minSpacing = 10f;
+        // ★ 10 → 12 (2026-08-25) — 칸 수를 45로 줄이면서 간격을 넓혔다. 좁게 두면 줄어든
+        //   칸이 <b>몇 군데에 뭉쳐</b> 「한 번 가서 다 캔다」가 되고, 넓히면 같은 45개가
+        //   맵에 골라 퍼져 «찾아 다니는» 맛이 남는다.
+        [Min(0f)] [SerializeField] float minSpacing = 12f;
 
         [Tooltip("자리를 고를 때 시도할 최대 횟수. 이만큼 굴려도 자리가 안 나오면 포기한다")]
         [Min(1)] [SerializeField] int placementAttempts = 4000;
@@ -106,6 +114,15 @@ namespace LastSanctuary.Relics
 
         [Tooltip("한 칸을 파는 데 걸리는 시간(초). 유저 지시: 15초")]
         [Min(1f)] [SerializeField] float digSeconds = 15f;
+
+        [Header("발굴 에너지 성장 (2026-08-25 — ScaledEnergy 의 긴 설명 참조)")]
+        [Tooltip("웨이브 하나가 지날 때마다 발굴 에너지 배율이 이만큼 오른다.\n" +
+                 "0.10 = 웨이브마다 +10%. 0 이면 성장 없음(표 값 그대로)")]
+        [Min(0f)] [SerializeField] float energyGrowthPerWave = 0.10f;
+
+        [Tooltip("배율 상한. 2.5 면 표 값의 2.5배가 최대다 " +
+                 "(growthPerWave 0.10 이면 16웨이브에 상한에 닿는다)")]
+        [Min(1f)] [SerializeField] float energyGrowthCap = 2.5f;
 
         [Tooltip("캐릭터가 이 거리(타일) 안에 들어와야 발굴이 진행된다")]
         [Min(0.5f)] [SerializeField] float digWorkRange = 1.6f;
@@ -253,7 +270,38 @@ namespace LastSanctuary.Relics
             else Debug.LogWarning("[유물] DigOverlay/DigMarkerTemplate 을 찾지 못했습니다 — " +
                                   "발굴 칸이 화면에 안 보입니다.", this);
 
+            SinkOverlayBehindWindows();
             LoadMarkerSprite();
+        }
+
+        /// <summary>
+        /// ★★ <b>느낌표를 모든 창 «뒤» 로 내린다</b> (2026-08-25 · 유저 리포트:
+        /// *"발굴 느낌표가 타 ui 를 켰을때 가려지지 않고 위에 나타남"*).
+        ///
+        /// <b>원인</b> — 한 <see cref="Canvas"/> 안에서 그리는 순서는 <b>형제 순서</b>다
+        /// (나중 형제가 앞). <c>DigOverlay</c> 는 <c>UI_Root</c> 의 자식 23개 중
+        /// <b>21번째</b>였다 — 로스터·미니맵은 물론 <c>HUD_Portrait</c>·<c>HUD_Squad</c>·
+        /// <c>HUD_Event</c>·<c>HUD_Settings</c>·<c>HUD_Defeat</c>·<c>HUD_Victory</c> 까지
+        /// <b>거의 전부보다 앞</b>이었다. 그래서 창을 열어도 느낌표가 그 위에 떠 있었다.
+        ///
+        /// <b>왜 코드에서 고치나</b> — 씬에서 형제 순서를 바꿔도 되지만,
+        /// ① <b>MCP 에는 형제 순서를 바꾸는 도구가 없다</b>(reparent 는 순서를 못 정한다),
+        /// ② 사람이 하이라키에서 <b>드래그 한 번</b>으로 다시 깨뜨릴 수 있고 그때 아무 경고도
+        ///    나지 않는다. 한 줄로 <b>매번 확정</b>하는 편이 무너지지 않는다.
+        ///    (<c>UiFillBar.Prepare</c> 가 스프라이트에 대해 하는 것과 같은 «안전망» 이다.)
+        ///
+        /// ★ <b>맨 앞이 아니라 맨 «뒤» 로 보낸다</b> — 창 하나하나보다 뒤로 보내려면
+        ///   «어느 창보다 뒤인가» 를 관리해야 하고, 창이 하나 늘 때마다 그 표가 틀린다.
+        ///   맨 뒤로 보내면 <b>앞으로 생길 창까지</b> 저절로 느낌표를 가린다.
+        /// ⚠ 그래서 느낌표는 상시 HUD(로스터·미니맵·로그) <b>뒤에도</b> 깔린다. 그게 맞다 —
+        ///   표식이 로스터 판 위로 삐져나오는 것도 같은 종류의 사고였다.
+        /// ⚠ 클릭은 그리는 순서의 <b>역순</b>이라, 뒤로 내려도 위에 아무것도 없으면 그대로 눌린다.
+        ///   창을 열면 그 창이 클릭을 먹는데 — 그것이 이 수정이 원하는 바다.
+        /// </summary>
+        void SinkOverlayBehindWindows()
+        {
+            if (overlayParent == null) return;
+            overlayParent.SetAsFirstSibling();
         }
 
         /// <summary>
@@ -706,6 +754,19 @@ namespace LastSanctuary.Relics
             {
                 DamageableUnit u = units[i];
                 if (u == null || !u.IsAlive || u.Kind != UnitKind.Character) continue;
+
+                // ★★ <b>소환수(아루의 골렘)는 발굴하지 않는다</b> (2026-08-25 · 유저 지시:
+                //   *"골렘은 발굴 가능 대상에서 빼줘"*).
+                //
+                //   골렘은 <c>UnitKind.Character</c> 라서 위 검사를 <b>통과했다</b> — 그래서
+                //   가장 가까운 «캐릭터» 로 뽑혀 삽질을 하러 갔다. 골렘은 전술을 바꿀 수도,
+                //   후퇴할 수도, 침식이 차지도 않는 «싸우기만 하는» 유닛이다(「강림」 정의문).
+                //   심부름을 시킬 대상이 아니고, 아루가 죽으면 <b>같이 사라져</b> 파던 자리가
+                //   담당자 없이 남는다.
+                //   ⚠ 같은 판단이 이미 세 곳에 있다 — 승리 화면의 인원 수 · 침식 칸 ·
+                //     엔딩 명단. <see cref="CharacterUnit.IsSummoned"/> 의 긴 주석 참조.
+                if (u is CharacterUnit c && c.IsSummoned) continue;
+
                 var worker = u.GetComponent<CharacterBehavior>();
                 if (worker != null && worker.CanTakeBuildOrder) _freeWorkers.Add(worker);
             }
@@ -821,6 +882,73 @@ namespace LastSanctuary.Relics
         }
 
         /// <summary>
+        /// ★★★ <b>발굴 에너지를 «판이 익은 정도» 에 비례해 키운다</b> (2026-08-25).
+        ///
+        /// ══════════════════════════════════════════════════════════════════
+        ///  왜 — <b>발굴이 손해 없이 너무 좋았다</b>
+        /// ══════════════════════════════════════════════════════════════════
+        /// 유저 리포트: *"발굴 가능 칸이 너무 많고, 밸류가 너무 쎄서 발굴이 너무 좋음.
+        /// 에너지가 한번에 무지막지하게 많이 제공되니까 별도의 손해 없이. …
+        /// <b>타이머를 설정해서 점진적으로 보상량을 올리는 방법을 고려해봐.</b>"*
+        ///
+        /// 예전 수치로 계산해 보면 —
+        /// <code>
+        ///   기대 에너지/발굴 = 0.29×120 + 0.06×300 = 52.8
+        ///   칸 110개        → 한 판에 <b>5,808</b>
+        ///   캐릭터 생성 비용 = 150 + 100n  (몬스터 한 마리 = 10)
+        /// </code>
+        /// 발굴만으로 캐릭터 열 명을 뽑는다. 게다가 한 번에 300이 들어오는데
+        /// 몬스터 한 마리가 10이니 <b>서른 마리를 한 삽에</b> 캐는 셈이었다.
+        ///
+        /// ══════════════════════════════════════════════════════════════════
+        ///  ★ 시계를 «시간» 이 아니라 <b>«웨이브»</b> 로 잡았다
+        /// ══════════════════════════════════════════════════════════════════
+        /// 유저가 말한 «타이머» 를 <b>벽시계 초</b>로 읽으면 두 군데서 깨진다:
+        /// <code>
+        ///   ① 저장·복원 — 흐른 시간은 저장하지 않는다. 불러오면 <b>0으로 되돌아가</b>
+        ///      20웨이브에서 이어했는데 보상이 1웨이브 값이 된다. 웨이브 번호는 저장한다.
+        ///   ② 배속 — 이 게임은 배속이 있다(HUD_Speed). 8배속으로 돌리면 벽시계는 같은데
+        ///      <b>실제 진행은 여덟 배</b>라 «시간당 보상» 이 진행도와 어긋난다.
+        /// </code>
+        /// 그리고 웨이브는 <b>난이도의 척도</b>이기도 하다 — «판이 어려워질수록 보상이 커진다» 가
+        /// «오래 켜 두면 커진다» 보다 이 게임이 원하는 규칙이다.
+        /// ⚠ 그래서 «점진적으로 올린다» 는 지시는 지켰고, 그 <b>기준만</b> 웨이브로 바꿨다.
+        ///
+        /// ══════════════════════════════════════════════════════════════════
+        ///  곡선
+        /// ══════════════════════════════════════════════════════════════════
+        /// <code>
+        ///   배율 = 1 + growthPerWave × (웨이브 − 1)      (최대 growthCap 까지)
+        ///
+        ///   기본값 0.10 · 상한 2.5 · 표 값 40/100 이면 —
+        ///     1웨이브   ×1.00 →  40 / 100
+        ///    10웨이브   ×1.90 →  76 / 190
+        ///    16웨이브~  ×2.50 → 100 / 250   (상한)
+        ///
+        ///   기대 에너지/발굴 = 0.24×기본 + 0.03×큰것   (아래 표의 새 가중치)
+        ///     1웨이브 12.6 · 20웨이브 31.5 · 판 평균 ≈ 22
+        ///   칸 45개 → 한 판에 <b>약 990</b> (예전의 6분의 1)
+        /// </code>
+        /// 초반 발굴은 «덤» 이고 후반 발굴은 «값어치» 가 된다 — 유저가 요구한 모양이다.
+        ///
+        /// ⚠ <b>에너지에만 건다.</b> 체력·침식 결과는 «최대치의 %» 라 배율을 곱하면
+        ///   뜻이 이상해지고(120% 회복), 그것들은 애초에 문제가 아니었다.
+        /// ⚠ <see cref="WaveManager"/> 를 못 찾으면 배율 1 이다 — 테스트 씬에서 조용히 돈다.
+        /// </summary>
+        int ScaledEnergy(int baseValue)
+        {
+            if (baseValue <= 0) return baseValue;
+
+            if (_wave == null) _wave = FindAnyObjectByType<Wave.WaveManager>();
+            int wave = _wave != null ? _wave.WaveNumber : 1;
+
+            float mult = 1f + energyGrowthPerWave * Mathf.Max(0, wave - 1);
+            mult = Mathf.Clamp(mult, 1f, Mathf.Max(1f, energyGrowthCap));
+
+            return Mathf.Max(1, Mathf.RoundToInt(baseValue * mult));
+        }
+
+        /// <summary>
         /// 발굴 결과 한 줄을 적용한다 — 표 <c>DigOutcome</c> 시트의 <c>outcome_type</c> 과 1:1.
         ///
         /// ⚠ <b>여기 없는 타입은 «아무 일도 안 일어난다»</b>. 표에 새 결과를 더하면
@@ -832,8 +960,12 @@ namespace LastSanctuary.Relics
             {
                 case "dig_energy":
                 case "dig_energy_big":
-                    Resource.ResourceManager.Instance?.AddEnergy(row.value01);
-                    return $"에너지 +{row.value01}";
+                {
+                    // ★★ 에너지만 «판이 익을수록» 커진다 (2026-08-25 · ScaledEnergy 의 설명).
+                    int amount = ScaledEnergy(row.value01);
+                    Resource.ResourceManager.Instance?.AddEnergy(amount);
+                    return $"에너지 +{amount}";
+                }
 
                 case "dig_heal":
                 {
