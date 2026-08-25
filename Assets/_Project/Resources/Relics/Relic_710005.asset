@@ -26,5 +26,8 @@ MonoBehaviour:
   source: 1
   sourceId: 0
   dropWeight: 9
+  nameKey: "relic_name_710005"
+  descKey: "relic_desc_710005"
+  flavorKey: "relic_flavor_710005"
   iconKey: "relic_macrophage"
   icon: {fileID: 21300000, guid: 4ee2213499382b8fef97a3d772592452, type: 3}

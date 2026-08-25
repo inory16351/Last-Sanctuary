@@ -8,7 +8,7 @@ namespace LastSanctuary.UI
         Info,      // 일반
         Good,      // 이득 (에너지 획득, 처치, 생성)
         Warn,      // 주의 (웨이브 시작, 에너지 부족)
-        Danger,    // 손실 (아군 사망, 넥서스 피격)
+        Danger,    // 손실 (아군 사망, 성역 피격)
     }
 
     /// <summary>

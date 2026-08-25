@@ -258,7 +258,7 @@ namespace LastSanctuary.UI
         void Refresh(EventDefinitionSO def, EventChoice choice)
         {
             if (_title != null)
-                _title.text = string.IsNullOrWhiteSpace(def.eventName) ? fallbackTitle : def.eventName;
+                _title.text = string.IsNullOrWhiteSpace(def.DisplayName) ? fallbackTitle : def.DisplayName;
 
             bool resultStage = choice != null;
 
@@ -266,8 +266,8 @@ namespace LastSanctuary.UI
             if (_body != null)
             {
                 string text = resultStage
-                    ? Join(choice.resultScript, choice.resultEffect)
-                    : def.eventScript;
+                    ? Join(choice.ResultScript, choice.ResultEffect)
+                    : def.Script;
                 _body.text = string.IsNullOrWhiteSpace(text) ? fallbackBody : text;
             }
 
@@ -290,7 +290,7 @@ namespace LastSanctuary.UI
             if (button != null) button.gameObject.SetActive(choice != null);
             if (label == null || choice == null) return;
 
-            label.text = string.IsNullOrWhiteSpace(choice.choiceText) ? fallback : choice.choiceText;
+            label.text = string.IsNullOrWhiteSpace(choice.ChoiceText) ? fallback : choice.ChoiceText;
         }
 
         /// <summary>결과 대사와 효과 요약을 한 칸에 넣는다 — 빈 칸은 건너뛴다.</summary>

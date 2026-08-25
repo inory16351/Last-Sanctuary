@@ -22,7 +22,7 @@ namespace LastSanctuary.Combat
         /// <summary>각성 — 모든 능력치가 일정 % 상승한다.</summary>
         Arousal = 3,
 
-        /// <summary>공포 — 전투를 거부하고 넥서스 방향으로 회피한다.</summary>
+        /// <summary>공포 — 전투를 거부하고 성역 방향으로 회피한다.</summary>
         Terrified = 4,
 
         /// <summary>우울 — 주변 아군의 침식 수치를 올린다(본인 제외). 즉발.</summary>
@@ -81,7 +81,7 @@ namespace LastSanctuary.Combat
         /// <summary>혼란 — 이동은 제자리 유지, 타겟만 아군으로 강제된다.</summary>
         AttackAllies,
 
-        /// <summary>공포 — 전투를 거부하고 넥서스 쪽으로 회피한다(후퇴 로직 재사용).</summary>
+        /// <summary>공포 — 전투를 거부하고 성역 쪽으로 회피한다(후퇴 로직 재사용).</summary>
         Flee,
 
         /// <summary>광분 — 전방의 적을 향해 달려나간다.</summary>

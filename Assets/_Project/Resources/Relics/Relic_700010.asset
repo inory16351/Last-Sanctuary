@@ -26,5 +26,8 @@ MonoBehaviour:
   source: 1
   sourceId: 0
   dropWeight: 9
+  nameKey: "relic_name_700010"
+  descKey: "relic_desc_700010"
+  flavorKey: "relic_flavor_700010"
   iconKey: "relic_mucosa"
   icon: {fileID: 21300000, guid: ac4485f841f1563c18488e382cabdd03, type: 3}

@@ -26,5 +26,8 @@ MonoBehaviour:
   source: 2
   sourceId: 0
   dropWeight: 12
+  nameKey: "relic_name_720016"
+  descKey: "relic_desc_720016"
+  flavorKey: "relic_flavor_720016"
   iconKey: "relic_rampart"
   icon: {fileID: 21300000, guid: 4fcf173c30ea9809fcca4232f85ea1d3, type: 3}

@@ -21,12 +21,17 @@ MonoBehaviour:
   choiceGroupId: 600001
   eventBg: "bg_aftermath"
   eventScript: "전장에 남은 것은 적들의 유해뿐입니다.\n속에서부터 올라오는 혐오감을 집어삼키며, 천사들은 시체를 한데 모읍니다.\n이 잔해를 어떻게 처리할지는 성역의 뜻에 달렸습니다."
+  nameKey: "event_name_205001"
+  scriptKey: "event_script_205001"
   choices:
   - choiceId: 300001
     choiceOrder: 1
     choiceText: "모조리 불태워라!!"
     resultScript: "유해가 타오르며 성역의 온도가 오릅니다.\n열기에 감화된 천사들의 손놀림이 눈에 띄게 빨라졌습니다."
     resultEffect: "효과 : 천사 전체 공격 속도 +8% (240초)  ·  유물 「오른 열」 획득 (일반)"
+    choiceTextKey: "event_choice_text_300001"
+    resultScriptKey: "event_result_script_300001"
+    resultEffectKey: "event_result_effect_300001"
     rewardType01: "char_atk_spd_durat_up"
     rewardValue01: 8
     rewardDuration01: 240
@@ -38,6 +43,9 @@ MonoBehaviour:
     choiceText: "먹어치우자!!"
     resultScript: "천사들은 유해를 삼켜 성역의 양분으로 바꿉니다.\n목을 넘긴 뒤의 뒷맛은 생각보다 오래 남습니다."
     resultEffect: "효과 : 에너지 +200 · 천사 전체 침식 +5"
+    choiceTextKey: "event_choice_text_300002"
+    resultScriptKey: "event_result_script_300002"
+    resultEffectKey: "event_result_effect_300002"
     rewardType01: "energy_gain"
     rewardValue01: 200
     rewardDuration01: 0

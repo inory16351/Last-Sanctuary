@@ -4,7 +4,7 @@ using UnityEngine;
 namespace LastSanctuary.Map
 {
     /// <summary>
-    /// 넥서스까지의 거리장(flow field). 모든 몬스터가 같은 목적지를 향하므로
+    /// 성역까지의 거리장(flow field). 모든 몬스터가 같은 목적지를 향하므로
     /// 유닛마다 A* 를 돌리는 대신 맵 전체를 한 번 BFS 해두고 방향만 읽는다.
     /// 비용이 유닛 수와 무관해서 수백 마리도 부담이 없다.
     ///
@@ -36,7 +36,7 @@ namespace LastSanctuary.Map
             if (buildOnStart) BuildToMapCenter();
         }
 
-        /// <summary>맵 중앙(넥서스 자리)을 목표로 생성한다.</summary>
+        /// <summary>맵 중앙(성역 자리)을 목표로 생성한다.</summary>
         public void BuildToMapCenter()
         {
             if (mapGenerator == null)
@@ -165,12 +165,12 @@ namespace LastSanctuary.Map
         public bool IsReachable(Vector3 worldPos) => IsCellReachable(WorldToCell(worldPos));
 
         /// <summary>
-        /// 해당 <b>셀</b>이 목표(넥서스)까지 도달 가능한지.
+        /// 해당 <b>셀</b>이 목표(성역)까지 도달 가능한지.
         ///
         /// 탐험 목표를 고를 때 쓴다(유저 지시 2026-08-14: "물리적으로 갈 수 없는 곳 제외") —
         /// <see cref="MapGenerator.IsCellBlocked"/> 는 "그 칸이 벽인가"만 보므로 <b>벽으로 완전히
         /// 둘러싸인 빈 주머니</b>를 못 걸러낸다. 그런 칸을 정찰 목표로 잡으면 캐릭터가 벽에 붙어
-        /// 재추첨 시간까지 멈춰 선다. 이 거리장은 넥서스에서 실제로 걸어서 퍼져 나간 결과라
+        /// 재추첨 시간까지 멈춰 선다. 이 거리장은 성역에서 실제로 걸어서 퍼져 나간 결과라
         /// 그 판정이 공짜로 나온다.
         ///
         /// ⚠ 거리장이 아직 안 만들어졌으면 <b>전부 false</b> 다(<see cref="IsReady"/> 와 같은 규칙).

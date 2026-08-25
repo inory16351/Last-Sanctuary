@@ -21,12 +21,17 @@ MonoBehaviour:
   choiceGroupId: 600040
   eventBg: "bg_habitat_1101"
   eventScript: "성역의 바닥이 검게 굳어 숲처럼 솟았습니다.\n이 자리에 뿌리를 내린 것은 성역의 살로 지어졌으면서, 성역의 것이 아닙니다.\n천사들의 손에 든 칼이 저절로 떨립니다."
+  nameKey: "event_name_207001"
+  scriptKey: "event_script_207001"
   choices:
   - choiceId: 300079
     choiceOrder: 1
     choiceText: "뿌리째 파낸다."
     resultScript: "천사들은 검은 숲을 향해 대열을 세웠습니다.\n도려내기로 정한 손은 언제나 더 정확합니다."
     resultEffect: "효과 : 천사 전체 근거리 공격력 +12% (300초) · 천사 전체 명중률 +8% (300초)"
+    choiceTextKey: "event_choice_text_300079"
+    resultScriptKey: "event_result_script_300079"
+    resultEffectKey: "event_result_effect_300079"
     rewardType01: "char_melee_atk_durat_up"
     rewardValue01: 12
     rewardDuration01: 300
@@ -38,6 +43,9 @@ MonoBehaviour:
     choiceText: "자리를 피해 돌아간다."
     resultScript: "천사들은 종양을 등지고 물러났습니다.\n돌아 나오는 길에 숲의 결을 눈에 담았지만, 도려내지 않은 것은 반드시 자랍니다."
     resultEffect: "효과 : 천사 전체 시야 +12% (300초) · 천사 전체 침식 +8"
+    choiceTextKey: "event_choice_text_300080"
+    resultScriptKey: "event_result_script_300080"
+    resultEffectKey: "event_result_effect_300080"
     rewardType01: "char_vision_durat_up"
     rewardValue01: 12
     rewardDuration01: 300

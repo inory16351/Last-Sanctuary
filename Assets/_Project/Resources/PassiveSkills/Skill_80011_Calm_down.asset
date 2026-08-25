@@ -28,5 +28,5 @@ MonoBehaviour:
   coolTime: 180
   iconName: 'icon_light_pillar'
   flavorText: '전장의 광기는 그들을 머나먼 곳으로 인도하곤 하지만 아직은 떠날 때가 아닙니다.'
-  detailText: '같은 집결지의 동료가 나쁜 정신 이상에 걸리면 즉시 풀어 주고 침식도 낮춥니다.'
+  detailText: '같은 집결지의 동료가 나쁜 정신 이상에 걸리면 즉시 풀어 주고 침식을 {value_01} 낮춥니다.'
   effectTemplate: '같은 집결지 내의 동료가 부정적인 정신 이상에 당할 경우, 즉시 정신 이상 상태를 해제하고 침식 수치를{value_01} 만큼 낮춘다.'

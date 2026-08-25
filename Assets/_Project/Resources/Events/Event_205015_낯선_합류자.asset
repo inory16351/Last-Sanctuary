@@ -21,12 +21,17 @@ MonoBehaviour:
   choiceGroupId: 600015
   eventBg: "bg_aftermath"
   eventScript: "유해 사이에서 천사 하나가 몸을 일으킵니다.\n우리 편의 얼굴을 하고 있습니다. 다만 언제부터 저기 있었는지 아무도 기억하지 못합니다."
+  nameKey: "event_name_205015"
+  scriptKey: "event_script_205015"
   choices:
   - choiceId: 300029
     choiceOrder: 1
     choiceText: "받아들인다."
     resultScript: "성역은 그를 우리로 세었습니다.\n숫자는 늘었고, 밤마다 확인해야 할 얼굴도 하나 늘었습니다."
     resultEffect: "효과 : 천사 1명 합류 (확률 100%) · 천사 전체 침식 +10"
+    choiceTextKey: "event_choice_text_300029"
+    resultScriptKey: "event_result_script_300029"
+    resultEffectKey: "event_result_effect_300029"
     rewardType01: "char_join"
     rewardValue01: 100
     rewardDuration01: 0
@@ -38,6 +43,9 @@ MonoBehaviour:
     choiceText: "베어버린다."
     resultScript: "칼이 먼저 움직였습니다.\n바닥에 남은 것은 우리와 같은 살이었고, 대열을 갉던 의심은 그 자리에서 걷혔습니다."
     resultEffect: "효과 : 천사 전체 침식 −5 · 천사 1명의 정신 이상 해제"
+    choiceTextKey: "event_choice_text_300030"
+    resultScriptKey: "event_result_script_300030"
+    resultEffectKey: "event_result_effect_300030"
     rewardType01: "char_all_erosion_down"
     rewardValue01: 5
     rewardDuration01: 0

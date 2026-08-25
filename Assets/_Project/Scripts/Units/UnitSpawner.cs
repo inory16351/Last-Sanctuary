@@ -7,8 +7,8 @@ namespace LastSanctuary.Units
 {
     /// <summary>
     /// 최초 생성 담당 (핵심시스템 기획서 p13).
-    ///   1. 맵 중앙에 중앙 건물(넥서스) 생성
-    ///   2. 넥서스 근처에 캐릭터 생성
+    ///   1. 맵 중앙에 중앙 건물(성역) 생성
+    ///   2. 성역 근처에 캐릭터 생성
     ///
     /// 생성 방식: 하이라키(또는 프리팹)의 템플릿 오브젝트를 Instantiate 로 복제하고
     /// 능력치 테이블 값을 주입한다. 템플릿에 애니메이터·콜라이더·자식 오브젝트를 붙이면
@@ -27,7 +27,7 @@ namespace LastSanctuary.Units
         [Tooltip("복제할 캐릭터 원본. 비활성 상태로 두면 템플릿 자체는 게임에 참여하지 않는다")]
         [SerializeField] CharacterUnit characterTemplate;
 
-        [Tooltip("복제할 넥서스 원본")]
+        [Tooltip("복제할 성역 원본")]
         [SerializeField] Nexus nexusTemplate;
 
         [Header("맵 참조")]
@@ -42,7 +42,7 @@ namespace LastSanctuary.Units
                  "인원은 대상이 아니다 — 최초 편성만 고정한다")]
         [SerializeField] bool autoSquadInitialCharacters = true;
 
-        [Tooltip("넥서스로부터 몇 칸 떨어진 곳부터 배치를 시도할지")]
+        [Tooltip("성역으로부터 몇 칸 떨어진 곳부터 배치를 시도할지")]
         [Min(1)] [SerializeField] int spawnRingRadius = 3;
 
         [Tooltip("배치 가능한 칸을 찾을 최대 탐색 반경")]
@@ -79,7 +79,7 @@ namespace LastSanctuary.Units
         // "같은 시드 = 같은 결과" 가 유지된다.
         System.Random _rng;
 
-        // 이미 유닛이 놓인 칸(넥서스 발판 포함). 추가 생성 때도 겹치지 않게 하려면
+        // 이미 유닛이 놓인 칸(성역 발판 포함). 추가 생성 때도 겹치지 않게 하려면
         // 지역 변수가 아니라 스포너가 계속 들고 있어야 한다.
         readonly HashSet<Vector3Int> _usedCells = new HashSet<Vector3Int>();
 
@@ -90,7 +90,7 @@ namespace LastSanctuary.Units
 
         // ------------------------------------------------------------------
 
-        /// <summary>넥서스와 캐릭터를 모두 생성한다.</summary>
+        /// <summary>성역과 캐릭터를 모두 생성한다.</summary>
         public void SpawnAll()
         {
             if (!Validate()) return;
@@ -156,7 +156,7 @@ namespace LastSanctuary.Units
             nexus.Initialize(nexusDefinition, balance);
 
             SpawnedNexus = nexus;
-            Debug.Log($"[UnitSpawner] 넥서스 생성 · {nexus.DebugSummary()}", nexus);
+            Debug.Log($"[UnitSpawner] 성역 생성 · {nexus.DebugSummary()}", nexus);
         }
 
         void SpawnCharacters(Vector3Int centerCell)
@@ -164,7 +164,7 @@ namespace LastSanctuary.Units
             _rng = new System.Random(
                 randomizeSeed ? Random.Range(int.MinValue, int.MaxValue) : seed);
 
-            // 넥서스가 차지하는 칸은 제외
+            // 성역이 차지하는 칸은 제외
             int half = Mathf.Max(1, nexusDefinition.footprintTiles) / 2;
             for (int dy = -half; dy <= half; dy++)
                 for (int dx = -half; dx <= half; dx++)
@@ -302,9 +302,9 @@ namespace LastSanctuary.Units
         /// 지금 있는 캐릭터를 전부 없앤다. 복원은 <b>기본 생성이 끝난 뒤에</b> 덮어쓰는 방식이라
         /// (<c>GameSnapshot.Restore</c> 주석 참조) 먼저 판을 비워야 한다.
         ///
-        /// ⚠ <see cref="Clear"/> 와 달리 <b>넥서스는 건드리지 않는다</b> — 넥서스를 다시 만들면
+        /// ⚠ <see cref="Clear"/> 와 달리 <b>성역은 건드리지 않는다</b> — 성역을 다시 만들면
         /// 그것을 참조하는 것들(플로우 필드 목적지 · 집결지 기준점 · 카메라 초기 위치)이
-        /// 전부 옛 오브젝트를 가리킨 채로 남는다. 넥서스는 체력만 되돌린다.
+        /// 전부 옛 오브젝트를 가리킨 채로 남는다. 성역은 체력만 되돌린다.
         /// </summary>
         public void DestroySpawnedCharactersForRestore()
         {
@@ -431,7 +431,7 @@ namespace LastSanctuary.Units
             return unit;
         }
 
-        /// <summary>넥서스 주위를 균등하게 둘러싸는 위치를 고르고, 막혀 있으면 근처 빈 칸을 찾는다.</summary>
+        /// <summary>성역 주위를 균등하게 둘러싸는 위치를 고르고, 막혀 있으면 근처 빈 칸을 찾는다.</summary>
         Vector3Int PickCharacterCell(Vector3Int centerCell, int index, int ringDivisor,
                                      HashSet<Vector3Int> used)
         {

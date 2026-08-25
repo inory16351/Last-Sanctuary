@@ -28,5 +28,5 @@ MonoBehaviour:
   coolTime: 0
   iconName: 'icon_holy_banner'
   flavorText: '동료들에게 그는 전설이자 진정 신뢰할 수 있는 버팀목입니다.'
-  detailText: '주변 동료의 방어력을 올려 줍니다. 능력치 상한을 넘어설 수 있습니다.'
+  detailText: '반경 {value_01} 안 동료의 방어력을 {value_02} 올려 줍니다. 능력치 상한을 넘어설 수 있습니다.'
   effectTemplate: '비기오르의 반경 {value_01} 내에 있는 동료들은 방어력 능력치 값에 {value_02} 만큼 보너스를 받는다. 이 수치는 최대 능력치 표기 값을 초월할 수 있다.'

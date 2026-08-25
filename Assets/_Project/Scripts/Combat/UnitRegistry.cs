@@ -138,7 +138,7 @@ namespace LastSanctuary.Combat
         /// <param name="kindFilter">
         /// 이 종류만 후보로 본다. null 이면 종류를 가리지 않는다.
         /// ★ 치유는 <b>자신을 제외한 다른 캐릭터에게만</b> 가능하다(유저 확정 2026-08-13) —
-        /// 넥서스·포탑은 대상이 아니므로 호출부가 <see cref="UnitKind.Character"/> 를 넘긴다.
+        /// 성역·포탑은 대상이 아니므로 호출부가 <see cref="UnitKind.Character"/> 를 넘긴다.
         /// </param>
         public static DamageableUnit FindWoundedAlly(Vector3 from, Faction faction, float maxRangeTiles,
                                                      DamageableUnit exclude = null,
@@ -378,7 +378,7 @@ namespace LastSanctuary.Combat
             }
         }
 
-        /// <summary>특정 진영·종류의 유닛을 하나 찾는다 (넥서스 위치 조회 등).</summary>
+        /// <summary>특정 진영·종류의 유닛을 하나 찾는다 (성역 위치 조회 등).</summary>
         public static DamageableUnit FindFirst(Faction faction, UnitKind kind)
         {
             for (int i = 0; i < _units.Count; i++)

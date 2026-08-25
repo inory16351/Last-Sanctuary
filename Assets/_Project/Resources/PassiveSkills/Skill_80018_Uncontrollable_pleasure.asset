@@ -28,5 +28,5 @@ MonoBehaviour:
   coolTime: 300
   iconName: 'icon_void_orb'
   flavorText: '황홀감에 젖어버린 시그리드는 스스로를 제어할 수 없습니다.'
-  detailText: '체력이 크게 떨어지면 잠시 어떤 피해도 받지 않습니다. 회복은 그대로 받습니다.'
+  detailText: '체력이 최대의 {value_01}% 밑으로 떨어지면 {value_02}초 동안 어떤 피해도 받지 않습니다. 회복은 그대로 받습니다.'
   effectTemplate: '시그리드의 현재 체력이 최대체력의 {Value_01}% 보다 낮아지면 {Value_02}초 동안 시그리드가 어떠한 데미지도 받지 않습니다. 회복은 가능합니다. 해당 효과는 체력의 변화로 해제되지 않습니다.'

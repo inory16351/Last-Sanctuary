@@ -28,5 +28,5 @@ MonoBehaviour:
   coolTime: 25
   iconName: 'icon_comet_fall'
   flavorText: '연옥의 화염에게 자비란 없습니다.'
-  detailText: '공격 중인 대상에게 거대 화염구를 던져 떨어진 자리의 적을 함께 태웁니다.'
+  detailText: '공격 중인 대상에게 거대 화염구를 던져, 떨어진 자리 반지름 {value_01} 타일의 적에게 마법의 {value_02}% 피해를 줍니다.'
   effectTemplate: '불칸이 공격 중인 대상에게 거대 화염구를 발사합니다 피격시 시격지점 반지름 원형 {value_01} 타일 범위의 적에게 불칸의 마법의 {value_02}% 의 데미지를 줍니다'

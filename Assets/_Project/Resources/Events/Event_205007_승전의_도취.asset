@@ -21,12 +21,17 @@ MonoBehaviour:
   choiceGroupId: 600007
   eventBg: "bg_aftermath"
   eventScript: "파도를 밀어낸 천사들이 서로의 어깨를 두드립니다.\n승리의 감각은 달고, 단 것은 대개 오래가지 않습니다."
+  nameKey: "event_name_205007"
+  scriptKey: "event_script_205007"
   choices:
   - choiceId: 300013
     choiceOrder: 1
     choiceText: "실컷 취하게 두어라."
     resultScript: "천사들은 잠시 전쟁을 잊었습니다.\n흐려진 눈빛이 오히려 그들의 정신을 지켜냅니다."
     resultEffect: "효과 : 천사 전체 침식 −10 · 천사 전체 공격 속도 −5% (240초)"
+    choiceTextKey: "event_choice_text_300013"
+    resultScriptKey: "event_result_script_300013"
+    resultEffectKey: "event_result_effect_300013"
     rewardType01: "char_all_erosion_down"
     rewardValue01: 10
     rewardDuration01: 0
@@ -38,6 +43,9 @@ MonoBehaviour:
     choiceText: "도취를 끊고 대열을 세운다."
     resultScript: "웃음이 끊기고 다시 줄이 맞습니다.\n또렷해진 시선의 값은 밤에 치르게 될 것입니다."
     resultEffect: "효과 : 천사 전체 명중률 +8% (240초) · 천사 전체 침식 +5"
+    choiceTextKey: "event_choice_text_300014"
+    resultScriptKey: "event_result_script_300014"
+    resultEffectKey: "event_result_effect_300014"
     rewardType01: "char_hit_durat_up"
     rewardValue01: 8
     rewardDuration01: 240

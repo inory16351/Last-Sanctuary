@@ -21,12 +21,17 @@ MonoBehaviour:
   choiceGroupId: 600023
   eventBg: "bg_supply"
   eventScript: "파도와 파도 사이의 고요입니다.\n성역은 이 짧은 틈에 스스로를 꿰맵니다."
+  nameKey: "event_name_205023"
+  scriptKey: "event_script_205023"
   choices:
   - choiceId: 300045
     choiceOrder: 1
     choiceText: "몸을 꿰맨다."
     resultScript: "찢어진 자리가 하나씩 붙었습니다.\n성역과 천사가 같이 숨을 돌렸습니다."
     resultEffect: "효과 : 천사 전체 체력 회복 (최대 체력의 12%) · 성역 체력 +8%"
+    choiceTextKey: "event_choice_text_300045"
+    resultScriptKey: "event_result_script_300045"
+    resultEffectKey: "event_result_effect_300045"
     rewardType01: "char_hp_percent_heal"
     rewardValue01: 12
     rewardDuration01: 0
@@ -38,6 +43,9 @@ MonoBehaviour:
     choiceText: "무기를 벼린다."
     resultScript: "쉬는 대신 쇠를 두드리는 소리가 성역을 채웠습니다.\n상처는 남았지만 칼은 예리해졌습니다."
     resultEffect: "효과 : 천사 전체 근거리 공격력 +8% (240초) · 천사 전체 원거리 공격력 +8% (240초)"
+    choiceTextKey: "event_choice_text_300046"
+    resultScriptKey: "event_result_script_300046"
+    resultEffectKey: "event_result_effect_300046"
     rewardType01: "char_melee_atk_durat_up"
     rewardValue01: 8
     rewardDuration01: 240

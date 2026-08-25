@@ -169,7 +169,7 @@ namespace LastSanctuary.UI
         void HandleDefeat() =>
             HudLog.Add(_wave != null && _wave.Reason == DefeatReason.AllCharactersLost
                            ? "캐릭터가 전멸했습니다"
-                           : "넥서스가 파괴되었습니다",
+                           : "성역이 파괴되었습니다",
                        HudLogKind.Danger);
 
         void HandleVictory(int wave) =>

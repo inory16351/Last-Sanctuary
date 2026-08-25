@@ -28,5 +28,5 @@ MonoBehaviour:
   coolTime: 0
   iconName: 'icon_spell_tome'
   flavorText: '현자의 지혜는 전장의 위협을 슬기롭게 헤쳐나갈 힘이 있습니다.'
-  detailText: '마법과 공격 속도가 영구히 오릅니다. 능력치 상한을 넘어설 수 있습니다.'
+  detailText: '마법이 {value_01}, 공격 속도가 {value_02} 영구히 오릅니다. 능력치 상한을 넘어설 수 있습니다.'
   effectTemplate: '불칸의 마법이 {value_01} 만큼 상승하고 불칸의 공격속도가 {value_02} 만큼 영구적으로 상승합니다. 이값은 최댓값을 초월할 수 있습니다.'

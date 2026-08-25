@@ -26,5 +26,8 @@ MonoBehaviour:
   source: 1
   sourceId: 0
   dropWeight: 10
+  nameKey: "relic_name_700012"
+  descKey: "relic_desc_700012"
+  flavorKey: "relic_flavor_700012"
   iconKey: "relic_bruise"
   icon: {fileID: 21300000, guid: 1df96a79809936ab2131d8ab246cc7e0, type: 3}

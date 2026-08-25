@@ -15,8 +15,8 @@ namespace LastSanctuary.Units
         /// 이 임무는 "돌아다닌다"까지만 뜻한다.</summary>
         Expedition,
 
-        Guard,   // 방어 — 웨이브에 대비해 넥서스 주변을 돈다
-        Rally,   // 집결 — 웨이브 소환 이후, 넥서스 대신 지정된 집결지 구역을 지킨다
+        Guard,   // 방어 — 웨이브에 대비해 성역 주변을 돈다
+        Rally,   // 집결 — 웨이브 소환 이후, 성역 대신 지정된 집결지 구역을 지킨다
 
         /// <summary>건설 — 플레이어가 찍어둔 건설 예정지로 가서 건물을 짓는 중.
         /// 웨이브 타임(전투·광폭화)에는 잡히지 않는다 — 그때는 싸우는 게 먼저다.</summary>
@@ -27,13 +27,13 @@ namespace LastSanctuary.Units
         /// 웨이브 타임(전투·광폭화)에는 잡히지 않고, 한 자리에 한 명만 붙는다.</summary>
         Dig,
 
-        /// <summary>후퇴 — 전술 지침의 "후퇴 판단 기준" 이하로 체력이 떨어져 넥서스로 물러난 상태.
+        /// <summary>후퇴 — 전술 지침의 "후퇴 판단 기준" 이하로 체력이 떨어져 성역으로 물러난 상태.
         /// 다른 모든 임무보다 우선하며, 회복될 때까지 싸우지 않는다.</summary>
         Retreat,
 
         /// <summary>도망 — 탐험 유형이 <b>'탐색'</b> 인 캐릭터가 선공 중립 몬스터에게 맞았을 때.
         /// 반격하지 않고 그 자리를 벗어난다(유저 확정 2026-08-12). 체력 후퇴와 달리
-        /// <b>넥서스로 돌아가지 않고</b> 때린 상대의 반대 방향으로만 물러난다.</summary>
+        /// <b>성역으로 돌아가지 않고</b> 때린 상대의 반대 방향으로만 물러난다.</summary>
         Flee,
 
         /// <summary>확인 — <b>시야 밖</b>에서 날아온 공격의 출처를 보러 가는 중
@@ -52,7 +52,7 @@ namespace LastSanctuary.Units
     /// 갈라지지 않는다.
     ///
     ///   대기시간(Preparation) → 탐험: 아직 안 밝혀진 칸을 찾아 나간다
-    ///   그 외(방어 시점)       → 집결지가 있으면 그 구역을 경계, 없으면 넥서스 주변을 경계
+    ///   그 외(방어 시점)       → 집결지가 있으면 그 구역을 경계, 없으면 성역 주변을 경계
     ///   단 웨이브 반응이 '탐험 우선'이면 웨이브 중에도 탐험을 유지하고 집결지를 무시한다
     ///
     /// 적을 발견하면 UnitCombat 이 알아서 교전하고, 이 컴포넌트는 교전이 끝날
@@ -76,8 +76,8 @@ namespace LastSanctuary.Units
         [Tooltip("미탐사 지점을 찾을 최대 거리(타일)")]
         [Min(4f)] [SerializeField] float scoutSearchRadius = 60f;
 
-        [Header("탐험 배회 범위 (넥서스 중심 원의 지름, 타일)")]
-        [Tooltip("전술 지침 '근방' 을 골랐을 때의 배회 가능 구간 — 넥서스 중심 원의 <b>지름</b>이다.\n" +
+        [Header("탐험 배회 범위 (성역 중심 원의 지름, 타일)")]
+        [Tooltip("전술 지침 '근방' 을 골랐을 때의 배회 가능 구간 — 성역 중심 원의 <b>지름</b>이다.\n" +
                  "★ 반지름이 아니다(유저 확정 2026-08-14). 중립 몬스터 등장 범위(73-5절)와 같은 규칙이라 " +
                  "코드가 절반으로 나눠 쓴다.\n" +
                  "이 값은 화면에 절대 노출하지 않는다 — UI 는 '근방/외곽/전역' 이름만 보여준다")]
@@ -90,7 +90,7 @@ namespace LastSanctuary.Units
                  "곳으로 고른다 — 그 걸음 폭(타일).\n" +
                  "★ 왜 '원 안의 아무 점'이 아닌가 — 73-11절이 중립 몬스터에서 겪은 함정이다. " +
                  "이동 속도보다 재추첨이 빠르면 목표에 닿기 전에 새 목표가 뽑혀 " +
-                 "<b>원의 무게중심(=넥서스)으로 가는 랜덤워크</b>가 된다. " +
+                 "<b>원의 무게중심(=성역)으로 가는 랜덤워크</b>가 된다. " +
                  "한 걸음씩 옮기고 그 걸음을 원 안으로 접으면 위치 자체가 원에 갇힌다")]
         [Min(2f)] [SerializeField] float roamWanderStepTiles = 16f;
 
@@ -131,7 +131,7 @@ namespace LastSanctuary.Units
         [Min(1f)] [SerializeField] float scoutTimeout = 15f;
 
         [Header("방어 (대기시간 외)")]
-        [Tooltip("넥서스에서 이 반경 안을 돌아다니며 지킨다(타일)")]
+        [Tooltip("성역에서 이 반경 안을 돌아다니며 지킨다(타일)")]
         [Min(1f)] [SerializeField] float guardRadius = 8f;
 
         [Tooltip("방어 중 적을 쫓을 수 있는 거리(타일)")]
@@ -155,7 +155,7 @@ namespace LastSanctuary.Units
 
         [Header("중립 몬스터 사냥 (대기시간 · 진군 중)")]
         [Tooltip("대기시간이나 진군 중 이 거리 안에 중립 몬스터가 있으면 하던 일을 멈추고 사냥한다(타일). " +
-                 "웨이브 몬스터와 달리 넥서스로 오지 않으므로 캐릭터가 직접 찾아가야 마주친다. " +
+                 "웨이브 몬스터와 달리 성역으로 오지 않으므로 캐릭터가 직접 찾아가야 마주친다. " +
                  "웨이브 타임(전투·광폭화)에는 웨이브 몬스터가 우선이라 사냥하지 않는다")]
         [Min(0f)] [SerializeField] float huntDetectRange = 10f;
 
@@ -214,7 +214,7 @@ namespace LastSanctuary.Units
         // (집결지가 «귀환 지점만 갈아끼운다» 로 끝난 것과 같은 결).
         //
         // ⚠ <b>웨이브 방어 중에는 안 쓰인다</b> — 이 갈래는 «탐험» 임무에서만 지난다
-        //   (<see cref="PickExpeditionSpot"/>). 웨이브 때는 주인도 골렘도 넥서스·집결지를
+        //   (<see cref="PickExpeditionSpot"/>). 웨이브 때는 주인도 골렘도 성역·집결지를
         //   지키므로 자연히 같은 구역에 모인다. 방어 임무까지 «주인 옆» 으로 끌면
         //   골렘이 자기 포지션(전방)을 버리게 된다.
         // ------------------------------------------------------------------
@@ -261,7 +261,7 @@ namespace LastSanctuary.Units
         [Tooltip("전방 아군이 후퇴 중인지 다시 확인하는 간격(초). 매 프레임 전체 유닛을 훑지 않기 위한 값")]
         [Min(0.05f)] [SerializeField] float frontRetreatCheckInterval = 0.25f;
 
-        [Tooltip("후퇴 시 물러나 대기할 지점 — 넥서스로부터의 반경(타일)")]
+        [Tooltip("후퇴 시 물러나 대기할 지점 — 성역으로부터의 반경(타일)")]
         [Min(0.5f)] [SerializeField] float retreatRadius = 3f;
 
         [Header("도망 (탐험 유형 '탐색' — 선공 몹에게 맞았을 때)")]
@@ -283,7 +283,7 @@ namespace LastSanctuary.Units
         MapGenerator _map;
         DamageableUnit _nexus;
 
-        /// <summary>넥서스에서 만든 거리장. 탐험 목표가 <b>실제로 걸어갈 수 있는 곳인지</b> 거르는 데만 쓴다.</summary>
+        /// <summary>성역에서 만든 거리장. 탐험 목표가 <b>실제로 걸어갈 수 있는 곳인지</b> 거르는 데만 쓴다.</summary>
         FlowFieldService _flow;
 
         /// <summary>도달 가능 판정을 매번 새 델리게이트로 만들지 않도록 캐시한다(GC 압박 방지).</summary>
@@ -336,9 +336,9 @@ namespace LastSanctuary.Units
         /// <b>따라 물러나는 사람도 "앞이 물러난다"의 근거가 됐다.</b> 그 결과 두 명이
         /// <b>서로를 따라</b> 물러나는 고리가 생겼다:
         /// <code>
-        ///   중위 M 이 체력 때문에 후퇴 → 넥서스 바로 옆(retreatRadius 3)까지 물러난다
+        ///   중위 M 이 체력 때문에 후퇴 → 성역 바로 옆(retreatRadius 3)까지 물러난다
         ///   후방 B 가 M 을 따라 후퇴  → 동반 후퇴는 "적에게서 최대 사거리" 자리라
-        ///                              M 보다 <b>넥서스에서 더 먼 곳</b>에 선다
+        ///                              M 보다 <b>성역에서 더 먼 곳</b>에 선다
         ///   M 의 체력이 회복됨        → 그런데 이제 B 가 "나보다 앞에서 후퇴 중인 아군"이라
         ///                              M 은 후퇴를 못 끝낸다 → B 도 M 때문에 못 끝낸다
         /// </code>
@@ -407,7 +407,7 @@ namespace LastSanctuary.Units
 
             if (mode == MentalOverride.Flee)
             {
-                // 공포: 적을 인식하지 않고 넥서스 쪽으로 물러난다.
+                // 공포: 적을 인식하지 않고 성역 쪽으로 물러난다.
                 // ★ 체력 후퇴와 달리 <b>쏘지 않는다</b> — 패닉 상태라는 것이 이 상태의 정의다.
                 _combat.SetCombatSuppressed(true);
                 _combat.ClearHuntTarget();
@@ -614,9 +614,9 @@ namespace LastSanctuary.Units
             CharacterDuty duty = hasRally ? CharacterDuty.Rally : baseline;
 
             // 대기시간·진군 중에는 먼저 조우한 중립 몬스터를 사냥하러 간다 — 웨이브 몬스터는
-            // 넥서스로 전진해오지만 중립 몬스터는 서식지에 머물러 있으므로, 캐릭터가
+            // 성역으로 전진해오지만 중립 몬스터는 서식지에 머물러 있으므로, 캐릭터가
             // 직접 찾아가야만 마주친다(기획 요청: "탐색 중 조우 시 사냥, 에너지 획득"). 다만
-            // 방어·집결 중(=진군)에는 지금 모여야 할 구역(집결지가 있으면 그 구역, 없으면 넥서스
+            // 방어·집결 중(=진군)에는 지금 모여야 할 구역(집결지가 있으면 그 구역, 없으면 성역
             // 주변 방어 반경) 밖까지 쫓아가면 대열이 흐트러진다는 피드백으로, 그 구역 안에
             // 있는 사냥감만 본다 — 탐험 중에는 원래대로 구역 제한 없이 캐릭터 주변만 본다.
             // 건설이 사냥보다 앞이다 — 예정지는 플레이어가 직접 찍은 <b>명시적인 지시</b>고
@@ -863,7 +863,7 @@ namespace LastSanctuary.Units
 
         /// <summary>
         /// 그 적에게 <b>가장 가까이 붙어 있는 아군</b>까지의 거리(타일). 없으면 −1.
-        /// 넥서스는 제외한다 — 움직이지 않는 건물을 "전방 아군"으로 삼으면 중위가 넥서스
+        /// 성역은 제외한다 — 움직이지 않는 건물을 "전방 아군"으로 삼으면 중위가 성역
         /// 뒤에 서 버린다. 포탑은 전열의 일부로 본다.
         /// </summary>
         float FrontAllyDistanceTo(DamageableUnit foe)
@@ -967,7 +967,7 @@ namespace LastSanctuary.Units
         /// ⚠ <b>처음부터 사냥 타겟으로 주면 안 된다.</b> <c>UnitCombat</c> 의 사냥 추격 한계
         /// (<c>huntPursuitTiles</c>, 기준점은 물기 시작한 자리)는 "우연히 마주친 사냥감을
         /// 얼마나 쫓을지"를 정하는 값이라 보통 20타일 남짓이다. 에픽은 맵 바깥 고리에 사는데
-        /// 출발점이 넥서스 근처라, 그대로 주면 <b>몇 걸음 만에 포기</b>한다.
+        /// 출발점이 성역 근처라, 그대로 주면 <b>몇 걸음 만에 포기</b>한다.
         /// 명시적인 지시는 그 한계에 걸리면 안 되므로, 사거리 안에 들어갈 때까지는
         /// <b>이동만</b> 시키고 그 안에서만 사냥으로 넘긴다.
         ///
@@ -984,7 +984,7 @@ namespace LastSanctuary.Units
 
             // ★ <b>웨이브가 오면 전술 지침을 따른다</b> (유저 확정 2026-08-16, 미결 191번).
             //   웨이브 반응이 '즉시 방어'면 토벌을 <b>잠시 놓고</b> 아래의 평소 판단으로
-            //   내려간다 — 그쪽이 집결지·넥서스로 데려간다. '탐험 우선'이면 계속 간다.
+            //   내려간다 — 그쪽이 집결지·성역으로 데려간다. '탐험 우선'이면 계속 간다.
             //
             //   ⚠ <b>명령 자체는 해제하지 않는다.</b> 장부(EpicSubjugationService)는 그대로
             //     두므로 웨이브가 끝나면 하던 토벌을 이어서 한다 — 유저가 다시 지시할
@@ -1013,7 +1013,7 @@ namespace LastSanctuary.Units
 
             // 아직 멀다 — 걸어간다. 목적지를 매 프레임 갱신해 대상이 움직여도 따라간다.
             //
-            // ⚠ 귀환 지점(SetHome)도 대상 자리로 옮긴다. 안 그러면 목줄(leash)이 넥서스
+            // ⚠ 귀환 지점(SetHome)도 대상 자리로 옮긴다. 안 그러면 목줄(leash)이 성역
             //   기준으로 남아 <b>걸어가는 도중에 되끌려온다</b> — 77-1절이 고친 그 래칫의
             //   반대 방향 증상이다. 목줄 길이는 교전 사거리로 넉넉히 준다.
             _combat.SetStandoff(0f);
@@ -1127,8 +1127,8 @@ namespace LastSanctuary.Units
         /// 규칙 (유저 확정 2026-08-13):
         /// <list type="number">
         /// <item><b>전방 포지션 캐릭터가 있으면</b> 그중 경보에 <b>가장 가까운</b> 한 명.</item>
-        /// <item><b>전방이 한 명도 없으면</b> "제일 앞에 있는 캐릭터" — 즉 <b>넥서스에서 가장 먼</b>
-        ///       캐릭터가 대신 간다. 이 프로젝트가 전열을 정의하는 기준(넥서스로부터의 거리,
+        /// <item><b>전방이 한 명도 없으면</b> "제일 앞에 있는 캐릭터" — 즉 <b>성역에서 가장 먼</b>
+        ///       캐릭터가 대신 간다. 이 프로젝트가 전열을 정의하는 기준(성역으로부터의 거리,
         ///       36절)을 그대로 쓴다.</item>
         /// </list>
         ///
@@ -1160,7 +1160,7 @@ namespace LastSanctuary.Units
                     if (sqr < bestFrontSqr) { bestFrontSqr = sqr; bestFront = who; }
                 }
 
-                // 폴백 후보 — 넥서스에서 가장 먼 캐릭터(= 제일 앞에 있는 캐릭터)
+                // 폴백 후보 — 성역에서 가장 먼 캐릭터(= 제일 앞에 있는 캐릭터)
                 float fromNexus = ((Vector2)(u.transform.position - nexus)).sqrMagnitude;
                 if (fromNexus > frontmostSqr) { frontmostSqr = fromNexus; frontmost = who; }
             }
@@ -1216,7 +1216,7 @@ namespace LastSanctuary.Units
         /// <summary>
         /// <b>나보다 앞에 선 아군 캐릭터가 지금 후퇴 중인지.</b>
         ///
-        /// <b>"앞"의 기준은 넥서스로부터의 거리</b>다 — 넥서스에서 나보다 먼 쪽에 있으면 전방이다.
+        /// <b>"앞"의 기준은 성역으로부터의 거리</b>다 — 성역에서 나보다 먼 쪽에 있으면 전방이다.
         /// 이 프로젝트가 전열(전방/중위/후방)을 정의하는 방식 그대로다(36절).
         /// ⚠️ <b>적과의 거리로 재면 안 된다</b> — 물러나는 도중 적이 사거리 밖으로 나가
         /// <c>_combat.Target</c> 이 null 이 되는 순간 판정이 뒤집혀서
@@ -1266,7 +1266,7 @@ namespace LastSanctuary.Units
                 if (u.Faction != _self.Faction || u.Kind != UnitKind.Character) continue;
                 if (((Vector2)(u.transform.position - transform.position)).sqrMagnitude > limitSqr) continue;
 
-                // 넥서스에서 나보다 먼 쪽에 선 아군만 "전방"이다.
+                // 성역에서 나보다 먼 쪽에 선 아군만 "전방"이다.
                 if (Vector2.Distance(u.transform.position, nexus) <= myDistToNexus) continue;
 
                 // ★ <b>체력 때문에 물러나는 사람만</b> 따라간다 — 동반 후퇴자를 근거로 삼으면
@@ -1319,7 +1319,7 @@ namespace LastSanctuary.Units
         {
             if (_mental == MentalOverride.Flee)
             {
-                TickRetreat();     // 공포 = 회피. 도착·타임아웃마다 넥서스 주변을 다시 고른다
+                TickRetreat();     // 공포 = 회피. 도착·타임아웃마다 성역 주변을 다시 고른다
                 return;
             }
 
@@ -1327,7 +1327,7 @@ namespace LastSanctuary.Units
             _duty = _mental == MentalOverride.Charge ? CharacterDuty.Expedition : CharacterDuty.Guard;
         }
 
-        /// <summary>후퇴 중 유지 — 넥서스 근처에 도착했으면 그 자리에 머문다.</summary>
+        /// <summary>후퇴 중 유지 — 성역 근처에 도착했으면 그 자리에 머문다.</summary>
         void TickRetreat()
         {
             _duty = CharacterDuty.Retreat;
@@ -1338,16 +1338,16 @@ namespace LastSanctuary.Units
         }
 
         /// <summary>
-        /// ★ <b>동반 후퇴 전용 후퇴 지점</b> — 넥서스까지 도망가는 것이 아니라
-        /// <b>적에게서 자기 최대 사거리만큼 떨어진, 넥서스 쪽 자리</b>를 잡는다
+        /// ★ <b>동반 후퇴 전용 후퇴 지점</b> — 성역까지 도망가는 것이 아니라
+        /// <b>적에게서 자기 최대 사거리만큼 떨어진, 성역 쪽 자리</b>를 잡는다
         /// (유저 지시: "동료와 함께 후퇴를 선택하면 전방이 후퇴할때 최대 사거리를 유지하며 같이 후퇴").
         ///
-        /// 적이 다가오면 이 점도 넥서스 쪽으로 밀려나므로 <b>거리를 유지한 채 계속 물러난다.</b>
-        /// 적을 못 찾으면 평소 후퇴 지점(넥서스 주변)으로 넘긴다.
+        /// 적이 다가오면 이 점도 성역 쪽으로 밀려나므로 <b>거리를 유지한 채 계속 물러난다.</b>
+        /// 적을 못 찾으면 평소 후퇴 지점(성역 주변)으로 넘긴다.
         ///
         /// ⚠️ 기준이 되는 적은 <c>UnitCombat.Target</c> 이 아니라 <b>가장 가까운 적</b>이다 —
         /// 후퇴 사격 중에는 사거리 밖 타겟을 놓아버리므로, 타겟을 기준으로 잡으면
-        /// 물러나자마자 기준이 사라져 후퇴 지점이 넥서스로 튄다.
+        /// 물러나자마자 기준이 사라져 후퇴 지점이 성역으로 튄다.
         /// </summary>
         bool TryPickStandoffRetreatSpot()
         {
@@ -1392,7 +1392,7 @@ namespace LastSanctuary.Units
             _destination = candidate;
             _repickTime = Time.time + 3f;
 
-            // 목줄을 넉넉히 줘야 넥서스까지 오는 길이 막히지 않는다(전투는 어차피 꺼져 있다).
+            // 목줄을 넉넉히 줘야 성역까지 오는 길이 막히지 않는다(전투는 어차피 꺼져 있다).
             _combat.SetHome(_destination, retreatRadius + guardRadius);
         }
 
@@ -1454,7 +1454,7 @@ namespace LastSanctuary.Units
         /// <summary>
         /// 때린 상대의 <b>반대 방향</b>으로 <see cref="fleeDistance"/> 만큼 물러난 지점.
         /// 벽에 막히면 방향을 45°씩 돌려보고, 그래도 못 가면 제자리에 둔다
-        /// (넥서스로 돌아가지는 않는다 — 그건 체력 후퇴의 동작이고, 이쪽은 "그 자리를 벗어난다"다).
+        /// (성역으로 돌아가지는 않는다 — 그건 체력 후퇴의 동작이고, 이쪽은 "그 자리를 벗어난다"다).
         ///
         /// ⚠️ 목줄(<see cref="UnitCombat.SetHome"/> 두 번째 인자)을 <b>0 으로 준다</b> —
         /// 도망 중에 눈에 걸린 웨이브 몬스터를 쫓아가면 도망이 아니게 된다.
@@ -1613,9 +1613,9 @@ namespace LastSanctuary.Units
         /// (유저 지시 2026-08-14: "일정 타일 범위 내에서는 범위를 벗어나서 추적하지만 일정 거리
         /// 이상 배회 가능 거리에서 멀어지면 다시 배회 가능 거리로 돌아가 동료와 합류").
         ///
-        /// ★ <b>기준점이 넥서스라서 래칫이 아니다</b> — 77-2절이 기록한 함정("자기 위치가
+        /// ★ <b>기준점이 성역이라서 래칫이 아니다</b> — 77-2절이 기록한 함정("자기 위치가
         /// 기준이면 걸어갈수록 판정 범위도 같이 따라와 얼마든지 끌려간다")을 여기서 다시 밟지
-        /// 않으려면 기준점이 <b>움직이지 않아야</b> 한다. 재는 것은 "내가 넥서스에서 얼마나
+        /// 않으려면 기준점이 <b>움직이지 않아야</b> 한다. 재는 것은 "내가 성역에서 얼마나
         /// 떨어졌나" 하나이고, 그 한계선은 배회 범위 + 여유로 고정돼 있다.
         /// 73-12절이 중립 몬스터에게 적용한 "고리 기준 추격 한계"와 같은 규칙이다.
         ///
@@ -1640,7 +1640,7 @@ namespace LastSanctuary.Units
         ///   ③ 다 밝혀졌고 탐험 유형이 '사냥' 이면 → 배회 범위의 <b>외곽</b>을 훑는다
         ///   ④ 그 외 → 배회 범위 안 자유 배회
         /// </code>
-        /// ②~④ 는 전부 <b>넥서스 중심 원</b>(<see cref="RoamRadiusTiles"/>) 안으로 묶인다 —
+        /// ②~④ 는 전부 <b>성역 중심 원</b>(<see cref="RoamRadiusTiles"/>) 안으로 묶인다 —
         /// 이 제한이 없던 예전에는 캐릭터가 초반부터 맵 끝까지 걸어 나가 강한 중립 몬스터와
         /// 마주쳤다(유저 리포트).
         /// </summary>
@@ -1693,7 +1693,7 @@ namespace LastSanctuary.Units
         /// 사냥이라면 최대한 외곽 범위에서 몬스터를 탐색하는 것을 우선적으로. 사냥이 아니라면
         /// 그냥 자유 배회").
         ///
-        /// <b>왜 외곽인가</b> — 중립 몬스터는 넥서스에서 떨어진 고리에 서식하므로(73-5·73-11절)
+        /// <b>왜 외곽인가</b> — 중립 몬스터는 성역에서 떨어진 고리에 서식하므로(73-5·73-11절)
         /// 안쪽을 아무리 돌아도 사냥감이 없다. 배회 범위의 바깥 띠를 훑는 것이 곧
         /// "이 범위 안에서 만날 수 있는 가장 많은 몬스터"를 보는 길이다.
         /// (치유 유형은 애초에 사냥을 안 하므로 — <c>TryFindHuntPrey</c> 가 먼저 막는다 —
@@ -1702,7 +1702,7 @@ namespace LastSanctuary.Units
         /// ★ <b>목표는 "원 안의 아무 점"이 아니라 "지금 자리에서 한 걸음"이다</b> —
         /// 73-11절이 중립 몬스터에서 밟은 함정을 그대로 피한 것이다. 이동 속도(2~3타일/초)보다
         /// 재추첨(2.5~6초)이 빠르면 <b>목표에 닿기 전에 늘 새 목표가 뽑히므로</b>, 원 안에서
-        /// 균등하게 뽑은 목표들의 평균 = 원의 무게중심(넥서스)으로 흘러가는 랜덤워크가 된다.
+        /// 균등하게 뽑은 목표들의 평균 = 원의 무게중심(성역)으로 흘러가는 랜덤워크가 된다.
         /// 한 걸음씩 옮기고 그 걸음을 허용 반지름 구간으로 <b>접으면</b>(clamp) 위치 자체가
         /// 구간에 갇히고, 밖으로 끌려나가도 스스로 돌아온다.
         ///
@@ -1736,7 +1736,7 @@ namespace LastSanctuary.Units
                     float clamped = Mathf.Clamp(d, minRadius, roamRadius);
                     if (!Mathf.Approximately(d, clamped))
                     {
-                        // 넥서스 위에 정확히 겹쳐 있으면 방향이 없다 — 방금 뽑은 각도를 쓴다.
+                        // 성역 위에 정확히 겹쳐 있으면 방향이 없다 — 방금 뽑은 각도를 쓴다.
                         Vector2 dir = d > 0.01f
                             ? offset / d
                             : new Vector2(Mathf.Cos((float)angle), Mathf.Sin((float)angle));
@@ -1884,10 +1884,10 @@ namespace LastSanctuary.Units
         /// 근처에서 전투를 하는 동료를 지원하게").
         ///
         /// 우선순위는 <b>다친 동료 → 지금 싸우고 있는 동료</b> 순이고, 같은 순위면 가까운 쪽이다.
-        /// 자리는 그 동료의 <b>넥서스 쪽 뒤</b>로 치유 사거리의 60% 지점 — 앞에 서면 대신 맞는다.
+        /// 자리는 그 동료의 <b>성역 쪽 뒤</b>로 치유 사거리의 60% 지점 — 앞에 서면 대신 맞는다.
         ///
         /// ⚠ <b>대상은 자신을 제외한 다른 캐릭터뿐이다</b>(유저 확정 2026-08-13:
-        ///   "포탑이랑 넥서스는 회복 대상에서 빼"). 실제 치유 타겟팅도
+        ///   "포탑이랑 성역은 회복 대상에서 빼"). 실제 치유 타겟팅도
         ///   같은 규칙이다(<c>UnitCombat.AcquireHealTarget</c>) — 예전에는 자기를 타겟으로 잡고
         ///   그 자리에 굳어 회복 모션만 반복했다.
         ///
@@ -1931,7 +1931,7 @@ namespace LastSanctuary.Units
                 if (u.Faction != _self.Faction) continue;
 
                 // ★ 치유 대상은 <b>자신을 제외한 다른 캐릭터</b>뿐이다(유저 확정 2026-08-13) —
-                //   넥서스·포탑 옆에 가봐야 치유할 수 없으므로 지원 대상에서도 뺀다.
+                //   성역·포탑 옆에 가봐야 치유할 수 없으므로 지원 대상에서도 뺀다.
                 if (u.Kind != UnitKind.Character) continue;
 
                 int rank = u.HpRatio < 1f ? 0 : (u.IsInCombat ? 1 : int.MaxValue);
@@ -1980,8 +1980,8 @@ namespace LastSanctuary.Units
 
         /// <summary>
         /// 집결지 구역 안에서 순찰 지점을 고른다. 방어(<see cref="PickGuardSpot"/>)와 로직은
-        /// 같고 표본 추출 방식만 다르다 — 방어는 넥서스 중심의 원에서 방향 구분 없이 뽑고,
-        /// 집결은 넥서스→집결지 축을 기준으로 전/중/후 포지션을 구분해 뽑는다(둘 다 원형 구역).
+        /// 같고 표본 추출 방식만 다르다 — 방어는 성역 중심의 원에서 방향 구분 없이 뽑고,
+        /// 집결은 성역→집결지 축을 기준으로 전/중/후 포지션을 구분해 뽑는다(둘 다 원형 구역).
         /// </summary>
         bool PickRallySpot(Vector3 center) =>
             PickSpotAround(center, RallyAreaSize() * 0.5f, rallyLeash, directional: true);
@@ -2008,9 +2008,9 @@ namespace LastSanctuary.Units
         /// </summary>
         bool PickSpotAround(Vector3 center, float halfExtent, float extraLeash, bool directional)
         {
-            // 전방/중위/후방은 "넥서스에서 얼마나 먼가"로 정의된다(유저 규칙).
-            // 집결지(directional)에서는 넥서스 → 집결지 중심 방향이 그 축이 되고,
-            // 넥서스 방어(!directional)에서는 반지름 자체가 곧 넥서스로부터의 거리라 축이 필요 없다.
+            // 전방/중위/후방은 "성역에서 얼마나 먼가"로 정의된다(유저 규칙).
+            // 집결지(directional)에서는 성역 → 집결지 중심 방향이 그 축이 되고,
+            // 성역 방어(!directional)에서는 반지름 자체가 곧 성역으로부터의 거리라 축이 필요 없다.
             Vector3 nexus = NexusPosition();
             Vector2 axis = (Vector2)(center - nexus);
             axis = axis.sqrMagnitude > 0.01f ? axis.normalized : Vector2.up;
@@ -2034,8 +2034,8 @@ namespace LastSanctuary.Units
                 }
                 else
                 {
-                    // 방향 구분 없는 원형(넥서스 방어) — 구간 [-1,1] 을 반지름 비율 [0,1] 로 옮긴다.
-                    // 넥서스 위에 정확히 겹치지 않도록 최소 8% 는 띄운다.
+                    // 방향 구분 없는 원형(성역 방어) — 구간 [-1,1] 을 반지름 비율 [0,1] 로 옮긴다.
+                    // 성역 위에 정확히 겹치지 않도록 최소 8% 는 띄운다.
                     float t = Mathf.Lerp(bandLow, bandHigh, (float)_rng.NextDouble());
                     float radius = Mathf.Lerp(0.08f, 1f, (t + 1f) * 0.5f) * halfExtent;
 
@@ -2067,7 +2067,7 @@ namespace LastSanctuary.Units
         }
 
         /// <summary>
-        /// 포지션(전방/중위/후방)이 구역 안에서 차지하는 구간. -1 = 넥서스에 가장 가까운 끝,
+        /// 포지션(전방/중위/후방)이 구역 안에서 차지하는 구간. -1 = 성역에 가장 가까운 끝,
         /// +1 = 가장 먼 끝. 세 구간이 겹치지 않게 1/3 씩 나눈다.
         /// </summary>
         void GetPositionBand(out float low, out float high)
@@ -2086,7 +2086,7 @@ namespace LastSanctuary.Units
         /// 탐험(Expedition) 중에는 원래대로 구역 제한 없이 캐릭터 주변만 본다 — 어차피 안 밝혀진
         /// 지역으로 널리 돌아다니는 임무라 "구역"이라는 개념이 없다.
         /// 방어·집결(Guard/Rally) 중에는 사냥감이 지금 모여야 할 구역(집결지가 있으면 그
-        /// 구역, 없으면 넥서스 방어 반경) 안에 있을 때만 쫓는다 — 안 그러면 구역 밖까지
+        /// 구역, 없으면 성역 방어 반경) 안에 있을 때만 쫓는다 — 안 그러면 구역 밖까지
         /// 쫓아가버려 대열이 흐트러진다(유저 피드백).
         ///
         /// <b>협동 탐험 중이면 부대 기준원 주변으로 한 번 더 좁힌다</b> — 아래 주석 참조.
@@ -2203,7 +2203,7 @@ namespace LastSanctuary.Units
         }
 
         /// <summary>
-        /// 구역은 전부 원형이다(방어·집결 둘 다) — 넥서스 방어는 원래부터 원, 집결지도
+        /// 구역은 전부 원형이다(방어·집결 둘 다) — 성역 방어는 원래부터 원, 집결지도
         /// 이번에 원형으로 바뀌었다(유저 요청). 그래서 판정은 중심까지 거리 하나면 된다.
         /// </summary>
         static bool IsInsideZone(Vector3 pos, Vector3 center, float halfExtent) =>

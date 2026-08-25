@@ -21,12 +21,17 @@ MonoBehaviour:
   choiceGroupId: 600013
   eventBg: "bg_ground"
   eventScript: "성역의 바닥이 딱딱하게 굳어 천사들의 발을 붙듭니다.\n오래 앓은 조직이 굳는 것과 다르지 않은 일입니다."
+  nameKey: "event_name_205013"
+  scriptKey: "event_script_205013"
   choices:
   - choiceId: 300025
     choiceOrder: 1
     choiceText: "땅을 부수며 나아간다."
     resultScript: "천사들은 굳은 바닥을 밟아 깨며 전진했습니다.\n발은 무겁지만 내려찍는 힘은 그만큼 무겁습니다."
     resultEffect: "효과 : 천사 전체 이동 속도 −8% (240초) · 천사 전체 근거리 공격력 +9% (240초)"
+    choiceTextKey: "event_choice_text_300025"
+    resultScriptKey: "event_result_script_300025"
+    resultEffectKey: "event_result_effect_300025"
     rewardType01: "char_move_spd_durat_down"
     rewardValue01: 8
     rewardDuration01: 240
@@ -38,6 +43,9 @@ MonoBehaviour:
     choiceText: "굳은 땅을 성벽으로 쓴다."
     resultScript: "굳은 바닥이 그대로 방벽이 되었습니다.\n엎드린 자리는 단단하고, 대신 시선은 낮아졌습니다."
     resultEffect: "효과 : 천사 전체 방어력 +10% (240초) · 천사 전체 공격 사거리 −6% (240초)"
+    choiceTextKey: "event_choice_text_300026"
+    resultScriptKey: "event_result_script_300026"
+    resultEffectKey: "event_result_effect_300026"
     rewardType01: "char_def_durat_up"
     rewardValue01: 10
     rewardDuration01: 240

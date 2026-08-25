@@ -14,7 +14,7 @@ namespace LastSanctuary.Units
         [Header("데이터")]
         [SerializeField] NexusDefinitionSO definition;
 
-        /// <summary>넥서스가 파괴되었을 때. 패배 처리가 여기에 붙는다.</summary>
+        /// <summary>성역이 파괴되었을 때. 패배 처리가 여기에 붙는다.</summary>
         public event System.Action<Nexus> OnNexusDestroyed;
 
         MapGenerator _mapGenerator;
@@ -27,7 +27,7 @@ namespace LastSanctuary.Units
 
         public override int DefenseStat => definition != null ? definition.defenseStat : 0;
 
-        /// <summary>넥서스는 공격하지 않는다.</summary>
+        /// <summary>성역은 공격하지 않는다.</summary>
         public override int AttackStat => 0;
 
         protected override int RegenStat => definition != null ? definition.regenStat : 0;
@@ -36,11 +36,11 @@ namespace LastSanctuary.Units
         public override UnitKind Kind => UnitKind.Nexus;
 
         // ------------------------------------------------------------------
-        // 클릭 초상화 (2026-08-18, 유저 지시: "넥서스 클릭 가능하게 만들고 일러스트 넣어서
+        // 클릭 초상화 (2026-08-18, 유저 지시: "성역 클릭 가능하게 만들고 일러스트 넣어서
         // ILLUST UI 에 적용")
         //
         // ⚠ <b>클릭 자체는 원래 됐다.</b> UnitSelector.PickAt 은 DamageableUnit 을 전수
-        //   검사하고 넥서스는 아군이라 안개 검사도 건너뛴다. 눌러도 아무 일이 없어 보였던
+        //   검사하고 성역은 아군이라 안개 검사도 건너뛴다. 눌러도 아무 일이 없어 보였던
         //   이유는 <see cref="Portrait"/> 가 베이스의 null 이라 UnitPortraitPanel 이
         //   「일러스트 없음」만 띄웠기 때문이다 — <b>그림이 없었던 것이지 클릭이 안 된 게 아니다.</b>
         // ------------------------------------------------------------------
@@ -48,7 +48,7 @@ namespace LastSanctuary.Units
         /// <summary>초상화. 정의 에셋의 <c>illustName</c> 을 Resources/Illust 에서 읽는다.</summary>
         public override Sprite Portrait => definition != null ? definition.Illust : null;
 
-        /// <summary>화면에 뜨는 이름 — 정의 에셋이 정한다(넥서스만 표가 없다).</summary>
+        /// <summary>화면에 뜨는 이름 — 정의 에셋이 정한다(성역만 표가 없다).</summary>
         public override string DisplayName =>
             definition != null && !string.IsNullOrWhiteSpace(definition.displayName)
                 ? definition.displayName
@@ -66,9 +66,9 @@ namespace LastSanctuary.Units
         }
 
         /// <summary>
-        /// 넥서스가 차지한 칸을 벽과 동일하게 막는다. 유닛에는 Collider2D 가 없고
+        /// 성역이 차지한 칸을 벽과 동일하게 막는다. 유닛에는 Collider2D 가 없고
         /// 이동 충돌이 전부 타일 기준 판정(<see cref="MapGenerator.IsCellBlocked"/>)이므로,
-        /// 넥서스도 그 판정에 자기 칸을 등록해야 캐릭터·몬스터가 뚫고 지나가지 않는다.
+        /// 성역도 그 판정에 자기 칸을 등록해야 캐릭터·몬스터가 뚫고 지나가지 않는다.
         /// </summary>
         protected override void Start()
         {

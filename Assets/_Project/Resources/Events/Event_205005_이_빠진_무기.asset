@@ -21,12 +21,17 @@ MonoBehaviour:
   choiceGroupId: 600005
   eventBg: "bg_aftermath"
   eventScript: "적의 뼈를 수없이 갈라낸 무기들이 이를 잃었습니다.\n손질할 시간도, 손질할 손도 넉넉하지 않습니다."
+  nameKey: "event_name_205005"
+  scriptKey: "event_script_205005"
   choices:
   - choiceId: 300009
     choiceOrder: 1
     choiceText: "있는 대로 갈아 쓴다."
     resultScript: "이 빠진 칼날은 베는 대신 찢습니다.\n무디지만 손은 오히려 가벼워졌습니다."
     resultEffect: "효과 : 천사 전체 근거리 공격력 −8% (240초) · 천사 전체 공격 속도 +8% (240초)"
+    choiceTextKey: "event_choice_text_300009"
+    resultScriptKey: "event_result_script_300009"
+    resultEffectKey: "event_result_effect_300009"
     rewardType01: "char_melee_atk_durat_down"
     rewardValue01: 8
     rewardDuration01: 240
@@ -38,6 +43,9 @@ MonoBehaviour:
     choiceText: "양분을 태워 새로 벼린다."
     resultScript: "곳간의 양분이 쇠붙이로 바뀌어 돌아왔습니다.\n다시 벼려진 칼날이 성역의 빛을 되받습니다."
     resultEffect: "효과 : 에너지 −200 · 천사 전체 근거리 공격력 +10% (240초)"
+    choiceTextKey: "event_choice_text_300010"
+    resultScriptKey: "event_result_script_300010"
+    resultEffectKey: "event_result_effect_300010"
     rewardType01: "energy_loss"
     rewardValue01: 200
     rewardDuration01: 0

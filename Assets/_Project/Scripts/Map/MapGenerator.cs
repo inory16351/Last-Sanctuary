@@ -12,12 +12,12 @@ namespace LastSanctuary.Map
     ///   1. 청크별 바이옴 추첨 (시드 결정적)
     ///   2. 바닥 채우기
     ///   3. 장애물 마스크 (펄린 노이즈 → 셀룰러 오토마타 스무딩)
-    ///   4. 넥서스 반경 / 경계 벽 / 스폰 게이트 강제 반영
-    ///   5. 스폰 게이트 → 넥서스 통로 굴착
+    ///   4. 성역 반경 / 경계 벽 / 스폰 게이트 강제 반영
+    ///   5. 스폰 게이트 → 성역 통로 굴착
     ///   6. 연결성 검사(BFS) — 도달 불가 지역은 벽으로 메움
     ///   7. 타일맵에 일괄 기록 (SetTilesBlock)
     ///
-    /// 6번이 중요하다. 몬스터는 플로우 필드로 넥서스를 향해 이동하므로
+    /// 6번이 중요하다. 몬스터는 플로우 필드로 성역을 향해 이동하므로
     /// 고립된 구역이 남으면 스폰 지점이 도달 불가가 되어 웨이브가 진행되지 않는다.
     /// </summary>
     public class MapGenerator : MonoBehaviour
@@ -69,7 +69,7 @@ namespace LastSanctuary.Map
         public Vector2Int Origin { get; private set; }
 
         /// <summary>
-        /// 넥서스 등 고정 구조물이 차지한 칸. 장애물 타일맵과 별개로 관리해서
+        /// 성역 등 고정 구조물이 차지한 칸. 장애물 타일맵과 별개로 관리해서
         /// (타일맵은 절차적 생성이 통째로 다시 쓰므로) 구조물이 스스로 등록/해제한다.
         /// </summary>
         readonly HashSet<Vector3Int> _structureBlockedCells = new HashSet<Vector3Int>();
@@ -258,7 +258,7 @@ namespace LastSanctuary.Map
 
         /// <summary>
         /// 해당 셀이 장애물인지 (지형 장애물 타일 + <b>벽 앞면이 덮은 칸</b> +
-        /// 넥서스 등 구조물 점유 칸).
+        /// 성역 등 구조물 점유 칸).
         /// </summary>
         public bool IsCellBlocked(Vector3Int cell) =>
             (obstacleTilemap != null &&
@@ -273,14 +273,14 @@ namespace LastSanctuary.Map
         /// <code>
         ///   ① 이 칸의 벽 타일          ← 그림이 실제로 여기 있다
         ///   ② 바로 북쪽 벽의 앞면(치마) ← 그림은 북쪽 칸에 있고 이 칸을 덮는다 (102-5절)
-        ///   ③ 구조물 발판(넥서스·타워)  ← 그림은 스프라이트고 <b>바닥은 평범한 지형이다</b>
+        ///   ③ 구조물 발판(성역·타워)  ← 그림은 스프라이트고 <b>바닥은 평범한 지형이다</b>
         /// </code>
         /// <b>바닥을 칠하는 쪽</b>(<see cref="LastSanctuary.Units.NeutralHabitat"/>)이 알고 싶은
         /// 것은 ①뿐이다 — ①은 칠하면 <b>벽 그림이 지워지지만</b>, ②·③은 Ground 타일맵에
         /// 평범한 바닥이 깔려 있고 그 위를 다른 그림이 덮고 있을 뿐이다.
         ///
         /// ⚠ <b>이 구분이 없어서 성역에 구멍이 났다</b> (유저 리포트 2026-08-18:
-        /// <i>"중앙 건물 바로 아래 타일은 왜 기본 타일 그대로지"</i>). 넥서스가 발판 3x3 을
+        /// <i>"중앙 건물 바로 아래 타일은 왜 기본 타일 그대로지"</i>). 성역이 발판 3x3 을
         /// ③으로 등록하는데 <see cref="IsCellBlocked"/> 로 걸러서, 성역이 <b>건물 발판만
         /// 남기고</b> 그려졌다. 건물 스프라이트가 그 위를 덮으니 <b>스프라이트 아래로 삐져나온
         /// 한 줄</b>만 원래 바닥으로 보인 것이다.
@@ -318,7 +318,7 @@ namespace LastSanctuary.Map
             obstacleTilemap.HasTile(cell + Vector3Int.up);
 
         /// <summary>
-        /// 넥서스 등 구조물이 자기 발판 칸을 등록한다. 등록된 칸은 벽과 똑같이
+        /// 성역 등 구조물이 자기 발판 칸을 등록한다. 등록된 칸은 벽과 똑같이
         /// <see cref="IsCellBlocked"/> / 이동 충돌 / 배치 판정에서 막힌 것으로 취급된다.
         /// </summary>
         public void RegisterStructureFootprint(IEnumerable<Vector3Int> cells)
@@ -845,7 +845,7 @@ namespace LastSanctuary.Map
             return dst;
         }
 
-        /// <summary>맵 중앙(넥서스)을 원형으로 비운다.</summary>
+        /// <summary>맵 중앙(성역)을 원형으로 비운다.</summary>
         void ApplyNexusClear(bool[] mask, int w, int h)
         {
             int cx = w / 2, cy = h / 2;
@@ -909,7 +909,7 @@ namespace LastSanctuary.Map
         }
 
         /// <summary>
-        /// 각 스폰 게이트에서 넥서스까지 통로를 굴착한다.
+        /// 각 스폰 게이트에서 성역까지 통로를 굴착한다.
         /// 웨이브 몬스터의 진입 경로를 물리적으로 보장하는 단계.
         /// </summary>
         void CarveCorridors(bool[] mask, int w, int h, int seed)
@@ -986,7 +986,7 @@ namespace LastSanctuary.Map
         }
 
         /// <summary>
-        /// 넥서스에서 BFS 로 도달 가능한 구역을 찾고, 나머지 빈칸은 벽으로 메운다.
+        /// 성역에서 BFS 로 도달 가능한 구역을 찾고, 나머지 빈칸은 벽으로 메운다.
         /// 결과적으로 통행 가능 영역이 항상 하나로 연결된다 → 플로우 필드가 안전해진다.
         ///
         /// ★ <b>2026-08-18 — 「벽 앞면에 덮인 칸」(치마)을 막힌 것으로 보고 돈다</b>
@@ -1002,8 +1002,8 @@ namespace LastSanctuary.Map
         {
             int start = (w / 2) + (h / 2) * w;
 
-            // 넥서스 자리가 막혔으면 강제로 뚫는다 (정상적으로는 발생하지 않음).
-            // 위 칸까지 뚫어야 넥서스 칸 자신이 치마가 되지 않는다.
+            // 성역 자리가 막혔으면 강제로 뚫는다 (정상적으로는 발생하지 않음).
+            // 위 칸까지 뚫어야 성역 칸 자신이 치마가 되지 않는다.
             mask[start] = false;
             if (h / 2 + 1 < h) mask[start + w] = false;
 

@@ -21,12 +21,17 @@ MonoBehaviour:
   choiceGroupId: 600016
   eventBg: "bg_formation"
   eventScript: "같은 동작을 수천 번 반복한 손은 결국 다른 손이 됩니다.\n천사 하나의 몸놀림이 눈에 띄게 달라졌습니다."
+  nameKey: "event_name_205016"
+  scriptKey: "event_script_205016"
   choices:
   - choiceId: 300031
     choiceOrder: 1
     choiceText: "저 하나를 끌어올려라."
     resultScript: "성역은 한 사람에게 힘을 몰아주었습니다.\n달라진 손은 영구히 달라진 손으로 남습니다."
     resultEffect: "효과 : 랜덤 천사 1명 능력치 1종 +2 (영구)  ·  유물 「각성한 수지상세포」 획득 (레어)"
+    choiceTextKey: "event_choice_text_300031"
+    resultScriptKey: "event_result_script_300031"
+    resultEffectKey: "event_result_effect_300031"
     rewardType01: "char_upgrade"
     rewardValue01: 2
     rewardDuration01: 0
@@ -38,6 +43,9 @@ MonoBehaviour:
     choiceText: "모두에게 나누게 한다."
     resultScript: "그의 손버릇이 대열 전체로 퍼졌습니다.\n한 사람의 도약은 없었지만, 모두의 칼이 조금 더 정확해졌습니다."
     resultEffect: "효과 : 천사 전체 명중률 +8% (240초) · 천사 전체 크리티컬 확률 +6% (240초)"
+    choiceTextKey: "event_choice_text_300032"
+    resultScriptKey: "event_result_script_300032"
+    resultEffectKey: "event_result_effect_300032"
     rewardType01: "char_hit_durat_up"
     rewardValue01: 8
     rewardDuration01: 240

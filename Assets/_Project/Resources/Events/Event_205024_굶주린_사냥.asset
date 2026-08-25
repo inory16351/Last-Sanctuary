@@ -21,12 +21,17 @@ MonoBehaviour:
   choiceGroupId: 600024
   eventBg: "bg_supply"
   eventScript: "곳간이 비어 천사들이 성역 밖으로 눈을 돌립니다.\n종양은 살아 있는 양분이고, 살아 있는 것은 반격합니다."
+  nameKey: "event_name_205024"
+  scriptKey: "event_script_205024"
   choices:
   - choiceId: 300047
     choiceOrder: 1
     choiceText: "나가서 물어와라."
     resultScript: "천사들은 성역 밖의 살덩이를 물고 돌아왔습니다.\n곳간은 찼고, 이빨 자국은 그들의 몸에 남았습니다."
     resultEffect: "효과 : 에너지 +350 · 천사 전체 체력 −10% (최대 체력 기준)"
+    choiceTextKey: "event_choice_text_300047"
+    resultScriptKey: "event_result_script_300047"
+    resultEffectKey: "event_result_effect_300047"
     rewardType01: "energy_gain"
     rewardValue01: 350
     rewardDuration01: 0
@@ -38,6 +43,9 @@ MonoBehaviour:
     choiceText: "성역 안을 지킨다."
     resultScript: "천사들은 문 안쪽에 자리를 잡았습니다.\n굶주림은 그대로지만, 벽은 두꺼워지고 눈은 멀리 뻗었습니다."
     resultEffect: "효과 : 천사 전체 방어력 +8% (240초) · 천사 전체 시야 +6% (240초)"
+    choiceTextKey: "event_choice_text_300048"
+    resultScriptKey: "event_result_script_300048"
+    resultEffectKey: "event_result_effect_300048"
     rewardType01: "char_def_durat_up"
     rewardValue01: 8
     rewardDuration01: 240

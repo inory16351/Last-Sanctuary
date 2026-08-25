@@ -223,8 +223,8 @@ namespace LastSanctuary.UI
                     r != null ? r.GradeColor : Color.white);
             SetText(_detailGrade, r != null ? RelicDefinitionSO.NameOf(r.grade) : "",
                     r != null ? r.GradeColor : Color.white);
-            SetText(_detailEffect, r != null ? r.relicDesc : "", Color.white);
-            SetText(_detailFlavor, r != null ? r.relicFlavor : "", Color.white);
+            SetText(_detailEffect, r != null ? r.Desc : "", Color.white);
+            SetText(_detailFlavor, r != null ? r.Flavor : "", Color.white);
             SetText(_detailSource, r != null ? SourceTextOf(r) : "", Color.white);
 
             // «누가 끼고 있나»

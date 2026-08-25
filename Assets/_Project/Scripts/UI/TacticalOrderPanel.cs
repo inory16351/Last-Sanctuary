@@ -478,7 +478,7 @@ namespace LastSanctuary.UI
             AddOption("Col3/Non/Explore", () => Set(t => t.SetExpeditionType(TacticalExpeditionType.Explore)),
                       () => _tactics.Order.expeditionType == TacticalExpeditionType.Explore);
 
-            // 탐험 배회 범위 — 넥서스 중심 원 안에서만 돌아다니게 하는 지침(유저 지시 2026-08-14).
+            // 탐험 배회 범위 — 성역 중심 원 안에서만 돌아다니게 하는 지침(유저 지시 2026-08-14).
             // ★ 협동 탐험이 켜진 부대면 <b>부대원 전원이 같이 바뀐다</b> — 그 전파는
             //   CharacterTactics.SetRoamRange 안에 있다(UI 는 아무것도 모른다).
             AddOption("Col3/Roam/Near", () => Set(t => t.SetRoamRange(TacticalRoamRange.Near)),

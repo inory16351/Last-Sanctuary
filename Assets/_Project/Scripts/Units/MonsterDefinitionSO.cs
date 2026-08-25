@@ -304,8 +304,8 @@ namespace LastSanctuary.Units
 
         /// <summary>
         /// 공격 우선순위 (웨이브 기획서 p13).
-        ///   일반 / 중간보스 : 타워 → 캐릭터 → 넥서스
-        ///   메인보스        : 캐릭터 → 타워 → 넥서스
+        ///   일반 / 중간보스 : 타워 → 캐릭터 → 성역
+        ///   메인보스        : 캐릭터 → 타워 → 성역
         /// </summary>
         public UnitKind[] TargetPriority => tier == MonsterTier.MainBoss
             ? new[] { UnitKind.Character, UnitKind.Tower, UnitKind.Nexus }

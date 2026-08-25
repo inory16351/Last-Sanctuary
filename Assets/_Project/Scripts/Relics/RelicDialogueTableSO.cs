@@ -58,6 +58,15 @@ namespace LastSanctuary.Relics
         [Min(0)] public int weight = 10;
 
         [TextArea(2, 5)] public string script;
+
+        /// <summary>
+        /// ★ 스트링 키 <c>relic_dialogue_&lt;dialogue_id&gt;</c> (2026-08-25).
+        /// 위 <see cref="script"/> 는 <b>폴백</b>이다.
+        /// </summary>
+        public string scriptKey = "";
+
+        /// <summary>화면에 나오는 대사.</summary>
+        public string Script => Data.StringTable.Get(scriptKey, script);
     }
 
     [System.Serializable]
@@ -68,6 +77,15 @@ namespace LastSanctuary.Relics
         public int choiceOrder;
         public RelicChoiceKind kind = RelicChoiceKind.None;
         public string choiceText;
+
+        /// <summary>
+        /// ★ 스트링 키 <c>dig_choice_text_&lt;choice_id&gt;</c> (2026-08-25).
+        /// 위 <see cref="choiceText"/> 는 <b>폴백</b>이다.
+        /// </summary>
+        public string choiceTextKey = "";
+
+        /// <summary>버튼에 넣는 문구.</summary>
+        public string ChoiceText => Data.StringTable.Get(choiceTextKey, choiceText);
     }
 
     /// <summary>
@@ -142,7 +160,7 @@ namespace LastSanctuary.Relics
         public string Roll(int group, RelicDialogueSituation situation)
         {
             RelicDialogueRow row = RollRow(group, situation);
-            return row != null ? row.script : "";
+            return row != null ? row.Script : "";
         }
 
         public RelicDialogueRow RollRow(int group, RelicDialogueSituation situation)

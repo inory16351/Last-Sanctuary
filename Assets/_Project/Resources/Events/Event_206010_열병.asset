@@ -21,12 +21,17 @@ MonoBehaviour:
   choiceGroupId: 600038
   eventBg: "bg_heat"
   eventScript: "성역 전체의 온도가 오릅니다.\n열은 적을 태우는 무기이면서, 우리 몸을 태우는 불이기도 합니다."
+  nameKey: "event_name_206010"
+  scriptKey: "event_script_206010"
   choices:
   - choiceId: 300075
     choiceOrder: 1
     choiceText: "더 태워라."
     resultScript: "성역은 자기 체온을 끝까지 밀어 올렸습니다.\n적의 살이 익는 동안 천사들의 살도 같이 익습니다."
     resultEffect: "효과 : 적 전체 화상 (초당 최대 체력 3%, 6초) · 천사 전체 체력 −8% (최대 체력 기준)"
+    choiceTextKey: "event_choice_text_300075"
+    resultScriptKey: "event_result_script_300075"
+    resultEffectKey: "event_result_effect_300075"
     rewardType01: "enemy_burn"
     rewardValue01: 3
     rewardDuration01: 6
@@ -38,6 +43,9 @@ MonoBehaviour:
     choiceText: "열을 내린다."
     resultScript: "온도가 내려가자 성역의 숨이 고르게 돌아옵니다.\n태우지 못한 적은 그대로 남아 있습니다."
     resultEffect: "효과 : 천사 전체 회복력 +10% (180초) · 천사 전체 침식 −6"
+    choiceTextKey: "event_choice_text_300076"
+    resultScriptKey: "event_result_script_300076"
+    resultEffectKey: "event_result_effect_300076"
     rewardType01: "char_heal_durat_up"
     rewardValue01: 10
     rewardDuration01: 180

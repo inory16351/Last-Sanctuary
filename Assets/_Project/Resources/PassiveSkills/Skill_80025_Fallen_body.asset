@@ -28,5 +28,5 @@ MonoBehaviour:
   coolTime: 60
   iconName: 'icon_shield_aura'
   flavorText: '성치 않은 몸이지만 카이론은 단 한 번도 물러선 적이 없습니다.'
-  detailText: '잠시 최대 체력에 비례하는 보호막을 두릅니다.'
+  detailText: '최대 체력의 {value_02}%에 해당하는 보호막을 {value_01}초 동안 두릅니다.'
   effectTemplate: '카이론이 {value_01}초 동안 최대 체력의 {value_02}%의 보호막을 생성합니다.'

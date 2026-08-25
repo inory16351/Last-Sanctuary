@@ -7,7 +7,7 @@ using LastSanctuary.Map;
 namespace LastSanctuary.Buildings
 {
     /// <summary>
-    /// 건설된 포탑 한 채. 넥서스·캐릭터·몬스터와 같은 <see cref="DamageableUnit"/> 을 상속해서
+    /// 건설된 포탑 한 채. 성역·캐릭터·몬스터와 같은 <see cref="DamageableUnit"/> 을 상속해서
     /// 피해 계산이 한 공식으로 통일된다(진행상황 4절).
     ///
     /// <b>생성은 템플릿 복제</b>다(진행상황 5절 — 이 프로젝트의 모든 유닛이 쓰는 방식).
@@ -19,7 +19,7 @@ namespace LastSanctuary.Buildings
     /// 그대로 최대 체력이다(포탑 100). 방어력·공격력만 1~100 능력치라
     /// <see cref="BalanceConfigSO"/> 로 치환된다.
     ///
-    /// <b>발판(2x2)은 벽과 동일한 충돌 판정</b>을 받는다 — 넥서스가 쓰는
+    /// <b>발판(2x2)은 벽과 동일한 충돌 판정</b>을 받는다 — 성역이 쓰는
     /// <see cref="MapGenerator.RegisterStructureFootprint"/> 를 그대로 재사용한다(진행상황 14절).
     /// 유닛에는 Collider2D 가 없고 이동 충돌이 전부 타일 기준이라, 등록하지 않으면
     /// 캐릭터·몬스터가 포탑을 그냥 통과한다.

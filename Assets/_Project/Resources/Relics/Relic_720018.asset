@@ -26,5 +26,8 @@ MonoBehaviour:
   source: 4
   sourceId: 206005
   dropWeight: 0
+  nameKey: "relic_name_720018"
+  descKey: "relic_desc_720018"
+  flavorKey: "relic_flavor_720018"
   iconKey: "relic_fleshmend"
   icon: {fileID: 21300000, guid: ff746e6501eb330d36bc66d72bac9322, type: 3}

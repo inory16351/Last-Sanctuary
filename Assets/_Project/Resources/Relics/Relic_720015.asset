@@ -26,5 +26,8 @@ MonoBehaviour:
   source: 2
   sourceId: 0
   dropWeight: 12
+  nameKey: "relic_name_720015"
+  descKey: "relic_desc_720015"
+  flavorKey: "relic_flavor_720015"
   iconKey: "relic_lastgasp"
   icon: {fileID: 21300000, guid: 175fc80ef252b27713017c99a6c3f0d4, type: 3}

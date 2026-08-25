@@ -235,9 +235,38 @@ namespace LastSanctuary.Relics
         [Tooltip("Resources/RelicIcons 에서 찾아 넣은 스프라이트")]
         public Sprite icon;
 
-        /// <summary>화면에 쓸 이름. 비어 있으면 에셋 이름으로 떨어진다.</summary>
-        public string DisplayName =>
-            string.IsNullOrWhiteSpace(relicName) ? name : relicName;
+        // ══════════════════════════════════════════════════════════════
+        //  ★★★ 스트링 키 (2026-08-25 신설 — 유저: *"이벤트랑 유물 테이블도
+        //      스트링 키 테이블 연동"*)
+        // ══════════════════════════════════════════════════════════════
+        // 위의 <see cref="relicName"/>·<see cref="relicDesc"/>·<see cref="relicFlavor"/> 는
+        // 이제 <b>폴백</b>이다. 정본은 스트링 키 테이블이고, 이 세 키가 그리로 가는 다리다.
+        // (건물·캐릭터·몬스터가 이미 쓰는 것과 <b>완전히 같은 짜임</b>이다 —
+        //  `CharacterDefinitionSO.DisplayName` 참고.)
+        //
+        // ⚠ <b>문구를 고칠 곳은 유물 표</b>다. 스트링 키 테이블에서 고치면 다음
+        //   `gen_string_table.py` 에 되돌아온다(그쪽의 «기존 우선» 규칙 때문에 사실은
+        //   남지만, 두 곳이 갈리면 어느 쪽이 정본인지 알 수 없게 된다).
+
+        [Header("스트링 키")]
+        [Tooltip("relic_name_<id> — 비어 있으면 relicName 을 그대로 쓴다")]
+        public string nameKey = "";
+
+        [Tooltip("relic_desc_<id> — 비어 있으면 relicDesc 를 그대로 쓴다")]
+        public string descKey = "";
+
+        [Tooltip("relic_flavor_<id> — 비어 있으면 relicFlavor 를 그대로 쓴다")]
+        public string flavorKey = "";
+
+        /// <summary>화면에 쓸 이름. 키 → 표의 원문 → 에셋 이름 순으로 떨어진다.</summary>
+        public string DisplayName => Data.StringTable.Get(
+            nameKey, string.IsNullOrWhiteSpace(relicName) ? name : relicName);
+
+        /// <summary>효과 설명 — 화면에 그대로 나온다.</summary>
+        public string Desc => Data.StringTable.Get(descKey, relicDesc);
+
+        /// <summary>서사 한 줄.</summary>
+        public string Flavor => Data.StringTable.Get(flavorKey, relicFlavor);
 
         /// <summary>이 유물이 <b>보스 전용</b>인가 — 발굴·일반 몹 풀에서 빼는 기준.</summary>
         public bool IsBossOnly => source == RelicSource.Boss;
@@ -253,13 +282,30 @@ namespace LastSanctuary.Relics
             _               => new Color(0.722f, 0.769f, 0.812f),   // B8C4CF
         };
 
-        /// <summary>표 <c>Grade</c> 시트의 <c>grade_name</c>.</summary>
-        public static string NameOf(RelicGrade g) => g switch
+        /// <summary>
+        /// 표 <c>Grade</c> 시트의 <c>grade_name</c>.
+        ///
+        /// ★ 2026-08-25 — <b>스트링 키를 먼저 본다</b>(<c>relic_grade_common</c> …).
+        ///   등급 이름은 «일반/레어/에픽» 세 낱말뿐이라 표에 두지 않아도 굴러가지만,
+        ///   <b>화면에 나오는 글은 예외 없이 스트링 테이블을 지나가야</b> 나중에 언어를
+        ///   붙일 때 «여기만 안 바뀐다» 가 생기지 않는다.
+        /// ⚠ 아래 한글은 <b>폴백</b>이다 — 표가 없어도 «?» 가 뜨지 않게 한다.
+        /// </summary>
+        public static string NameOf(RelicGrade g) => Data.StringTable.Get(KeyOf(g), g switch
         {
             RelicGrade.Rare => "레어",
             RelicGrade.Epic => "에픽",
             RelicGrade.Common => "일반",
             _ => "?",
+        });
+
+        /// <summary>표 <c>Grade</c> 시트의 <c>grade</c> enum 그대로 — 스트링 키의 꼬리다.</summary>
+        static string KeyOf(RelicGrade g) => g switch
+        {
+            RelicGrade.Rare => "relic_grade_rare",
+            RelicGrade.Epic => "relic_grade_epic",
+            RelicGrade.Common => "relic_grade_common",
+            _ => "",
         };
     }
 }

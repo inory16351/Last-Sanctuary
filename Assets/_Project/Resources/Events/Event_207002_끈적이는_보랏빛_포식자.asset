@@ -21,12 +21,17 @@ MonoBehaviour:
   choiceGroupId: 600041
   eventBg: "bg_habitat_1102"
   eventScript: "보랏빛 점액이 성역의 살 사이를 파고들며 길을 만들었습니다.\n그 길의 끝에 몸을 반쯤 묻은 것이 천사들을 바라보고 있습니다."
+  nameKey: "event_name_207002"
+  scriptKey: "event_script_207002"
   choices:
   - choiceId: 300081
     choiceOrder: 1
     choiceText: "점액을 태워 길을 끊는다."
     resultScript: "타오르는 점액이 성역의 살에서 떨어져 나갑니다.\n길이 끊긴 자리마다 천사들의 몸에 얇은 막이 남았습니다."
     resultEffect: "효과 : 천사 전체 보호막 (최대 체력의 15%, 300초) · 천사 전체 저항력 +10% (300초)"
+    choiceTextKey: "event_choice_text_300081"
+    resultScriptKey: "event_result_script_300081"
+    resultEffectKey: "event_result_effect_300081"
     rewardType01: "char_shield_gain"
     rewardValue01: 15
     rewardDuration01: 300
@@ -38,6 +43,9 @@ MonoBehaviour:
     choiceText: "길을 따라 안쪽까지 본다."
     resultScript: "천사들은 점액의 길을 끝까지 따라갔습니다.\n성역의 안쪽이 어떻게 파먹혔는지 알게 된 값이 있습니다."
     resultEffect: "효과 : 천사 전체 시야 +15% (300초) · 천사 전체 침식 +10"
+    choiceTextKey: "event_choice_text_300082"
+    resultScriptKey: "event_result_script_300082"
+    resultEffectKey: "event_result_effect_300082"
     rewardType01: "char_vision_durat_up"
     rewardValue01: 15
     rewardDuration01: 300

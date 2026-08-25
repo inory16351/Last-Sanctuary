@@ -18,6 +18,23 @@ namespace LastSanctuary.Relics
 
         [TextArea(1, 3)] public string outcomeDesc;
         [TextArea(1, 3)] public string outcomeScript;
+
+        // ★★ 스트링 키 (2026-08-25) — 위 둘은 <b>폴백</b>이다.
+        //   ⚠ 키의 꼬리가 <b>정수가 아니라 enum</b>이다(`dig_outcome_desc_dig_energy`) —
+        //     이 시트의 id 열이 `outcome_type` 이기 때문이다.
+        //   ⚠ <see cref="outcomeDesc"/> 에는 <c>{value_01}</c> 자리표가 들어 있다.
+        //     번역해도 그 표시는 <b>남겨야</b> 한다(런타임에 숫자가 들어간다).
+        [Tooltip("dig_outcome_desc_<outcome_type>")]
+        public string descKey = "";
+
+        [Tooltip("dig_outcome_script_<outcome_type>")]
+        public string scriptKey = "";
+
+        /// <summary>결과 설명(자리표 포함).</summary>
+        public string Desc => Data.StringTable.Get(descKey, outcomeDesc);
+
+        /// <summary>결과 대사.</summary>
+        public string Script => Data.StringTable.Get(scriptKey, outcomeScript);
     }
 
     /// <summary>처치 드랍 한 줄 — 표 <c>Drop</c> 시트의 한 행.</summary>

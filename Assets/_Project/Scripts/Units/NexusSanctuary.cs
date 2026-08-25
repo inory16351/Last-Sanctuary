@@ -5,9 +5,9 @@ using LastSanctuary.Map;
 namespace LastSanctuary.Units
 {
     /// <summary>
-    /// <b>넥서스 둘레에 「성역」을 깐다</b> (2026-08-18, 유저 지시).
+    /// <b>성역 둘레에 「성역」을 깐다</b> (2026-08-18, 유저 지시).
     ///
-    /// <i>"넥서스 주변도 중립 몬스터 청크 처럼 일정 범위의 청크 넣어서 생성(불규칙한 저그 점막처럼) ·
+    /// <i>"성역 주변도 중립 몬스터 청크 처럼 일정 범위의 청크 넣어서 생성(불규칙한 저그 점막처럼) ·
     /// 청크 에셋은 볼트 리소스에 있어 · 청크 색이나 배열은 너가 알아서 적절하게 수정해줘
     /// 좀 확실하게 다른 공간이랑 분리되어서 보이게"</i>
     ///
@@ -23,9 +23,9 @@ namespace LastSanctuary.Units
     ///   컴포넌트를 찾기 때문이다 — 바꾸면 카르시노스 쪽 배선이 끊긴다.
     ///
     /// ★ <b>서식지와 다른 점 — 되돌리지 않는다</b>
-    /// 서식지는 개체가 죽으면 걷힌다. 성역은 <b>넥서스가 죽으면 게임이 끝나므로</b>
+    /// 서식지는 개체가 죽으면 걷힌다. 성역은 <b>성역이 죽으면 게임이 끝나므로</b>
     /// 되돌릴 이유가 없다. <see cref="NeutralHabitat"/> 의 <c>restoreOnDestroy</c> 는
-    /// 인스펙터 값이고 기본이 켜짐인데, 넥서스는 패배할 때까지 안 사라지니 실질적으로
+    /// 인스펙터 값이고 기본이 켜짐인데, 성역은 패배할 때까지 안 사라지니 실질적으로
     /// 차이가 없다 — 그래서 그 값을 건드리지 않는다.
     ///
     /// ⚠ <b>플레이 모드에서만 그려진다.</b> 타일맵 변경은 플레이를 나가면 사라진다 —
@@ -43,7 +43,7 @@ namespace LastSanctuary.Units
                  "값의 뜻을 칸 이름이 말하게 해서 그 착각이 생길 자리를 없앤다. " +
                  "⚠ 1차(2026-08-18)에는 <b>반지름 20 = 지름 40</b> 이었다. 유저 리포트: " +
                  "「중앙건물 청크 구역이 너무 큼」 — 맵이 320타일이지만 화면에 보이는 범위에 " +
-                 "비하면 지름 40 은 시야를 거의 채운다. 지름 15 면 넥서스 발판(3x3)을 " +
+                 "비하면 지름 40 은 시야를 거의 채운다. 지름 15 면 성역 발판(3x3)을 " +
                  "여유 있게 두르는 정도다")]
         [Min(2f)] [SerializeField] float diameterTiles = 15f;
 
@@ -95,7 +95,7 @@ namespace LastSanctuary.Units
             habitat.Paint(map, ground, edge, props, center, diameter * 0.5f, seed);
 
             if (logSanctuary)
-                Debug.Log($"[성역] 넥서스 둘레 {habitat.PaintedCells}칸 · 데코 {habitat.PropCells}개 " +
+                Debug.Log($"[성역] 둘레 {habitat.PaintedCells}칸 · 데코 {habitat.PropCells}개 " +
                           $"(지름 {diameter:0.##}타일 — 기준 {diameterTiles} ±{diameterJitter:P0} · " +
                           $"바닥 {ground.Length}종 · " +
                           $"가장자리 {(edge != null ? edge.Length : 0)}종 · " +

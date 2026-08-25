@@ -28,5 +28,5 @@ MonoBehaviour:
   coolTime: 0
   iconName: 'icon_plague_cloud'
   flavorText: '역병의사의 숨결은 적들에게 공포를 선사합니다.'
-  detailText: '공격당한 적의 방어력이 일정 시간 낮아집니다. 겹쳐 쌓이지는 않습니다.'
+  detailText: '공격당한 적의 방어력이 {value_01} 낮아집니다. {value_02}초 동안 이어지며 겹쳐 쌓이지는 않습니다.'
   effectTemplate: '피올로에게 공격을 당한 적의 방어력이 {value_01} 만큼 감소한다. {value_02}초 만큼 지속된다. 중첩 불가능.'

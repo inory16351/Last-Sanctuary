@@ -21,12 +21,17 @@ MonoBehaviour:
   choiceGroupId: 600037
   eventBg: "bg_fog"
   eventScript: "안개가 유난히 무거워졌습니다.\n그 안에 든 것들은 발을 뗄 때마다 늦어집니다. 우리 것도, 저들 것도 함께입니다."
+  nameKey: "event_name_206009"
+  scriptKey: "event_script_206009"
   choices:
   - choiceId: 300073
     choiceOrder: 1
     choiceText: "안개를 끌어안는다."
     resultScript: "성역은 안개를 더 짙게 눌렀습니다.\n적들이 진창에 박혔고, 천사들의 발도 같이 무거워졌습니다."
     resultEffect: "효과 : 적 전체 구속 4초 · 천사 전체 이동 속도 −6% (180초)"
+    choiceTextKey: "event_choice_text_300073"
+    resultScriptKey: "event_result_script_300073"
+    resultEffectKey: "event_result_effect_300073"
     rewardType01: "enemy_bind"
     rewardValue01: 0
     rewardDuration01: 4
@@ -38,6 +43,9 @@ MonoBehaviour:
     choiceText: "안개를 걷어낸다."
     resultScript: "시야가 트이자 성역의 끝까지 보입니다.\n대신 저쪽의 발걸음도 다시 가벼워졌습니다."
     resultEffect: "효과 : 천사 전체 시야 +12% (180초) · 적 전체 이동 속도 +6% (180초)"
+    choiceTextKey: "event_choice_text_300074"
+    resultScriptKey: "event_result_script_300074"
+    resultEffectKey: "event_result_effect_300074"
     rewardType01: "char_vision_durat_up"
     rewardValue01: 12
     rewardDuration01: 180

@@ -9,7 +9,7 @@ using LastSanctuary.Wave;
 namespace LastSanctuary.UI
 {
     /// <summary>
-    /// 패배 화면. 중앙 건물(넥서스)이 파괴되면 게임을 멈추고 결과를 보여준 뒤 다시 시작하게 한다.
+    /// 패배 화면. 중앙 건물(성역)이 파괴되면 게임을 멈추고 결과를 보여준 뒤 다시 시작하게 한다.
     ///
     /// <b>왜 이 패널이 필요했나</b> — 패배 <i>판정</i> 자체는 이미 있었다(<c>Nexus.OnDeath</c> →
     /// <c>DamageableUnit.OnAnyDied</c> → <see cref="WaveManager"/> 가 <see cref="WavePhase.Defeat"/> 로
@@ -39,7 +39,7 @@ namespace LastSanctuary.UI
         [Tooltip("사유를 알 수 없을 때 쓰는 기본 문구. 사유별 문구는 아래 두 필드가 쓰인다")]
         [SerializeField] string reasonText = "중앙 건물이 파괴되었습니다.";
 
-        [Tooltip("넥서스 파괴로 졌을 때")]
+        [Tooltip("성역 파괴로 졌을 때")]
         [SerializeField] string reasonNexusText = "중앙 건물이 파괴되었습니다.";
 
         [Tooltip("캐릭터 전멸로 졌을 때 (다시 생성할 에너지도, 남은 포탑도 없는 상태)")]
@@ -55,7 +55,7 @@ namespace LastSanctuary.UI
                  "끄면 패배 화면만 뜨고 전투는 계속 진행된다(연출·디버그 확인용)")]
         [SerializeField] bool pauseGameOnDefeat = true;
 
-        [Tooltip("패배 화면이 뜨기까지의 지연(초). 넥서스가 부서지는 순간을 잠깐 보여주기 위한 여유. " +
+        [Tooltip("패배 화면이 뜨기까지의 지연(초). 성역이 부서지는 순간을 잠깐 보여주기 위한 여유. " +
                  "Time.unscaledTime 기준이라 게임이 멈춰도 흐른다")]
         [Min(0f)] [SerializeField] float showDelaySeconds = 1.2f;
 
@@ -154,11 +154,11 @@ namespace LastSanctuary.UI
             //
             //   ⚠ <b>아래 timeScale = 0 보다 먼저여야 한다.</b> 0 이 되면 연출의 타이머도
             //     그것을 지워 줄 <c>SacredZone</c> 도 <b>같이 굳어</b> 영영 안 사라진다.
-            //     패배는 넥서스가 부서질 때 일어나므로 굳은 그림은 정확히 «중앙 건물 자리» 에
+            //     패배는 성역이 부서질 때 일어나므로 굳은 그림은 정확히 «중앙 건물 자리» 에
             //     남는다 — 유저가 본 그 «장식물» 이다.
             Combat.CombatProjectileFx.ClearAll();
 
-            // 멈추는 것은 화면을 띄우는 시점이다 — 넥서스가 부서지는 순간은 그대로 보여준다.
+            // 멈추는 것은 화면을 띄우는 시점이다 — 성역이 부서지는 순간은 그대로 보여준다.
             if (pauseGameOnDefeat) Time.timeScale = 0f;
 
             HudLog.Add($"패배 — {ReasonLine()}", HudLogKind.Danger);

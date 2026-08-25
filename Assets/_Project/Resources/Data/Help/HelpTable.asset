@@ -43,9 +43,9 @@ MonoBehaviour:
     titleKey: "help_energy_title"
     summaryKey: "help_energy_summary"
     bodyKey: "help_energy_body"
-    trigger: 2
+    trigger: 1
     triggerArg: 0
-    priority: 2
+    priority: 3
     showOnce: 1
     seeAlso: "help_neutral"
     openPanelPath: ""
@@ -55,7 +55,7 @@ MonoBehaviour:
     titleKey: "help_create_title"
     summaryKey: "help_create_summary"
     bodyKey: "help_create_body"
-    trigger: 3
+    trigger: 24
     triggerArg: 0
     priority: 2
     showOnce: 1
@@ -139,7 +139,7 @@ MonoBehaviour:
     titleKey: "help_upgrade_title"
     summaryKey: "help_upgrade_summary"
     bodyKey: "help_upgrade_body"
-    trigger: 9
+    trigger: 25
     triggerArg: 0
     priority: 2
     showOnce: 1
@@ -187,7 +187,7 @@ MonoBehaviour:
     titleKey: "help_relic_equip_title"
     summaryKey: "help_relic_equip_summary"
     bodyKey: "help_relic_equip_body"
-    trigger: 12
+    trigger: 29
     triggerArg: 0
     priority: 2
     showOnce: 1
@@ -199,7 +199,7 @@ MonoBehaviour:
     titleKey: "help_squad_title"
     summaryKey: "help_squad_summary"
     bodyKey: "help_squad_body"
-    trigger: 13
+    trigger: 26
     triggerArg: 0
     priority: 2
     showOnce: 1
@@ -223,7 +223,7 @@ MonoBehaviour:
     titleKey: "help_tactics_title"
     summaryKey: "help_tactics_summary"
     bodyKey: "help_tactics_body"
-    trigger: 15
+    trigger: 27
     triggerArg: 0
     priority: 2
     showOnce: 1
@@ -241,18 +241,6 @@ MonoBehaviour:
     showOnce: 1
     seeAlso: "help_death"
     openPanelPath: "UI_Root/HUD_Tactics"
-  - helpId: "help_build"
-    category: "지휘"
-    order: 450
-    titleKey: "help_build_title"
-    summaryKey: "help_build_summary"
-    bodyKey: "help_build_body"
-    trigger: 16
-    triggerArg: 0
-    priority: 2
-    showOnce: 1
-    seeAlso: "help_energy"
-    openPanelPath: ""
   - helpId: "help_erosion"
     category: "위험"
     order: 510
@@ -295,7 +283,7 @@ MonoBehaviour:
     titleKey: "help_epic_title"
     summaryKey: "help_epic_summary"
     bodyKey: "help_epic_body"
-    trigger: 20
+    trigger: 28
     triggerArg: 0
     priority: 2
     showOnce: 1
@@ -319,7 +307,7 @@ MonoBehaviour:
     titleKey: "help_save_title"
     summaryKey: "help_save_summary"
     bodyKey: "help_save_body"
-    trigger: 22
+    trigger: 30
     triggerArg: 0
     priority: 3
     showOnce: 1
@@ -341,27 +329,27 @@ MonoBehaviour:
   - helpId: "help_awaken"
     stepOrder: 1
     targetPath: "UI_Root/HUD_Growth/Info/Name"
-    stepText: "각성한 캐릭터는 이름이 금색으로 바뀝니다. 로스터에서도 같은 색으로 보입니다."
+    stepText: "각성한 동료는 이름이 금빛으로 바뀝니다. 로스터에서도 같은 색으로 보입니다."
   - helpId: "help_awaken"
     stepOrder: 2
     targetPath: "UI_Root/HUD_Growth/Info/Note"
-    stepText: "각성 여부와 남은 조건이 여기에 적힙니다."
+    stepText: "각성했는지, 남은 조건이 무엇인지 여기에 적힙니다."
   - helpId: "help_awaken"
     stepOrder: 3
     targetPath: "UI_Root/HUD_Growth/Stats/Grid"
-    stepText: "각성하면 이 칸들에 보너스가 얹히고, 상한 100을 넘어설 수 있습니다."
+    stepText: "각성하면 이 칸들에 보너스가 붙고, 100을 넘어설 수 있습니다."
   - helpId: "help_create"
     stepOrder: 1
     targetPath: "UI_Root/HUD_Actions/Buttons/CreateButton"
-    stepText: "이 버튼을 누르면 아군이 한 명 늘어납니다. 버튼에 적힌 숫자가 지금 드는 에너지입니다."
+    stepText: "이 버튼을 누르면 새 동료가 한 명 옵니다. 옆의 숫자가 지금 드는 에너지입니다."
   - helpId: "help_energy"
     stepOrder: 1
     targetPath: "UI_Root/HUD_Energy/Energy"
-    stepText: "지금 가진 에너지입니다. 캐릭터를 만들거나 강화할 때 이 숫자에서 빠져나갑니다."
+    stepText: "지금 가진 에너지입니다. 동료를 부르거나 강화할 때 이 숫자에서 빠져나갑니다."
   - helpId: "help_epic"
     stepOrder: 1
     targetPath: "UI_Root/HUD_Subjugate/Targets/List"
-    stepText: "발견한 에픽 몬스터가 여기에 오릅니다. 잡는 데 필요한 수준도 함께 나옵니다."
+    stepText: "발견한 에픽이 여기 올라옵니다. 감당하는 데 필요한 수준도 함께 나옵니다."
   - helpId: "help_epic"
     stepOrder: 2
     targetPath: "UI_Root/HUD_Subjugate/Squads/List"
@@ -373,11 +361,11 @@ MonoBehaviour:
   - helpId: "help_erosion"
     stepOrder: 1
     targetPath: "UI_Root/HUD_Growth/Info/ErosionBack"
-    stepText: "보라색 게이지가 침식입니다. 싸우는 동안 차오르고, 전투가 끝나면 저절로 줄어듭니다."
+    stepText: "보라색 게이지가 침식입니다. 싸우는 동안 차오르고, 싸움이 끝나면 저절로 줄어듭니다."
   - helpId: "help_erosion"
     stepOrder: 2
     targetPath: "UI_Root/HUD_Growth/Stats/Grid"
-    stepText: "능력치 중 저항력이 침식이 차는 속도와 줄어드는 속도를 정합니다."
+    stepText: "능력치 중 저항력이 침식이 차는 속도와 빠지는 속도를 정합니다."
   - helpId: "help_mental_error"
     stepOrder: 1
     targetPath: "UI_Root/HUD_Growth/Info/ErosionBack"
@@ -385,19 +373,19 @@ MonoBehaviour:
   - helpId: "help_mental_error"
     stepOrder: 2
     targetPath: "UI_Root/HUD_Growth/Info/Note"
-    stepText: "지금 걸린 정신 이상의 이름이 여기에 적힙니다. 로스터에도 함께 표시됩니다."
+    stepText: "지금 걸린 정신 이상의 이름이 여기에 적힙니다. 로스터에도 같이 표시됩니다."
   - helpId: "help_rally"
     stepOrder: 1
     targetPath: "UI_Root/HUD_Squad/Body/Grid"
-    stepText: "부대 칸마다 집결지를 만드는 버튼과 해제하는 버튼이 있습니다."
+    stepText: "부대 칸마다 집결지를 만드는 버튼과 거두는 버튼이 있습니다."
   - helpId: "help_rally"
     stepOrder: 2
     targetPath: ""
-    stepText: "만들기를 누른 뒤 맵에서 자리를 찍으십시오. 깃발을 1초쯤 누른 채 끌면 자리를 옮길 수 있습니다."
+    stepText: "만들기를 누른 뒤 땅에서 자리를 찍으세요. 깃발을 1초쯤 누른 채 끌면 옮길 수 있습니다."
   - helpId: "help_relic_equip"
     stepOrder: 1
     targetPath: "UI_Root/HUD_Relics/List"
-    stepText: "지금까지 얻은 유물이 여기에 쌓입니다. 등급이 높은 것이 위로 옵니다."
+    stepText: "지금까지 얻은 유물이 여기 쌓입니다. 등급이 높은 것이 위로 옵니다."
   - helpId: "help_relic_equip"
     stepOrder: 2
     targetPath: "UI_Root/HUD_Relics/Detail/Effect"
@@ -405,7 +393,7 @@ MonoBehaviour:
   - helpId: "help_relic_equip"
     stepOrder: 3
     targetPath: "UI_Root/HUD_Relics/Detail/EquipButton"
-    stepText: "이 버튼으로 끼웁니다. 끼울 대상은 왼쪽 로스터에서 고른 캐릭터입니다."
+    stepText: "이 버튼으로 끼웁니다. 끼울 동료는 왼쪽 로스터에서 고른 사람입니다."
   - helpId: "help_relic_equip"
     stepOrder: 4
     targetPath: "UI_Root/HUD_Relics/Detail/Wearer"
@@ -425,27 +413,27 @@ MonoBehaviour:
   - helpId: "help_save"
     stepOrder: 1
     targetPath: "UI_Root/HUD_Settings/Body/SaveButton"
-    stepText: "이 버튼으로 지금 상태를 저장합니다. 저장 칸은 하나뿐입니다."
+    stepText: "이 버튼으로 지금 상태를 기록합니다. 기록 칸은 하나뿐입니다."
   - helpId: "help_save"
     stepOrder: 2
     targetPath: "UI_Root/HUD_Settings/Body/LobbyButton"
-    stepText: "저장하고 로비로 나갑니다. 로비의 이어하기로 이 판을 다시 잇습니다."
+    stepText: "기록하고 로비로 나갑니다. 로비의 이어하기로 이 판을 다시 잇습니다."
   - helpId: "help_save"
     stepOrder: 3
     targetPath: "UI_Root/HUD_Settings/Body/Status"
-    stepText: "마지막으로 저장한 때가 여기에 적힙니다."
+    stepText: "마지막으로 기록한 때가 여기에 적힙니다."
   - helpId: "help_speed"
     stepOrder: 1
     targetPath: "UI_Root/HUD_Speed/x1"
-    stepText: "게임 속도를 고르는 버튼입니다. 지금 걸린 속도는 색이 밝게 표시됩니다."
+    stepText: "게임 속도를 고르는 버튼입니다. 지금 걸린 속도는 밝게 표시됩니다."
   - helpId: "help_speed"
     stepOrder: 2
     targetPath: "UI_Root/HUD_Speed/x8"
-    stepText: "가장 빠른 8배입니다. 몬스터가 없는 정비 시간을 넘길 때 쓰면 편합니다."
+    stepText: "가장 빠른 8배입니다. 적이 없는 정비 시간을 넘길 때 쓰면 편합니다."
   - helpId: "help_speed"
     stepOrder: 3
     targetPath: "UI_Root/HUD_Speed/Pause"
-    stepText: "이 버튼이나 P 키로 시간을 멈춥니다. 멈춘 동안에도 창을 열어 지침을 바꿀 수 있습니다."
+    stepText: "이 버튼이나 P 로 시간을 멈춥니다. 멈춘 동안에도 창을 열어 지침을 바꿀 수 있습니다."
   - helpId: "help_squad"
     stepOrder: 1
     targetPath: "UI_Root/HUD_Squad/Header/AddButton"
@@ -453,27 +441,27 @@ MonoBehaviour:
   - helpId: "help_squad"
     stepOrder: 2
     targetPath: "UI_Root/HUD_Squad/Body/Grid"
-    stepText: "만든 부대가 여기에 칸으로 늘어섭니다. 왼쪽 로스터에서 캐릭터를 눌러 배정합니다."
+    stepText: "만든 부대가 여기 칸으로 늘어섭니다. 왼쪽 로스터에서 동료를 눌러 배정합니다."
   - helpId: "help_stats"
     stepOrder: 1
     targetPath: "UI_Root/HUD_Growth/Stats/Grid"
-    stepText: "능력치 열두 칸입니다. 여기 보이는 숫자에는 유물과 각성 보너스가 이미 더해져 있습니다."
+    stepText: "능력치 열두 칸입니다. 여기 숫자에는 유물과 각성 보너스가 이미 더해져 있습니다."
   - helpId: "help_stats"
     stepOrder: 2
     targetPath: "UI_Root/HUD_Growth/Stats/GrowthTypes"
-    stepText: "이 캐릭터가 주로 쓰는 능력치입니다. 강화할 때 이쪽이 더 자주, 더 많이 오릅니다."
+    stepText: "이 동료가 주로 쓰는 능력치입니다. 강화할 때 이쪽이 더 자주, 더 많이 오릅니다."
   - helpId: "help_stats"
     stepOrder: 3
     targetPath: "UI_Root/HUD_Growth/Stats/PassiveGrid"
-    stepText: "이 캐릭터가 타고난 특별한 능력입니다. 강화로는 바뀌지 않습니다."
+    stepText: "타고난 특별한 능력입니다. 강화로는 바뀌지 않습니다."
   - helpId: "help_stats"
     stepOrder: 4
     targetPath: "UI_Root/HUD_Growth/RelicBar"
-    stepText: "지금 끼고 있는 유물입니다. 유물이 주는 능력치는 상한 100을 넘어서 붙습니다."
+    stepText: "지금 낀 유물입니다. 유물이 주는 능력치는 100을 넘어서 붙습니다."
   - helpId: "help_tactics"
     stepOrder: 1
     targetPath: "UI_Root/HUD_Tactics/Col1/Pos"
-    stepText: "전방, 중위, 후방 중 어디에 설지 고릅니다. 앞줄은 적을 직접 받아내고 뒷줄은 사거리 끝에서 싸웁니다."
+    stepText: "전방, 중위, 후방 중 어디에 설지 고릅니다. 앞줄은 적을 직접 받아내고, 뒷줄은 사거리 끝에서 싸웁니다."
   - helpId: "help_tactics"
     stepOrder: 2
     targetPath: "UI_Root/HUD_Tactics/Col1/Type"
@@ -481,23 +469,23 @@ MonoBehaviour:
   - helpId: "help_tactics"
     stepOrder: 3
     targetPath: "UI_Root/HUD_Tactics/Col2/Target"
-    stepText: "여러 적이 있을 때 누구를 먼저 칠지 고릅니다."
+    stepText: "적이 여럿일 때 누구를 먼저 칠지 고릅니다."
   - helpId: "help_tactics"
     stepOrder: 4
     targetPath: "UI_Root/HUD_Tactics/Col3/Wave"
-    stepText: "몬스터가 몰려올 때 어떻게 움직일지 고릅니다."
+    stepText: "적이 몰려올 때 어떻게 움직일지 고릅니다."
   - helpId: "help_tactics"
     stepOrder: 5
     targetPath: "UI_Root/HUD_Tactics/Col3/Summary"
-    stepText: "고른 지침을 한눈에 정리해 보여 줍니다. 여기만 봐도 지금 설정이 확인됩니다."
+    stepText: "고른 지침을 한눈에 모아 보여 줍니다. 여기만 봐도 지금 설정이 확인됩니다."
   - helpId: "help_upgrade"
     stepOrder: 1
     targetPath: "UI_Root/HUD_Growth/Info/EnhanceButton"
-    stepText: "이 버튼이 강화입니다. 한 번 누를 때마다 고른 캐릭터의 레벨이 1 올라갑니다."
+    stepText: "이 버튼이 강화입니다. 한 번 누를 때마다 고른 동료의 레벨이 1 오릅니다."
   - helpId: "help_upgrade"
     stepOrder: 2
     targetPath: "UI_Root/HUD_Growth/Info/CostValue"
-    stepText: "한 번 강화하는 데 드는 에너지입니다. 레벨이 오를수록 이 값도 함께 커집니다."
+    stepText: "한 번 강화하는 데 드는 에너지입니다. 레벨이 오를수록 이 값도 커집니다."
   - helpId: "help_upgrade"
     stepOrder: 3
     targetPath: "UI_Root/HUD_Growth/Info/Level"
@@ -505,7 +493,7 @@ MonoBehaviour:
   - helpId: "help_upgrade"
     stepOrder: 4
     targetPath: "UI_Root/HUD_Growth/Stats/Grid"
-    stepText: "레벨이 오르면 이 능력치 칸들 중 몇 개가 함께 올라갑니다. 어느 칸이 오를지는 그때 정해집니다."
+    stepText: "레벨이 오르면 이 능력치 칸들 중 몇 개가 함께 오릅니다. 어느 칸일지는 그때 정해집니다."
   - helpId: "help_wave"
     stepOrder: 1
     targetPath: "UI_Root/HUD_Wave/Phase"
@@ -513,4 +501,4 @@ MonoBehaviour:
   - helpId: "help_wave"
     stepOrder: 2
     targetPath: "UI_Root/HUD_Wave/Timer"
-    stepText: "남은 시간입니다. 정비 단계에서 이 시간이 0이 되면 몬스터가 몰려옵니다."
+    stepText: "남은 시간입니다. 정비 단계에서 이 시간이 0이 되면 적이 몰려옵니다."

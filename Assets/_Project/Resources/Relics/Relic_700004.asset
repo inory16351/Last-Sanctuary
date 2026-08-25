@@ -26,5 +26,8 @@ MonoBehaviour:
   source: 1
   sourceId: 0
   dropWeight: 10
+  nameKey: "relic_name_700004"
+  descKey: "relic_desc_700004"
+  flavorKey: "relic_flavor_700004"
   iconKey: "relic_capillary"
   icon: {fileID: 21300000, guid: 5d87115728f8dfc04aaee696593f4bbb, type: 3}

@@ -26,5 +26,8 @@ MonoBehaviour:
   source: 1
   sourceId: 0
   dropWeight: 8
+  nameKey: "relic_name_710008"
+  descKey: "relic_desc_710008"
+  flavorKey: "relic_flavor_710008"
   iconKey: "relic_antipyretic"
   icon: {fileID: 21300000, guid: da83484496dd4aec839faf01f7cf62eb, type: 3}

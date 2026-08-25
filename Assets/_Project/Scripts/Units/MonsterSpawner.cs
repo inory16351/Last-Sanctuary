@@ -93,7 +93,7 @@ namespace LastSanctuary.Units
         [Range(1, 9)] [SerializeField] int portalAreaTiles = 3;
 
         [Header("소환 주기 자동 계산")]
-        [Tooltip("켜면 '마지막으로 소환된 몬스터가 웨이브 타이머 종료 직전에 넥서스에 닿도록' " +
+        [Tooltip("켜면 '마지막으로 소환된 몬스터가 웨이브 타이머 종료 직전에 성역에 닿도록' " +
                  "이동속도·포탈 거리로 간격을 역산한다. 끄면 위의 고정 spawnInterval 을 쓴다")]
         [SerializeField] bool autoSpawnInterval = true;
 
@@ -188,7 +188,7 @@ namespace LastSanctuary.Units
 
         /// <summary>
         /// 웨이브 번호와 <b>그 웨이브의 전투 타이머 길이</b>를 함께 받아 소환한다.
-        /// 타이머 길이를 알아야 "마지막 몬스터가 타이머 종료 직전에 넥서스에 닿는" 소환 주기를
+        /// 타이머 길이를 알아야 "마지막 몬스터가 타이머 종료 직전에 성역에 닿는" 소환 주기를
         /// 역산할 수 있다(<see cref="ResolveSpawnInterval"/>).
         /// </summary>
         public void SpawnWave(int wave, float battleDuration)
@@ -462,7 +462,7 @@ namespace LastSanctuary.Units
         /// 이번 웨이브의 소환 주기(초).
         ///
         /// <b>목표</b>(유저 요청): 마지막으로 소환된 몬스터가 <b>웨이브 타이머가 끝날 무렵</b>
-        /// 넥서스에 닿는다. 그래야 전투 시간 내내 몬스터가 끊이지 않고 흘러 들어온다.
+        /// 성역에 닿는다. 그래야 전투 시간 내내 몬스터가 끊이지 않고 흘러 들어온다.
         ///
         /// <b>계산</b> — 웨이브 타이머는 "첫 전투가 벌어진 순간"부터 돈다(진행상황 11절).
         /// 첫 몬스터는 <c>t=0</c> 에 나와 <c>가장 가까운 포탈의 이동시간</c> 뒤에 닿고,

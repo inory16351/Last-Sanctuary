@@ -411,6 +411,12 @@ def main():
         body += "  source: %d\n" % SOURCE.get(str(r.get("source") or "").strip(), 0)
         body += "  sourceId: %d\n" % num(r.get("source_id"))
         body += "  dropWeight: %d\n" % max(0, num(r.get("drop_weight"), 10))
+        # ★ 스트링 키 (2026-08-25) — 위 문구 칸은 <b>폴백</b>이고 정본은
+        #   스트링 키 테이블이다. 키는 «접두사_id» 로 <b>기계적으로</b> 만든다 —
+        #   gen_string_table.py 의 RULES 가 같은 규칙으로 만드므로 반드시 맞는다.
+        body += "  nameKey: %s\n" % yaml_str("relic_name_%d" % rid)
+        body += "  descKey: %s\n" % yaml_str("relic_desc_%d" % rid)
+        body += "  flavorKey: %s\n" % yaml_str("relic_flavor_%d" % rid)
         body += "  iconKey: %s\n" % yaml_str(key)
         if key in icon_guid:
             # ⚠ 스프라이트는 텍스처 안의 <b>서브 에셋</b>이다 — fileID 21300000 이 규약이다.
@@ -434,6 +440,10 @@ def main():
         body += "    value02: %d\n" % num(o.get("value_02"))
         body += "    outcomeDesc: %s\n" % yaml_str(o.get("outcome_desc"))
         body += "    outcomeScript: %s\n" % yaml_str(o.get("outcome_script"))
+        # ★ 스트링 키 — ⚠ 꼬리가 정수가 아니라 <b>enum</b>이다(outcome_type).
+        _ot = str(o.get("outcome_type") or "").strip()
+        body += "    descKey: %s\n" % yaml_str(("dig_outcome_desc_" + _ot) if _ot else "")
+        body += "    scriptKey: %s\n" % yaml_str(("dig_outcome_script_" + _ot) if _ot else "")
     body += "  drops:\n"
     for dr in drops:
         body += "  - killSource: %s\n" % yaml_str(dr.get("kill_source"))
@@ -463,6 +473,7 @@ def main():
         body += "    choiceGroupId: %d\n" % num(d.get("choice_group_id"))
         body += "    weight: %d\n" % max(0, num(d.get("weight"), 10))
         body += "    script: %s\n" % yaml_str(d.get("script"))
+        body += "    scriptKey: %s\n" % yaml_str("relic_dialogue_%d" % num(d.get("dialogue_id")))
     body += "  choices:\n"
     for c in dig_choices:
         kind = str(c.get("choice_kind") or "").strip()
@@ -473,6 +484,7 @@ def main():
         body += "    choiceOrder: %d\n" % num(c.get("choice_order"))
         body += "    kind: %d\n" % CHOICE_KIND.get(kind, 0)
         body += "    choiceText: %s\n" % yaml_str(c.get("choice_text"))
+        body += "    choiceTextKey: %s\n" % yaml_str("dig_choice_text_%d" % num(c.get("choice_id")))
 
     path = os.path.join(OUT_DIR, "RelicDialogueTable.asset")
     write(path, body)

@@ -4,7 +4,7 @@ using LastSanctuary.Combat;
 namespace LastSanctuary.Units
 {
     /// <summary>
-    /// 중앙 건물(넥서스) 능력치. 에디터에서 직접 편집한다.
+    /// 중앙 건물(성역) 능력치. 에디터에서 직접 편집한다.
     ///
     /// 캐릭터와 같은 1~100 척도와 같은 치환 공식을 쓰되, 건물이라 체력 규모가
     /// 훨씬 커야 하므로 체력에만 별도 배율을 둔다. 배율도 퍼센트(정수)라 결과는 정수다.
@@ -28,14 +28,14 @@ namespace LastSanctuary.Units
         [Min(1)] public int footprintTiles = 3;
 
         [Tooltip("화면에 뜨는 이름. 클릭 초상화(UnitPortraitPanel)와 로그가 쓴다.\n" +
-                 "⚠ 넥서스는 <b>표가 없는 유일한 유닛</b>이라 스트링 키가 아니라 여기 직접 적는다")]
+                 "⚠ 성역은 <b>표가 없는 유일한 유닛</b>이라 스트링 키가 아니라 여기 직접 적는다")]
         public string displayName = "중앙 건물";
 
         [Tooltip("칭호. 비우면 초상화에 칭호 줄이 안 뜬다")]
         public string title = "마지막 성역";
 
         [Tooltip("일러스트 이름. Resources/Illust 아래를 찾는다 (예: Nexus_illust).\n" +
-                 "★ 2026-08-18 신설 — 유저 지시 \"넥서스 클릭 가능하게 만들고 일러스트 넣어서 " +
+                 "★ 2026-08-18 신설 — 유저 지시 \"성역 클릭 가능하게 만들고 일러스트 넣어서 " +
                  "ILLUST UI 에 적용\". 몬스터·중립과 <b>같은 폴더·같은 규칙</b>이다")]
         public string illustName = "Nexus_illust";
 
@@ -58,7 +58,7 @@ namespace LastSanctuary.Units
 
                 _illust = Resources.Load<Sprite>("Illust/" + n);
                 if (_illust == null)
-                    Debug.LogWarning($"[넥서스] 일러스트 'Resources/Illust/{n}' 을 찾지 못했습니다 — " +
+                    Debug.LogWarning($"[성역] 일러스트 'Resources/Illust/{n}' 을 찾지 못했습니다 — " +
                                      "파일 이름과 .meta 의 textureType(8=Sprite) 을 확인해주세요.", this);
                 return _illust;
             }

@@ -26,5 +26,8 @@ MonoBehaviour:
   source: 2
   sourceId: 0
   dropWeight: 14
+  nameKey: "relic_name_720014"
+  descKey: "relic_desc_720014"
+  flavorKey: "relic_flavor_720014"
   iconKey: "relic_spring"
   icon: {fileID: 21300000, guid: e787d38eeecdc7b345dd47cfdced3daa, type: 3}

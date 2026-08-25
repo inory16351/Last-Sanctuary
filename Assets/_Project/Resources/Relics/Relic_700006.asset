@@ -26,5 +26,8 @@ MonoBehaviour:
   source: 1
   sourceId: 0
   dropWeight: 9
+  nameKey: "relic_name_700006"
+  descKey: "relic_desc_700006"
+  flavorKey: "relic_flavor_700006"
   iconKey: "relic_phagocyte"
   icon: {fileID: 21300000, guid: 1740b1b0e9c579355cbb13a06079eb81, type: 3}

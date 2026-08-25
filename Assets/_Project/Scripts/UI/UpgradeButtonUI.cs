@@ -88,6 +88,13 @@ namespace LastSanctuary.UI
 
         void HandleClick()
         {
+            // ★★ 이 버튼도 <b>허드 액션의 한 칸</b>이다 (2026-08-25 · 유저 지시: *"허드 액션의
+            //   각 버튼을 최초로 눌렀을때 해당 기능에 대한 도움말이 등장"*). 파일만 갈라져
+            //   있을 뿐 <see cref="ActionPanel"/> 의 버튼들과 같은 규칙을 따른다.
+            //   ⚠ 창을 여는 일은 도움말 쪽이 표의 open_panel(<c>UI_Root/HUD_Growth</c>)로 한다.
+            Help.HelpService help = Help.HelpService.Instance;
+            if (help != null && help.InterceptFirstUse(Help.HelpTrigger.ActionUpgrade)) return;
+
             if (_panel == null)
                 _panel = FindAnyObjectByType<CharacterGrowthPanel>(FindObjectsInactive.Include);
 

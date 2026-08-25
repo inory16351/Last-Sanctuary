@@ -29,6 +29,16 @@
 import os
 import sys
 import openpyxl
+
+# ⚠ 이 스크립트만 이 한 줄이 <b>빠져 있었다</b> (2026-08-25 에 겪고 넣었다). 윈도우 콘솔은
+#   기본이 cp949 라, 표에 «−»(U+2212 · 진짜 빼기표) 같은 글자가 있으면 <b>보고를 찍다가</b>
+#   `UnicodeEncodeError` 로 죽는다. 표는 이미 저장된 뒤라 결과물은 멀쩡하지만, 무엇이
+#   추가됐는지 <b>보지 못한 채</b> 실패로 보인다 — 다른 Tools 스크립트는 다 갖고 있는 방어다.
+try:
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+except Exception:
+    pass
+
 from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils import get_column_letter
 
@@ -147,6 +157,56 @@ RULES = [
     # Construction 시트만 본다. Information·Docs·DEF 는 기획 산문이다(위 doc 참조).
     ('Last_Sanctuary_건물데이터시트_Ver05.xlsx', 'Construction', 'Const_id', [
         ('Const_name', 'const_name', 'kr'),
+    ]),
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  ★★★ 유물 · 이벤트 (2026-08-25 신설 — 유저 지시:
+    #      *"이벤트랑 유물 테이블도 스트링 키 테이블 연동"*)
+    # ══════════════════════════════════════════════════════════════════════
+    # 이 둘은 131·134·124절에서 <b>나중에</b> 생긴 표라 이 규칙에 들어오지 못했다.
+    # 그래서 <b>플레이어에게 보이는 글의 절반 이상</b>(유물 이름·설명·서사 · 사건 대사·
+    # 선택지·결과)이 스트링 키 테이블 <b>밖</b>에 있었다 — 51절이 «모든 테이블 문구를 한
+    # 파일로» 라고 세운 방향에서 두 표만 빠져 있던 셈이다.
+    #
+    # ⚠ <b>기획 산문 시트는 넣지 않는다</b> — 유물의 `EffectType.effect_desc`·`Drop.drop_desc`,
+    #   사건의 `Condition.desc`·`RewardType.reward_type_desc` 는 <b>표를 읽는 사람</b>을 위한
+    #   글이지 화면에 나오는 글이 아니다(건물 표의 Information·Docs 를 뺀 것과 같은 기준).
+
+    # ── 유물 ───────────────────────────────────────────────────────────────
+    ('Last_Sanctuary_유물테이블_Ver02.xlsx', 'Relic', 'relic_id', [
+        ('relic_name', 'relic_name', 'kr'),
+        ('relic_desc', 'relic_desc', 'kr'),
+        ('relic_flavor', 'relic_flavor', 'kr'),
+    ]),
+    # 등급 이름(일반·레어·에픽) — ⚠ id 가 <b>정수가 아니라 enum</b>이다(`common`).
+    #   키는 `relic_grade_common` 이 된다. 수집 코드는 id 를 문자열로 다루므로 그대로 된다.
+    ('Last_Sanctuary_유물테이블_Ver02.xlsx', 'Grade', 'grade', [
+        ('grade_name', 'relic_grade', 'kr'),
+    ]),
+    # 발굴 결과 — ⚠ `outcome_desc` 에는 <c>{value_01}</c> 같은 <b>자리표</b>가 들어 있다.
+    #   번역할 때 그 표시를 <b>지우면 안 된다</b>(런타임에 숫자가 들어갈 자리다).
+    ('Last_Sanctuary_유물테이블_Ver02.xlsx', 'DigOutcome', 'outcome_type', [
+        ('outcome_desc', 'dig_outcome_desc', 'kr'),
+        ('outcome_script', 'dig_outcome_script', 'kr'),
+    ]),
+    ('Last_Sanctuary_유물테이블_Ver02.xlsx', 'DigChoice', 'choice_id', [
+        ('choice_text', 'dig_choice_text', 'kr'),
+    ]),
+    ('Last_Sanctuary_유물테이블_Ver02.xlsx', 'Dialogue', 'dialogue_id', [
+        ('script', 'relic_dialogue', 'kr'),
+    ]),
+
+    # ── 사건(이벤트) ───────────────────────────────────────────────────────
+    ('Last_Sanctuary_이벤트테이블_Ver013.xlsx', 'Event', 'event_id', [
+        ('event_name', 'event_name', 'kr'),
+        ('event_script', 'event_script', 'kr'),
+    ]),
+    # ⚠ 선택지의 id 는 `choice_group_id` 가 아니라 <b>`choice_id`</b> 다 — 그룹 하나에
+    #   선택지가 여럿이라 그룹으로 키를 만들면 <b>서로 덮어쓴다</b>.
+    ('Last_Sanctuary_이벤트테이블_Ver013.xlsx', 'ChoiceGroup', 'choice_id', [
+        ('choice_text', 'event_choice_text', 'kr'),
+        ('result_script', 'event_result_script', 'kr'),
+        ('result_effect', 'event_result_effect', 'kr'),
     ]),
 ]
 

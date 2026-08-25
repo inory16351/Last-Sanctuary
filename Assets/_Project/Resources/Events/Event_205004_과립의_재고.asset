@@ -21,12 +21,17 @@ MonoBehaviour:
   choiceGroupId: 600004
   eventBg: "bg_mana"
   eventScript: "마법을 다루는 천사들의 몸속에 과립이 가득 차올랐습니다.\n터뜨리지 않으면 스스로를 상하게 하는 종류의 풍요입니다."
+  nameKey: "event_name_205004"
+  scriptKey: "event_script_205004"
   choices:
   - choiceId: 300007
     choiceOrder: 1
     choiceText: "지금 다 터뜨려라."
     resultScript: "과립이 한꺼번에 터지며 천사들의 손끝에서 빛이 쏟아집니다.\n다만 그 빛은 자기 살을 태우고 나온 것입니다."
     resultEffect: "효과 : 천사 전체 마법 공격력 +12% (120초) · 천사 전체 체력 −8% (최대 체력 기준)"
+    choiceTextKey: "event_choice_text_300007"
+    resultScriptKey: "event_result_script_300007"
+    resultEffectKey: "event_result_effect_300007"
     rewardType01: "char_magic_atk_durat_up"
     rewardValue01: 12
     rewardDuration01: 120
@@ -38,6 +43,9 @@ MonoBehaviour:
     choiceText: "아껴서 담아둔다."
     resultScript: "천사들은 과립을 몸 안쪽 깊이 눌러 담았습니다.\n터지지 않은 힘은 상처를 메우는 데 쓰입니다."
     resultEffect: "효과 : 천사 전체 회복력 +8% (240초) · 천사 전체 보호막 (최대 체력의 6%, 240초)"
+    choiceTextKey: "event_choice_text_300008"
+    resultScriptKey: "event_result_script_300008"
+    resultEffectKey: "event_result_effect_300008"
     rewardType01: "char_heal_durat_up"
     rewardValue01: 8
     rewardDuration01: 240

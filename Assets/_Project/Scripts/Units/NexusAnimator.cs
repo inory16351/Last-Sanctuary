@@ -3,7 +3,7 @@ using UnityEngine;
 namespace LastSanctuary.Units
 {
     /// <summary>
-    /// 넥서스를 <b>심장처럼 뛰게</b> 한다 (2026-08-18, 유저 지시:
+    /// 성역을 <b>심장처럼 뛰게</b> 한다 (2026-08-18, 유저 지시:
     /// <i>"스프라이트 이미지 찾아보고 스킨 만들어서 심장 뛰는 거 처럼 만들어줘 모션 끼워 맞춰서"</i>).
     ///
     /// <b>모션이 세 벌인 이유는 원화가 그렇게 그려져 있기 때문이다</b> — 시트가
@@ -19,7 +19,7 @@ namespace LastSanctuary.Units
     /// 오브젝트 참조를 못 넣기 때문이다(진행상황 8절 4번) — 이 프로젝트의
     /// <c>CharacterAnimator</c> 가 쓰는 방식과 같다.
     ///
-    /// ⚠ <b>크기는 여기서 정한다</b>(<see cref="renderSizeTiles"/>). 넥서스는 표가 없는
+    /// ⚠ <b>크기는 여기서 정한다</b>(<see cref="renderSizeTiles"/>). 성역은 표가 없는
     /// 유일한 유닛이라(정의 에셋에 콜라이더 칸이 없다) 몬스터처럼 표에서 받을 수 없다.
     /// 발판(<c>NexusDefinitionSO.footprintTiles</c>)과 <b>따로</b>인 것은 의도다 —
     /// 발판은 이동 판정이고 이 값은 보이는 크기다.
@@ -73,7 +73,7 @@ namespace LastSanctuary.Units
             _skin = Resources.Load<NexusSkinSO>(skinResourcePath);
             if (_skin == null || !_skin.IsUsable)
             {
-                Debug.LogWarning($"[넥서스] 스킨 'Resources/{skinResourcePath}' 을 찾지 못했습니다 — " +
+                Debug.LogWarning($"[성역] 스킨 'Resources/{skinResourcePath}' 을 찾지 못했습니다 — " +
                                  "Tools/gen_nexus_skin.py 를 돌려주세요. 기존 스프라이트를 그대로 둡니다.",
                                  this);
                 _skin = null;
@@ -82,7 +82,7 @@ namespace LastSanctuary.Units
             }
 
             if (logSkinChoice)
-                Debug.Log($"[넥서스] 스킨 {_skin.name} · 대기 {_skin.IdleFor(1f).Length}프레임", this);
+                Debug.Log($"[성역] 스킨 {_skin.name} · 대기 {_skin.IdleFor(1f).Length}프레임", this);
         }
 
         void OnEnable()

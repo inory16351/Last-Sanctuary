@@ -69,12 +69,12 @@ namespace LastSanctuary.MapEditorTools
         ///
         /// ★★ <b>봐야 할 것은 마지막 줄 하나뿐이다</b> — <c>못 가는 칸</c>.
         ///
-        /// ⚠ 처음에는 「넥서스에서 도달 : A → B」의 <b>차이</b>를 「고립되는 칸」이라고 찍었는데,
+        /// ⚠ 처음에는 「성역에서 도달 : A → B」의 <b>차이</b>를 「고립되는 칸」이라고 찍었는데,
         ///   그 차이의 대부분은 <b>치마 칸 자신</b>이다(원래 못 가게 만든 칸이므로 줄어드는 것이
         ///   정상이다). 그 숫자를 보고 "3,400칸이 끊겼다" 로 읽으면 멀쩡한 맵을 계속 다시 만들게
         ///   된다 — 2026-08-18 에 실제로 그렇게 읽을 뻔했다.
         ///
-        /// <b>진짜 판정은 「통행 가능(치마 적용) == 넥서스에서 도달(치마 적용)」</b> 이다.
+        /// <b>진짜 판정은 「통행 가능(치마 적용) == 성역에서 도달(치마 적용)」</b> 이다.
         /// 둘이 같으면 <b>갈 수 있는 칸이 하나도 안 끊겼다</b>는 뜻이다.
         /// </summary>
         [MenuItem("LastSanctuary/맵/벽 앞면 이동불가 영향 점검 (변경 없음)", priority = 202)]
@@ -112,7 +112,7 @@ namespace LastSanctuary.MapEditorTools
                 if (!isWall[i] && !Skirt(i)) after++;
             }
 
-            // 넥서스에서 4방향 BFS — 규칙 적용 전/후로 각각 센다.
+            // 성역에서 4방향 BFS — 규칙 적용 전/후로 각각 센다.
             int start = (w / 2) + (h / 2) * w;
             int reachBefore = Flood(isWall, w, h, start, false);
             int reachAfter  = Flood(isWall, w, h, start, true);
@@ -123,7 +123,7 @@ namespace LastSanctuary.MapEditorTools
             Debug.Log($"[맵 점검] {w}x{h} · 벽 {walls}칸\n" +
                       $"  통행 가능 : {before} → {after} " +
                       $"(줄어든 {before - after}칸이 벽 앞면이다 — 정상)\n" +
-                      $"  넥서스에서 도달 : {reachBefore} → {reachAfter}\n" +
+                      $"  성역에서 도달 : {reachBefore} → {reachAfter}\n" +
                       $"  ★ 못 가는 칸 : {stranded}  " +
                       (stranded == 0
                           ? "→ 갈 수 있는 칸이 하나도 안 끊겼다. 다시 생성할 필요 없다."
@@ -131,7 +131,7 @@ namespace LastSanctuary.MapEditorTools
                       generator);
         }
 
-        /// <summary>넥서스에서 4방향으로 퍼진 칸 수. <paramref name="useSkirt"/> 면 벽 앞면도 막힌 것으로 본다.</summary>
+        /// <summary>성역에서 4방향으로 퍼진 칸 수. <paramref name="useSkirt"/> 면 벽 앞면도 막힌 것으로 본다.</summary>
         static int Flood(bool[] isWall, int w, int h, int start, bool useSkirt)
         {
             bool Blocked(int i) => isWall[i] || (useSkirt && i / w + 1 < h && isWall[i + w]);

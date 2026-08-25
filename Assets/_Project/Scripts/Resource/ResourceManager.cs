@@ -10,7 +10,7 @@ namespace LastSanctuary.Resource
     /// 씬의 루트 오브젝트 하나(<c>WaveManager</c>와 같은 자리)에 부착한다.
     ///
     /// 일반 몬스터를 처치하면 자동으로 에너지를 얻는다 — <see cref="DamageableUnit.OnAnyDied"/>
-    /// 정적 이벤트를 구독해서 잡는다(WaveManager가 넥서스 파괴를 잡는 방식과 동일).
+    /// 정적 이벤트를 구독해서 잡는다(WaveManager가 성역 파괴를 잡는 방식과 동일).
     /// 중간보스/메인보스 처치 보상은 아직 정해지지 않아 지금은 대상에서 뺐다.
     /// </summary>
     public class ResourceManager : MonoBehaviour

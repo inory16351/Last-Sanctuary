@@ -20,13 +20,18 @@ MonoBehaviour:
   repeatable: 1
   choiceGroupId: 600018
   eventBg: "bg_nexus"
-  eventScript: "성역의 중심에서 고르지 못한 박동이 들립니다.\n넥서스가 이번 파도에 얼마나 상했는지를 스스로 알리고 있는 것입니다."
+  eventScript: "성역의 중심에서 고르지 못한 박동이 들립니다.\n성역이 이번 파도에 얼마나 상했는지를 스스로 알리고 있는 것입니다."
+  nameKey: "event_name_205018"
+  scriptKey: "event_script_205018"
   choices:
   - choiceId: 300035
     choiceOrder: 1
     choiceText: "심장부터 돌봐라."
     resultScript: "양분이 성역의 중심으로 흘러 들어갔습니다.\n박동이 다시 고르게 잡혔습니다."
     resultEffect: "효과 : 성역 체력 +15% · 에너지 −150"
+    choiceTextKey: "event_choice_text_300035"
+    resultScriptKey: "event_result_script_300035"
+    resultEffectKey: "event_result_effect_300035"
     rewardType01: "nexus_percent_heal"
     rewardValue01: 15
     rewardDuration01: 0
@@ -38,6 +43,9 @@ MonoBehaviour:
     choiceText: "심장은 버틴다. 손발을 먹여라."
     resultScript: "박동은 여전히 거칠지만 천사들의 상처는 메워졌습니다.\n심장보다 손발을 먼저 살리기로 한 결정입니다."
     resultEffect: "효과 : 천사 전체 체력 회복 (최대 체력의 12%)  ·  유물 「붉은 실」 획득 (일반)"
+    choiceTextKey: "event_choice_text_300036"
+    resultScriptKey: "event_result_script_300036"
+    resultEffectKey: "event_result_effect_300036"
     rewardType01: "char_hp_percent_heal"
     rewardValue01: 12
     rewardDuration01: 0

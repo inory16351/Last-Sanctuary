@@ -136,8 +136,8 @@ namespace LastSanctuary.UI
                 // ★ 2026-08-20 — <b>「상세 설명」이 있으면 그것을 보여준다</b>
                 //   (유저 지시: *"밸류 타입보단 덜 상세하게"*). 규칙은 SO 안에 있다 —
                 //   <see cref="PassiveSkillSO.EffectDisplayText"/> 의 긴 주석 참조.
-                //   수치는 아래 <see cref="BuildValuesLine"/> 가 따로 보여주므로
-                //   문장에서 숫자를 뺀다고 정보가 사라지지 않는다.
+                //   ★ 2026-08-25 — <b>그 문장이 이제 수치를 품는다</b>. 자리표를 채우는
+                //     일은 SO 가 하므로(`DetailText`) 이 줄은 그대로 두면 된다.
                 string effect = skill.EffectDisplayText();
                 _effectText.text = string.IsNullOrWhiteSpace(effect) ? noEffectText : effect;
             }
@@ -146,34 +146,25 @@ namespace LastSanctuary.UI
         }
 
         /// <summary>
-        /// 정의문에 실제로 쓰인 수치만 나열한다. 0 이고 정의문에도 안 나오는 값은 의미가 없으므로 뺀다 —
-        /// 안 그러면 대부분의 스킬이 "value_02 0 · value_03 0" 을 달고 나온다.
+        /// ★★★ <b>재사용 대기시간만</b> 남긴다 (2026-08-25 · 유저 지시: *"스킬 설명도 자세한
+        /// 수치가 상세 설명에 들어가는 방식으로 … 지금 수치가 아래에 따로 빠져있어서
+        /// <b>각 수치가 멀 의미하는건지 모를 가능성이 높음</b>. 메이플 스킬 설명 참고"*).
+        ///
+        /// <b>예전에 여기서 무엇을 했나</b> — <c>① 30   ② 5   ③ 12   쿨타임 8초</c> 처럼
+        /// 수치를 <b>번호만 붙여</b> 늘어놓았다. 정보는 다 있었지만 <b>이름이 없었다</b> —
+        /// «30이 무엇의 30인가» 를 알려면 표를 봐야 한다. 유저가 지적한 것이 정확히 이것이다.
+        ///
+        /// ★ 이제 수치는 <b>문장 안</b>으로 들어갔다(<see cref="PassiveSkillSO.DetailText"/> 가
+        ///   자리표를 채운다). 숫자마다 바로 옆에 «무엇의» 가 붙으므로 이 줄은 할 일이 없다.
+        /// ★ <b>쿨타임만 남긴 이유</b> — 그것은 문장이 설명하는 «효과» 가 아니라 <b>사용 조건</b>이라
+        ///   본문에 섞으면 오히려 읽기 나쁘다. 메이플도 「재사용 대기시간」을 <b>따로</b> 적는다.
+        /// ⚠ 쿨타임이 0 인 상시 발동 스킬은 <b>빈 줄</b>이다 — «쿨타임 0초» 는 «곧바로 다시
+        ///   쓸 수 있다» 로 잘못 읽힌다(그런 스킬은 아예 발동하는 것이 아니다).
         /// </summary>
         string BuildValuesLine(PassiveSkillSO skill)
         {
-            string template = skill.effectTemplate ?? "";
-            var parts = new System.Collections.Generic.List<string>(4);
-
-            void Add(string token, string label, float v)
-            {
-                if (template.Contains(token) || v != 0f) parts.Add($"{label} {Num(v)}");
-            }
-
-            // ★★ 2026-08-20 — <b>여섯 개까지 본다.</b>
-            //   예전에는 ①②③ 만 봤다. 그때는 문장(정의문)이 수치를 전부 품고 있었으므로
-            //   이 줄이 빠뜨려도 정보가 사라지지 않았다. 그런데 이제 효과 칸에
-            //   <b>수치 없는 「상세 설명」</b>이 나가므로 <b>이 줄이 수치의 유일한 통로</b>다 —
-            //   ④⑤⑥ 을 빠뜨리면 카이론 「천벌」의 데미지·방어력 감소가 <b>어디에도 안 뜬다</b>.
-            Add("{value_01}", "①", skill.value01);
-            Add("{value_02}", "②", skill.value02);
-            Add("{value_03}", "③", skill.value03);
-            Add("{value_04}", "④", skill.value04);
-            Add("{value_05}", "⑤", skill.value05);
-            Add("{value_06}", "⑥", skill.value06);
-            if (skill.coolTime > 0f) parts.Add($"쿨타임 {Num(skill.coolTime)}초");
-
-            if (parts.Count == 0) return "";
-            return string.Format(valuesFormat, string.Join("   ", parts));
+            if (skill.coolTime <= 0f) return "";
+            return string.Format(valuesFormat, $"재사용 대기시간 {Num(skill.coolTime)}초");
         }
 
         static string Num(float v) =>

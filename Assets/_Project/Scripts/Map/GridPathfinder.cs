@@ -7,7 +7,7 @@ namespace LastSanctuary.Map
     /// 타일 그리드 위의 A* 길찾기. <see cref="MapGenerator"/> 와 같은 오브젝트에
     /// 붙는다(<see cref="FlowFieldService"/> 와 동일한 배치).
     ///
-    /// 왜 필요한가: 몬스터의 넥서스 진군은 <see cref="FlowFieldService"/> 가 목표
+    /// 왜 필요한가: 몬스터의 성역 진군은 <see cref="FlowFieldService"/> 가 목표
     /// 하나를 향한 방향장을 미리 깔아 해결하지만, 캐릭터는 유닛마다 목적지가 다르므로
     /// 공용 방향장을 쓸 수 없다. 그동안 캐릭터 이동은 "직선으로 가다 막히면 축을
     /// 미끄러뜨리는" 국소 회피였는데, 이 방식은 벽이 조금만 크거나 오목하면

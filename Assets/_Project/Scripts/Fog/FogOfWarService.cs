@@ -365,7 +365,7 @@ namespace LastSanctuary.Fog
         /// <paramref name="isReachable"/> 을 주면 그 판정을 통과한 칸만 후보가 된다.
         /// 벽으로 완전히 둘러싸인 주머니는 <see cref="Map.MapGenerator.IsCellBlocked"/> 만으로는
         /// 걸러지지 않는다(그 칸 자체는 안 막혀 있다) — 그런 칸을 목표로 잡으면 캐릭터가
-        /// 벽에 붙어 <c>scoutTimeout</c>(15초)이 지날 때까지 멈춰 선다. 호출부는 넥서스에서
+        /// 벽에 붙어 <c>scoutTimeout</c>(15초)이 지날 때까지 멈춰 선다. 호출부는 성역에서
         /// 만든 플로우 필드(<c>Map.FlowFieldService.IsCellReachable</c>)를 넘긴다.
         /// </summary>
         public bool TryFindUnexploredTarget(Vector3 fromWorld, float minRadiusTiles,

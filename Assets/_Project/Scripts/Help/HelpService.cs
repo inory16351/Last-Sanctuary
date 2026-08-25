@@ -275,7 +275,7 @@ namespace LastSanctuary.Help
         /// <see cref="WaveManager.Start"/> 가 곧바로 <c>StartGame()</c> → <c>BeginPreparation()</c>
         /// 을 부르므로 <b>첫 정비 단계 이벤트는 «Start 단계»에서 이미 터진다</b>.
         /// 이 서비스는 <see cref="Update"/> 에서 구독하니 <b>그 한 번을 영영 놓친다</b> —
-        /// 즉 가장 먼저 떠야 하는 두 장(「성역과 넥서스」·「웨이브와 정비 시간」)이
+        /// 즉 가장 먼저 떠야 하는 두 장(「성역과 성역」·「웨이브와 정비 시간」)이
         /// <b>아무 소리 없이 안 뜬다</b>. 이벤트를 «듣는» 방식의 유일한 약점이 이것이다.
         ///
         /// ★ 그래서 붙는 즉시 <b>지금 단계를 한 번 평가</b>한다. 계기는 «처음 한 번» 이므로
@@ -374,8 +374,8 @@ namespace LastSanctuary.Help
 
         /// <summary>
         /// ★ 아군이 쓰러졌나 / 중립을 잡았나 — <b>한 이벤트로 둘</b>을 가른다.
-        /// ⚠ 넥서스·포탑도 <c>Angel</c> 이라 <b>캐릭터인지</b> 봐야 한다
-        ///   (넥서스가 부서지면 그 판은 끝이고, 「쓰러진 캐릭터」 조언은 그때 쓸 데가 없다).
+        /// ⚠ 성역·포탑도 <c>Angel</c> 이라 <b>캐릭터인지</b> 봐야 한다
+        ///   (성역이 부서지면 그 판은 끝이고, 「쓰러진 캐릭터」 조언은 그때 쓸 데가 없다).
         /// </summary>
         void OnAnyDied(DamageableUnit unit)
         {
@@ -404,7 +404,7 @@ namespace LastSanctuary.Help
             foreach (HelpTrigger t in new[]
             {
                 HelpTrigger.BossWaveSpawned, HelpTrigger.RelicDigMarkAppeared,
-                HelpTrigger.ErosionReached, HelpTrigger.BuildModeEntered,
+                HelpTrigger.ErosionReached,
                 HelpTrigger.AutoSaved, HelpTrigger.GameSpeedChanged,
             })
             {
@@ -433,8 +433,6 @@ namespace LastSanctuary.Help
             HelpTrigger.RelicDigMarkAppeared => RelicDigService.Instance != null &&
                                                 RelicDigService.Instance.RevealedCount > 0,
             HelpTrigger.ErosionReached => ErosionAtLeast(ArgOf(t, 50)),
-            HelpTrigger.BuildModeEntered => Buildings.BuildService.Instance != null &&
-                                            Buildings.BuildService.Instance.IsPicking,
             HelpTrigger.AutoSaved => SaveChanged(),
             HelpTrigger.GameSpeedChanged => SpeedTouched(),
             _ => false,
@@ -554,6 +552,142 @@ namespace LastSanctuary.Help
 
             _showAt = Time.unscaledTime + showDelaySeconds;
             if (logTriggers) Debug.Log($"[도움말] {trigger} — {added}개 대기줄에 넣었습니다", this);
+        }
+
+        // ==================================================================
+        // ★★★ 허드 액션 버튼의 «첫 클릭» 을 가로챈다 (2026-08-25 신설)
+        // ==================================================================
+
+        /// <summary>지금 가로챈 항목. 카드나 안내가 끝나면 <see cref="CompletePending"/> 가 마무리한다.</summary>
+        HelpEntry _pending;
+
+        /// <summary>가로챈 버튼이 <b>원래 하려던 일</b>. 창을 여는 항목에는 없다(아래 doc).</summary>
+        System.Action _pendingAction;
+
+        /// <summary>
+        /// ★★★ <b>버튼을 누른 «그 순간» 을 가로채 도움말을 먼저 보여준다</b>
+        /// (2026-08-25 · 유저 지시: *"허드 액션의 각 버튼을 <b>최초로 눌렀을때</b> 해당 기능에
+        /// 대한 도움말이 등장하는 것으로 진행"* · *"자세히 보기를 눌렀을 때 <b>실제 해당 ui가
+        /// 켜지고</b> 각 기능에 대한 설명 시작"*).
+        ///
+        /// <b>왜 <see cref="Fire"/> 로는 안 되는가</b> — <see cref="PumpQueue"/> 에는
+        /// «다른 창이 열려 있으면 기다린다»(<see cref="HudExclusive.AnyOpen"/>) 가 있다.
+        /// 버튼은 <b>창을 연다</b>. 그래서 그냥 <c>Fire</c> 하면 카드가 대기줄에 들어간 채
+        /// <b>창이 닫힐 때까지 안 뜬다</b> — 정작 설명이 필요한 순간을 지나쳐 버린다.
+        ///
+        /// <code>
+        ///   버튼 클릭 ──▶ 아직 안 읽었다 ──▶ 창을 <b>열지 않고</b> 카드를 띄운다
+        ///                                     ├ 「알겠습니다」 ──▶ 원래 하려던 일을 한다
+        ///                                     └ 「자세히 보기」 ──▶ 안내가 <b>그 창을 열고</b> 짚는다
+        ///                                                          끝나면 <b>열린 채로</b> 남는다
+        ///        이미 읽었다 ──▶ false — 부르는 쪽이 <b>평소대로</b> 한다
+        /// </code>
+        ///
+        /// ★ <b>두 길의 끝이 같다</b> — 어느 쪽으로 가도 유저가 누른 버튼의 일이 이루어진다.
+        ///   «도움말을 봤더니 버튼이 안 먹었다» 가 되면 튜토리얼이 방해물이 된다.
+        /// ⚠ <b>창을 여는 항목에는 <paramref name="continueAction"/> 이 필요 없다</b> —
+        ///   표의 <c>open_panel</c> 이 이미 어느 창인지 알고 있고,
+        ///   <see cref="CompletePending"/> 가 그것으로 연다. 넘겨도 무시하지 않고 «둘 다»
+        ///   하면 창이 두 번 토글돼 <b>도로 닫힌다</b>.
+        /// </summary>
+        /// <param name="trigger">이 버튼에 걸린 <see cref="HelpTrigger"/> (<c>Action…</c>).</param>
+        /// <param name="continueAction">
+        ///   창을 열지 <b>않는</b> 항목(캐릭터 생성)이 원래 하려던 일. 창을 여는 항목은 <c>null</c>.
+        /// </param>
+        /// <returns><c>true</c> = 내가 가로챘다. 부르는 쪽은 <b>그대로 돌아가야 한다</b>.</returns>
+        public bool InterceptFirstUse(HelpTrigger trigger, System.Action continueAction = null)
+        {
+            if (!enableAdviceCards || _table == null || trigger == HelpTrigger.None) return false;
+
+            // ⚠ 이미 카드나 안내가 떠 있으면 가로채지 않는다 — 겹쳐 띄우면 앞엣것이 묻힌다.
+            HelpCardPanel card = HelpCardPanel.Instance;
+            if (card == null || card.IsOpen) return false;
+            if (HelpTourPanel.Instance != null && HelpTourPanel.Instance.IsOpen) return false;
+
+            // 판이 끝난 뒤(패배·승리 화면)에는 튜토리얼이 끼어들지 않는다.
+            if (_wave != null && _wave.IsFinished) return false;
+
+            _table.CollectByTrigger(trigger, _scratch);
+            HelpEntry entry = null;
+            for (int i = 0; i < _scratch.Count; i++)
+                if (!IsSeen(_scratch[i])) { entry = _scratch[i]; break; }
+
+            if (entry == null) return false;   // 이미 읽었다 — 평소대로 동작한다
+
+            // ⚠ 대기줄에 같은 것이 들어 있으면 빼낸다 — 안 그러면 카드를 닫는 순간 <b>또</b> 뜬다.
+            _queue.Remove(entry);
+
+            MarkSeen(entry);
+            _pending = entry;
+            _pendingAction = continueAction;
+
+            if (logTriggers)
+                Debug.Log($"[도움말] {trigger} — 버튼을 <b>가로채</b> 「{entry.helpId}」 를 띄웁니다", this);
+
+            card.Show(entry);
+            return true;
+        }
+
+        /// <summary>
+        /// 가로챈 도움말이 끝났다 — <b>버튼이 원래 하려던 일을 이제 한다</b>.
+        /// 카드의 「알겠습니다」와 안내의 마지막 단계가 <b>둘 다</b> 부른다.
+        ///
+        /// ⚠ <b>먼저 비우고 나서 실행한다</b> — 여는 창이 또 도움말을 부르면(그럴 일은 없지만)
+        ///   무한히 되돌아온다.
+        /// ★ 안내를 거쳐 왔으면 그 창은 <b>이미 열려 있다</b>. 그래도 다시 여는 것이 맞다 —
+        ///   안내가 <b>자기가 연 창은 자기가 닫고</b> 나가기 때문이다(145-6 절의 소유권 규칙).
+        ///   같은 프레임 안에서 닫혔다 열리므로 화면에는 <b>끊김이 보이지 않는다</b>.
+        /// </summary>
+        public void CompletePending()
+        {
+            HelpEntry entry = _pending;
+            System.Action action = _pendingAction;
+            if (entry == null && action == null) return;
+
+            _pending = null;
+            _pendingAction = null;
+
+            if (entry != null && !string.IsNullOrWhiteSpace(entry.openPanelPath))
+            {
+                Transform w = ResolvePath(entry.openPanelPath);
+                if (w != null && HudExclusive.TryOpen(w, true)) return;
+
+                Debug.LogWarning($"[도움말] {entry.helpId} 의 창을 열지 못했습니다: " +
+                                 $"{entry.openPanelPath} — 표의 open_panel 을 확인하세요.", this);
+                return;
+            }
+
+            action?.Invoke();
+        }
+
+        /// <summary>가로챈 것이 있으면 <b>버린다</b> — 창을 열지도, 원래 일을 하지도 않는다.</summary>
+        public void CancelPending()
+        {
+            _pending = null;
+            _pendingAction = null;
+        }
+
+        /// <summary><c>UI_Root/HUD_Xxx</c> 꼴의 씬 경로를 찾는다. 못 찾으면 null.</summary>
+        static Transform ResolvePath(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path)) return null;
+
+            string[] parts = path.Split('/');
+            GameObject root = GameObject.Find(parts[0]);
+            if (root == null) return null;
+
+            Transform t = root.transform;
+            for (int i = 1; i < parts.Length && t != null; i++)
+                t = FindChildIncludingInactive(t, parts[i]);
+            return t;
+        }
+
+        /// <summary>⚠ <c>Transform.Find</c> 는 <b>비활성 자식도</b> 찾지만 이름이 정확해야 한다.</summary>
+        static Transform FindChildIncludingInactive(Transform parent, string name)
+        {
+            for (int i = 0; i < parent.childCount; i++)
+                if (parent.GetChild(i).name == name) return parent.GetChild(i);
+            return null;
         }
 
         /// <summary>

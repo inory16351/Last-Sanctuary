@@ -21,12 +21,17 @@ MonoBehaviour:
   choiceGroupId: 600030
   eventBg: "bg_mind"
   eventScript: "천사 하나가 무릎을 꺾었습니다.\n집으로 돌아갈 수 없다는 사실을 오늘 처음 이해한 얼굴입니다."
+  nameKey: "event_name_206002"
+  scriptKey: "event_script_206002"
   choices:
   - choiceId: 300059
     choiceOrder: 1
     choiceText: "어깨를 붙들어준다."
     resultScript: "누군가 그의 어깨를 잡고 한참을 서 있었습니다.\n무너지던 안쪽이 그 손자리에서 멈췄습니다."
     resultEffect: "효과 : 천사 1명 침식 −40  ·  유물 「돌아갈 곳의 기억」 획득 (에픽)"
+    choiceTextKey: "event_choice_text_300059"
+    resultScriptKey: "event_result_script_300059"
+    resultEffectKey: "event_result_effect_300059"
     rewardType01: "char_erosion_down"
     rewardValue01: 40
     rewardDuration01: 0
@@ -38,6 +43,9 @@ MonoBehaviour:
     choiceText: "대열에서 빼낸다."
     resultScript: "그는 뒤로 옮겨졌고, 헝클어진 정신이 풀렸습니다.\n한 자리가 빈 대열은 그만큼 더 불안합니다."
     resultEffect: "효과 : 천사 1명의 정신 이상 해제 · 천사 전체 침식 +5"
+    choiceTextKey: "event_choice_text_300060"
+    resultScriptKey: "event_result_script_300060"
+    resultEffectKey: "event_result_effect_300060"
     rewardType01: "char_mental_cure"
     rewardValue01: 1
     rewardDuration01: 0

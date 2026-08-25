@@ -21,7 +21,7 @@ namespace LastSanctuary.UI
     /// (유저 지시: <i>"캐릭터 뿐만 아니라 몬스터 들도 클릭 가능하게 만들고"</i>).
     /// 선택 대상이 <b>두 갈래</b>가 된 것이 이 클래스의 핵심 변화다:
     /// <code>
-    ///   SelectedUnit  (DamageableUnit)  클릭한 것 <b>전부</b> — 몬스터·중립·넥서스·포탑 포함
+    ///   SelectedUnit  (DamageableUnit)  클릭한 것 <b>전부</b> — 몬스터·중립·성역·포탑 포함
     ///   Selected      (CharacterUnit)   그중 <b>캐릭터일 때만</b> 채워진다
     /// </code>
     /// <b>왜 갈랐나</b> — 기존 UI(강화창·전술 지침창·로스터)는 전부 "선택 = 조작할 캐릭터"
@@ -45,7 +45,7 @@ namespace LastSanctuary.UI
         [Tooltip("빈 땅을 클릭하면 선택을 해제한다")]
         [SerializeField] bool clearOnEmptyClick = true;
 
-        [Tooltip("★ 캐릭터가 아닌 유닛(몬스터·중립·넥서스·포탑)도 클릭으로 고를 수 있게 한다.\n" +
+        [Tooltip("★ 캐릭터가 아닌 유닛(몬스터·중립·성역·포탑)도 클릭으로 고를 수 있게 한다.\n" +
                  "끄면 2026-08-15 이전처럼 캐릭터만 잡힌다.\n" +
                  "⚠ 켜져 있어도 <b>조작 대상</b>(Selected)은 여전히 캐릭터뿐이다 — " +
                  "몬스터는 초상화 같은 <b>보여주기 전용</b>으로만 쓰인다")]
@@ -75,7 +75,7 @@ namespace LastSanctuary.UI
         UnitTintFx _selectedTintFx;
 
         /// <summary>
-        /// <see cref="UnitTintFx"/> 가 없는 유닛(몬스터·넥서스·포탑)용 예전 경로.
+        /// <see cref="UnitTintFx"/> 가 없는 유닛(몬스터·성역·포탑)용 예전 경로.
         /// 그쪽은 색을 칠하는 주체가 여기 하나뿐이라 기억-복구로 충분하다.
         /// </summary>
         SpriteRenderer _selectedRenderer;
@@ -93,7 +93,7 @@ namespace LastSanctuary.UI
         public CharacterUnit Selected => _selected;
 
         /// <summary>
-        /// 지금 선택된 <b>유닛 전반</b> — 몬스터·중립·넥서스·포탑도 들어온다. 없으면 null.
+        /// 지금 선택된 <b>유닛 전반</b> — 몬스터·중립·성역·포탑도 들어온다. 없으면 null.
         /// 초상화(<see cref="UnitPortraitPanel"/>) 처럼 <b>보여주기만</b> 하는 UI 가 쓴다.
         /// </summary>
         public DamageableUnit SelectedUnit => _selectedUnit;
@@ -227,7 +227,7 @@ namespace LastSanctuary.UI
         /// <summary>
         /// 안개에 가려져 있지 않은가. <see cref="respectFogOfWar"/> 가 꺼져 있으면 항상 true.
         ///
-        /// 아군(캐릭터·넥서스·포탑)은 이 검사를 아예 거치지 않는다 — 위치를 원래 알고 있다
+        /// 아군(캐릭터·성역·포탑)은 이 검사를 아예 거치지 않는다 — 위치를 원래 알고 있다
         /// (미니맵이 아군만 안개와 무관하게 그리는 것과 같은 규칙, UI-1 절).
         /// </summary>
         bool IsVisible(DamageableUnit unit)

@@ -38,7 +38,7 @@ namespace LastSanctuary.UI
         [SerializeField] bool logEnergy = true;
         [SerializeField] bool logUpgrades = true;
 
-        [Tooltip("아군(캐릭터·넥서스) 사망은 처치 로그와 별개로 항상 남긴다")]
+        [Tooltip("아군(캐릭터·성역) 사망은 처치 로그와 별개로 항상 남긴다")]
         [SerializeField] bool logAllyDeaths = true;
 
         readonly List<TMP_Text> _lines = new List<TMP_Text>();
@@ -101,7 +101,7 @@ namespace LastSanctuary.UI
             if (unit.Faction == Faction.Angel)
             {
                 if (!logAllyDeaths) return;
-                Append(unit.Kind == UnitKind.Nexus ? "넥서스 파괴" : $"{NameOf(unit)} 사망",
+                Append(unit.Kind == UnitKind.Nexus ? "성역 파괴" : $"{NameOf(unit)} 사망",
                        HudLogKind.Danger);
                 return;
             }

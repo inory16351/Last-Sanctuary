@@ -21,12 +21,17 @@ MonoBehaviour:
   choiceGroupId: 600009
   eventBg: "bg_formation"
   eventScript: "전위의 천사들이 너무 많이 상했습니다.\n뒤에 선 손이 앞으로 나와야 할지, 앞이 조금 더 버텨야 할지 정할 시간입니다."
+  nameKey: "event_name_205009"
+  scriptKey: "event_script_205009"
   choices:
   - choiceId: 300017
     choiceOrder: 1
     choiceText: "앞을 더 두껍게 세워라."
     resultScript: "방패를 든 천사들이 어깨를 붙이고 벽이 됐습니다.\n두꺼워진 벽은 그만큼 느리게 움직입니다."
     resultEffect: "효과 : 천사 전체 방어력 +10% (240초) · 천사 전체 이동 속도 −6% (240초)"
+    choiceTextKey: "event_choice_text_300017"
+    resultScriptKey: "event_result_script_300017"
+    resultEffectKey: "event_result_effect_300017"
     rewardType01: "char_def_durat_up"
     rewardValue01: 10
     rewardDuration01: 240
@@ -38,6 +43,9 @@ MonoBehaviour:
     choiceText: "뒤에서 더 멀리 쏜다."
     resultScript: "천사들은 사거리를 벌려 적을 먼 데서 끊기로 했습니다.\n대신 앞줄은 그만큼 얇아졌습니다."
     resultEffect: "효과 : 천사 전체 공격 사거리 +10% (240초) · 천사 전체 방어력 −6% (240초)"
+    choiceTextKey: "event_choice_text_300018"
+    resultScriptKey: "event_result_script_300018"
+    resultEffectKey: "event_result_effect_300018"
     rewardType01: "char_range_durat_up"
     rewardValue01: 10
     rewardDuration01: 240

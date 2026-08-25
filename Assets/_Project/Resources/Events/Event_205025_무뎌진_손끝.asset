@@ -21,12 +21,17 @@ MonoBehaviour:
   choiceGroupId: 600025
   eventBg: "bg_wound"
   eventScript: "오래 같은 자리를 벤 손끝이 무뎌졌습니다.\n몸은 아직 움직이는데, 정확히 어디를 찔러야 하는지를 조금씩 잊어가고 있습니다."
+  nameKey: "event_name_205025"
+  scriptKey: "event_script_205025"
   choices:
   - choiceId: 300049
     choiceOrder: 1
     choiceText: "손을 다시 가르친다."
     resultScript: "곳간을 털어 훈련의 시간을 샀습니다.\n다시 배운 손은 예전 자리를 정확히 찾아냅니다."
     resultEffect: "효과 : 에너지 −200 · 천사 전체 명중률 +8% (240초)"
+    choiceTextKey: "event_choice_text_300049"
+    resultScriptKey: "event_result_script_300049"
+    resultEffectKey: "event_result_effect_300049"
     rewardType01: "energy_loss"
     rewardValue01: 200
     rewardDuration01: 0
@@ -38,6 +43,9 @@ MonoBehaviour:
     choiceText: "무딘 대로 밀어붙인다."
     resultScript: "천사들은 급소를 찾는 일을 포기하고 힘으로 밀었습니다.\n무딘 칼은 찌르지 못하는 대신 부숩니다."
     resultEffect: "효과 : 천사 전체 크리티컬 확률 −8% (240초) · 천사 전체 근거리 공격력 +9% (240초)"
+    choiceTextKey: "event_choice_text_300050"
+    resultScriptKey: "event_result_script_300050"
+    resultEffectKey: "event_result_effect_300050"
     rewardType01: "char_critical_durat_down"
     rewardValue01: 8
     rewardDuration01: 240

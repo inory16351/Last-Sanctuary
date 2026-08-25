@@ -21,12 +21,17 @@ MonoBehaviour:
   choiceGroupId: 600020
   eventBg: "bg_nexus"
   eventScript: "이유를 알 수 없이 성역이 천사들을 감쌉니다.\n이런 종류의 호의는 대개 값이 뒤에 붙습니다."
+  nameKey: "event_name_205020"
+  scriptKey: "event_script_205020"
   choices:
   - choiceId: 300039
     choiceOrder: 1
     choiceText: "받는다."
     resultScript: "천사들의 몸에 얇은 막이 씌워졌습니다.\n지금 이 온기가 무엇으로 만들어졌는지는 묻지 않기로 했습니다."
     resultEffect: "효과 : 천사 전체 보호막 (최대 체력의 12%, 240초) · 천사 전체 받는 회복량 +15% (240초)"
+    choiceTextKey: "event_choice_text_300039"
+    resultScriptKey: "event_result_script_300039"
+    resultEffectKey: "event_result_effect_300039"
     rewardType01: "char_shield_gain"
     rewardValue01: 12
     rewardDuration01: 240
@@ -38,6 +43,9 @@ MonoBehaviour:
     choiceText: "사양한다."
     resultScript: "천사들은 뻗어온 손을 정중히 물렸습니다.\n받지 않은 것에는 값도 붙지 않습니다."
     resultEffect: "효과 : 천사 전체 침식 −12  ·  유물 「값이 붙지 않은 은혜」 획득 (에픽)"
+    choiceTextKey: "event_choice_text_300040"
+    resultScriptKey: "event_result_script_300040"
+    resultEffectKey: "event_result_effect_300040"
     rewardType01: "char_all_erosion_down"
     rewardValue01: 12
     rewardDuration01: 0

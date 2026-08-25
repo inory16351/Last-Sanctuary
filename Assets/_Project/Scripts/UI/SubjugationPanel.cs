@@ -25,7 +25,7 @@ namespace LastSanctuary.UI
     /// 그 서비스를 부를 뿐이다. 이동·교전은 <c>CharacterBehavior.TickSubjugation</c> 이 한다 —
     /// 세 층이 각각 <b>기억 / 표시 / 행동</b> 하나씩만 맡는다.
     ///
-    /// ⚠ 목록이 비어 있는 것은 <b>정상</b>이다 — 에픽은 맵 바깥 고리(넥서스에서 반지름
+    /// ⚠ 목록이 비어 있는 것은 <b>정상</b>이다 — 에픽은 맵 바깥 고리(성역에서 반지름
     ///   100~160타일)에 살아서, 부대를 그쪽까지 탐험 보내기 전에는 발견되지 않는다.
     ///
     /// 다른 창(<c>SquadPanel</c>·<c>TacticalOrderPanel</c>·<c>CharacterGrowthPanel</c>)과

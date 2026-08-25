@@ -472,7 +472,7 @@ namespace LastSanctuary.Units
                 return;
             }
 
-            // 남겨두면 시체가 넥서스 주변에 쌓여 "전투가 멈춘 것처럼" 보인다.
+            // 남겨두면 시체가 성역 주변에 쌓여 "전투가 멈춘 것처럼" 보인다.
             Destroy(gameObject);
         }
 

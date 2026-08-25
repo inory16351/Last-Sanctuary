@@ -238,9 +238,32 @@ def luminance(px):
     return (px[0] * 299 + px[1] * 587 + px[2] * 114) // 1000
 
 
+def has_real_alpha(im, transparent_ratio=0.02):
+    """
+    ★★★ <b>원화가 이미 배경을 따 놓았는가</b> (2026-08-25 신설).
+
+    <b>왜 필요한가</b> — 2026-08-18 의 원화는 알파가 없는 RGB 였고 배경이 순흑이라
+    <see cref="key_out_black"/> 의 flood fill 이 유일한 방법이었다. 그런데 새로 온 원화는
+    <b>이미 알파로 깨끗이 따여 있다</b>. 그때 다시 키잉을 돌리면 <b>망가진다</b> —
+    <c>convert("RGB")</c> 가 알파를 버리는 순간 투명한 바깥이 <b>순흑</b>이 되고,
+    로고의 <b>어두운 날개 끝</b>이 그 검정과 이어져 있어 <b>바깥으로 오인되어 먹힌다</b>
+    (84-8절 ①이 히스톤에서 겪은 «검은 갑옷에 구멍» 과 같은 사고다).
+
+    → 알파가 «진짜로 쓰이고 있으면»(완전 투명이 일정 비율 이상) <b>그대로 쓴다</b>.
+      유저 지시 *"그대로 넣어줘 배경이랑 뜨지 않게"* 가 요구하는 것이 이것이다.
+    ⚠ «알파 채널이 있다» 만으로는 판정할 수 없다 — 전부 255 인 RGBA 도 흔하다.
+    """
+    if im.mode not in ("RGBA", "LA"):
+        return False
+    alpha = im.convert("RGBA").getchannel("A")
+    clear = alpha.histogram()[0]
+    return clear >= im.size[0] * im.size[1] * transparent_ratio
+
+
 def key_out_black(im):
     """
     바깥 검은 배경만 투명하게 만든 RGBA 이미지를 돌려준다.
+    ⚠ <b>알파가 이미 있는 원화에는 쓰지 말 것</b> — 위 <see cref="has_real_alpha"/> 참조.
 
     ★ 밝기가 아니라 <b>실루엣</b>으로 딴다 — 테두리에서 어두운 칸만 타고 번져 나가
     (flood fill) 닿은 곳만 배경으로 본다. 로고 안쪽의 검은 음영은 테두리와 이어져
@@ -456,17 +479,43 @@ def main():
         return 1
 
     title = Image.open(src_title)
-    print(f"  타이틀 원본 {title.size[0]}x{title.size[1]} {title.mode} → 검은 배경 알파 처리")
-    keyed = crop_to_alpha(key_out_black(title))
-    title = fit(add_shadow_and_glow(keyed, **TITLE_FX), TITLE_MAX_EDGE)
+
+    # ★★★ 2026-08-25 — <b>원화가 이미 따여 있으면 그대로 쓴다</b> (유저 지시:
+    #   *"로비 타이틀 이미지도 바꿨으니까 적용법 찾아보고 <b>그대로 넣어줘 배경이랑 뜨지 않게</b>"*).
+    #   ⚠ 새 원화에 다시 키잉을 돌리면 <b>어두운 날개 끝이 먹힌다</b>(has_real_alpha 의 doc).
+    if has_real_alpha(title):
+        print(f"  타이틀 원본 {title.size[0]}x{title.size[1]} {title.mode} → "
+              f"<b>알파가 이미 있다</b> · 키잉을 건너뛰고 그대로 씁니다")
+        keyed = crop_to_alpha(title.convert("RGBA"))
+
+        # ★★ <b>그림자·글로우는 굽는다</b> (2026-08-25 · 유저: *"그림자 비네트 켜"*).
+        #   처음에는 «배경이랑 뜨지 않게» 를 «로고 뒤의 모든 겹» 으로 읽고 이것도 뺐는데,
+        #   유저가 <b>다시 켜라</b>고 했다. 뺄 것은 <b>그림 자체의 검은 사각형</b>이었지
+        #   <b>로고를 배경에서 떼어 놓는 받침</b>이 아니었다.
+        #   ★ 받침이 필요한 이유는 <b>배경이 밝기 때문</b>이다 — 로비 배경의 성 첨탑·붉은
+        #     후광이 하필 타이틀 자리라, 받침이 없으면 로고 가장자리가 그 밝기에 묻힌다.
+        #   ⚠ 이 겹은 <b>그림에 굽는</b> 것이라 여백이 생긴다 — 아래 pad_x/pad_y 가 그 값이고,
+        #     씬의 Title 칸 크기를 그만큼 키워야 로고가 작아 보이지 않는다(151-3절).
+        title = fit(add_shadow_and_glow(keyed, **TITLE_FX), TITLE_MAX_EDGE)
+        pad_x = TITLE_FX["pad"]
+        pad_y = TITLE_FX["pad"] + abs(TITLE_FX["shadow_drop"])
+    else:
+        print(f"  타이틀 원본 {title.size[0]}x{title.size[1]} {title.mode} → 검은 배경 알파 처리")
+        keyed = crop_to_alpha(key_out_black(title))
+        title = fit(add_shadow_and_glow(keyed, **TITLE_FX), TITLE_MAX_EDGE)
+        pad_x = TITLE_FX["pad"]
+        pad_y = TITLE_FX["pad"] + abs(TITLE_FX["shadow_drop"])
+
     write(title, "LobbyTitle")
 
     # ⚠ 그림자 여백 때문에 <b>비율이 바뀐다</b> — 씬의 Title 칸도 이 비율로 맞춰야
     #   preserveAspect 가 여백을 만들지 않는다. 값을 계산해 찍어준다.
+    #   ★ 2026-08-25 — 여백은 <b>위에서 정한 값</b>을 쓴다(그림자를 안 구우면 0 이다).
+    #     예전에는 여기서 TITLE_FX 를 다시 읽어, 굽지 않은 경우에도 <b>있지도 않은 여백</b>을
+    #     넣어 계산했다 — 그러면 씬의 칸이 로고보다 커져 <b>가운데가 어긋난다</b>.
     kw, kh = keyed.size
-    pad_y = TITLE_FX["pad"] + abs(TITLE_FX["shadow_drop"])
-    report_title_frame(kh, TITLE_FX["pad"], pad_y,
-                       kw + TITLE_FX["pad"] * 2, kh + pad_y * 2)
+    report_title_frame(kh, pad_x, pad_y,
+                       kw + pad_x * 2, kh + pad_y * 2)
 
     bg = Image.open(src_bg).convert("RGBA")
     print(f"  배경 원본 {bg.size[0]}x{bg.size[1]}")

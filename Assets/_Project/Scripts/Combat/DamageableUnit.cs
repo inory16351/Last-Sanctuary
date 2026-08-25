@@ -4,7 +4,7 @@ namespace LastSanctuary.Combat
 {
     /// <summary>
     /// 체력 · 피해 · 재생을 가진 모든 대상의 공통 베이스.
-    /// 캐릭터 / 넥서스 / 포탑 / 몬스터가 모두 이걸 상속해서 피해 계산이 한 곳에서만 돌게 한다.
+    /// 캐릭터 / 성역 / 포탑 / 몬스터가 모두 이걸 상속해서 피해 계산이 한 곳에서만 돌게 한다.
     ///
     /// 재생 규칙: 전투(공격했거나 피해를 입은 상황)에서 벗어난 뒤
     /// BalanceConfig 의 outOfCombatRegenDelay 초가 지나야 재생이 시작되고,
@@ -32,7 +32,7 @@ namespace LastSanctuary.Combat
         /// <summary>공격이 성사될 때마다 발생 (공격자, 대상). 웨이브 타이머의 전투 개시 판정에 쓴다.</summary>
         public static event System.Action<DamageableUnit, DamageableUnit> OnAnyAttack;
 
-        /// <summary>어떤 유닛이든 죽으면 발생. 넥서스 파괴(패배) 판정에 쓴다.</summary>
+        /// <summary>어떤 유닛이든 죽으면 발생. 성역 파괴(패배) 판정에 쓴다.</summary>
         public static event System.Action<DamageableUnit> OnAnyDied;
 
         /// <summary>도메인 리로드를 꺼도 정적 구독이 남지 않게 초기화.</summary>
@@ -92,7 +92,7 @@ namespace LastSanctuary.Combat
         /// <b>초상화</b> — 클릭했을 때 띄우는 일러스트. 없으면 null.
         ///
         /// 표의 <c>illust</c> / <c>mon_illust</c> 칸이 가리키는
-        /// <c>Resources/Illust/</c> 의 그림이다. 원화가 없는 종(웨이브 몬스터·넥서스·포탑)은
+        /// <c>Resources/Illust/</c> 의 그림이다. 원화가 없는 종(웨이브 몬스터·성역·포탑)은
         /// null 을 돌려주고, 초상화 UI 는 그림 없이 이름·칭호만 보여준다.
         /// </summary>
         public virtual Sprite Portrait => null;
@@ -730,7 +730,7 @@ namespace LastSanctuary.Combat
 
         /// <summary>
         /// 지금 이 유닛의 공격 유형. <see cref="UnitCombat"/> 이 같은 오브젝트에 있으면 그 값이고,
-        /// 없으면(넥서스 등) 근거리로 본다. <b>한 번만 찾아 캐시</b>한다 — 피해 계산 경로에서
+        /// 없으면(성역 등) 근거리로 본다. <b>한 번만 찾아 캐시</b>한다 — 피해 계산 경로에서
         /// 불리므로 매번 <c>GetComponent</c> 를 돌면 낭비다.
         /// </summary>
         protected TacticalAttackType AttackTypeOf()

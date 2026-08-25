@@ -174,7 +174,7 @@ namespace LastSanctuary.UI
             if (rows != null && index < rows.Count && rows[index] != null)
             {
                 kind = rows[index].kind != RelicChoiceKind.None ? rows[index].kind : kind;
-                if (!string.IsNullOrWhiteSpace(rows[index].choiceText)) text = rows[index].choiceText;
+                if (!string.IsNullOrWhiteSpace(rows[index].ChoiceText)) text = rows[index].ChoiceText;
             }
 
             button.gameObject.SetActive(true);

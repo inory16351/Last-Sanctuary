@@ -640,6 +640,21 @@ namespace LastSanctuary.Combat
             // 경직 내내 쓰러진 모션을 돌린다 — 원화가 없으면 조용히 생략된다.
             _animator?.PlayReviveMotion(stun);
 
+            // ★★★ 2026-08-25 — <b>「복수자」의 범위 연출을 여기서 같이 깐다</b> (유저 지시:
+            //   *"히스톤 세번째 스킬 … <b>이펙트 삭제하고 두번째 스킬 부활 시에 해당 스킬
+            //   이펙트 그냥 같이 넣어서 표현</b>"*).
+            //
+            //   <b>예전에는 두 박자였다</b> — ① 경직 내내 쓰러진 모션이 돌고 ② 경직이 <b>끝난 뒤</b>
+            //   <see cref="PerformReaverBurst"/> 가 0.6초짜리 범위 연출을 <b>따로</b> 깔았다.
+            //   그래서 「일어난다」와 「터진다」가 <b>이어진 한 장면으로 안 읽혔다</b>.
+            //
+            //   ★ 이제 연출은 <b>부활의 일부</b>다 — 쓰러진 모션과 <b>같은 구간</b>에 깔려
+            //     경직 내내 발밑에 퍼져 있다가 일어설 때 함께 끝난다.
+            //   ⚠ <b>피해·회복은 옮기지 않았다</b>(<see cref="PerformReaverBurst"/> 에 그대로 있다).
+            //     유저가 바꾼 것은 «이펙트» 이고, 경직 중에 피해를 넣으면 <b>죽어 있는 동안
+            //     싸우는</b> 것이 된다 — 그것은 연출 변경이 아니라 밸런스 변경이다.
+            PlayReviveFx(stun);
+
             UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName,
                                               $"{stun:0.#}초 뒤 부활"), UI.HudLogKind.Good);
             return true;
@@ -656,7 +671,7 @@ namespace LastSanctuary.Combat
         /// <b>체력을 되돌리는 것</b>뿐이고, 몸은 애초에 파괴되지 않아 그 자리에 그대로 있다
         /// (<see cref="LastSanctuary.Units.CharacterUnit.OnDeath"/> 가 <c>Destroy</c> 를 건너뛴다).
         ///
-        /// ⚠ <b>넥서스 생성 경로(<c>UnitSpawner</c>)를 타면 안 된다.</b> 그쪽은
+        /// ⚠ <b>성역 생성 경로(<c>UnitSpawner</c>)를 타면 안 된다.</b> 그쪽은
         /// <b>최초 생성 전용</b>이다 — 되살릴 때 그 경로를 쓰면 히스톤이 맵 반대편에서
         /// 갑자기 중앙건물로 순간이동한다. 부활에 "다시 만든다"는 개념을 넣지 말 것.
         ///
@@ -688,7 +703,7 @@ namespace LastSanctuary.Combat
         /// 「타오르는 날개」가 <c>ApplyDamage</c> 를 쓰는 것과 갈리는 지점인데, 그쪽은
         /// 기준이 "자기 <b>체력</b>의 %" 라 공격력 자리에 넣을 값이 따로 있었다.
         ///
-        /// 회복 대상은 <b>캐릭터만</b>이다(정의문 "아군 캐릭터들") — 넥서스·포탑은 제외한다.
+        /// 회복 대상은 <b>캐릭터만</b>이다(정의문 "아군 캐릭터들") — 성역·포탑은 제외한다.
         /// 73-13절이 치유 유형에 대해 확정한 규칙과 같다. 자기 자신은 이미 만피로
         /// 일어났으므로 넣어도 아무 일이 없지만, 정의문이 "아군"이라 했으니 제외하지 않는다.
         /// </summary>
@@ -705,12 +720,9 @@ namespace LastSanctuary.Combat
             float sqr = radius * radius;
             Vector3 myPos = transform.position;
 
-            // 원화 연출을 <b>피해 범위 그대로</b> 깐다 — 반경이므로 한 변은 지름(2r)이다.
-            // "보이는 범위 = 맞는 범위" 규칙(61-5절).
-            Sprite[] fx = _animator != null && _animator.Skin != null ? _animator.Skin.ReviveFx() : null;
-            if (fx != null)
-                CombatProjectileFx.PlayArea(fx, myPos, new Vector2(radius * 2f, radius * 2f),
-                                            0f, null, ReaverFxSeconds);
+            // ⚠ <b>여기서 연출을 깔지 않는다</b> (2026-08-25 · 유저 지시로 옮겼다) —
+            //   범위 연출은 <see cref="TryBeginRevive"/> 가 <b>부활 모션과 같은 구간</b>에 깐다.
+            //   이 함수에는 이제 <b>피해와 회복만</b> 남는다.
 
             // 목록을 먼저 복사한다 — 피해로 유닛이 죽으면 UnitRegistry.All 이 그 자리에서
             // 바뀔 수 있다(OnDied → 파괴 → Unregister). 역순 순회만으로는 부족하다.
@@ -731,7 +743,7 @@ namespace LastSanctuary.Combat
 
                 if (u.Faction == _unit.Faction)
                 {
-                    if (u.Kind != UnitKind.Character) continue;      // 넥서스·포탑 제외
+                    if (u.Kind != UnitKind.Character) continue;      // 성역·포탑 제외
                     if (!u.AcceptsExternalHeal) continue;            // 이기심
                     int heal = Mathf.RoundToInt(u.MaxHp * healRatio);
                     if (heal > 0) u.Heal(heal);
@@ -747,8 +759,32 @@ namespace LastSanctuary.Combat
                                               $"반경 {radius:0.#}타일"), UI.HudLogKind.Good);
         }
 
-        /// <summary>복수자 범위 연출이 화면에 남는 시간(초). 순수 연출값이라 표에 칸이 없다.</summary>
-        const float ReaverFxSeconds = 0.6f;
+        /// <summary>
+        /// ★★ <b>부활 범위 연출</b> — 쓰러진 모션과 <b>같은 구간</b>에 발밑에 깐다
+        /// (2026-08-25 · 유저 지시로 「복수자」에서 <b>부활</b>로 옮겼다. <see cref="TryBeginRevive"/> 참조).
+        ///
+        /// ★ <b>크기는 「복수자」의 반경을 따른다</b> — 연출이 부활 쪽으로 왔어도 «보이는 범위 =
+        ///   맞는 범위» 규칙(61-5절)은 그대로다. 실제로 맞는 범위가 그 반경이기 때문이다.
+        /// ⚠ <b>「복수자」가 없으면(=아직 안 열렸으면) 반경을 지어내지 않는다</b> — 그때는
+        ///   터질 것이 없으므로 연출도 깔지 않는다. 안 그러면 «퍼졌는데 아무 일도 안 일어나는»
+        ///   부활이 된다.
+        /// ⚠ 원화(<c>reviveFx</c>)가 없는 스킨은 조용히 넘어간다 — 히스톤 외에는 다 비어 있다.
+        /// </summary>
+        void PlayReviveFx(float seconds)
+        {
+            if (seconds <= 0f) return;
+
+            Sprite[] fx = _animator != null && _animator.Skin != null ? _animator.Skin.ReviveFx() : null;
+            if (fx == null) return;
+
+            PassiveSkillSO reaver = Find(PassiveSkillType.Reaver);
+            float radius = reaver != null ? Mathf.Max(0f, reaver.value01) : 0f;
+            if (radius <= 0f) return;
+
+            CombatProjectileFx.PlayArea(fx, transform.position,
+                                        new Vector2(radius * 2f, radius * 2f),
+                                        0f, null, seconds);
+        }
 
         /// <summary>복수자 범위 판정용 임시 목록. 유닛마다 갖지 않도록 정적으로 공유한다.</summary>
         static readonly List<DamageableUnit> _reaverScratch = new List<DamageableUnit>();
@@ -888,7 +924,7 @@ namespace LastSanctuary.Combat
 
         /// <summary>
         /// 로그에 쓸 대상 이름. 표를 가진 유닛(캐릭터·웨이브 몬스터·중립 몬스터)은
-        /// <b>표의 이름</b>을 쓰고, 그것이 없는 유닛(넥서스·포탑)만 오브젝트 이름으로 떨어진다 —
+        /// <b>표의 이름</b>을 쓰고, 그것이 없는 유닛(성역·포탑)만 오브젝트 이름으로 떨어진다 —
         /// 복제본 뒤에 붙는 번호가 로그에 새어나오지 않게 하는 규칙이다(유저 지시 2026-08-13).
         ///
         /// ★ 2026-08-15 — 여기 있던 종류별 갈래를 지우고

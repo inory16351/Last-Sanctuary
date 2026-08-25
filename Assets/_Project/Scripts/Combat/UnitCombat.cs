@@ -9,7 +9,7 @@ namespace LastSanctuary.Combat
     public enum CombatState
     {
         Idle,      // 대기 — 타겟 없음, 목표로 전진하지도 않음
-        Advance,   // 이동 — 목표(넥서스)를 향해 전진
+        Advance,   // 이동 — 목표(성역)를 향해 전진
         Chase,     // 이동 — 특정 타겟 추격
         Attack,    // 전투 — 사거리 안, 쿨다운마다 공격
         Dead,      // 사망
@@ -38,7 +38,7 @@ namespace LastSanctuary.Combat
         [Tooltip("초당 이동 타일 수. 0 이하면 BalanceConfig 의 기본값을 쓴다")]
         [SerializeField] float moveSpeedTiles = 0f;
 
-        [Tooltip("타겟이 없을 때 목표(넥서스)를 향해 전진한다. 몬스터는 켜고 캐릭터는 끈다")]
+        [Tooltip("타겟이 없을 때 목표(성역)를 향해 전진한다. 몬스터는 켜고 캐릭터는 끈다")]
         [SerializeField] bool advanceToObjective = false;
 
         [Tooltip("전진하지 않는 유닛이 초기 위치에서 벗어날 수 있는 최대 거리(타일). " +
@@ -260,7 +260,7 @@ namespace LastSanctuary.Combat
         bool _answeringAllyCall;
 
         /// <summary>
-        /// ★ <b>후퇴 사격(카이팅)</b> — 넥서스 쪽으로 물러나면서 사거리 안의 적을 쏜다.
+        /// ★ <b>후퇴 사격(카이팅)</b> — 성역 쪽으로 물러나면서 사거리 안의 적을 쏜다.
         /// <c>CharacterBehavior</c> 가 <b>체력 기준 후퇴</b>(본인 또는 전방 아군)에서만 켠다.
         ///
         /// 이 상태에서만 <b>이동과 공격이 동시에</b> 일어난다. 평소에는 상태 기계가
@@ -663,7 +663,7 @@ namespace LastSanctuary.Combat
         /// ★ <b>후퇴 사격(카이팅)</b>을 켜고 끈다. <c>CharacterBehavior</c> 가
         /// <b>체력 기준 후퇴</b>(본인 또는 전방 아군)에서만 켠다 — 유저 지시 2026-08-11:
         /// "후퇴하면서 공격하는 건 전방의 캐릭터나 본인 스스로의 체력이 후퇴 기준에 다다라서
-        /// 넥서스 방향으로 후퇴할 때 발동되는 걸로".
+        /// 성역 방향으로 후퇴할 때 발동되는 걸로".
         ///
         /// <b>공포(정신 이상)와 다르다</b> — 공포는 <see cref="SetCombatSuppressed"/> 로
         /// 전투 자체를 끈다(패닉이라 반격하지 않는다). 체력 후퇴는 물러나면서 쏜다.
@@ -1169,7 +1169,7 @@ namespace LastSanctuary.Combat
 
         /// <summary>
         /// 유닛이 막힌 칸 안에 있으면 가장 가까운 빈 칸으로 밀어낸다.
-        /// 스폰 위치가 나중에 막히는 경우(넥서스가 <c>Start</c> 에서 자기 발판 칸을
+        /// 스폰 위치가 나중에 막히는 경우(성역이 <c>Start</c> 에서 자기 발판 칸을
         /// 등록하면 그 위에 있던 캐릭터가 갇힌다, 또는 유닛이 서 있는 칸에 포탑을 지은 경우 —
         /// <see cref="LastSanctuary.Buildings.BuildService"/> 의 배치 판정은 그 칸에 유닛이
         /// 있는지는 보지 않는다)가 실제로 있었고, 이 상태가 되면 <see cref="TryMoveTo"/> 의
@@ -1181,7 +1181,7 @@ namespace LastSanctuary.Combat
         /// (그 걸음이 아직 같은 칸 안이라) 매번 막혀서 영원히 못 빠져나온다. 문제는
         /// <see cref="MapGenerator.TryFindPlaceableNear"/> 가 "가장 가까운 빈 칸"을 순수 거리로만
         /// 찾는다는 것 — 그 칸이 벽 반대편이면 직선 탈출 경로가 벽·다른 포탑을 그대로 관통한다
-        /// (특히 후퇴 지점이 넥서스 주변 좁은 반경이라 포탑이 몰려 있어 실제로 자주 걸렸다).
+        /// (특히 후퇴 지점이 성역 주변 좁은 반경이라 포탑이 몰려 있어 실제로 자주 걸렸다).
         /// 그래서 후보를 거리순으로 받아보되 <see cref="HasEscapeLineOfSight"/> 로
         /// "직선 경로가 실제로 뚫려 있는지"까지 확인하고, 막혀 있으면 그 칸을 제외하고 다음으로
         /// 가까운 칸을 다시 찾는다 — 탈출 자체(막힌 칸에서 첫걸음 떼기)는 그대로 충돌 무시를
@@ -1259,7 +1259,7 @@ namespace LastSanctuary.Combat
         /// <b>막힌 칸에 갇힌 상태에서의</b> 직선 통행 판정.
         /// <see cref="GridPathfinder.HasLineOfSight"/> 와 같은 방식으로 선을 훑지만,
         /// <b>출발 지점에 붙어 있는 막힌 구간은 통과로 본다</b> — 그게 지금 갇혀 있는 구조물
-        /// (발밑에 세워진 포탑·넥서스 발판) 자신이기 때문이다. 그 구간을 벗어난 뒤에 다시
+        /// (발밑에 세워진 포탑·성역 발판) 자신이기 때문이다. 그 구간을 벗어난 뒤에 다시
         /// 막힌 칸이 나오면 그때는 "벽 너머" 이므로 false.
         ///
         /// 이 구분이 없으면 첫 표본(=자기 칸)에서 무조건 막혀서 <b>탈출이 아예 시작되지 않는다</b>
@@ -1816,8 +1816,8 @@ namespace LastSanctuary.Combat
         /// 실제 "때리기"만 <see cref="TryAttack"/> 에서 회복으로 갈린다.
         ///
         /// <b>★ 대상은 "자신을 제외한 다른 캐릭터" 뿐이다</b> (유저 확정 2026-08-13:
-        /// "포탑이랑 넥서스는 회복 대상에서 빼 · 회복은 자신을 제외한 다른 캐릭터에게만 가능").
-        /// 그래서 <c>kindFilter: UnitKind.Character</c> 를 넘긴다 — 넥서스·포탑은 후보가 아니다.
+        /// "포탑이랑 성역은 회복 대상에서 빼 · 회복은 자신을 제외한 다른 캐릭터에게만 가능").
+        /// 그래서 <c>kindFilter: UnitKind.Character</c> 를 넘긴다 — 성역·포탑은 후보가 아니다.
         /// ⚠ 예전에는 <c>FindWoundedAlly(..., exclude: _self)</c> 로 불렀지만 그 함수의
         ///   <c>includeSelfIfWounded</c> 기본값이 <b>true</b> 라 <c>exclude</c> 가 아무 일도 안 했다.
         ///   그래서 자기가 제일 많이 다쳤으면 <b>자기를 타겟으로 잡고</b>, 거리 0 이라 항상
@@ -2294,7 +2294,7 @@ namespace LastSanctuary.Combat
 
         void AdvanceToObjective(float dt)
         {
-            // 플로우 필드가 있으면 벽을 피해 넥서스로 향한다.
+            // 플로우 필드가 있으면 벽을 피해 성역으로 향한다.
             if (_flowField != null && _flowField.TryGetDirection(transform.position, out Vector2 dir))
             {
                 Step(dir, dt);
@@ -2388,7 +2388,7 @@ namespace LastSanctuary.Combat
             //
             //   <see cref="Separation"/> 은 주변 유닛마다 힘을 <b>더하기</b> 때문에 크기 상한이
             //   없었다 — 몬스터 5마리가 붙으면 최대 5 × 1.4 = 7 이 되어 방향 벡터(길이 1)가
-            //   완전히 묻힌다. 그러면 넥서스로 진군하는 무리에 <b>그대로 휩쓸려 같이 흘러간다.</b>
+            //   완전히 묻힌다. 그러면 성역으로 진군하는 무리에 <b>그대로 휩쓸려 같이 흘러간다.</b>
             //   상한을 걸면 겹침 방지는 그대로 되면서 진행 방향이 항상 주도권을 갖는다.
             //   ★ <b>벽에서 밀리는 힘도 같은 상한 아래에 넣는다</b>(2026-08-19,
             //     <see cref="WallClearance"/>) — 두 힘을 따로 상한 걸면 합이 1 을 넘어
@@ -2623,14 +2623,14 @@ namespace LastSanctuary.Combat
             return Mathf.Sqrt(dx * dx + dy * dy);
         }
 
-        /// <summary>큰 유닛(넥서스 등)은 중심까지 갈 수 없으므로 반경을 더해준다.</summary>
+        /// <summary>큰 유닛(성역 등)은 중심까지 갈 수 없으므로 반경을 더해준다.</summary>
         static float TargetRadius(DamageableUnit target)
         {
             if (target.Kind == UnitKind.Nexus)
             {
                 // ⚠ 예전에는 <c>transform.localScale.x</c> 를 읽었다 — 그건 <b>스프라이트를 몇 배로
                 //   그리는지</b>(픽셀 기준 배율)라서, 아트를 다시 임포트해 PPU 가 바뀌면 근접
-                //   유닛이 넥서스에 파고들거나 허공을 때리게 된다. 점유 칸 수(타일)가 정본이다.
+                //   유닛이 성역에 파고들거나 허공을 때리게 된다. 점유 칸 수(타일)가 정본이다.
                 if (target is Units.Nexus nexus && nexus.Definition != null)
                     return Mathf.Max(0.5f, nexus.Definition.footprintTiles * 0.5f);
 

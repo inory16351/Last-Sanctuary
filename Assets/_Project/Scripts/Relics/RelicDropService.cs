@@ -163,7 +163,7 @@ namespace LastSanctuary.Relics
             panel.PresentBossDrop(
                 flavor,
                 $"유물 「{relic.DisplayName}」 ({RelicDefinitionSO.NameOf(relic.grade)})" +
-                "\n" + relic.relicDesc,
+                "\n" + relic.Desc,
                 relic.icon);
         }
     }

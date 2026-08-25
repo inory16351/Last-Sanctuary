@@ -21,12 +21,17 @@ MonoBehaviour:
   choiceGroupId: 600012
   eventBg: "bg_fog"
   eventScript: "안개 밖으로 나갔던 천사들이 돌아왔습니다.\n몇은 돌아오지 못했고, 돌아온 이들의 눈에는 보아서는 안 될 것이 남아 있습니다."
+  nameKey: "event_name_205012"
+  scriptKey: "event_script_205012"
   choices:
   - choiceId: 300023
     choiceOrder: 1
     choiceText: "본 것을 전부 말하게 한다."
     resultScript: "천사들의 입에서 안개 너머의 모양이 쏟아졌습니다.\n성역은 그 모양을 알게 되었고, 알게 된 값을 함께 치릅니다."
     resultEffect: "효과 : 천사 전체 시야 +12% (240초) · 천사 전체 침식 +8"
+    choiceTextKey: "event_choice_text_300023"
+    resultScriptKey: "event_result_script_300023"
+    resultEffectKey: "event_result_effect_300023"
     rewardType01: "char_vision_durat_up"
     rewardValue01: 12
     rewardDuration01: 240
@@ -38,6 +43,9 @@ MonoBehaviour:
     choiceText: "입을 다물게 한다."
     resultScript: "본 것은 그들의 안에 묻혔습니다.\n성역은 여전히 눈이 어둡지만, 대열은 조용합니다."
     resultEffect: "효과 : 천사 전체 침식 −6 · 천사 전체 시야 −6% (240초)"
+    choiceTextKey: "event_choice_text_300024"
+    resultScriptKey: "event_result_script_300024"
+    resultEffectKey: "event_result_effect_300024"
     rewardType01: "char_all_erosion_down"
     rewardValue01: 6
     rewardDuration01: 0

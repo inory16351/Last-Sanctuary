@@ -19,18 +19,18 @@ namespace LastSanctuary.Combat
     }
 
     /// <summary>
-    /// 캐릭터가 유지하려는 전열 위치. <b>집결지(없으면 넥서스 방어 반경)를 기준으로</b>
-    /// 넥서스에서 얼마나 먼 쪽에 서는지를 뜻한다 (유저 정의).
+    /// 캐릭터가 유지하려는 전열 위치. <b>집결지(없으면 성역 방어 반경)를 기준으로</b>
+    /// 성역에서 얼마나 먼 쪽에 서는지를 뜻한다 (유저 정의).
     /// </summary>
     public enum TacticalPosition
     {
-        /// <summary>전방 — 구역 안에서 넥서스로부터 가장 먼 쪽.</summary>
+        /// <summary>전방 — 구역 안에서 성역으로부터 가장 먼 쪽.</summary>
         Front,
 
         /// <summary>중위 — 구역 중앙.</summary>
         Mid,
 
-        /// <summary>후방 — 구역 안에서 넥서스에 가장 가까운 쪽.</summary>
+        /// <summary>후방 — 구역 안에서 성역에 가장 가까운 쪽.</summary>
         Back,
     }
 
@@ -66,7 +66,7 @@ namespace LastSanctuary.Combat
 
         /// <summary>
         /// 동료와 함께 후퇴 — 전방이 물러나면 <b>최대 사거리를 유지하며</b> 같이 물러난다.
-        /// 넥서스까지 도망가는 것이 아니라 적에게서 자기 사거리만큼 떨어진 자리를 계속 잡는다.
+        /// 성역까지 도망가는 것이 아니라 적에게서 자기 사거리만큼 떨어진 자리를 계속 잡는다.
         /// </summary>
         FallBackWithAlly,
     }
@@ -110,7 +110,7 @@ namespace LastSanctuary.Combat
 
     /// <summary>
     /// <b>탐험 배회 범위</b> — 탐험(<see cref="TacticalExpeditionType"/> 세 유형 전부)을 할 때
-    /// <b>넥서스를 중심으로 얼마나 멀리까지 나갈 수 있는지</b> (유저 지시 2026-08-14).
+    /// <b>성역을 중심으로 얼마나 멀리까지 나갈 수 있는지</b> (유저 지시 2026-08-14).
     ///
     /// <b>왜 필요했나</b> — 탐험 AI 는 "아직 안 밝혀진 칸"을 최우선으로 고르는데, 그 후보를
     /// 캐릭터 위치 기준 최대 <c>scoutSearchRadius</c>(60타일)까지 훑는다. 그래서
@@ -132,7 +132,7 @@ namespace LastSanctuary.Combat
     /// </summary>
     public enum TacticalRoamRange
     {
-        /// <summary>근방 — 넥서스 바로 주변만 돈다. 초반 안전 운용. <b>기본값</b>.</summary>
+        /// <summary>근방 — 성역 바로 주변만 돈다. 초반 안전 운용. <b>기본값</b>.</summary>
         Near,
 
         /// <summary>외곽 — 성역 바깥 지대까지 나간다.</summary>
@@ -155,7 +155,7 @@ namespace LastSanctuary.Combat
         /// </summary>
         KeepExploring,
 
-        /// <summary>즉시 방어 — 웨이브 감지 즉시 하던 일을 놓고 <b>집결지</b>(없으면 넥서스)로 이동한다.</summary>
+        /// <summary>즉시 방어 — 웨이브 감지 즉시 하던 일을 놓고 <b>집결지</b>(없으면 성역)로 이동한다.</summary>
         DefendNow,
     }
 
@@ -174,7 +174,7 @@ namespace LastSanctuary.Combat
         [Tooltip("캐릭터 공격 유형")]
         public TacticalAttackType attackType = TacticalAttackType.Melee;
 
-        [Tooltip("캐릭터가 기본적으로 유지하려는 위치 (집결지 기준, 넥서스에서 먼 쪽이 전방)")]
+        [Tooltip("캐릭터가 기본적으로 유지하려는 위치 (집결지 기준, 성역에서 먼 쪽이 전방)")]
         public TacticalPosition position = TacticalPosition.Mid;
 
         [Tooltip("공격 우선 대상")]
@@ -186,7 +186,7 @@ namespace LastSanctuary.Combat
         [Tooltip("탐험 유형 — 돌아다니며 중립 몬스터를 어떻게 대할지 (사냥 / 정찰 / 탐색)")]
         public TacticalExpeditionType expeditionType = TacticalExpeditionType.Hunt;
 
-        [Tooltip("탐험 배회 범위 — 넥서스 중심으로 얼마나 멀리까지 나갈지 (근방 / 외곽 / 전역).\n" +
+        [Tooltip("탐험 배회 범위 — 성역 중심으로 얼마나 멀리까지 나갈지 (근방 / 외곽 / 전역).\n" +
                  "실제 지름(타일)은 CharacterBehavior 인스펙터의 roamDiameterNear/Mid 에 있다")]
         public TacticalRoamRange roamRange = TacticalRoamRange.Near;
 

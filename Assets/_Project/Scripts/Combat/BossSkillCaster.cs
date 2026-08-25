@@ -66,7 +66,7 @@ namespace LastSanctuary.Combat
                  "(유저 확정 2026-08-16, 미결 195번).\n\n" +
                  "⚠ 이 값이 없으면 <b>맵에 상주하는 에픽 중립</b>이 소환 직후부터 시간을 세서, " +
                  "몇 분 뒤 캐릭터가 찾아오는 순간 <b>준비 시간 없이 즉시 광역기</b>를 맞는다.\n" +
-                 "웨이브 보스에게도 이득이다 — 넥서스까지 진군하는 70여 초 동안 쿨타임이 " +
+                 "웨이브 보스에게도 이득이다 — 성역까지 진군하는 70여 초 동안 쿨타임이 " +
                  "헛돌지 않는다.\n" +
                  "교전 판정은 DamageableUnit.IsInCombat(때렸든 맞았든) 을 그대로 쓴다")]
         [SerializeField] bool delayFromFirstCombat = true;

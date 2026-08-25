@@ -28,5 +28,5 @@ MonoBehaviour:
   coolTime: 0
   iconName: 'icon_arrow_volley'
   flavorText: '계속된 전투로 인해 시카리아의 궁술이 더욱 성장하게 되었습니다.'
-  detailText: '원거리 공격이 사거리 안의 적 여러 마리를 한 번에 맞힙니다.'
+  detailText: '원거리 공격이 사거리 안의 적을 한 번에 {value_01}마리까지 맞힙니다.'
   effectTemplate: '시카리아의 원거리 공격은 사거리 안에 있는 모든 적을 동시에 {value_01} 마리를 공격 합니다.'

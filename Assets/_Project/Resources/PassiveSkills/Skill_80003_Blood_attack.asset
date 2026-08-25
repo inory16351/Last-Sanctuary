@@ -28,5 +28,5 @@ MonoBehaviour:
   coolTime: 0
   iconName: 'icon_blood_drop'
   flavorText: '상처는 엘린을 더욱 강하게 만들었습니다.'
-  detailText: '공격할 때마다 스스로 피를 흘리고, 흘린 만큼 공격력에 더해집니다.'
+  detailText: '공격할 때마다 현재 체력의 {value_01}%를 흘리고, 흘린 만큼 공격력에 더해집니다.'
   effectTemplate: '엘린은 공격을 할때마다 현제 체력의 {value_01}% 만큼 체력이 감소하고 해당 값만큼 데미지 공식의 공격력 부분에 더해서 계산한다.'

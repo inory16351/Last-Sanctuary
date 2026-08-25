@@ -107,7 +107,7 @@ namespace LastSanctuary.UI
             SetText(_okLabelText, okLabel);
 
             // ★★ <b>짚을 것이 없으면 「자세히 보기」를 숨긴다</b> (2026-08-24 · 유저 지시:
-            //   *"단순히 넥서스가 파괴되면 게임이 종료된다는 간단한 규칙 같은거
+            //   *"단순히 성역이 파괴되면 게임이 종료된다는 간단한 규칙 같은거
             //   (다른 ui와 연결되지 않아도 되는 기능)은 그냥 자세히 보기 없어도 됨"*).
             //   ⚠ 숨기지 않으면 «눌러도 아무 일이 없는 버튼» 이 된다 — 이 프로젝트가 건설
             //     버튼에서 이미 겪은 일이다(그때는 알릴 통로가 하나도 없었다).
@@ -129,8 +129,25 @@ namespace LastSanctuary.UI
             PlayAppear();
         }
 
-        /// <summary>카드를 닫고 <b>내가 멈춘 것이면</b> 다시 흐르게 한다.</summary>
+        /// <summary>
+        /// 카드를 닫고 <b>내가 멈춘 것이면</b> 다시 흐르게 한다.
+        ///
+        /// ★★ 「알겠습니다」와 키보드가 부르는 <b>«다 읽었다» 길</b>이다 — 그래서
+        ///   가로챈 버튼이 원래 하려던 일을 여기서 마무리한다
+        ///   (<see cref="HelpService.CompletePending"/> · 2026-08-25).
+        ///   ⚠ 안내로 넘어갈 때는 이 길이 아니다 — <see cref="CloseSilently"/> 를 쓴다.
+        ///     여기서 마무리해 버리면 창이 <b>안내보다 먼저</b> 열려 소유권이 어긋난다.
+        /// </summary>
         public void Close()
+        {
+            CloseSilently();
+            HelpService.Instance?.CompletePending();
+        }
+
+        /// <summary>
+        /// 카드만 닫는다 — <b>가로챈 일은 그대로 둔다</b>. 「자세히 보기」로 안내에 넘길 때 쓴다.
+        /// </summary>
+        public void CloseSilently()
         {
             _pause.Release();
             Settle();                       // 연출 중에 닫혀도 다음에 제자리에서 시작하게
@@ -155,7 +172,7 @@ namespace LastSanctuary.UI
         void OpenEncyclopedia()
         {
             HelpEntry e = _entry;
-            Close();
+            CloseSilently();                // ⚠ 가로챈 일은 <b>안내가</b> 마무리한다
 
             HelpTourPanel tour = HelpTourPanel.Instance;
             if (tour != null && tour.Begin(e)) return;
@@ -164,6 +181,12 @@ namespace LastSanctuary.UI
             //   그래도 조용히 아무 일도 안 하지 않고 백과를 열어 준다(글은 언제나 있다).
             Debug.LogWarning($"[도움말] {e?.helpId} 의 안내를 시작하지 못했습니다 — " +
                              "표의 HelpStep 을 확인하세요. 백과를 대신 엽니다.", this);
+
+            // ⚠ 안내가 못 떴으니 <b>마무리해 줄 사람이 없다</b> — 가로챈 것을 버린다.
+            //   여기서 창을 열어 버리면 방금 띄운 백과를 <b>제가 도로 닫는다</b>
+            //   (배타 창끼리는 하나만 열린다). 항목은 이미 «읽음» 이라 다음 클릭부터는
+            //   버튼이 평소대로 동작한다.
+            HelpService.Instance?.CancelPending();
 
             HelpPanel panel = HelpPanel.Instance;
             if (panel != null) panel.OpenAt(e);

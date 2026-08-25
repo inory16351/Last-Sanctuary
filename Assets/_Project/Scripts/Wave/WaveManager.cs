@@ -30,7 +30,7 @@ namespace LastSanctuary.Wave
     /// <summary>
     /// 대기시간 타이머와 웨이브 타이머를 관리한다.
     ///
-    ///   시작 → [대기시간] → 타이머 종료 시 맵 가장자리에서 몬스터 소환 (넥서스로 진군)
+    ///   시작 → [대기시간] → 타이머 종료 시 맵 가장자리에서 몬스터 소환 (성역으로 진군)
     ///        → [진군] 첫 전투(몬스터 ↔ 아군)가 발생하면 웨이브 타이머 시작
     ///        → [전투] 웨이브 몬스터를 모두 처치 → 즉시 종료, 남은 시간을 다음 대기시간에 보너스로 더함
     ///               │  웨이브 타이머 종료인데 몬스터가 남아있음
@@ -46,7 +46,7 @@ namespace LastSanctuary.Wave
     /// <b>끝나는 두 가지 방식 — 둘 다 여기서 판정한다</b>(유저 지시 2026-08-12):
     /// <code>
     ///   승리: victoryWave(기본 20) 를 클리어한 순간 → WavePhase.Victory + OnVictory
-    ///   패배: 넥서스 파괴 · 캐릭터 전멸(재생성 불가) → WavePhase.Defeat  + OnDefeat
+    ///   패배: 성역 파괴 · 캐릭터 전멸(재생성 불가) → WavePhase.Defeat  + OnDefeat
     /// </code>
     /// 두 조건 모두 <b>인스펙터에서 켜고/끄고, 기준 웨이브를 바꿀 수 있다</b> — 밸런싱을 하려면
     /// 이 값들이 코드 상수가 아니라 에딧 모드에서 만질 수 있어야 한다는 것이 유저 요구였다.
@@ -88,16 +88,16 @@ namespace LastSanctuary.Wave
         // ------------------------------------------------------------------
         // 패배 조건
         //
-        // ⚠️ 넥서스 파괴는 <b>정적 이벤트(OnAnyDied) 구독 + 매 프레임 폴링</b> 두 겹으로 본다.
+        // ⚠️ 성역 파괴는 <b>정적 이벤트(OnAnyDied) 구독 + 매 프레임 폴링</b> 두 겹으로 본다.
         //    이벤트 한 겹만 두면 구독이 어긋나는 경로(도메인 리로드 off, 씬 재로드 직후 순서,
-        //    넥서스가 피해가 아닌 경로로 사라진 경우)에서 <b>패배가 조용히 안 잡히고 게임이
+        //    성역이 피해가 아닌 경로로 사라진 경우)에서 <b>패배가 조용히 안 잡히고 게임이
         //    그대로 계속된다</b> — 실제로 "패배 판정이 구현이 안 됐다"는 리포트를 받은 상태였고,
         //    이런 종류의 침묵은 원인을 찾기가 매우 어렵다. 폴링은 살아있는 유닛 목록을 훑는
         //    가벼운 검사(UnitRegistry)라 비용도 문제되지 않는다.
         // ------------------------------------------------------------------
 
         [Header("패배 조건")]
-        [Tooltip("중앙 건물(넥서스)이 파괴되면 패배한다. 기획서 p9 의 기본 패배 조건")]
+        [Tooltip("중앙 건물(성역)이 파괴되면 패배한다. 기획서 p9 의 기본 패배 조건")]
         [SerializeField] bool defeatWhenNexusDestroyed = true;
 
         [Tooltip("캐릭터가 전멸하고 <b>새로 뽑을 에너지도 없고 살아있는 포탑도 없으면</b> 패배한다.\n" +
@@ -268,7 +268,7 @@ namespace LastSanctuary.Wave
         /// <summary>
         /// 승리 화면을 지금 띄운다 (테스트용).
         ///
-        /// <b>왜 필요한가</b> — 승리는 20웨이브를, 패배는 넥서스가 부서질 때까지를 기다려야
+        /// <b>왜 필요한가</b> — 승리는 20웨이브를, 패배는 성역이 부서질 때까지를 기다려야
         /// 확인할 수 있다. 실제로 진행상황 29-1절이 "실제 패배가 발생하는 장면을 못 봤다"로
         /// 남긴 항목이 <b>그 뒤로도 검증되지 않은 채 남아 있었다.</b> 인스펙터 우클릭으로
         /// 두 화면을 바로 띄울 수 있어야 다시 같은 일이 반복되지 않는다.
@@ -285,7 +285,7 @@ namespace LastSanctuary.Wave
             OnVictory?.Invoke(_waveNumber);
         }
 
-        /// <summary>패배 화면을 지금 띄운다 (테스트용). 사유는 넥서스 파괴로 표시된다.</summary>
+        /// <summary>패배 화면을 지금 띄운다 (테스트용). 사유는 성역 파괴로 표시된다.</summary>
         [ContextMenu("[테스트] 즉시 패배")]
         public void DebugForceDefeat() =>
             BeginDefeat(DefeatReason.NexusDestroyed, "[테스트] 즉시 패배");
@@ -320,7 +320,7 @@ namespace LastSanctuary.Wave
                      $"웨이브 {_waveNumber} 몬스터 소환 · 첫 전투까지 웨이브 타이머 대기");
 
             // 전투 타이머 길이를 함께 넘긴다 — 스포너가 "마지막 몬스터가 타이머 종료 직전에
-            // 넥서스에 닿도록" 소환 주기를 역산하는 데 쓴다(진행상황 27절).
+            // 성역에 닿도록" 소환 주기를 역산하는 데 쓴다(진행상황 27절).
             if (monsterSpawner != null) monsterSpawner.SpawnWave(_waveNumber, battleSeconds);
             else Debug.LogError("[WaveManager] Monster Spawner 가 연결되지 않았습니다.", this);
 
@@ -437,11 +437,11 @@ namespace LastSanctuary.Wave
         }
 
         /// <summary>
-        /// 살아있는 아군 넥서스가 있는지. <b>없는 것</b>이 패배다 —
+        /// 살아있는 아군 성역이 있는지. <b>없는 것</b>이 패배다 —
         /// 파괴(체력 0)든 오브젝트가 사라진 경우든 같은 결론이라 한 판정으로 묶인다.
         ///
-        /// ⚠️ 넥서스가 아직 생성되지 않은 첫 프레임에 오발하지 않도록,
-        /// <b>한 번이라도 넥서스를 본 뒤</b>에만 없어진 것으로 인정한다.
+        /// ⚠️ 성역이 아직 생성되지 않은 첫 프레임에 오발하지 않도록,
+        /// <b>한 번이라도 성역을 본 뒤</b>에만 없어진 것으로 인정한다.
         /// </summary>
         bool HasLivingNexus()
         {
@@ -575,7 +575,7 @@ namespace LastSanctuary.Wave
         }
 
         /// <summary>
-        /// 넥서스가 파괴되면 모든 타이머를 멈춘다. 안 그러면 패배 후에도 웨이브가 계속 돈다.
+        /// 성역이 파괴되면 모든 타이머를 멈춘다. 안 그러면 패배 후에도 웨이브가 계속 돈다.
         ///
         /// <b>이 경로는 "즉시 반응" 담당이다</b> — 같은 판정을 <see cref="CheckDefeatConditions"/> 도
         /// 매 프레임 하고 있으므로, 여기서 놓쳐도 다음 프레임에 반드시 잡힌다(이중화).
@@ -585,7 +585,7 @@ namespace LastSanctuary.Wave
             if (IsFinished || !defeatWhenNexusDestroyed) return;
             if (unit == null || unit.Kind != UnitKind.Nexus || unit.Faction != Faction.Angel) return;
 
-            BeginDefeat(DefeatReason.NexusDestroyed, "넥서스 파괴");
+            BeginDefeat(DefeatReason.NexusDestroyed, "성역 파괴");
         }
 
         /// <summary>

@@ -377,7 +377,7 @@ namespace LastSanctuary.Events
                         _habitatFired.Add(def.eventId);
                         if (logRolls)
                             Debug.Log($"[이벤트] 서식지 접촉 — {mon.Definition.DisplayName}" +
-                                      $"(id {def.triggerValue}) 에 {ch.DisplayName} 이(가) 닿았다 → {def.eventName}");
+                                      $"(id {def.triggerValue}) 에 {ch.DisplayName} 이(가) 닿았다 → {def.DisplayName}");
                         Begin(def);
                         return;                 // 한 프레임에 하나만
                     }
@@ -402,7 +402,7 @@ namespace LastSanctuary.Events
             if (!eventsEnabled || pool.Count == 0) return;
             if (Current != null)
             {
-                if (logRolls) Debug.Log($"[이벤트] {label} — 이미 진행 중이라 건너뜀 ({Current.eventName})");
+                if (logRolls) Debug.Log($"[이벤트] {label} — 이미 진행 중이라 건너뜀 ({Current.DisplayName})");
                 return;
             }
 
@@ -508,7 +508,7 @@ namespace LastSanctuary.Events
 
             MarkUsed(def);
 
-            UI.HudLog.Add($"<b>[사건]</b> {def.eventName}", UI.HudLogKind.Good);
+            UI.HudLog.Add($"<b>[사건]</b> {def.DisplayName}", UI.HudLogKind.Good);
             OnEventChanged?.Invoke(Current, CurrentChoice);
             ShowPanel();
         }
@@ -547,7 +547,7 @@ namespace LastSanctuary.Events
 
             string log = EventRewardService.Apply(type, value, duration);
             if (!string.IsNullOrEmpty(log))
-                UI.HudLog.Add($"[사건] {Current.eventName} — {log}", UI.HudLogKind.Good);
+                UI.HudLog.Add($"[사건] {Current.DisplayName} — {log}", UI.HudLogKind.Good);
         }
 
         /// <summary>
@@ -562,7 +562,7 @@ namespace LastSanctuary.Events
         public void CloseCurrent(string why)
         {
             if (Current == null) return;
-            if (logRolls) Debug.Log($"[이벤트] {Current.eventName} 종료 — {why}");
+            if (logRolls) Debug.Log($"[이벤트] {Current.DisplayName} 종료 — {why}");
 
             Current = null;
             CurrentChoice = null;

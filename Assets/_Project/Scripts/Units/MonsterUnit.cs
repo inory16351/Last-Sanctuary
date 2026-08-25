@@ -4,7 +4,7 @@ using LastSanctuary.Combat;
 namespace LastSanctuary.Units
 {
     /// <summary>
-    /// 몬스터 한 마리. 캐릭터·넥서스와 같은 DamageableUnit 을 상속해서
+    /// 몬스터 한 마리. 캐릭터·성역과 같은 DamageableUnit 을 상속해서
     /// 피해 계산이 한 공식으로 통일된다.
     /// </summary>
     public class MonsterUnit : DamageableUnit, IBossSkillOwner

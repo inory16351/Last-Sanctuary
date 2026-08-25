@@ -28,5 +28,5 @@ MonoBehaviour:
   coolTime: 20
   iconName: 'icon_sprint_dash'
   flavorText: '누구도 세라피엘을 사거리 안에 붙잡아 둔 적이 없습니다.'
-  detailText: '적이 가까이 붙으면 즉시 반대쪽으로 물러나며, 물러나는 그 자리에서 곧바로 원거리 공격을 되돌려 줍니다.'
+  detailText: '적이 반지름 {value_01} 안으로 붙으면 즉시 반대쪽으로 {value_02} 타일 물러나며, 그 자리에서 원거리 공격을 {value_03}회 되돌려 줍니다.'
   effectTemplate: '세라피엘의 근방 타일 범위 반지름 {value_01}범위 내에 적이 접근할 경우 즉시 {value_02} 타일만큼 적의 반대쪽으로 도약하며 {value_03}회 원거리 공격을 가합니다.'

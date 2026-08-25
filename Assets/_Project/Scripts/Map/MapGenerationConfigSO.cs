@@ -35,7 +35,7 @@ namespace LastSanctuary.Map
         [Tooltip("청크 하나의 타일 수 (가로, 세로)")]
         public Vector2Int chunkSize = new Vector2Int(20, 20);
 
-        [Header("넥서스")]
+        [Header("성역")]
         [Tooltip("맵 중앙에서 장애물을 걷어내는 반경(타일). 중앙 건물과 초기 캐릭터 자리")]
         [Min(0)] public int nexusClearRadius = 6;
 
@@ -47,7 +47,7 @@ namespace LastSanctuary.Map
         [Min(0)] public int spawnGateWidth = 6;
 
         [Header("통로 보장")]
-        [Tooltip("스폰 게이트에서 넥서스까지 강제로 뚫는 통로 너비")]
+        [Tooltip("스폰 게이트에서 성역까지 강제로 뚫는 통로 너비")]
         [Range(1, 6)] public int corridorWidth = 3;
 
         [Tooltip("통로가 직선이 되지 않도록 주는 흔들림 강도. 0이면 직선")]

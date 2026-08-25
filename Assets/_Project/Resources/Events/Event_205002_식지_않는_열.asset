@@ -21,12 +21,17 @@ MonoBehaviour:
   choiceGroupId: 600002
   eventBg: "bg_heat"
   eventScript: "파도가 물러갔음에도 성역의 열기는 좀처럼 식지 않습니다.\n달아오른 땅은 천사들의 발바닥을 태우면서, 동시에 그들의 심박을 끌어올립니다.\n이 열을 언제까지 품고 있을지 정해야 합니다."
+  nameKey: "event_name_205002"
+  scriptKey: "event_script_205002"
   choices:
   - choiceId: 300003
     choiceOrder: 1
     choiceText: "이 열을 그대로 태워라."
     resultScript: "성역은 스스로를 태워 천사들을 몰아붙입니다.\n빨라진 몸짓의 값은 결국 정신이 치릅니다."
     resultEffect: "효과 : 천사 전체 공격 속도 +12% (120초) · 천사 전체 침식 +8"
+    choiceTextKey: "event_choice_text_300003"
+    resultScriptKey: "event_result_script_300003"
+    resultEffectKey: "event_result_effect_300003"
     rewardType01: "char_atk_spd_durat_up"
     rewardValue01: 12
     rewardDuration01: 120
@@ -38,6 +43,9 @@ MonoBehaviour:
     choiceText: "열을 식히고 숨을 고른다."
     resultScript: "성역이 서서히 식습니다.\n천사들은 굳었던 어깨를 풀고 다음 파도를 기다립니다."
     resultEffect: "효과 : 천사 전체 방어력 +7% (240초) · 천사 전체 침식 −5"
+    choiceTextKey: "event_choice_text_300004"
+    resultScriptKey: "event_result_script_300004"
+    resultEffectKey: "event_result_effect_300004"
     rewardType01: "char_def_durat_up"
     rewardValue01: 7
     rewardDuration01: 240

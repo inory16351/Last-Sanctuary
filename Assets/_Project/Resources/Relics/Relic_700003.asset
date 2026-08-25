@@ -26,5 +26,8 @@ MonoBehaviour:
   source: 1
   sourceId: 0
   dropWeight: 10
+  nameKey: "relic_name_700003"
+  descKey: "relic_desc_700003"
+  flavorKey: "relic_flavor_700003"
   iconKey: "relic_swelling"
   icon: {fileID: 21300000, guid: 2fdcaa05dbb9618c5564b32c1923e8a3, type: 3}

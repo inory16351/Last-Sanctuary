@@ -21,12 +21,17 @@ MonoBehaviour:
   choiceGroupId: 600034
   eventBg: "bg_ground"
   eventScript: "신성한 땅이 갈라지며 그 틈에서 검은 것이 올라옵니다.\n성역이 스스로를 공격하기 시작했습니다."
+  nameKey: "event_name_206006"
+  scriptKey: "event_script_206006"
   choices:
   - choiceId: 300067
     choiceOrder: 1
     choiceText: "틈을 메운다."
     resultScript: "곳간을 털어 갈라진 자리를 눌러 덮었습니다.\n비싸게 산 시간이지만 시간은 시간입니다."
     resultEffect: "효과 : 에너지 −250 · 성역 체력 +5%"
+    choiceTextKey: "event_choice_text_300067"
+    resultScriptKey: "event_result_script_300067"
+    resultEffectKey: "event_result_effect_300067"
     rewardType01: "energy_loss"
     rewardValue01: 250
     rewardDuration01: 0
@@ -38,6 +43,9 @@ MonoBehaviour:
     choiceText: "그대로 둔다."
     resultScript: "틈은 넓어졌고 검은 것은 계속 올라옵니다.\n성역은 자기 살이 무너지는 소리를 듣고 있습니다."
     resultEffect: "효과 : 성역 체력 −12% · 천사 전체 침식 +8"
+    choiceTextKey: "event_choice_text_300068"
+    resultScriptKey: "event_result_script_300068"
+    resultEffectKey: "event_result_effect_300068"
     rewardType01: "nexus_percent_loss"
     rewardValue01: 12
     rewardDuration01: 0

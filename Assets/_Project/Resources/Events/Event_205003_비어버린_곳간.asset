@@ -21,12 +21,17 @@ MonoBehaviour:
   choiceGroupId: 600003
   eventBg: "bg_supply"
   eventScript: "성역의 곳간이 바닥을 드러냈습니다.\n오래 싸운 대가입니다. 이대로라면 천사들은 굶주린 채로 다음 파도를 맞이해야 합니다."
+  nameKey: "event_name_205003"
+  scriptKey: "event_script_205003"
   choices:
   - choiceId: 300005
     choiceOrder: 1
     choiceText: "남은 것을 다 긁어서 먹인다."
     resultScript: "마지막 양분까지 천사들의 목으로 넘어갔습니다.\n곳간은 텅 비었지만 팔에는 힘이 돌아왔습니다."
     resultEffect: "효과 : 에너지 −150 · 천사 전체 근거리 공격력 +8% (240초)"
+    choiceTextKey: "event_choice_text_300005"
+    resultScriptKey: "event_result_script_300005"
+    resultEffectKey: "event_result_effect_300005"
     rewardType01: "energy_loss"
     rewardValue01: 150
     rewardDuration01: 0
@@ -38,6 +43,9 @@ MonoBehaviour:
     choiceText: "굶는 데 익숙해질 것이다."
     resultScript: "천사들은 허리띠를 졸랐습니다.\n곳간에는 여유가 생겼고, 아무는 속도는 그만큼 늦어집니다."
     resultEffect: "효과 : 천사 전체 회복력 −8% (240초) · 에너지 +150"
+    choiceTextKey: "event_choice_text_300006"
+    resultScriptKey: "event_result_script_300006"
+    resultEffectKey: "event_result_effect_300006"
     rewardType01: "char_heal_durat_down"
     rewardValue01: 8
     rewardDuration01: 240

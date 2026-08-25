@@ -398,7 +398,7 @@ namespace LastSanctuary.Save
                 };
 
                 // 에픽(서식지 모드)만 개체마다 "집"이 있다 — 지금 서 있는 자리는 쫓아 나간
-                // 도중일 수 있으므로 서식지 중심이 정본이다. 그 외 중립은 넥서스 고리 안을
+                // 도중일 수 있으므로 서식지 중심이 정본이다. 그 외 중립은 성역 고리 안을
                 // 도는 것이라 개체마다 기억할 집이 없다(태어난 자리를 그대로 쓴다).
                 var wander = unit.GetComponent<NeutralMonsterWander>();
                 if (wander != null && wander.IsHabitatMode) save.homePosition = wander.HabitatCenter;

@@ -28,5 +28,5 @@ MonoBehaviour:
   coolTime: 0
   iconName: 'icon_spirit_sense'
   flavorText: '시카리아는 다른 천사들보다 고조된 감각을 지니고 있습니다.'
-  detailText: '사거리가 다른 캐릭터보다 깁니다. 공격 유형이 원거리면 사거리가 더 늘어납니다.'
+  detailText: '사거리가 다른 캐릭터보다 {value_01} 타일 깁니다. 공격 유형이 원거리면 {value_02} 더 늘어납니다.'
   effectTemplate: '시카리아의 사거리는 다른 캐릭터보다 {value_01} 타일 만큼 높습니다. 시카리아의 공격 유형이 원거리 일 경우 추가로 사거리를 {Value_02}만큼 획득합니다.'

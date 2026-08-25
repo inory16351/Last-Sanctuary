@@ -21,12 +21,17 @@ MonoBehaviour:
   choiceGroupId: 600029
   eventBg: "bg_mind"
   eventScript: "전장의 소음 사이로 누군가의 목소리가 섞여 들어옵니다.\n천사들의 언어가 아닙니다. 그런데도 알아들을 수 있다는 것이 문제입니다."
+  nameKey: "event_name_206001"
+  scriptKey: "event_script_206001"
   choices:
   - choiceId: 300057
     choiceOrder: 1
     choiceText: "귀를 막게 한다."
     resultScript: "천사들은 귀를 덮고 자기 숨소리만 들었습니다.\n조용해진 대신 바깥의 기척도 함께 사라졌습니다."
     resultEffect: "효과 : 천사 전체 침식 −8 · 천사 전체 시야 −5% (180초)"
+    choiceTextKey: "event_choice_text_300057"
+    resultScriptKey: "event_result_script_300057"
+    resultEffectKey: "event_result_effect_300057"
     rewardType01: "char_all_erosion_down"
     rewardValue01: 8
     rewardDuration01: 0
@@ -38,6 +43,9 @@ MonoBehaviour:
     choiceText: "무슨 말인지 들어본다."
     resultScript: "목소리는 천사들이 잊고 있던 이름을 불렀습니다.\n알아들은 만큼, 안쪽이 그만큼 열렸습니다."
     resultEffect: "효과 : 천사 전체 침식 +12 · 천사 전체 마법 공격력 +12% (180초)"
+    choiceTextKey: "event_choice_text_300058"
+    resultScriptKey: "event_result_script_300058"
+    resultEffectKey: "event_result_effect_300058"
     rewardType01: "char_all_erosion_up"
     rewardValue01: 12
     rewardDuration01: 0

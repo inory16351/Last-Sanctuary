@@ -308,7 +308,7 @@ namespace LastSanctuary.Combat
                     break;
 
                 case MentalErrorType.Terrified:
-                    // 전투를 거부하고 넥서스 방향으로 회피 — 기존 후퇴 로직을 그대로 재사용한다.
+                    // 전투를 거부하고 성역 방향으로 회피 — 기존 후퇴 로직을 그대로 재사용한다.
                     _behavior?.SetMentalOverride(MentalOverride.Flee);
                     break;
 

@@ -241,7 +241,36 @@ namespace LastSanctuary.UI
             }
         }
 
+        // ══════════════════════════════════════════════════════════════
+        //  ★★★ 버튼을 <b>처음</b> 누르면 도움말이 먼저 뜬다 (2026-08-25)
+        // ══════════════════════════════════════════════════════════════
+        // 유저 지시: *"허드 액션의 각 버튼을 <b>최초로 눌렀을때</b> 해당 기능에 대한 도움말이
+        // 등장하는 것으로 진행"* · *"자세히 보기를 눌렀을 때 <b>실제 해당 ui가 켜지고</b>
+        // 각 기능에 대한 설명 시작"*.
+        //
+        // ★ 여기 늘어놓는 것은 <b>한 줄뿐</b>이다 — 창을 여는 일도, 다시 여는 일도
+        //   <see cref="Help.HelpService.InterceptFirstUse"/> 쪽이 표의 <c>open_panel</c> 을
+        //   보고 한다. 이 파일은 «어느 버튼이 어느 계기인가» 만 안다.
+        // ⚠ <b>두 번째부터는 아무 일도 없다</b>(이미 읽은 항목이면 false 를 돌려준다).
+        //   그래서 평소 조작이 느려지거나 막히지 않는다.
+
+        /// <summary>도움말이 이 클릭을 가로챘으면 <c>true</c> — 부르는 쪽은 그대로 돌아간다.</summary>
+        static bool Intercept(Help.HelpTrigger trigger, System.Action continueAction = null)
+        {
+            Help.HelpService service = Help.HelpService.Instance;
+            return service != null && service.InterceptFirstUse(trigger, continueAction);
+        }
+
         void HandleCreate()
+        {
+            // ⚠ 캐릭터 생성은 <b>창을 열지 않는</b> 유일한 액션이다 — 표의 open_panel 이 비어
+            //   있으므로 «원래 하려던 일» 을 직접 넘긴다(그것이 없으면 도움말을 읽은 대가로
+            //   «버튼이 한 번 안 먹는» 일이 된다).
+            if (Intercept(Help.HelpTrigger.ActionCreate, CreateNow)) return;
+            CreateNow();
+        }
+
+        void CreateNow()
         {
             if (_creation == null) _creation = CharacterCreationService.Instance;
             _creation?.TryCreate();
@@ -255,6 +284,8 @@ namespace LastSanctuary.UI
         /// </summary>
         void HandleSquad()
         {
+            if (Intercept(Help.HelpTrigger.ActionSquad)) return;
+
             if (_squadPanel == null)
                 _squadPanel = FindAnyObjectByType<SquadPanel>(FindObjectsInactive.Include);
 
@@ -272,6 +303,8 @@ namespace LastSanctuary.UI
         /// </summary>
         void HandleTactics()
         {
+            if (Intercept(Help.HelpTrigger.ActionTactics)) return;
+
             if (_tacticsPanel == null)
                 _tacticsPanel = FindAnyObjectByType<TacticalOrderPanel>(FindObjectsInactive.Include);
 
@@ -286,6 +319,8 @@ namespace LastSanctuary.UI
         /// </summary>
         void HandleSubjugate()
         {
+            if (Intercept(Help.HelpTrigger.ActionSubjugate)) return;
+
             if (_subjugationPanel == null)
                 _subjugationPanel = FindAnyObjectByType<SubjugationPanel>(FindObjectsInactive.Include);
 
@@ -301,6 +336,8 @@ namespace LastSanctuary.UI
         /// </summary>
         void HandleSettings()
         {
+            if (Intercept(Help.HelpTrigger.ActionSettings)) return;
+
             if (_settingsPanel == null)
                 _settingsPanel = FindAnyObjectByType<SettingsPanel>(FindObjectsInactive.Include);
 
@@ -388,6 +425,8 @@ namespace LastSanctuary.UI
         /// <summary>유물 관리 창을 연다/닫는다 — 다른 창들과 같은 구조.</summary>
         void HandleRelic()
         {
+            if (Intercept(Help.HelpTrigger.ActionRelic)) return;
+
             if (_relicPanel == null)
                 _relicPanel = FindAnyObjectByType<RelicPanel>(FindObjectsInactive.Include);
             _helpPanel = FindAnyObjectByType<HelpPanel>(FindObjectsInactive.Include);

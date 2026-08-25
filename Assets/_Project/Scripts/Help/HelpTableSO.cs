@@ -68,8 +68,9 @@ namespace LastSanctuary.Help
         /// <summary>전술 지침을 처음 바꿨다.</summary>
         TacticsChanged = 15,
 
-        /// <summary>건설 배치 모드에 처음 들어갔다. ⚠ 건설은 지금 꺼진 기능이라 안 뜬다.</summary>
-        BuildModeEntered = 16,
+        // 16 = BuildModeEntered — <b>지웠다</b> (2026-08-25 · 유저: *"도움말에서 포탑 건설
+        // 관련 설명 삭제해 해당 기능 없어졌어"*). 번호는 <b>비워 둔다</b> — 다시 쓰면
+        // 이미 구워 둔 에셋의 «16» 이 엉뚱한 계기를 가리킨다.
 
         /// <summary>
         /// 누군가의 침식이 <see cref="HelpEntry.triggerArg"/> 에 <b>닿았다</b>(표에 50 이 들어 있다).
@@ -93,6 +94,41 @@ namespace LastSanctuary.Help
 
         /// <summary>배속이나 일시정지를 처음 만졌다.</summary>
         GameSpeedChanged = 23,
+
+        // ══════════════════════════════════════════════════════════════
+        //  ★★★ 허드 액션 버튼을 <b>처음 눌렀을 때</b> (2026-08-25 신설)
+        // ══════════════════════════════════════════════════════════════
+        // 유저 지시: *"허드 액션의 각 버튼을 <b>최초로 눌렀을때</b> 해당 기능에 대한 도움말이
+        // 등장하는 것으로 진행"*.
+        //
+        // ⚠ <b>위의 계기들과 성질이 다르다.</b> 위는 «기능이 <b>일어난 뒤</b>» 를 듣고,
+        //   이 일곱은 «기능을 <b>쓰려는 순간</b>» 을 가로챈다. 그래서 배선도 다르다 —
+        //   <see cref="HelpService.Fire"/> 가 아니라
+        //   <see cref="HelpService.InterceptFirstUse"/> 로 들어온다(그쪽 doc 참고).
+        //
+        // ★ 이 일곱만 «버튼» 에 거는 이유는 144-2 절의 «통로가 여럿이라 빠뜨린다» 가
+        //   여기서는 성립하지 않기 때문이다 — 이 버튼들이 그 창을 여는 <b>유일한 통로</b>다.
+
+        /// <summary>「캐릭터 생성」 버튼을 처음 눌렀다.</summary>
+        ActionCreate = 24,
+
+        /// <summary>「캐릭터 성장」 버튼을 처음 눌렀다 (강화 · <c>HUD_Growth</c>).</summary>
+        ActionUpgrade = 25,
+
+        /// <summary>「부대 설정」 버튼을 처음 눌렀다.</summary>
+        ActionSquad = 26,
+
+        /// <summary>「전술 지침」 버튼을 처음 눌렀다.</summary>
+        ActionTactics = 27,
+
+        /// <summary>「토벌 지시」 버튼을 처음 눌렀다.</summary>
+        ActionSubjugate = 28,
+
+        /// <summary>「유물 관리」 버튼을 처음 눌렀다.</summary>
+        ActionRelic = 29,
+
+        /// <summary>「환경 설정」 버튼을 처음 눌렀다.</summary>
+        ActionSettings = 30,
     }
 
     /// <summary>

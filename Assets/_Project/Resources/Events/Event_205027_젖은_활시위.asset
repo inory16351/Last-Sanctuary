@@ -21,12 +21,17 @@ MonoBehaviour:
   choiceGroupId: 600027
   eventBg: "bg_ground"
   eventScript: "성역의 습기가 활시위를 늘어뜨렸습니다.\n당길 수는 있으나 화살이 예전만큼 멀리 가지 않습니다."
+  nameKey: "event_name_205027"
+  scriptKey: "event_script_205027"
   choices:
   - choiceId: 300053
     choiceOrder: 1
     choiceText: "마를 동안 앞을 두껍게 세운다."
     resultScript: "쏘는 일을 잠시 접고 벽을 세웠습니다.\n화살이 짧아진 만큼 방패는 두꺼워졌습니다."
     resultEffect: "효과 : 천사 전체 원거리 공격력 −8% (240초) · 천사 전체 방어력 +9% (240초)"
+    choiceTextKey: "event_choice_text_300053"
+    resultScriptKey: "event_result_script_300053"
+    resultEffectKey: "event_result_effect_300053"
     rewardType01: "char_long_distance_atk_durat_down"
     rewardValue01: 8
     rewardDuration01: 240
@@ -38,6 +43,9 @@ MonoBehaviour:
     choiceText: "젖은 채로 쏜다."
     resultScript: "천사들은 늘어진 시위를 쉬지 않고 당겼습니다.\n빨라진 손이 정확함을 대신합니다."
     resultEffect: "효과 : 천사 전체 공격 속도 +9% (240초) · 천사 전체 명중률 −7% (240초)"
+    choiceTextKey: "event_choice_text_300054"
+    resultScriptKey: "event_result_script_300054"
+    resultEffectKey: "event_result_effect_300054"
     rewardType01: "char_atk_spd_durat_up"
     rewardValue01: 9
     rewardDuration01: 240

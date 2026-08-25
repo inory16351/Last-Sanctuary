@@ -917,7 +917,7 @@ namespace LastSanctuary.Combat
         ///   · 그것을 지워 줄 <c>SacredZone</c> 도 <c>Time.time</c> 으로 세므로 <b>같이 굳는다</b>
         ///     → <see cref="SacredZone.OnDestroy"/> 가 영영 안 돌고 취소도 안 된다
         ///
-        /// 패배는 <b>넥서스가 부서질 때</b> 일어나므로, 굳은 그림은 정확히 «중앙 건물 자리» 에
+        /// 패배는 <b>성역이 부서질 때</b> 일어나므로, 굳은 그림은 정확히 «중앙 건물 자리» 에
         /// 남는다 — 유저가 본 그 «장식물» 이다.
         ///
         /// ★ <b>시간으로 우회하지 않았다</b>(<c>unscaledDeltaTime</c> 으로 바꾸는 것) —

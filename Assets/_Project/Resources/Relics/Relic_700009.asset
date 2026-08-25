@@ -26,5 +26,8 @@ MonoBehaviour:
   source: 1
   sourceId: 0
   dropWeight: 10
+  nameKey: "relic_name_700009"
+  descKey: "relic_desc_700009"
+  flavorKey: "relic_flavor_700009"
   iconKey: "relic_lymph"
   icon: {fileID: 21300000, guid: bf6086cdbea2df8982889b7582ebb063, type: 3}

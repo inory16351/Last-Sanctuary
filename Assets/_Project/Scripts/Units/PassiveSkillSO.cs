@@ -138,7 +138,23 @@ namespace LastSanctuary.Units
         /// ⚠ 이 칸은 <b>비어 있을 수 있다</b>(표에 안 적힌 스킬). 그때는 부르는 쪽이
         ///   정의문으로 폴백한다 — <see cref="EffectDisplayText"/> 가 그 규칙을 들고 있다.
         /// </summary>
-        public string DetailText => Data.StringTable.Get(detailKey, detailText);
+        /// <remarks>
+        /// ★★★ 2026-08-25 — <b>이 문장도 수치를 채워 내보낸다</b> (유저 지시:
+        /// *"스킬 설명도 자세한 수치가 상세 설명에 들어가는 방식으로 만들어줘. 지금 수치가
+        /// 아래에 따로 빠져있어서 <b>각 수치가 멀 의미하는건지 모를 가능성이 높음</b>.
+        /// 메이플 스킬 설명 참고"*).
+        ///
+        /// <b>무엇이 문제였나</b> — 2026-08-20 에 이 칸을 만들 때는 «수치를 적지 않는다» 가
+        /// 규칙이었고(표 값이 바뀌어도 문장이 거짓말이 되지 않게), 수치는 상세 창 아래에
+        /// <c>① 30   ② 5   ③ 12</c> 처럼 <b>따로</b> 나열했다. 그런데 그 줄은 <b>번호만
+        /// 있고 이름이 없다</b> — «30이 무엇의 30인지» 를 알 길이 없다.
+        ///
+        /// ★ 해법은 «수치를 적지 않는다» 를 버리는 것이 아니라 <b>자리표를 쓰는 것</b>이다.
+        ///   문장에 <c>{value_01}</c> 을 넣어 두면 표의 값이 바뀌어도 <b>문장이 따라간다</b> —
+        ///   원래 규칙이 지키려던 것(거짓말 방지)을 그대로 지키면서 숫자가 제 뜻 옆에 붙는다.
+        ///   <see cref="EffectText"/> 가 이미 쓰던 장치를 <b>같이 쓰는 것</b>뿐이다.
+        /// </remarks>
+        public string DetailText => Fill(Data.StringTable.Get(detailKey, detailText));
 
         /// <summary>
         /// 상세 창의 <b>효과 칸에 실제로 나갈 문장</b>. 「상세 설명」이 있으면 그것,
@@ -160,9 +176,17 @@ namespace LastSanctuary.Units
         /// <b>문구 원본은 스트링 테이블</b>이고(<see cref="effectKey"/>),
         /// 키가 없으면 <see cref="effectTemplate"/> 리터럴로 폴백한다 — 치환 규칙은 같다.
         /// </summary>
-        public string EffectText()
+        public string EffectText() => Fill(Data.StringTable.Get(effectKey, effectTemplate));
+
+        /// <summary>
+        /// <c>{value_01~06}</c> 자리표를 실제 수치로 바꾼다.
+        ///
+        /// ★ 2026-08-25 — <see cref="EffectText"/> 안에 있던 것을 <b>꺼냈다</b>.
+        ///   <see cref="DetailText"/> 도 같은 치환이 필요해졌기 때문이다(그쪽 remarks 참조).
+        ///   규칙이 두 벌이 되면 한쪽에만 <c>{value_05}</c> 가 추가되는 사고가 난다.
+        /// </summary>
+        string Fill(string template)
         {
-            string template = Data.StringTable.Get(effectKey, effectTemplate);
             if (string.IsNullOrEmpty(template)) return "";
 
             // ★★ 2026-08-20 — <b>여섯 개까지 · 대소문자를 가리지 않고</b> 치환한다.

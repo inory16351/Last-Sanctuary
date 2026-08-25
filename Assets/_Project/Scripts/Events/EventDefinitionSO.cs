@@ -77,6 +77,27 @@ namespace LastSanctuary.Events
         [Tooltip("result_effect — 결과창의 효과 요약. <b>여기서 처음 수치가 보인다</b>")]
         [TextArea(1, 3)] public string resultEffect = "";
 
+        // ★★ 스트링 키 (2026-08-25) — 위 셋은 이제 <b>폴백</b>이다. 아래 doc 참고.
+        //   ⚠ 키의 꼬리는 `choice_group_id` 가 아니라 <b>`choice_id`</b> 다 — 그룹 하나에
+        //     선택지가 여럿이라 그룹으로 묶으면 서로 덮어쓴다.
+        [Tooltip("event_choice_text_<choice_id>")]
+        public string choiceTextKey = "";
+
+        [Tooltip("event_result_script_<choice_id>")]
+        public string resultScriptKey = "";
+
+        [Tooltip("event_result_effect_<choice_id>")]
+        public string resultEffectKey = "";
+
+        /// <summary>버튼 문구 — 스트링 키가 있으면 그쪽이 정본이다.</summary>
+        public string ChoiceText => Data.StringTable.Get(choiceTextKey, choiceText);
+
+        /// <summary>결과창 대사.</summary>
+        public string ResultScript => Data.StringTable.Get(resultScriptKey, resultScript);
+
+        /// <summary>결과창 효과 요약.</summary>
+        public string ResultEffect => Data.StringTable.Get(resultEffectKey, resultEffect);
+
         [Tooltip("reward_type_01 — RewardType 시트의 enum 이름")]
         public string rewardType01 = "";
 
@@ -151,6 +172,30 @@ namespace LastSanctuary.Events
 
         [Tooltip("event_script — <b>이벤트 본문</b>. 여러 줄이 한 묶음으로 한 번에 출력된다")]
         [TextArea(3, 12)] public string eventScript = "";
+
+        // ══════════════════════════════════════════════════════════════
+        //  ★★★ 스트링 키 (2026-08-25 신설 — 유저: *"이벤트랑 유물 테이블도
+        //      스트링 키 테이블 연동"*)
+        // ══════════════════════════════════════════════════════════════
+        // 사건은 <b>이 게임에서 글이 가장 많은 곳</b>이다(본문 43 · 선택지 86 · 결과 172).
+        // 그 전부가 스트링 키 테이블 <b>밖</b>에 있었다 — 51절이 «모든 테이블 문구를 한
+        // 파일로» 라고 세운 방향에서 이 표만 빠져 있었다(표가 124절에 <b>나중에</b> 생겼다).
+        //
+        // ⚠ 위 <see cref="eventName"/>·<see cref="eventScript"/> 는 이제 <b>폴백</b>이다.
+        //   문구는 <b>이벤트 표</b>에서 고치고 `gen_string_table.py` 를 돌린다.
+
+        [Header("스트링 키")]
+        [Tooltip("event_name_<event_id> — 비어 있으면 eventName 을 그대로 쓴다")]
+        public string nameKey = "";
+
+        [Tooltip("event_script_<event_id> — 비어 있으면 eventScript 를 그대로 쓴다")]
+        public string scriptKey = "";
+
+        /// <summary>사건 이름 — 창의 제목과 전투 기록에 나온다.</summary>
+        public string DisplayName => Data.StringTable.Get(nameKey, eventName);
+
+        /// <summary>사건 본문.</summary>
+        public string Script => Data.StringTable.Get(scriptKey, eventScript);
 
         [Header("ChoiceGroup 시트 (이 이벤트 것만 · choice_order 순)")]
         public List<EventChoice> choices = new List<EventChoice>();

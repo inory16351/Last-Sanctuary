@@ -178,6 +178,65 @@ namespace LastSanctuary.EditorTools
         [MenuItem("LastSanctuary/도움말/안내 시험 — 유물 장착", priority = 212)]
         static void TourRelic() => TryTour("help_relic_equip");
 
+        // ══════════════════════════════════════════════════════════════
+        //  ★★ 허드 액션 버튼의 «첫 클릭» 시험 (2026-08-25 신설)
+        // ══════════════════════════════════════════════════════════════
+        // 버튼을 <b>처음</b> 누른 순간은 판마다 <b>한 번뿐</b>이고, 한 번 읽으면
+        // (<c>show_once</c>) 다시 만들려면 「읽은 조언 잊기」로 판을 되돌려야 한다.
+        // 검수 비용이 너무 커서 <b>그 클릭을 그대로 흉내 내는</b> 메뉴를 둔다 —
+        // 145-7 절이 「안내 시험」을 만든 것과 같은 이유다.
+        //
+        // ★ <b>버튼을 누르는 것과 완전히 같은 길</b>로 들어간다
+        //   (<see cref="HelpService.InterceptFirstUse"/>). 카드만 따로 띄우면
+        //   «가로채기가 실제로 도는가» 는 하나도 확인되지 않는다.
+
+        [MenuItem("LastSanctuary/도움말/버튼 첫 클릭 시험 — 전술 지침", priority = 220)]
+        static void FirstUseTactics() => TryFirstUse(HelpTrigger.ActionTactics);
+
+        [MenuItem("LastSanctuary/도움말/버튼 첫 클릭 시험 — 캐릭터 성장", priority = 221)]
+        static void FirstUseUpgrade() => TryFirstUse(HelpTrigger.ActionUpgrade);
+
+        [MenuItem("LastSanctuary/도움말/버튼 첫 클릭 시험 — 부대 설정", priority = 222)]
+        static void FirstUseSquad() => TryFirstUse(HelpTrigger.ActionSquad);
+
+        [MenuItem("LastSanctuary/도움말/버튼 첫 클릭 시험 — 유물 관리", priority = 223)]
+        static void FirstUseRelic() => TryFirstUse(HelpTrigger.ActionRelic);
+
+        static void TryFirstUse(HelpTrigger trigger)
+        {
+            if (!Application.isPlaying)
+            {
+                Debug.LogWarning("[도움말] 플레이 중에만 됩니다 — 가로채기는 실행 중인 " +
+                                 "HelpService 가 합니다.");
+                return;
+            }
+
+            HelpService service = HelpService.Instance;
+            if (service == null)
+            {
+                Debug.LogWarning("[도움말] HelpService 를 찾지 못했습니다 (GameSystems 확인).");
+                return;
+            }
+
+            // ★ 카드가 떠 있으면 <b>「알겠습니다」와 같은 길로</b> 먼저 닫는다 — 유저가 읽던 조언을
+            //   닫고 나서 버튼을 누르는 흐름 그대로다. 가로채기는 카드가 떠 있으면 거절하는 것이
+            //   맞고(겹쳐 띄우지 않는다), 그 가드를 피하려고 몰래 끄면 검수가 거짓말이 된다.
+            LastSanctuary.UI.HelpCardPanel card = LastSanctuary.UI.HelpCardPanel.Instance;
+            if (card != null && card.IsOpen)
+            {
+                Debug.Log("[도움말] 떠 있던 카드를 「알겠습니다」로 닫고 시작합니다.");
+                card.Close();
+            }
+
+            if (service.InterceptFirstUse(trigger))
+                Debug.Log($"[도움말] {trigger} — 가로챘습니다. 카드의 「자세히 보기」를 누르면 " +
+                          "그 창이 열리고, 「알겠습니다」를 눌러도 그 창이 열려야 합니다.");
+            else
+                Debug.LogWarning($"[도움말] {trigger} — 가로채지 못했습니다 " +
+                                 "(이미 읽었거나 · 카드/안내가 떠 있거나 · 판이 끝났습니다). " +
+                                 "「읽은 조언 잊기」 뒤에 다시 해 보십시오.");
+        }
+
         /// <summary>
         /// <see cref="HelpTourPanel"/> 과 <b>같은 규칙</b>으로 찾는다 — 비활성도 찾아야 하므로
         /// 뿌리부터 손으로 걸어간다(<c>GameObject.Find</c> 는 비활성을 못 찾는다).

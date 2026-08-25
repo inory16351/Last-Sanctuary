@@ -87,7 +87,7 @@ namespace LastSanctuary.Save
         public int fogWidth;
         public int fogHeight;
 
-        /// <summary>넥서스 체력. 0 이하로 저장되는 일은 없다(그 판은 이미 패배다).</summary>
+        /// <summary>성역 체력. 0 이하로 저장되는 일은 없다(그 판은 이미 패배다).</summary>
         public int nexusHp;
 
         // ── 토벌 (2026-08-18) ──

@@ -32,7 +32,7 @@ namespace LastSanctuary.UI
     /// ★ 창을 여는 일은 <see cref="HudExclusive.TryOpen"/> 이 한다 — <c>SetActive</c> 로 켜면
     ///   각 창의 <c>SetOpen</c> 안에 있는 «목록 다시 그리기» 가 돌지 않아 <b>내용이 빈 창</b>이 뜬다.
     /// ★ 창이 없는 항목은 <b>늘 보이는 HUD 하나</b> 안에서만 짚는다(에너지 · 웨이브 · 배속).
-    /// ⚠ <b>단계가 없는 항목은 「자세히 보기」 자체가 뜨지 않는다</b> — 「넥서스가 부서지면 패배」
+    /// ⚠ <b>단계가 없는 항목은 「자세히 보기」 자체가 뜨지 않는다</b> — 「성역이 부서지면 패배」
     ///   처럼 <b>화면의 칸과 상관없는 규칙</b>은 짚을 데가 없다(유저 지시). 그 판단은
     ///   <see cref="HasTour"/> 한 곳에서 하고, 카드와 백과가 그것을 함께 쓴다.
     ///
@@ -193,8 +193,10 @@ namespace LastSanctuary.UI
             //   카드는 뜰 때 <c>SetAsLastSibling</c> 을 부르므로 <b>안내보다 앞</b>에 있다 —
             //   안 닫으면 «짚어 주는 판이 카드 뒤에» 깔린다. 「자세히 보기」 경로는 이미
             //   카드를 닫고 오지만, <b>순서에 기대지 않는다</b>(검수 메뉴·다른 UI 가 부를 수 있다).
+            //   ⚠ <see cref="HelpCardPanel.CloseSilently"/> 로 닫는다 — 그냥 <c>Close</c> 는
+            //     «다 읽었다» 길이라 가로챈 버튼의 창을 <b>지금</b> 열어 버린다(2026-08-25).
             HelpCardPanel card = HelpCardPanel.Instance;
-            if (card != null && card.IsOpen) card.Close();
+            if (card != null && card.IsOpen) card.CloseSilently();
 
             EnsureBound();
             _entry = entry;
@@ -208,7 +210,15 @@ namespace LastSanctuary.UI
             return true;
         }
 
-        /// <summary>안내를 끝낸다. <b>내가 연 창과 내가 멈춘 시간만</b> 되돌린다.</summary>
+        /// <summary>
+        /// 안내를 끝낸다. <b>내가 연 창과 내가 멈춘 시간만</b> 되돌린다.
+        ///
+        /// ★★ 그러고 나서 <b>가로챈 버튼의 일을 마무리한다</b>
+        /// (<see cref="HelpService.CompletePending"/> · 2026-08-25). 액션 버튼을 눌러
+        /// 이 안내까지 온 유저는 <b>그 창을 쓰려던 것</b>이므로, 설명이 끝나면 창이
+        /// <b>열린 채로</b> 남아야 한다. 소유권 규칙대로 위에서 한 번 닫고 여기서 다시 여는데,
+        /// <b>같은 프레임</b>이라 화면에는 끊김이 보이지 않는다.
+        /// </summary>
         public void Close()
         {
             CloseWindow();
@@ -216,6 +226,8 @@ namespace LastSanctuary.UI
             gameObject.SetActive(false);
             _entry = null;
             _steps.Clear();
+
+            HelpService.Instance?.CompletePending();
         }
 
         // ------------------------------------------------------------------

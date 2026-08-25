@@ -62,7 +62,8 @@ TRIGGER = {
     "SquadCreated": 13,
     "RallyPointCreated": 14,
     "TacticsChanged": 15,
-    "BuildModeEntered": 16,
+    # 16 = BuildModeEntered — 지웠다 (2026-08-25 · 포탑 건설 기능이 없어졌다).
+    #      번호는 비워 둔다: 다시 쓰면 이미 구운 에셋의 16 이 엉뚱한 계기가 된다.
     "ErosionReached": 17,
     "MentalErrorTriggered": 18,
     "NeutralKilled": 19,
@@ -70,6 +71,15 @@ TRIGGER = {
     "EventStarted": 21,
     "AutoSaved": 22,
     "GameSpeedChanged": 23,
+
+    # ★★★ 허드 액션 버튼의 «첫 클릭» (2026-08-25 신설 · HelpService.InterceptFirstUse)
+    "ActionCreate": 24,
+    "ActionUpgrade": 25,
+    "ActionSquad": 26,
+    "ActionTactics": 27,
+    "ActionSubjugate": 28,
+    "ActionRelic": 29,
+    "ActionSettings": 30,
 }
 
 HEADER = """%YAML 1.1

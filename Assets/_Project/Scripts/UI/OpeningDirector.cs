@@ -517,6 +517,22 @@ namespace LastSanctuary.UI
         bool _running;
         bool _leaving;
 
+        /// <summary>
+        /// ★★★ <b>«이 컷은 다 봤다» 는 신호</b> (2026-08-25 · 유저 지시:
+        /// *"초반 오프닝 클릭하면 <b>다음 컷으로</b> 넘어가게 만들어줘"*).
+        ///
+        /// <b>건너뛰기와 다르다</b> — 건너뛰기는 오프닝 <b>전체</b>를 버리고, 이것은 <b>한 컷</b>만
+        /// 넘긴다. 2026-08-24 에 «화면 아무 곳이나 클릭» 을 뺀 이유가 «손이 미끄러진 한 번의
+        /// 클릭으로 2분이 전부 날아간다» 였는데(<see cref="skipButtonDelaySeconds"/> 의 설명),
+        /// 컷 단위로 넘기는 것은 <b>그 위험이 없다</b> — 잃는 것이 한 컷뿐이고 다음 컷은 계속 나온다.
+        ///
+        /// ⚠ <b>플래그를 세워 두기만 하고 여기서 아무것도 하지 않는다.</b> 연출은
+        ///   <see cref="Run"/> 코루틴 <b>하나</b>가 굴리므로, 클릭이 그 바깥에서 배경을 갈거나
+        ///   자막을 지우면 코루틴이 <b>제 순서를 계속 진행하며</b> 방금 바꾼 것을 덮어쓴다.
+        ///   신호만 남기고 <b>진행은 코루틴이 스스로</b> 끊는다.
+        /// </summary>
+        bool _cutRequested;
+
         // ────────────────────────────────────────────────────────────────
 
         void Start()
@@ -542,6 +558,50 @@ namespace LastSanctuary.UI
                 _clock = Mathf.Max(_clock, _bgm.time);      // ★ 뒤로 가지 않는다
 
             if (_running && !_leaving && SkipRequested()) Skip();
+            if (_running && !_leaving && NextCutRequested()) _cutRequested = true;
+        }
+
+        /// <summary>
+        /// <b>다음 컷으로</b> — 화면 아무 곳이나 눌렀는가 (2026-08-25 · 위 <see cref="_cutRequested"/>).
+        ///
+        /// ⚠ <b>건너뛰기 버튼 위의 클릭은 세지 않는다.</b> 버튼도 클릭을 받으므로 그냥 세면
+        ///   건너뛰기를 누른 한 번이 <b>«건너뛰기 + 컷 넘기기»</b> 둘 다로 처리된다.
+        ///   <see cref="EventSystem.IsPointerOverGameObject"/> 로 «UI 위인가» 를 물어 가린다.
+        /// ⚠ 마우스 <b>왼쪽만</b> 받는다 — 오른쪽·가운데 클릭으로 연출이 넘어가면 사고로 읽힌다.
+        /// </summary>
+        static bool NextCutRequested()
+        {
+            Mouse mouse = Mouse.current;
+            if (mouse == null || !mouse.leftButton.wasPressedThisFrame) return false;
+
+            EventSystem events = EventSystem.current;
+            return events == null || !events.IsPointerOverGameObject();
+        }
+
+        /// <summary>
+        /// ★★ <b>노래를 다음 컷의 자리로 민다</b> — 컷을 클릭으로 넘길 때 부른다.
+        ///
+        /// 이 연출의 시계는 <b>노래</b>다(<see cref="_clock"/>). 화면만 앞질러 보내면 자막·음성이
+        /// 계속 <b>지나간 박자</b>를 기다려 연출이 통째로 어긋난다 — 142절이 «노래의 박자 격자에
+        /// 맞췄다» 고 적어 둔 그 격자가 깨진다. 그래서 <b>노래도 함께</b> 옮긴다.
+        ///
+        /// ★ 목표는 다음 컷의 시각이 아니라 <b>그보다 <see cref="fadeOutSeconds"/> 앞</b>이다 —
+        ///   <see cref="Run"/> 의 ⑤가 «다음 컷 − 페이드아웃» 에서 막을 내리기 시작하므로, 그
+        ///   자리로 옮겨야 막이 다 진 순간에 노래가 <b>정확히</b> 다음 컷의 시각에 있다.
+        /// ⚠ 곡의 끝을 넘어가면 <see cref="AudioSource.time"/> 에 넣을 수 없다 — 그때는
+        ///   시계만 밀어 준다. 시계는 브금 없이도 스스로 굴러가게 되어 있다(<see cref="_clock"/>).
+        /// </summary>
+        void SeekToCut(float? nextCutMusicTime)
+        {
+            if (!nextCutMusicTime.HasValue || nextCutMusicTime.Value <= 0f) return;
+
+            float target = Mathf.Max(0f, nextCutMusicTime.Value - fadeOutSeconds);
+            if (target <= _clock) return;                 // 이미 지나 있다 — 되돌리지 않는다
+
+            if (_bgm != null && _bgm.clip != null && target < _bgm.clip.length - 0.05f)
+                _bgm.time = target;
+
+            _clock = target;
         }
 
         /// <summary>
@@ -567,7 +627,11 @@ namespace LastSanctuary.UI
                 Slide slide = slides[i];
                 if (slide == null) continue;
 
+                // ★ 이 컷을 지금부터 센다 — 앞 컷에서 남은 클릭이 이 컷을 곧바로 넘기지 않는다.
+                _cutRequested = false;
+
                 // ① 이 장면이 시작될 «노래의 시각» 까지 검은 화면으로 기다린다.
+                //    ⚠ 여기서는 클릭을 <b>받지 않는다</b> — 검은 화면에는 «다 본 컷» 이 없다.
                 if (slide.atMusicTime > 0f)
                     while (_clock < slide.atMusicTime) yield return null;
 
@@ -591,7 +655,16 @@ namespace LastSanctuary.UI
                     ? next.Value - fadeOutSeconds
                     : Mathf.Max(_clock, _voiceEndsAt) + slide.holdAfterLastCaption;
 
-                while (_clock < fadeOutAt) yield return null;
+                while (_clock < fadeOutAt && !_cutRequested) yield return null;
+
+                // ★★ 클릭으로 끊었으면 <b>노래를 다음 컷 자리로 밀고</b> 지금 말하던 것을 끊는다.
+                //    ⚠ 음성을 안 끊으면 <b>지난 컷의 목소리가 다음 컷 위에</b> 남아 겹친다.
+                if (_cutRequested)
+                {
+                    _cutRequested = false;
+                    if (_voice != null) _voice.Stop();
+                    SeekToCut(next);
+                }
 
                 yield return Fade(_curtain, _curtain.alpha, 1f, fadeOutSeconds);
             }
@@ -624,19 +697,27 @@ namespace LastSanctuary.UI
 
             for (int i = 0; i < captions.Length; i++)
             {
+                // ★ 클릭이 들어왔으면 <b>남은 문장을 버리고</b> 빠져나온다 (2026-08-25).
+                //   ⚠ 안 빠져나오면 남은 문장들이 «지난 박자» 를 기다리지 않고 <b>연달아</b>
+                //     쳐진다 — 시각 조건은 이미 다 지났고 타자만 제 속도로 도므로,
+                //     넘긴 컷의 자막이 <b>다음 컷 위에서</b> 줄줄이 나온다.
+                if (_cutRequested) yield break;
+
                 Caption caption = captions[i];
                 if (caption == null || string.IsNullOrEmpty(caption.text)) continue;
 
                 if (caption.atMusicTime > 0f)
                 {
                     // 노래의 그 시각에 이 문장이 말을 시작한다
-                    while (_clock < caption.atMusicTime) yield return null;
+                    while (_clock < caption.atMusicTime && !_cutRequested) yield return null;
                 }
                 else if (i > 0)
                 {
                     float until = _clock + captionGapSeconds;
-                    while (_clock < until) yield return null;
+                    while (_clock < until && !_cutRequested) yield return null;
                 }
+
+                if (_cutRequested) yield break;
 
                 float voiceLength = PlayVoice(caption.voice);
                 yield return Type(caption.text, SpeedFor(slide, caption, voiceLength));
@@ -692,6 +773,10 @@ namespace LastSanctuary.UI
             float shown = 0f;
             while (_caption.maxVisibleCharacters < total)
             {
+                // ★ 클릭이 들어오면 <b>남은 글자를 한 번에</b> 보여주고 끝낸다 (2026-08-25).
+                //   여기서 그냥 빠져나오면 자막이 <b>반만 쳐진 채</b> 막이 진다.
+                if (_cutRequested) { _caption.maxVisibleCharacters = total; yield break; }
+
                 shown += Time.unscaledDeltaTime * speed;
                 _caption.maxVisibleCharacters = Mathf.Min(total, Mathf.FloorToInt(shown));
                 yield return null;

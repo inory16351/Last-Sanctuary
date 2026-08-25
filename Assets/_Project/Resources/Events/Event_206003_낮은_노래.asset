@@ -21,12 +21,17 @@ MonoBehaviour:
   choiceGroupId: 600031
   eventBg: "bg_mind"
   eventScript: "누군가 낮은 노래를 시작했습니다.\n곡조는 형편없습니다. 그런데 옆에 선 천사의 떨림이 잦아듭니다."
+  nameKey: "event_name_206003"
+  scriptKey: "event_script_206003"
   choices:
   - choiceId: 300061
     choiceOrder: 1
     choiceText: "같이 부르게 한다."
     resultScript: "성역 전체가 같은 박자로 흔들렸습니다.\n노래가 닿은 자리마다 갉힌 정신이 조금씩 메워집니다."
     resultEffect: "효과 : 천사 전체 침식 −12  ·  유물 「서늘한 해열」 획득 (레어)"
+    choiceTextKey: "event_choice_text_300061"
+    resultScriptKey: "event_result_script_300061"
+    resultEffectKey: "event_result_effect_300061"
     rewardType01: "char_all_erosion_down"
     rewardValue01: 12
     rewardDuration01: 0
@@ -38,6 +43,9 @@ MonoBehaviour:
     choiceText: "노래를 멈추게 한다."
     resultScript: "다시 조용해진 성역에 적의 발소리가 또렷해집니다.\n듣기 위해 포기한 것은 위로였습니다."
     resultEffect: "효과 : 천사 전체 명중률 +10% (180초) · 천사 전체 침식 +4"
+    choiceTextKey: "event_choice_text_300062"
+    resultScriptKey: "event_result_script_300062"
+    resultEffectKey: "event_result_effect_300062"
     rewardType01: "char_hit_durat_up"
     rewardValue01: 10
     rewardDuration01: 180

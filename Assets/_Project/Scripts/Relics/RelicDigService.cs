@@ -83,7 +83,7 @@ namespace LastSanctuary.Relics
                  "가 된다. 너무 많으면 발굴이 주 수입원이 되어 웨이브를 미루는 것이 최적 전략이 된다")]
         [Min(0)] [SerializeField] int digSiteCount = 24;
 
-        [Tooltip("넥서스에서 이만큼(타일) 떨어진 곳에만 둔다 — 시작하자마자 다 캐지 않게")]
+        [Tooltip("성역에서 이만큼(타일) 떨어진 곳에만 둔다 — 시작하자마자 다 캐지 않게")]
         [Min(0f)] [SerializeField] float minDistanceFromNexus = 14f;
 
         [Tooltip("발굴 칸끼리 이만큼(타일)은 떨어뜨린다 — 한곳에 몰리면 «한 번 가서 다 캔다» 가 된다")]
@@ -287,7 +287,7 @@ namespace LastSanctuary.Relics
         /// 조건 셋(표 Info 시트 «자리 고르기»):
         /// <code>
         ///   ① 걸을 수 있고 벽·구조물이 없는 칸       (IsCellPlaceable)
-        ///   ② 넥서스에서 minDistanceFromNexus 밖
+        ///   ② 성역에서 minDistanceFromNexus 밖
         ///   ③ 다른 발굴 칸과 minSpacing 이상 떨어짐
         /// </code>
         /// ⚠ 조건을 만족하는 자리가 모자라면 <b>있는 만큼만</b> 둔다 — 무한 루프를 돌지 않는다.
@@ -660,7 +660,7 @@ namespace LastSanctuary.Relics
             string what = ApplyOutcome(row, digger);
             string who = digger != null ? digger.DisplayName : "누군가";
             HudLog.Add(string.IsNullOrEmpty(what)
-                           ? $"{who} — 발굴: {row.outcomeScript}"
+                           ? $"{who} — 발굴: {row.Script}"
                            : $"{who} — 발굴: {what}",
                        what.StartsWith("−") || row.outcomeType == "dig_hurt" ||
                        row.outcomeType == "dig_erosion_up"
@@ -676,7 +676,7 @@ namespace LastSanctuary.Relics
                 if (string.IsNullOrWhiteSpace(flavor))
                     flavor = RelicDialogueTableSO.Fallback(RelicDialogueSituation.Result);
 
-                string line = row.outcomeScript;
+                string line = row.Script;
                 if (!string.IsNullOrEmpty(what)) line += "\n" + what;
                 panel.PresentResult(flavor, line, _lastGrantedIcon);
             }

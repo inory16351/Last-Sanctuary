@@ -28,5 +28,5 @@ MonoBehaviour:
   coolTime: 60
   iconName: 'icon_lightning_strike'
   flavorText: '천상에서 쫓겨난 자가 내리는 천벌이야말로 가장 무겁습니다.'
-  detailText: '정신을 집중한 뒤 직사각형 범위의 적을 내리칩니다. 맞은 적은 잠시 방어력이 낮아집니다.'
+  detailText: '{value_01}초 동안 정신을 집중한 뒤, 가로 {value_02} · 세로 {value_03} 범위의 적에게 근거리 공격력의 {value_04}% 피해를 줍니다. 맞은 적은 {value_05}초 동안 방어력이 {value_06}% 낮아집니다.'
   effectTemplate: '카이론이 {value_01}초 동안 정신집중을 합니다. 정신집중이 끝나면 가로 {value_02}x세로 {value_03}의 직사각형 범위의 적에게 근거리 공격력의 {value_04}%의 데미지를 줍니다. 피해를 당한 적은 {value_05}초 동안 방어력이 {value_06}% 감소합니다.'

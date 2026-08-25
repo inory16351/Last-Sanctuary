@@ -21,12 +21,17 @@ MonoBehaviour:
   choiceGroupId: 600019
   eventBg: "bg_fog"
   eventScript: "유해를 태우는 연기가 성역 밖까지 올라갔습니다.\n안개 너머의 무엇인가가 그 냄새를 맡았습니다."
+  nameKey: "event_name_205019"
+  scriptKey: "event_script_205019"
   choices:
   - choiceId: 300037
     choiceOrder: 1
     choiceText: "오기 전에 먼저 친다."
     resultScript: "천사들은 연기를 등지고 먼저 달려나갔습니다.\n선공의 값은 언제나 자기 살로 치릅니다."
     resultEffect: "효과 : 천사 전체 체력 −10% (최대 체력 기준) · 천사 전체 근거리 공격력 +14% (120초)"
+    choiceTextKey: "event_choice_text_300037"
+    resultScriptKey: "event_result_script_300037"
+    resultEffectKey: "event_result_effect_300037"
     rewardType01: "char_hp_percent_loss"
     rewardValue01: 10
     rewardDuration01: 0
@@ -38,6 +43,9 @@ MonoBehaviour:
     choiceText: "문을 열고 기다린다."
     resultScript: "성역은 문을 열어 놈들을 안으로 들였습니다.\n안에서 잡는 것이 남는 장사입니다 — 성역의 살이 천사들의 어깨를 먼저 덮습니다."
     resultEffect: "효과 : 현재 웨이브 일반 몬스터 6마리 소환 · 천사 전체 보호막 (최대 체력의 8%, 120초)"
+    choiceTextKey: "event_choice_text_300038"
+    resultScriptKey: "event_result_script_300038"
+    resultEffectKey: "event_result_effect_300038"
     rewardType01: "summon_enemy"
     rewardValue01: 6
     rewardDuration01: 0

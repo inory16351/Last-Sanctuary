@@ -21,12 +21,17 @@ MonoBehaviour:
   choiceGroupId: 600008
   eventBg: "bg_aftermath"
   eventScript: "유해를 걷어낸 자리에 적의 파편이 반짝입니다.\n성역의 것이 아닌 재료입니다. 쓸 수야 있겠지만, 몸에 맞을지는 아무도 모릅니다."
+  nameKey: "event_name_205008"
+  scriptKey: "event_script_205008"
   choices:
   - choiceId: 300015
     choiceOrder: 1
     choiceText: "몸에 박아 넣는다."
     resultScript: "이질적인 파편이 천사들의 살에 자리를 잡았습니다.\n힘은 분명히 늘었고, 그 자리는 이제 성역의 것이 아닙니다."
     resultEffect: "효과 : 천사 전체 근거리 공격력 +10% (120초) · 천사 전체 저항력 −8% (240초)"
+    choiceTextKey: "event_choice_text_300015"
+    resultScriptKey: "event_result_script_300015"
+    resultEffectKey: "event_result_effect_300015"
     rewardType01: "char_melee_atk_durat_up"
     rewardValue01: 10
     rewardDuration01: 120
@@ -38,6 +43,9 @@ MonoBehaviour:
     choiceText: "태워서 익혀 두어라."
     resultScript: "파편은 불 속에서 이 몸이 견딜 수 있는 형태로 바뀌었습니다.\n낯선 것을 낯익은 것으로 바꾸는 일이 곧 면역입니다."
     resultEffect: "효과 : 천사 전체 저항력 +10% (120초) · 천사 전체 침식 −6"
+    choiceTextKey: "event_choice_text_300016"
+    resultScriptKey: "event_result_script_300016"
+    resultEffectKey: "event_result_effect_300016"
     rewardType01: "char_resist_durat_up"
     rewardValue01: 10
     rewardDuration01: 120

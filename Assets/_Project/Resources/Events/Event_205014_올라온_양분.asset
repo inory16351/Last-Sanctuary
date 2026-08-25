@@ -21,12 +21,17 @@ MonoBehaviour:
   choiceGroupId: 600014
   eventBg: "bg_supply"
   eventScript: "성역의 깊은 곳에서 양분이 올라왔습니다.\n넉넉하지는 않으나 굶주림을 달랠 만큼은 됩니다."
+  nameKey: "event_name_205014"
+  scriptKey: "event_script_205014"
   choices:
   - choiceId: 300027
     choiceOrder: 1
     choiceText: "전부 먹여라."
     resultScript: "천사들의 상처가 눈에 보이는 속도로 메워집니다.\n지금 채운 몸이 다음 파도를 받아낼 것입니다."
     resultEffect: "효과 : 천사 전체 체력 회복 (최대 체력의 15%)  ·  유물 「부어오른 자리」 획득 (일반)"
+    choiceTextKey: "event_choice_text_300027"
+    resultScriptKey: "event_result_script_300027"
+    resultEffectKey: "event_result_effect_300027"
     rewardType01: "char_hp_percent_heal"
     rewardValue01: 15
     rewardDuration01: 0
@@ -38,6 +43,9 @@ MonoBehaviour:
     choiceText: "곳간에 넣어라."
     resultScript: "양분은 손대지 않은 채 곳간으로 옮겨졌습니다.\n배는 고프지만, 쓸 수 있는 것이 늘었습니다."
     resultEffect: "효과 : 에너지 +300"
+    choiceTextKey: "event_choice_text_300028"
+    resultScriptKey: "event_result_script_300028"
+    resultEffectKey: "event_result_effect_300028"
     rewardType01: "energy_gain"
     rewardValue01: 300
     rewardDuration01: 0

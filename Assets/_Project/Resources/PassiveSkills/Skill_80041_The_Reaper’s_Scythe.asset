@@ -28,5 +28,5 @@ MonoBehaviour:
   coolTime: 0
   iconName: 'icon_hooded_reaper'
   flavorText: '낫이 지나간 자리에는 비명조차 남지 않습니다.'
-  detailText: '근거리 공격에 일정 확률로 낫을 휘둘러 주위의 적을 함께 베어냅니다. 거둔 영혼이 많을수록 더 크게 베입니다.'
+  detailText: '근거리 공격에 {value_01}% 확률로 낫을 휘둘러, 반지름 {value_02} 범위의 적에게 근거리 공격력의 {value_03}%에 거둔 영혼을 더한 피해를 입힙니다.'
   effectTemplate: 'skill_type_desc_The_Reaper’s_Scythe'

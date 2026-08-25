@@ -224,6 +224,10 @@ def main():
         body.append("  choiceGroupId: %d\n" % gid)
         body.append("  eventBg: %s\n" % yaml_str(bg))
         body.append("  eventScript: %s\n" % yaml_str(script))
+        # ★ 스트링 키 (2026-08-25) — 위 eventName·eventScript 는 <b>폴백</b>이다.
+        #   gen_string_table.py 의 RULES 가 같은 규칙(«접두사_id»)로 키를 만든다.
+        body.append("  nameKey: %s\n" % yaml_str("event_name_%d" % eid))
+        body.append("  scriptKey: %s\n" % yaml_str("event_script_%d" % eid))
 
         if rows:
             body.append("  choices:\n")
@@ -233,6 +237,12 @@ def main():
                 body.append("    choiceText: %s\n" % yaml_str(c[3]))
                 body.append("    resultScript: %s\n" % yaml_str(c[4]))
                 body.append("    resultEffect: %s\n" % yaml_str(c[5]))
+                # ★ 스트링 키 — ⚠ 꼬리는 그룹이 아니라 <b>choice_id</b> 다
+                #   (그룹 하나에 선택지가 여러라 그룹으로 묶으면 서로 덮어쓴다).
+                _cid = int(num(c[1]))
+                body.append("    choiceTextKey: %s\n" % yaml_str("event_choice_text_%d" % _cid))
+                body.append("    resultScriptKey: %s\n" % yaml_str("event_result_script_%d" % _cid))
+                body.append("    resultEffectKey: %s\n" % yaml_str("event_result_effect_%d" % _cid))
                 body.append("    rewardType01: %s\n" % yaml_str(c[6]))
                 body.append("    rewardValue01: %d\n" % int(num(c[7])))
                 body.append("    rewardDuration01: %d\n" % int(num(c[8])))

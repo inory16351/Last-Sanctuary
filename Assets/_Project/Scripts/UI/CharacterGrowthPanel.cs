@@ -115,6 +115,14 @@ namespace LastSanctuary.UI
         [Tooltip("평소 분노 숫자 색")]
         [SerializeField] Color rageTextColor = new Color(1f, 0.92f, 0.86f, 1f);
 
+        [Header("문구 · 색 — 영혼 수 (시안 「영혼 흡수」 · 2026-08-25)")]
+        [Tooltip("{0} = 지금까지 거둔 영혼 수. ⚠ 상한이 없어 «/ 최대» 가 없다 — " +
+                 "유저 지시로 <b>막대 없이 글자만</b> 보여준다")]
+        [SerializeField] string soulFormat = "획득한 영혼 수: {0:0}개";
+
+        [Tooltip("영혼 숫자 색")]
+        [SerializeField] Color soulTextColor = new Color(0.78f, 0.72f, 0.92f);
+
         [Tooltip("분노가 가득 찼을 때(= 부활 준비) 숫자 색")]
         [SerializeField] Color rageFullColor = new Color(1f, 0.85f, 0.35f, 1f);
 
@@ -234,14 +242,24 @@ namespace LastSanctuary.UI
             public TMP_Text Hint;
             public Button Button;
 
-            // ── 분노 게이지 (히스톤 「분노」 전용) — 유저 지시 2026-08-18 ──────────
+            // ── 스킬 칸의 «쌓이는 수치» — 유저 지시 2026-08-18 · 2026-08-25 ──────────
             //   <i>"히스톤 두번째 스킬 해금되면 해당 스킬 슬롯 아래에 현재 분노 수치 볼 수
-            //   있는 기능"</i>. ★ <b>슬롯 번호나 인물 이름으로 찾지 않는다</b> — 그 스킬이
-            //   어느 칸에 오는지는 캐릭터 정의(에셋)가 정하므로, 세 칸 모두에 게이지를
-            //   만들어 두고 <b>스킬 종류가 rage_on 인 칸</b>만 켠다(82-8절의 그 원칙).
+            //   있는 기능"</i> · <i>"시안 첫번째 스킬 아래에 <b>수확한 영혼 몇개인지</b> 보이게"</i>.
+            //   ★ <b>슬롯 번호나 인물 이름으로 찾지 않는다</b> — 그 스킬이 어느 칸에 오는지는
+            //   캐릭터 정의(에셋)가 정하므로, 세 칸 모두에 만들어 두고 <b>스킬 종류로</b> 켠다
+            //   (82-8절의 그 원칙). 그래서 시안을 붙이는 데 <b>씬을 한 곳도 안 고쳤다</b>.
+            //   ⚠ 이름은 «Rage…» 로 남아 있다 — 씬 오브젝트 이름이라 바꾸면 배선이 끊긴다.
+            //     지금은 <b>분노와 영혼이 같이 쓰는 칸</b>이다(<see cref="ShowSkillCounter"/>).
             public GameObject RageRoot;
             public Image RageFill;
             public TMP_Text RageLabel;
+
+            /// <summary>
+            /// ★ <c>RageBack</c> 자신의 그림(막대의 어두운 바탕) — 2026-08-25 신설.
+            /// <b>막대 없이 글자만</b> 보여주는 칸(시안의 영혼)에서 이것을 꺼야 한다.
+            /// 안 끄면 «채워지지 않는 빈 게이지» 가 남아 고장난 것으로 보인다.
+            /// </summary>
+            public Image RageBackImage;
         }
 
         const int PassiveSlotCount = 3;
@@ -566,7 +584,7 @@ namespace LastSanctuary.UI
 
             // ★ 효과 줄 — 무엇을 끼고 있는지보다 «그래서 뭐가 좋아지는지» 가 먼저 궁금하다.
             if (_relicSlotEffect != null)
-                _relicSlotEffect.text = relic != null ? relic.relicDesc
+                _relicSlotEffect.text = relic != null ? relic.Desc
                                       : has ? "「유물 관리 열기」로 이 캐릭터에게 유물을 끼웁니다."
                                       : "";
 
@@ -699,7 +717,8 @@ namespace LastSanctuary.UI
                 // 선택이 없거나 이 캐릭터에 스킬 자체가 없으면 빈 칸으로 둔다
                 if (skill == null)
                 {
-                    ShowRageGauge(card, false, 0f);
+                    // 빈 칸에는 수치도 없다 — None 을 넘기면 통째로 꺼진다.
+                    ShowSkillCounter(card, PassiveSkillType.None);
                     if (card.Background != null) card.Background.color = passiveEmptyColor;
                     if (card.Icon != null) card.Icon.color = new Color(1f, 1f, 1f, 0f);
                     if (card.Name != null) { card.Name.text = "-"; card.Name.color = labelDisabled; }
@@ -743,18 +762,15 @@ namespace LastSanctuary.UI
                     card.Desc.color = unlocked ? passiveDescColor : labelDisabled;
                 }
 
-                // ★ 분노 게이지 — <b>해금된 「분노」 칸에만</b> 나온다.
-                //   히스톤은 이게 두 번째 칸이지만, 그건 캐릭터 정의가 정하는 것이라
-                //   슬롯 번호로 판단하지 않는다(다른 인물이 다른 칸에 들고 나올 수 있다).
-                bool showRage = unlocked &&
-                                PassiveSkillTypes.Parse(skill.skillType) == PassiveSkillType.RageOn;
-                float rage = showRage ? RageOf(_unit) : 0f;
-                ShowRageGauge(card, showRage, rage);
+                // ★ 게이지 — <b>해금된 «세는 스킬» 칸에만</b> 나온다.
+                //   히스톤의 분노는 두 번째 칸, 시안의 영혼은 첫 번째 칸이지만, 그건 캐릭터
+                //   정의가 정하는 것이라 <b>슬롯 번호로 판단하지 않는다</b>(82-8절의 그 원칙).
+                bool showGauge = unlocked && ShowSkillCounter(card, PassiveSkillTypes.Parse(skill.skillType));
 
                 // ⚠ 게이지와 클릭 안내는 <b>카드 안 같은 자리</b>를 쓴다(카드 176px 이 이미 꽉 찼다).
                 //   게이지가 나오는 칸에서는 안내를 접는다 — 안내는 세 칸 모두에 같은 문구라
-                //   하나쯤 없어도 뜻이 전달되지만, 분노 수치는 여기서만 볼 수 있다.
-                if (card.Hint != null) card.Hint.text = unlocked && !showRage ? passiveClickHint : "";
+                //   하나쯤 없어도 뜻이 전달되지만, 그 수치는 여기서만 볼 수 있다.
+                if (card.Hint != null) card.Hint.text = unlocked && !showGauge ? passiveClickHint : "";
 
                 // 해금된 것만 상세 창을 열 수 있다 — 잠긴 스킬의 내용이 새어나가지 않게
                 if (card.Button != null) card.Button.interactable = unlocked;
@@ -773,29 +789,74 @@ namespace LastSanctuary.UI
         }
 
         /// <summary>
-        /// 분노 게이지 한 칸을 그린다. <paramref name="show"/> 가 false 면 통째로 끈다.
-        ///
-        /// 게이지 조각(<c>RageBack</c>·<c>RageFill</c>·<c>RageLabel</c>)이 하이라키에 없으면
-        /// <b>조용히 아무것도 하지 않는다</b> — 씬이 아직 갱신되지 않은 상태에서 콘솔이
-        /// 에러로 도배되지 않게 하려는 것이다(<see cref="ErosionGaugeView"/> 와 같은 태도).
+        /// 지금 이 캐릭터가 거둔 영혼 수 (2026-08-25). 「영혼 흡수」를 안 가진 캐릭터면 0 이다 —
+        /// <see cref="CharacterPassives.SoulCount"/> 가 스킬 유무까지 보고 돌려준다.
         /// </summary>
-        void ShowRageGauge(PassiveCard card, bool show, float rage)
+        static int SoulsOf(CharacterUnit unit)
         {
-            if (card == null || card.RageRoot == null) return;
+            if (unit == null) return 0;
+            var passives = unit.GetComponent<CharacterPassives>();
+            return passives != null ? passives.SoulCount : 0;
+        }
+
+        /// <summary>
+        /// ★★★ <b>«스스로 쌓이는 수치» 를 스킬 칸에 보여준다</b> — 지금 둘이다
+        /// (히스톤 「분노」 2026-08-18 · <b>시안 「영혼 흡수」 2026-08-25</b>).
+        ///
+        /// <b>둘은 보여주는 모양이 다르다</b>
+        /// <code>
+        ///   분노  : 0~100 이라 «몇 분의 몇» 이 성립한다  →  <b>막대 + 글자</b>
+        ///   영혼  : 상한이 없다                        →  <b>글자만</b>
+        /// </code>
+        /// 유저 지시(2026-08-25): *"분노처럼 <b>게이지로 표시될 필요는 없음</b>.
+        /// 획득한 영혼 수: ??개 이런식으로 <b>텍스트로</b> 표시되면 됨"*.
+        ///
+        /// ⚠ 영혼 칸에서 <b>막대의 바탕까지 꺼야 한다</b>(<see cref="PassiveCard.RageBackImage"/>) —
+        ///   안 끄면 «채워지지 않는 빈 게이지» 가 남아 <b>고장난 것으로</b> 보인다.
+        ///   글자는 그 자리에 그대로 나오므로 칸 배치는 건드릴 필요가 없다.
+        ///
+        /// ★ <b>씬을 고치지 않았다</b> — 게이지 조각은 82-8절의 원칙대로 <b>세 칸 모두에</b>
+        ///   이미 만들어져 있고, 어느 칸을 켤지만 스킬 종류로 정한다.
+        ///
+        /// 게이지 조각이 하이라키에 없으면 <b>조용히 아무것도 하지 않는다</b> — 씬이 아직
+        /// 갱신되지 않은 상태에서 콘솔이 에러로 도배되지 않게 한다(<see cref="ErosionGaugeView"/> 와 같은 태도).
+        /// </summary>
+        /// <returns>이 칸에 수치를 보여줬으면 <c>true</c>(부르는 쪽이 클릭 안내를 접는다).</returns>
+        bool ShowSkillCounter(PassiveCard card, PassiveSkillType type)
+        {
+            if (card == null || card.RageRoot == null) return false;
+
+            bool isRage = type == PassiveSkillType.RageOn;
+            bool isSoul = type == PassiveSkillType.SoulAbsorption;
+            bool show = isRage || isSoul;
 
             if (card.RageRoot.activeSelf != show) card.RageRoot.SetActive(show);
-            if (!show) return;
+            if (!show) return false;
 
-            float ratio = Mathf.Clamp01(rage / CharacterPassives.RageMax);
-            if (card.RageFill != null) card.RageFill.fillAmount = ratio;
+            // 막대(바탕·채움)는 <b>분노일 때만</b> 그린다.
+            if (card.RageBackImage != null) card.RageBackImage.enabled = isRage;
+            if (card.RageFill != null) card.RageFill.enabled = isRage;
 
-            if (card.RageLabel != null)
+            if (card.RageLabel == null) return true;
+
+            if (isRage)
             {
+                float rage = RageOf(_unit);
+                float ratio = Mathf.Clamp01(rage / CharacterPassives.RageMax);
+                if (card.RageFill != null) card.RageFill.fillAmount = ratio;
+
                 // 소수 한 자리 — 분노는 초당 value02 씩 <b>실수로</b> 깎이므로
                 // 정수로 반올림하면 줄어드는 것이 화면에서 뚝뚝 끊겨 보인다.
                 card.RageLabel.text = string.Format(rageFormat, rage, CharacterPassives.RageMax);
                 card.RageLabel.color = ratio >= 1f ? rageFullColor : rageTextColor;
             }
+            else
+            {
+                // ★ 영혼은 <b>정수</b>다 — 적이 죽을 때 하나씩 늘고 줄지 않는다.
+                card.RageLabel.text = string.Format(soulFormat, SoulsOf(_unit));
+                card.RageLabel.color = soulTextColor;
+            }
+            return true;
         }
 
         /// <summary>패시브 칸을 눌렀을 때 — 상세 효과 창을 연다.</summary>
@@ -1034,6 +1095,7 @@ namespace LastSanctuary.UI
                     Desc = FindText($"{path}/Desc"),
                     Hint = FindText($"{path}/Hint"),
                     RageRoot = node.Find("RageBack")?.gameObject,
+                    RageBackImage = FindImage($"{path}/RageBack"),
                     RageFill = FindImage($"{path}/RageBack/RageFill"),
                     RageLabel = FindText($"{path}/RageBack/RageLabel"),
                     Button = node.GetComponent<Button>(),
