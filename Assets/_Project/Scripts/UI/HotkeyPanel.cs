@@ -49,19 +49,17 @@ namespace LastSanctuary.UI
         [SerializeField] string resetLabel = "기본값으로";
         [SerializeField] string closeLabel = "닫기";
 
-        // ★★ 치수 — <b>줄 수가 기능 수를 따라간다</b>. 2026-08-25 에 배속·일시정지·화면
-        //    되돌리기 여섯이 들어와 9줄 → <b>15줄</b>이 되었고, 예전 값(38+4, 560px)으로는
-        //    마지막 줄이 아래 버튼과 <b>겹쳤다</b>. 줄을 조금 낮추고 판을 키웠다.
-        //    <code>
-        //      필요한 높이 = 96(제목·안내) + 줄수 × (rowHeight + rowGap) − rowGap
-        //                    + 20(여백) + 56(아래 버튼)
-        //      15줄 · 34+3 → 96 + 552 + 76 = 724   → 판 740 (여유 16)
-        //    </code>
-        //    ⚠ 기능을 더 넣으면 <b>이 계산을 다시 할 것</b>. 넘치면 조용히 겹친다.
+        // ★★ 치수 — <b>구르는 칸을 넣은 뒤로는 줄 수와 무관하다</b> (2026-08-25).
+        //    예전에는 «줄 수 × 줄 높이» 로 판 높이를 손으로 맞췄고, 기능이 늘 때마다 다시
+        //    계산해야 했다(9줄 → 15줄에서 실제로 한 번 겹쳤다). 이제 넘치면 굴러간다.
         [Header("치수 (1920x1080 기준)")]
-        [SerializeField] Vector2 panelSize = new Vector2(470f, 740f);
+        [SerializeField] Vector2 panelSize = new Vector2(470f, 520f);
         [SerializeField] float rowHeight = 34f;
         [SerializeField] float rowGap = 3f;
+
+        [Tooltip("스크롤 막대 굵기(px)")]
+        [Min(6f)] [SerializeField] float scrollbarWidth = 10f;
+
         [SerializeField] float keyColumnWidth = 130f;
 
         public static HotkeyPanel Instance { get; private set; }
@@ -207,7 +205,18 @@ namespace LastSanctuary.UI
             panel.pivot = new Vector2(0.5f, 0.5f);
             panel.sizeDelta = panelSize;
             var panelBg = panel.gameObject.AddComponent<Image>();
-            panelBg.color = HudTheme.PanelBg;
+            // ★★ <b>다른 창과 같은 그림을 쓴다</b> (2026-08-25).
+            //   씬에 배선된 창들은 에디터의 «LastSanctuary/UI/배선» 이 <c>Win_Frame</c> 을
+            //   깔아 준다. 이 창은 <b>런타임에 지어지므로</b> 그 적용기가 닿지 못한다 —
+            //   그래서 여기서 직접 읽는다. 못 찾으면 단색으로 떨어진다(로비가 아닌 씬 등).
+            Sprite frame = Resources.Load<Sprite>("UI/Frames/Win_Frame");
+            if (frame != null)
+            {
+                panelBg.sprite = frame;
+                panelBg.type = Image.Type.Sliced;
+                panelBg.color = Color.white;
+            }
+            else panelBg.color = HudTheme.PanelBg;
 
             // 제목
             RectTransform title = NewRect("Title", panel);
@@ -229,14 +238,76 @@ namespace LastSanctuary.UI
                                        TextAlignmentOptions.TopLeft, HudTheme.TextDim);
             hintLabel.textWrappingMode = TextWrappingModes.Normal;
 
-            // 줄 — 기능마다 하나
-            float y = -96f;
-            for (int i = 0; i < HotkeyService.All.Length; i++)
+            // ★★★ <b>줄은 «구르는 칸» 안에 넣는다</b> (2026-08-25 · 유저 지시:
+            //   *"단축키 설정에 스크롤 바 넣어주고"*).
+            //
+            // <b>왜</b> — 줄 수가 기능 수를 따라간다. 오늘 하루에 9줄 → 15줄이 되었고,
+            // 그때마다 판 높이를 손으로 다시 계산했다(그리고 한 번 겹쳤다). 구르게 하면
+            // <b>줄이 늘어도 판이 그대로</b>다 — 계산이 필요 없어진다.
+            //
+            // ★ <c>ScrollRect</c> 를 손으로 짓는다: 액자(Viewport + RectMask2D)와 그 안의
+            //   내용 칸(Content). 내용 칸의 높이를 줄 수로 정하면 스크롤 범위가 저절로 잡힌다.
+            // ⚠ 막대(Scrollbar)는 <b>액자 밖</b>에 둔다 — 안에 넣으면 마스크에 잘린다.
+            RectTransform viewport = NewRect("Viewport", panel);
+            viewport.anchorMin = new Vector2(0f, 0f);
+            viewport.anchorMax = new Vector2(1f, 1f);
+            viewport.offsetMin = new Vector2(20f, 66f);          // 아래 버튼 자리를 비운다
+            viewport.offsetMax = new Vector2(-20f - scrollbarWidth - 6f, -92f);
+            viewport.gameObject.AddComponent<RectMask2D>();
+
+            RectTransform content = NewRect("Content", viewport);
+            content.anchorMin = new Vector2(0f, 1f);
+            content.anchorMax = new Vector2(1f, 1f);
+            content.pivot = new Vector2(0.5f, 1f);
+            content.anchoredPosition = Vector2.zero;
+
+            int rows = HotkeyService.All.Length;
+            float contentHeight = rows * (rowHeight + rowGap) - rowGap;
+            content.sizeDelta = new Vector2(0f, contentHeight);
+
+            float y = 0f;
+            for (int i = 0; i < rows; i++)
             {
-                HotkeyAction action = HotkeyService.All[i];
-                BuildRow(panel, action, y);
+                BuildRow(content, HotkeyService.All[i], y);
                 y -= rowHeight + rowGap;
             }
+
+            // 막대 — 액자 오른쪽
+            RectTransform barRect = NewRect("Scrollbar", panel);
+            barRect.anchorMin = new Vector2(1f, 0f);
+            barRect.anchorMax = new Vector2(1f, 1f);
+            barRect.pivot = new Vector2(1f, 0.5f);
+            barRect.offsetMin = new Vector2(-20f - scrollbarWidth, 66f);
+            barRect.offsetMax = new Vector2(-20f, -92f);
+
+            var barBg = barRect.gameObject.AddComponent<Image>();
+            barBg.color = HudTheme.PanelBgSoft;
+
+            RectTransform handleRect = NewRect("Handle", barRect);
+            Stretch(handleRect);
+            var handleImage = handleRect.gameObject.AddComponent<Image>();
+            handleImage.color = HudTheme.RowBgOn;
+
+            var bar = barRect.gameObject.AddComponent<Scrollbar>();
+            bar.direction = Scrollbar.Direction.BottomToTop;
+            bar.handleRect = handleRect;
+            bar.targetGraphic = handleImage;
+
+            var scroll = viewport.gameObject.AddComponent<ScrollRect>();
+            scroll.content = content;
+            scroll.viewport = viewport;
+            scroll.horizontal = false;
+            scroll.vertical = true;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 28f;
+            scroll.verticalScrollbar = bar;
+            scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.Permanent;
+
+            // ⚠ <b>액자가 클릭을 받아야 굴러간다</b> — 투명해도 <c>Image</c> 가 있어야
+            //   휠·드래그가 이 칸에 닿는다. 알파 0 으로 두어 보이지는 않게 한다.
+            var catcher = viewport.gameObject.AddComponent<Image>();
+            catcher.color = new Color(0f, 0f, 0f, 0f);
+            catcher.raycastTarget = true;
 
             // 아래 버튼 둘
             BuildButton(panel, "ResetButton", resetLabel,
@@ -252,15 +323,21 @@ namespace LastSanctuary.UI
                         Close);
         }
 
-        void BuildRow(RectTransform panel, HotkeyAction action, float y)
+        /// <summary>줄 하나. <paramref name="parent"/> 는 구르는 칸(<c>Content</c>)이다.</summary>
+        void BuildRow(RectTransform parent, HotkeyAction action, float y)
         {
-            RectTransform row = NewRect("Row_" + action, panel);
+            RectTransform row = NewRect("Row_" + action, parent);
             row.anchorMin = new Vector2(0f, 1f);
             row.anchorMax = new Vector2(1f, 1f);
             row.pivot = new Vector2(0.5f, 1f);
-            row.sizeDelta = new Vector2(-40f, rowHeight);
+            // ⚠ 폭 보정을 0 으로 둔다 — 예전에는 판에 직접 붙어서 −40 이 필요했지만
+            //   지금은 <c>Content</c> 안이고 그 칸이 이미 여백을 갖고 있다.
+            row.sizeDelta = new Vector2(0f, rowHeight);
             row.anchoredPosition = new Vector2(0f, y);
 
+            // ⚠ 줄(행)에는 <b>그림을 깔지 않는다</b> — 적용기가 목록의 «행» 을 일부러 건너뛰는
+            //   것과 같은 이유다(UiSkinApplier 의 ⚠): 행은 색으로 상태를 보여주는데 그림을
+            //   깔면 그 색이 그림에 곱해져 안 보인다.
             var bg = row.gameObject.AddComponent<Image>();
             bg.color = HudTheme.RowBg;
             bg.raycastTarget = false;
@@ -271,7 +348,7 @@ namespace LastSanctuary.UI
             name.anchorMax = new Vector2(1f, 1f);
             name.offsetMin = new Vector2(12f, 0f);
             name.offsetMax = new Vector2(-(keyColumnWidth + 8f), 0f);
-            Label(name, HotkeyService.Label(action), 16f,
+            Label(name, HotkeyService.Label(action), 15f,
                   TextAlignmentOptions.Left, HudTheme.TextMain);
 
             // 키 칸 — 오른쪽. <b>이게 버튼이다</b>
@@ -314,7 +391,14 @@ namespace LastSanctuary.UI
             rect.anchoredPosition = offset;
 
             var bg = rect.gameObject.AddComponent<Image>();
-            bg.color = HudTheme.RowBg;
+            Sprite face = Resources.Load<Sprite>("UI/Buttons/Btn_Action_Normal");
+            if (face != null)
+            {
+                bg.sprite = face;
+                bg.type = Image.Type.Sliced;
+                bg.color = Color.white;
+            }
+            else bg.color = HudTheme.RowBg;
 
             var button = rect.gameObject.AddComponent<Button>();
             button.targetGraphic = bg;

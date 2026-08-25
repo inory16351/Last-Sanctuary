@@ -41,7 +41,16 @@ namespace LastSanctuary.EditorTools
     /// </summary>
     public static class UiSkinApplier
     {
-        const string Root = "UI_Root";
+        /// <summary>
+        /// ★★ <b>훑는 캔버스가 둘이다</b> (2026-08-25 · 유저 지시: *"도움말에도 ui 이미지 사용해줘"*).
+        ///
+        /// <b>왜 도움말만 그림이 없었나</b> — 도움말 세 창(<c>HUD_Help</c>·<c>HUD_HelpCard</c>·
+        /// <c>HUD_HelpTour</c>)은 <b><c>Help_Root</c></b> 라는 <b>다른 캔버스</b>에 있다
+        /// (sortingOrder 20 — 조언 카드가 다른 창 위에 보여야 해서 그렇게 나눴다).
+        /// 그런데 이 적용기는 <c>UI_Root</c> <b>하나만</b> 훑고 있었다. 목록에 이름을 적어도
+        /// 찾지 못했을 것이고, 실제로는 목록에도 없었다 — 두 겹으로 빠져 있었다.
+        /// </summary>
+        static readonly string[] Roots = { "UI_Root", "Help_Root" };
         const string SpriteDir = "Assets/_Project/Resources/UI/";
 
         // ── 어떤 그림을 어디에 ──────────────────────────────────────────
@@ -51,6 +60,12 @@ namespace LastSanctuary.EditorTools
         {
             "HUD_Growth", "HUD_Tactics", "HUD_Squad", "HUD_Subjugate", "HUD_Settings",
             "HUD_Event", "HUD_Relics", "HUD_Dig", "HUD_SkillDetail",
+
+            // ★ 도움말 셋 (2026-08-25) — Help_Root 캔버스에 있다.
+            //   ⚠ <c>HUD_HelpCard</c>·<c>HUD_HelpTour</c> <b>자신은 넣지 않는다</b> —
+            //     그 둘은 화면 전체를 덮는 «막» 이라 그림을 깔면 전장이 통째로 가려진다.
+            //     안쪽의 카드·말풍선만 창으로 본다.
+            "HUD_Help", "HUD_HelpCard/Card", "HUD_HelpTour/Bubble",
         };
 
         /// <summary>상시 떠 있는 판, 그리고 창 안의 속판. 창보다 조용해야 전장이 보인다.</summary>
@@ -66,6 +81,9 @@ namespace LastSanctuary.EditorTools
             "HUD_Tactics/Col1", "HUD_Tactics/Col2", "HUD_Tactics/Col3", "HUD_Tactics/Info",
             "HUD_Settings/Header", "HUD_SkillDetail/EffectBack",
             "HUD_Defeat/Body/Panel", "HUD_Victory/Body/Panel",
+
+            // 도움말 창 안의 두 속판 (2026-08-25)
+            "HUD_Help/List", "HUD_Help/Detail",
         };
 
         /// <summary>사건·발굴 창의 선택지 — 그림 배경 위에 얹히므로 더 두껍고 불투명한 판을 쓴다.</summary>
@@ -95,6 +113,10 @@ namespace LastSanctuary.EditorTools
             "Scrollbar", "NameInput", "RowTemplate", "SquadCard_Template",
             "DigMarkerTemplate", "BuildRangeTemplate", "RallyRangeTemplate",
             "Slider", "Handle", "Fill Area", "Viewport", "BgMask",
+
+            // ★ 도움말 투어의 «집중 표시» — 얇은 선 넉 장으로 대상을 두르는 것이다.
+            //   판으로 칠하면 <b>가리키려던 것을 덮어</b> 버린다.
+            "HUD_HelpTour/Frame",
         };
 
         static readonly Dictionary<string, Sprite> Cache = new Dictionary<string, Sprite>();
@@ -113,11 +135,22 @@ namespace LastSanctuary.EditorTools
         public static void Apply()
         {
             Cache.Clear();
-            GameObject root = GameObject.Find(Root);
-            if (root == null) { Debug.LogError($"[UI] {Root} 을 못 찾았습니다. 게임 씬을 열고 실행하세요."); return; }
 
             var log = new List<string>();
-            int windows = 0, plates = 0, buttons = 0, bars = 0, slots = 0;
+            int windows = 0, plates = 0, buttons = 0, bars = 0, slots = 0, frames = 0;
+            int found = 0;
+
+            foreach (string rootName in Roots)
+            {
+            GameObject root = GameObject.Find(rootName);
+            if (root == null)
+            {
+                // ⚠ 없는 것이 <b>정상일 수 있다</b> — Help_Root 는 도움말 UI 를 아직 만들지
+                //   않은 씬에는 없다. 그래서 에러가 아니라 기록만 남긴다.
+                log.Add($"  (건너뜀) {rootName} 이 이 씬에 없다");
+                continue;
+            }
+            found++;
 
             // ⚠ 비활성 창(대부분의 HUD 창은 꺼진 채로 저장된다)까지 훑어야 한다 —
             //   GetComponentsInChildren 의 두 번째 인자가 그것이다.
@@ -202,7 +235,15 @@ namespace LastSanctuary.EditorTools
                 if (Plates.Contains(path)) { Set(img, Load("Hud_Plate"), Image.Type.Sliced, 0.95f); plates++; continue; }
             }
 
-            int frames = ApplyThinFrames(root, log);
+            frames += ApplyThinFrames(root, log);
+            }
+
+            if (found == 0)
+            {
+                Debug.LogError($"[UI] {string.Join(" · ", Roots)} 을 하나도 못 찾았습니다. " +
+                               "게임 씬을 열고 실행하세요.");
+                return;
+            }
 
             EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
             Debug.Log($"[UI] 배선 완료 — 창 {windows} · 판 {plates} · 버튼 {buttons} · 막대 {bars} · 칸 {slots} · 액자 {frames}\n"
