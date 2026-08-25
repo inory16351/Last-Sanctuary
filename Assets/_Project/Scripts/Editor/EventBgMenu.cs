@@ -116,6 +116,51 @@ namespace LastSanctuary.EditorTools
         }
 
         /// <summary>
+        /// ★★ <b>사건 창을 그대로 띄워 배경을 눈으로 본다</b> (2026-08-25).
+        ///
+        /// 배경이 «잘 잘렸는지 · 글이 읽히는지» 는 <b>실물로만 판단된다</b>. 그런데 그 사건이
+        /// 실제로 뜨려면 조건이 맞을 때까지 판을 굴려야 한다 — 검수 비용이 너무 크다.
+        /// 그래서 <b>사건 하나를 골라 곧바로 띄운다</b>(145-7 절의 「안내 시험」과 같은 이유).
+        ///
+        /// ⚠ 플레이 중이 아니면 아무 일도 하지 않는다 — 창을 그리려면 런타임 좌표가 필요하다.
+        /// </summary>
+        [MenuItem("LastSanctuary/사건/배경 미리보기 (첫 사건 띄우기)", priority = 302)]
+        static void Preview()
+        {
+            if (!Application.isPlaying)
+            {
+                Debug.LogWarning("[사건 배경] 플레이 중에만 됩니다.");
+                return;
+            }
+
+            var panel = Object.FindAnyObjectByType<LastSanctuary.UI.EventPanel>(
+                FindObjectsInactive.Include);
+            if (panel == null)
+            {
+                Debug.LogWarning("[사건 배경] EventPanel 을 찾지 못했습니다 (HUD_Event 확인).");
+                return;
+            }
+
+            // 배경이 <b>있는</b> 사건을 고른다 — 없는 것을 띄우면 아무것도 안 보인다.
+            EventDefinitionSO pick = Resources.LoadAll<EventDefinitionSO>("Events")
+                .Where(d => !string.IsNullOrWhiteSpace(d.eventBg))
+                .Where(d => Resources.Load<Sprite>($"EventBg/{d.eventBg.Trim()}") != null)
+                .OrderBy(d => d.eventId)
+                .FirstOrDefault();
+
+            if (pick == null)
+            {
+                Debug.LogWarning("[사건 배경] 배경 그림이 붙은 사건이 하나도 없습니다 — " +
+                                 "먼저 「배경 그림 점검」을 보십시오.");
+                return;
+            }
+
+            panel.Present(pick, null);
+            Debug.Log($"[사건 배경] 「{pick.DisplayName}」({pick.eventId}) 를 띄웠습니다 — " +
+                      $"배경 {pick.eventBg}");
+        }
+
+        /// <summary>
         /// ★ <b>넣자마자 고쳐 준다</b> — 끌어다 놓은 PNG 가 Default 로 들어왔으면 Sprite 로 바꾼다.
         /// ⚠ 손으로 하나씩 임포트 설정을 바꾸는 일은 <b>반드시 하나를 빠뜨린다</b>.
         /// </summary>

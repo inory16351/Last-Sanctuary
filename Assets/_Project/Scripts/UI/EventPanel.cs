@@ -70,14 +70,51 @@ namespace LastSanctuary.UI
         [Tooltip("Resources 아래 폴더. 표의 event_bg 가 여기서 <b>파일 이름</b>이 된다")]
         [SerializeField] string bgFolder = "EventBg";
 
-        [Tooltip("배경을 그릴 Image 의 하이라키 이름. 없으면 배경 없이 뜬다")]
-        [SerializeField] string bgPath = "Bg";
+        [Tooltip("배경을 그릴 Image 의 하이라키 경로. 없으면 배경 없이 뜬다.\n" +
+                 "★ 부모(BgMask)가 RectMask2D 로 넘치는 부분을 잘라낸다 — 아래 ★★★ 참조")]
+        [SerializeField] string bgPath = "BgMask/Bg";
 
         [Tooltip("배경에 곱하는 색. ★ <b>알파를 낮춰 어둡게</b> 깔아야 위에 얹힌 글이 읽힌다 — " +
                  "그림이 아무리 좋아도 글을 못 읽으면 못 쓴다")]
         [SerializeField] Color bgTint = new Color(1f, 1f, 1f, 0.55f);
 
+        /// <summary>
+        /// ★★★ <b>«늘리지 않고 채워 자른다»(aspect-fill)</b> — 어느 칸을 남길지 (2026-08-25).
+        ///
+        /// <b>왜 이렇게 하는가</b> — 창은 가로가 긴데(560x340 · 1.65) 생성 AI 가 뽑아 준 그림은
+        /// 비율이 제각각이다. 실제로 시트 A 는 1.51, 시트 B 는 <b>1.20</b> 이었다.
+        /// 창에 <b>늘려서</b> 채우면 시트 B 는 <b>가로로 37% 늘어나</b> 수정 기둥이 뭉툭해지고
+        /// 아치가 넓적한 타원이 된다.
+        ///
+        /// → 비율을 지킨 채 <b>창을 덮고 넘치는 부분만 잘라낸다</b>. 왜곡이 <b>0</b> 이 된다.
+        /// ★★ <b>이것이 이번 그림만의 해결이 아니다</b> — 앞으로 어떤 비율로 그림이 와도
+        ///   깨지지 않는다. 시트 B 만 16:9 로 다시 뽑으면 «이번 것» 만 해결된다.
+        ///
+        /// ⚠ 대신 <b>위아래가 잘린다</b>(시트 B 는 세로의 27%). 무엇이 잘리느냐가 그림마다
+        ///   다르므로 — 수정 기둥은 <b>위</b>가 중요하고 바닥 무늬는 <b>아래</b>가 중요하다 —
+        ///   <b>남길 자리를 그림마다 정할 수 있게</b> 열어 둔다.
+        /// </summary>
+        [System.Serializable]
+        public class BgFocus
+        {
+            [Tooltip("표의 event_bg 키. 예: bg_nexus")]
+            public string key = "";
+
+            [Tooltip("세로로 어디를 남길지. 0 = 위쪽을 남긴다 · 0.5 = 가운데 · 1 = 아래쪽")]
+            [Range(0f, 1f)] public float focusY = 0.5f;
+        }
+
+        [Tooltip("잘라낼 때 세로로 어디를 남길지 (0 위 · 0.5 가운데 · 1 아래). " +
+                 "아래 목록에 없는 그림은 이 값을 쓴다")]
+        [Range(0f, 1f)] [SerializeField] float bgFocusY = 0.5f;
+
+        [Tooltip("그림마다 다르게 잘라야 할 때만 적는다. 비어 있으면 위의 기본값을 쓴다")]
+        [SerializeField] BgFocus[] bgFocus = new BgFocus[0];
+
         Image _bg;
+
+        /// <summary>배경을 잘라내는 틀(<c>RectMask2D</c>). <see cref="_bg"/> 의 부모다.</summary>
+        RectTransform _bgMask;
 
         /// <summary>한 번 읽은 그림은 들고 있는다 — 사건마다 <c>Resources.Load</c> 를 다시 돌지 않게.</summary>
         readonly System.Collections.Generic.Dictionary<string, Sprite> _bgCache =
@@ -164,9 +201,15 @@ namespace LastSanctuary.UI
             _bg = string.IsNullOrWhiteSpace(bgPath)
                 ? null
                 : transform.Find(bgPath)?.GetComponent<Image>();
+            _bgMask = _bg != null ? _bg.transform.parent as RectTransform : null;
+
             if (_bg != null)
             {
-                _bg.transform.SetAsFirstSibling();
+                // ★★ <b>맨 뒤로 보내는 것은 «틀» 이다</b> — 이미지가 아니라.
+                //   이미지는 틀 안에서 넘치도록 커져 있으므로, 이미지를 옮기면 틀 밖으로 나간다.
+                if (_bgMask != null) _bgMask.SetAsFirstSibling();
+                else _bg.transform.SetAsFirstSibling();
+
                 _bg.raycastTarget = false;   // 배경이 선택지 클릭을 먹지 않게
             }
 
@@ -215,6 +258,69 @@ namespace LastSanctuary.UI
             if (!_bg.gameObject.activeSelf) _bg.gameObject.SetActive(true);
             _bg.sprite = sprite;
             _bg.color = bgTint;
+
+            FitCover(sprite, FocusOf(def != null ? def.eventBg : null));
+        }
+
+        /// <summary>
+        /// ★★★ <b>창을 «덮도록» 크기를 잡는다</b> — 늘리지 않고, 넘치는 쪽만 틀이 잘라낸다.
+        ///
+        /// <code>
+        ///   그림이 창보다 <b>납작하면</b> → 가로를 창에 맞추고 <b>세로가 넘친다</b>(위아래가 잘린다)
+        ///   그림이 창보다 <b>길쭉하면</b> → 세로를 창에 맞추고 <b>가로가 넘친다</b>(좌우가 잘린다)
+        /// </code>
+        ///
+        /// ⚠ <b>「늘려 채우기」와 결과가 정반대다.</b> 늘리면 모양이 일그러지고, 이쪽은
+        ///   모양이 그대로인 대신 <b>바깥이 없어진다</b>. 배경에는 뒤쪽이 맞다 —
+        ///   글 뒤에 깔리는 그림에서 «가장자리 조금» 보다 «형태가 뭉개짐» 이 훨씬 눈에 띈다.
+        ///
+        /// ★ <paramref name="focusY"/> 로 <b>세로 어디를 남길지</b> 고른다
+        ///   (0 위 · 0.5 가운데 · 1 아래). 수정 기둥처럼 <b>위가 중요한</b> 그림은 0 쪽으로.
+        /// ⚠ 틀 크기를 매번 다시 읽는다 — 창은 <see cref="UiWindowDrag"/> 로 끌어 옮길 수 있고,
+        ///   레이아웃이 도는 시점이 정해져 있지 않다.
+        /// </summary>
+        void FitCover(Sprite sprite, float focusY)
+        {
+            if (_bg == null || sprite == null) return;
+
+            var rt = _bg.rectTransform;
+
+            // 틀이 없으면 예전처럼 «늘려 채우기» 로 둔다(배선이 덜 된 씬에서도 뜨게).
+            if (_bgMask == null) return;
+
+            Rect frame = _bgMask.rect;
+            if (frame.width <= 1f || frame.height <= 1f) return;
+
+            Rect sr = sprite.rect;
+            if (sr.width <= 0f || sr.height <= 0f) return;
+
+            float want = sr.width / sr.height;          // 그림 비율
+            float have = frame.width / frame.height;    // 창 비율
+
+            float w, h;
+            if (want > have) { h = frame.height; w = h * want; }   // 길쭉하다 → 좌우가 넘친다
+            else             { w = frame.width;  h = w / want; }   // 납작하다 → 위아래가 넘친다
+
+            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.sizeDelta = new Vector2(w, h);
+
+            // 남길 자리 — 넘치는 만큼만 밀 수 있다. focusY 0 이면 위쪽이 남는다.
+            float overflowY = Mathf.Max(0f, h - frame.height);
+            rt.anchoredPosition = new Vector2(0f, overflowY * (focusY - 0.5f));
+        }
+
+        /// <summary>이 그림을 자를 때 세로로 어디를 남길지. 목록에 없으면 기본값.</summary>
+        float FocusOf(string key)
+        {
+            key = (key ?? "").Trim();
+            if (key.Length > 0 && bgFocus != null)
+            {
+                for (int i = 0; i < bgFocus.Length; i++)
+                    if (bgFocus[i] != null && bgFocus[i].key == key)
+                        return bgFocus[i].focusY;
+            }
+            return bgFocusY;
         }
 
         /// <summary>이름으로 배경 그림을 읽는다. 못 찾으면 <c>null</c>(캐시에도 그렇게 남긴다).</summary>
