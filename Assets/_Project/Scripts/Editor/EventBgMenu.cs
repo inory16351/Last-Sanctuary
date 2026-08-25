@@ -124,12 +124,29 @@ namespace LastSanctuary.EditorTools
         ///
         /// ⚠ 플레이 중이 아니면 아무 일도 하지 않는다 — 창을 그리려면 런타임 좌표가 필요하다.
         /// </summary>
-        [MenuItem("LastSanctuary/사건/배경 미리보기 (첫 사건 띄우기)", priority = 302)]
-        static void Preview()
+        /// <summary>
+        /// 지금 몇 번째 배경을 보고 있는가. 누를 때마다 하나씩 넘어간다.
+        /// ★ <b>−1 에서 시작한다</b> — 그래야 <b>첫 누름이 1번</b>을 보여준다.
+        ///   0 으로 두면 첫 누름이 2번으로 건너뛰어 1번은 한 바퀴 돌아야 나온다.
+        /// </summary>
+        static int _previewAt = -1;
+
+        [MenuItem("LastSanctuary/사건/배경 미리보기 — 다음 배경 %#e", priority = 302)]
+        static void PreviewNext() => Preview(+1);
+
+        [MenuItem("LastSanctuary/사건/배경 미리보기 — 이전 배경", priority = 303)]
+        static void PreviewPrev() => Preview(-1);
+
+        /// <summary>
+        /// ★ <b>배경 «종류마다» 하나씩</b> 보여준다 — 사건 43개가 아니라 <b>키 14종</b>이 볼 대상이다.
+        /// 같은 배경을 쓰는 사건이 다섯이면 다섯 번 볼 이유가 없다.
+        /// </summary>
+        static void Preview(int step)
         {
             if (!Application.isPlaying)
             {
-                Debug.LogWarning("[사건 배경] 플레이 중에만 됩니다.");
+                Debug.LogWarning("[사건 배경] <b>플레이 중에만</b> 됩니다 — ▶ 를 누르고 다시 하십시오. " +
+                                 "(창을 그리려면 런타임 좌표가 필요합니다)");
                 return;
             }
 
@@ -141,23 +158,34 @@ namespace LastSanctuary.EditorTools
                 return;
             }
 
-            // 배경이 <b>있는</b> 사건을 고른다 — 없는 것을 띄우면 아무것도 안 보인다.
-            EventDefinitionSO pick = Resources.LoadAll<EventDefinitionSO>("Events")
-                .Where(d => !string.IsNullOrWhiteSpace(d.eventBg))
-                .Where(d => Resources.Load<Sprite>($"EventBg/{d.eventBg.Trim()}") != null)
-                .OrderBy(d => d.eventId)
-                .FirstOrDefault();
+            // 배경 키마다 <b>대표 사건 하나</b>. 그림이 실제로 읽히는 것만 고른다.
+            var byKey = new SortedDictionary<string, EventDefinitionSO>();
+            foreach (EventDefinitionSO d in Resources.LoadAll<EventDefinitionSO>("Events")
+                                                     .OrderBy(d => d.eventId))
+            {
+                string key = (d.eventBg ?? "").Trim();
+                if (key.Length == 0 || byKey.ContainsKey(key)) continue;
+                if (Resources.Load<Sprite>($"EventBg/{key}") == null) continue;
+                byKey[key] = d;
+            }
 
-            if (pick == null)
+            var list = byKey.ToList();
+            if (list.Count == 0)
             {
                 Debug.LogWarning("[사건 배경] 배경 그림이 붙은 사건이 하나도 없습니다 — " +
                                  "먼저 「배경 그림 점검」을 보십시오.");
                 return;
             }
 
-            panel.Present(pick, null);
-            Debug.Log($"[사건 배경] 「{pick.DisplayName}」({pick.eventId}) 를 띄웠습니다 — " +
-                      $"배경 {pick.eventBg}");
+            // ⚠ 음수로 내려가도 도는 나머지 연산 — C# 의 % 는 음수를 그대로 돌려준다.
+            _previewAt = ((_previewAt + step) % list.Count + list.Count) % list.Count;
+
+            var pair = list[_previewAt];
+            panel.Present(pair.Value, null);
+
+            Debug.Log($"[사건 배경] {_previewAt + 1}/{list.Count}  <b>{pair.Key}</b>  " +
+                      $"— 「{pair.Value.DisplayName}」({pair.Value.eventId})\n" +
+                      "  Ctrl+Shift+E 로 다음 배경 · 메뉴에 「이전 배경」도 있습니다.");
         }
 
         /// <summary>
