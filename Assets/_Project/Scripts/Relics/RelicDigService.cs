@@ -86,11 +86,12 @@ namespace LastSanctuary.Relics
         [Tooltip("성역에서 이만큼(타일) 떨어진 곳에만 둔다 — 시작하자마자 다 캐지 않게")]
         [Min(0f)] [SerializeField] float minDistanceFromNexus = 14f;
 
-        [Tooltip("★★ 성역에서 이 거리(타일) <b>안쪽</b>에만 자리를 둔다. 0 이면 맵 전체.\n" +
-                 "⚠ 맵은 320x320(102,400칸) 이지만 플레이어가 실제로 오가는 곳은 성역 주변\n" +
-                 "100타일 남짓이다. 맵 전체에 흩뿌리면 <b>평생 못 찾는 칸</b>이 대부분이 된다\n" +
-                 "— 그것이 «발굴이 없는 기능» 처럼 보이던 두 번째 이유다 (2026-08-25)")]
-        [Min(0f)] [SerializeField] float maxDistanceFromNexus = 110f;
+        [Tooltip("성역에서 이 거리(타일) <b>안쪽</b>에만 자리를 둔다.\n" +
+                 "★ <b>0 = 맵 전체</b>(직사각형 320x320 끝까지) — 유저 확정 2026-08-25:\n" +
+                 "«중앙 건물로부터 14타일부터 맵 끝까지(직사각형 범위 320까지)로 확장».\n" +
+                 "⚠ 넓힌 만큼 <b>칸 수도 같이 올려야</b> 한다 — 안 그러면 밀도가 묽어져\n" +
+                 "성역 근처에서 하나도 안 보인다(digSiteCount 참조)")]
+        [Min(0f)] [SerializeField] float maxDistanceFromNexus = 0f;
 
         [Tooltip("발굴 칸끼리 이만큼(타일)은 떨어뜨린다 — 한곳에 몰리면 «한 번 가서 다 캔다» 가 된다")]
         [Min(0f)] [SerializeField] float minSpacing = 10f;
@@ -99,6 +100,10 @@ namespace LastSanctuary.Relics
         [Min(1)] [SerializeField] int placementAttempts = 4000;
 
         [Header("발굴")]
+        [Tooltip("플로우 필드(걸어갈 수 있는 곳 지도)가 구워지기를 이만큼(초) 기다린 뒤 " +
+                 "자리를 고른다. 그 안에 준비가 안 되면 도달 검사 없이 고르고 경고한다")]
+        [Min(0.1f)] [SerializeField] float pickWaitSeconds = 5f;
+
         [Tooltip("한 칸을 파는 데 걸리는 시간(초). 유저 지시: 15초")]
         [Min(1f)] [SerializeField] float digSeconds = 15f;
 
@@ -222,7 +227,15 @@ namespace LastSanctuary.Relics
             //   <see cref="Restore"/> 가 넣어 준다(그쪽이 늦게 도착해도 되도록 비워 둔다).
             if (Save.SaveService.PendingLoad != null) return;
 
-            PickSites();
+            // ★★ <b>여기서 곧바로 고르지 않는다</b> (2026-08-25).
+            //   자리 고르기가 «걸어갈 수 있는가» 를 보게 되면서 <see cref="FlowFieldService"/> 가
+            //   필요해졌는데, 그쪽도 <c>Start</c> 에서 굽는다. 실측(콘솔 시각)으로
+            //   <b>이 서비스가 먼저</b> 돌았다 — 유니티는 오브젝트 사이의 Start 순서를
+            //   보장하지 않는다. 그래서 «준비되면 그때» 고른다(아래 <see cref="TryPickWhenReady"/>).
+            //   ⚠ 실행 순서를 스크립트 설정으로 못박는 방법도 있지만, 그건 <b>보이지 않는
+            //     의존</b>이라 다음 사람이 이 코드만 읽고는 알 수 없다.
+            _pickPending = true;
+            _pickDeadline = Time.unscaledTime + pickWaitSeconds;
         }
 
         void ResolveOverlay()
@@ -290,13 +303,27 @@ namespace LastSanctuary.Relics
         /// <summary>
         /// 맵 전체에서 발굴 가능 칸을 <see cref="digSiteCount"/> 개 고른다.
         ///
-        /// 조건 셋(표 Info 시트 «자리 고르기»):
+        /// 조건 <b>다섯</b>(표 Info 시트 «발굴 칸 «자리 고르기»»):
         /// <code>
         ///   ① 걸을 수 있고 벽·구조물이 없는 칸       (IsCellPlaceable)
         ///   ② 성역에서 minDistanceFromNexus 밖
-        ///   ③ 다른 발굴 칸과 minSpacing 이상 떨어짐
+        ///   ③ 성역에서 maxDistanceFromNexus 안       ★ 0 이면 <b>맵 전체</b>(직사각형 끝까지)
+        ///   ④ 다른 발굴 칸과 minSpacing 이상 떨어짐
+        ///   ⑤ <b>실제로 걸어갈 수 있는 칸</b>         (FlowFieldService.IsCellReachable)
         /// </code>
+        ///
+        /// ★★★ <b>2026-08-25 — 범위를 맵 전체로 넓혔다</b> (유저 확정:
+        /// *"발굴 가능 칸 뜨는 범위 중앙 건물로부터 14타일부터 맵 끝까지(직사각형 범위 320까지)로
+        /// 확장하고 맵내에 뜰 수 있는 발굴 가능 칸 확장된 구역 고려해서 재설정"*).
+        ///
+        /// ⚠⚠ <b>넓히면 칸 수도 같이 올려야 한다.</b> 넓이가 2.7배가 되는데 칸 수를 그대로 두면
+        ///   밀도가 그만큼 묽어져 <b>성역 근처에서 하나도 안 보인다</b> — «넓혔더니 오히려
+        ///   못 찾는» 것이 된다. 그래서 <b>40 → 110</b> 으로 같이 올렸다(씬 값).
+        /// ★ ⑤가 이때 생겼다 — 맵 전체로 넓히면 벽에 둘러싸인 «못 가는 주머니» 가 사정권에
+        ///   들어온다. 거기 놓인 표식은 <b>지시해도 아무도 도착하지 않아</b> 영영 남는다.
+        ///
         /// ⚠ 조건을 만족하는 자리가 모자라면 <b>있는 만큼만</b> 둔다 — 무한 루프를 돌지 않는다.
+        /// ⚠ 칸은 <b>파면 사라진다</b>. 다시 생기지 않으므로 이 숫자가 곧 한 판의 발굴 횟수 상한이다.
         /// </summary>
         public void PickSites()
         {
@@ -332,6 +359,16 @@ namespace LastSanctuary.Relics
                 return;
             }
 
+            // ★★★ <b>걸어갈 수 있는 칸만</b> (2026-08-25). 자리 고르기를 맵 전체로 넓히면
+            //   벽에 둘러싸인 «못 가는 주머니» 에 칸이 놓일 수 있다. <c>IsCellPlaceable</c> 는
+            //   «벽이 아닌가» 만 보지 «거기까지 갈 수 있는가» 는 보지 않는다.
+            //   못 가는 자리에 표식이 뜨면 <b>지시해도 아무도 도착하지 않는</b> 칸이 되어
+            //   영영 남는다 — 유저에게는 «발굴이 또 고장났다» 로 보인다.
+            //   ⚠ 플로우 필드가 아직 안 구워졌으면 이 검사를 건너뛴다(아래 TryPickWhenReady 가
+            //     준비될 때까지 기다리므로 대개 준비돼 있다).
+            bool useReach = _flow != null && _flow.IsReady;
+            int rejectedUnreachable = 0;
+
             int tries = 0;
             while (_sites.Count < digSiteCount && tries < placementAttempts)
             {
@@ -339,6 +376,7 @@ namespace LastSanctuary.Relics
                 var local = new Vector2Int(Random.Range(0, size.x), Random.Range(0, size.y));
                 Vector3Int cell = _map.LocalToCell(local);
                 if (!_map.IsCellPlaceable(cell)) continue;
+                if (useReach && !_flow.IsCellReachable(cell)) { rejectedUnreachable++; continue; }
 
                 Vector3 world = _map.CellCenterWorld(cell);
                 float fromNexus = ((Vector2)(world - nexus)).sqrMagnitude;
@@ -355,7 +393,10 @@ namespace LastSanctuary.Relics
             }
 
             if (logChanges)
-                Debug.Log($"[유물] 발굴 가능 칸 {_sites.Count}개 배치 (목표 {digSiteCount} · 시도 {tries})", this);
+                Debug.Log($"[유물] 발굴 가능 칸 {_sites.Count}개 배치 (목표 {digSiteCount} · 시도 {tries}" +
+                          (useReach ? $" · 못 가는 자리 {rejectedUnreachable}건 버림" : " · 도달 검사 없음") +
+                          $" · 성역에서 {minDistanceFromNexus:0.#}~" +
+                          (maxDistanceFromNexus > 0f ? $"{maxDistanceFromNexus:0.#}타일" : "맵 끝까지") + ")", this);
             if (_sites.Count < digSiteCount)
                 Debug.LogWarning($"[유물] 조건에 맞는 자리가 모자라 {_sites.Count}개만 두었습니다 — " +
                                  "minSpacing / minDistanceFromNexus 를 줄여보세요.", this);
@@ -375,8 +416,37 @@ namespace LastSanctuary.Relics
         int RollDialogueGroup() =>
             _dialogueGroups.Count > 0 ? _dialogueGroups[Random.Range(0, _dialogueGroups.Count)] : 0;
 
+        /// <summary>아직 자리를 안 골랐다 — 플로우 필드가 준비되기를 기다리는 중.</summary>
+        bool _pickPending;
+
+        /// <summary>이 시각까지도 준비가 안 되면 <b>그냥 고른다</b>(플로우 필드가 없는 씬).</summary>
+        float _pickDeadline;
+
+        FlowFieldService _flow;
+
+        /// <summary>
+        /// ★ 플로우 필드가 준비되면 자리를 고른다. 기다려도 안 되면(그런 씬이면)
+        /// <see cref="pickWaitSeconds"/> 뒤에 <b>도달 검사 없이</b> 고른다 —
+        /// 기능이 통째로 죽는 것보다 낫다.
+        /// </summary>
+        void TryPickWhenReady()
+        {
+            if (_flow == null) _flow = FindAnyObjectByType<FlowFieldService>();
+
+            bool ready = _flow != null && _flow.IsReady;
+            if (!ready && Time.unscaledTime < _pickDeadline) return;
+
+            _pickPending = false;
+            if (!ready)
+                Debug.LogWarning("[유물] 플로우 필드가 준비되지 않아 <b>도달 검사 없이</b> " +
+                                 "발굴 칸을 골랐습니다 — 못 가는 자리가 섞일 수 있습니다.", this);
+            PickSites();
+        }
+
         void Update()
         {
+            if (_pickPending) TryPickWhenReady();
+
             UpdateReveal();
             UpdateMarkers();
             WatchWave();
