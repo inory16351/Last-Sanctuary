@@ -64,7 +64,10 @@ namespace LastSanctuary.UI
         [Tooltip("아직 안 뜬 항목 앞에 붙는 글자")]
         [SerializeField] string dotUnseen = "◦";
 
-        [Header("색")]
+        // ⚠ 아래 넷은 <b>그림이 없을 때 칠할 색</b>이다(<see cref="HudTheme.PaintButton"/> 의
+        //   fallback). 탭에는 <c>Btn_Tab_*</c> 그림이 깔리므로 실제로는 안 쓰이고,
+        //   목록 행은 그림을 안 깔기 때문에 <b>행 둘만</b> 실제로 화면에 나온다.
+        [Header("색 (그림이 없을 때만)")]
         [SerializeField] Color rowNormal = new Color(0.11f, 0.13f, 0.17f, 0.92f);
         [SerializeField] Color rowSelected = new Color(0.16f, 0.42f, 0.38f, 0.98f);
         [SerializeField] Color tabNormal = new Color(0.13f, 0.17f, 0.22f, 0.95f);
@@ -210,8 +213,13 @@ namespace LastSanctuary.UI
                 if (row.Name != null) row.Name.text = e.Title;
                 if (row.Dot != null)
                     row.Dot.text = service != null && service.IsSeen(e) ? dotSeen : dotUnseen;
+                // ★ 목록 행은 <b>그림을 안 깐다</b>(배선의 ⚠ — 행은 선택 색으로 갈라야 한다).
+                //   그래도 <see cref="HudTheme.PaintButton"/> 을 거치는 이유는 «그림이 없으면
+                //   색을 칠한다» 가 그 함수 안에 있어서다 — 창마다 규칙이 갈리지 않는다.
                 if (row.Background != null)
-                    row.Background.color = e.helpId == _selectedId ? rowSelected : rowNormal;
+                    HudTheme.PaintButton(row.Background,
+                                         e.helpId == _selectedId ? ButtonState.On : ButtonState.Normal,
+                                         e.helpId == _selectedId ? rowSelected : rowNormal);
 
                 string captured = e.helpId;
                 row.Button.onClick.RemoveAllListeners();
@@ -243,8 +251,20 @@ namespace LastSanctuary.UI
                 string name = categories[i];
                 tab.Category = name;
                 if (tab.Label != null) tab.Label.text = name;
+
+                // ★★ <b>탭은 «색» 이 아니라 «그림» 으로 갈린다</b> (2026-08-26 · 유저 지시:
+                //   *"도움말 ui 위 쪽 메뉴 이미지들 밝은 색 이미지로 변경 가시성이 너무 안 좋음"*).
+                //
+                //   예전에는 여기서 <c>Background.color</c> 에 어두운 <c>tabNormal</c> 을
+                //   직접 칠했다. 배선이 탭에 그림을 깔자 그 색이 그림에 <b>곱해져</b>
+                //   새까매졌다 — <see cref="HudTheme.PaintButton"/> 의 설명에 있는
+                //   «그림을 넣었는데 안 보인다» 와 정확히 같은 함정이다.
+                // ★ 계열(<c>Btn_Tab_</c>)은 <b>씬에 붙은 그림</b>이 말해 준다 — 이 코드는
+                //   어느 그림을 쓰는지 몰라도 된다.
                 if (tab.Background != null)
-                    tab.Background.color = name == _category ? tabSelected : tabNormal;
+                    HudTheme.PaintButton(tab.Background,
+                                         name == _category ? ButtonState.On : ButtonState.Normal,
+                                         name == _category ? tabSelected : tabNormal);
 
                 string captured = name;
                 tab.Button.onClick.RemoveAllListeners();

@@ -11,11 +11,20 @@ TMP 글자 렉트와 견줘 ③ 삐져나온 것만 보고한다. 눈으로 찾�
 
 사용법:  python Tools/ui_text_clip_check.py
 """
-import os, re, json, sys
+import os, re, sys
 
-PROJ = r"C:\Project\Last Sanctuary"
+from vault_path import PROJECT as PROJ
+
+#: ★★ <b>훑는 캔버스가 둘이다</b> — 도움말 세 창은 `Help_Root` 에 있다(2026-08-26).
+#:   `UiSkinApplier.Roots` / `UiTextInset` 와 <b>같은 목록</b>이어야 «에디터에서는
+#:   맞췄는데 검사기는 모르는» 상태가 안 생긴다.
+ROOTS = ("UI_Root", "Help_Root")
+
 SCENE = os.path.join(PROJ, "Assets", "Scenes", "Proto_01.unity")
-BORDERS = os.path.join(PROJ, "Temp", "ui_sprite_cut.json")
+
+#: ⚠ 경계를 <b>`.png.meta` 에서 직접 읽는다</b>(2026-08-26). 예전에는
+#:   `Temp/ui_sprite_cut.json` 을 읽었는데 <b>`Temp/` 는 유니티가 지우는 자리</b>라
+#:   며칠만 지나도 «파일 없음» 으로 죽었다. 메타는 에셋과 함께 커밋되므로 안 사라진다.
 CANVAS = (1920.0, 1080.0)
 
 try: sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -69,18 +78,22 @@ def load_scene():
 
 
 def sprite_names():
-    """guid → 스프라이트 이름, 이름 → 경계(L,B,R,T)."""
+    """guid → 스프라이트 이름, 이름 → 경계(L,B,R,T). <b>둘 다 `.png.meta` 에서 읽는다.</b>"""
     name_of, border_of = {}, {}
-    for it in json.load(open(BORDERS, encoding="utf-8"))["items"]:
-        nm = os.path.basename(it["path"])[:-4]
-        border_of[nm] = it["border"]
     for sub in ("Buttons", "Frames"):
         d = os.path.join(PROJ, "Assets", "_Project", "Resources", "UI", sub)
         if not os.path.isdir(d): continue
         for f in os.listdir(d):
             if not f.endswith(".png.meta"): continue
-            g = re.search(r'guid: ([0-9a-f]{32})', open(os.path.join(d, f), encoding="utf-8").read())
-            if g: name_of[g.group(1)] = f[:-9]
+            txt = open(os.path.join(d, f), encoding="utf-8").read()
+            g = re.search(r'guid: ([0-9a-f]{32})', txt)
+            if not g: continue
+            nm = f[:-9]
+            name_of[g.group(1)] = nm
+            b = re.search(r'spriteBorder: \{x: ([-\d.]+), y: ([-\d.]+), '
+                          r'z: ([-\d.]+), w: ([-\d.]+)\}', txt)
+            # 메타는 (x=왼 · y=아래 · z=오른 · w=위) 순이다 — 이 파일의 (L,B,R,T) 와 같다.
+            border_of[nm] = [float(b.group(i)) for i in (1, 2, 3, 4)] if b else [0, 0, 0, 0]
     return name_of, border_of
 
 
@@ -118,8 +131,19 @@ def run():
     go, rt, img, tmp, layout = load_scene()
     name_of, border_of = sprite_names()
 
-    root = next(rid for rid, r in rt.items() if go[r['ow']] == "UI_Root")
-    rect = resolve(rt, root)
+    # ★ 캔버스마다 따로 풀어서 <b>한 표에 합친다</b> — 좌표계(1920x1080)가 같으므로
+    #   합쳐도 뒤섞이지 않고, 아래의 판·글자 훑기는 한 번만 돌면 된다.
+    roots = {}
+    rect = {}
+    for name in ROOTS:
+        rid = next((i for i, r in rt.items() if go[r['ow']] == name), None)
+        if rid is None:
+            print("  (건너뜀) %s 이 이 씬에 없다" % name)
+            continue
+        roots[rid] = name
+        rect.update(resolve(rt, rid))
+    if not roots:
+        raise SystemExit("⚠ %s 을 하나도 못 찾았습니다." % " · ".join(ROOTS))
 
     # 그림이 깔린 판 = 경계가 있는 스프라이트를 쓰는 Image
     panels = []
@@ -135,7 +159,7 @@ def run():
     def path(rid):
         parts = []
         cur = rid
-        while cur in rt and go[rt[cur]['ow']] != 'UI_Root':
+        while cur in rt and cur not in roots:
             parts.append(go[rt[cur]['ow']]); cur = rt[cur]['father']
         return "/".join(reversed(parts))
 
@@ -146,8 +170,9 @@ def run():
             yield from descendants(k)
 
     from PIL import ImageFont, ImageDraw, Image as PILImage
-    VAULT = os.path.join(r"C:\Project\Last-Sanctuary-Vault", "리소스")
-    FONT = os.path.join(VAULT, "neodgm.ttf")
+    # ⚠ 폰트는 <b>프로젝트 안</b>의 것을 쓴다 — 볼트 경로를 박아 두면 볼트를 옮긴 PC 에서
+    #   검사기가 통째로 죽는다(`vault_path.py` 가 생긴 이유와 같은 문제).
+    FONT = os.path.join(PROJ, "Assets", "TextMesh Pro", "Fonts", "neodgm.ttf")
     _fc = {}
     def font(sz):
         sz = max(6, int(round(sz)))

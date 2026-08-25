@@ -169,6 +169,39 @@ namespace LastSanctuary.EditorTools
                           (string.IsNullOrEmpty(e.openPanelPath) ? "(없음)" : e.openPanelPath));
         }
 
+        /// <summary>
+        /// ★ <b>백과(도움말 창) 자체를 띄운다</b> (2026-08-26 신설).
+        ///
+        /// <b>왜 생겼나</b> — 이 메뉴에는 「조언 카드」와 「짚어 주기」 시험은 있는데
+        /// <b>정작 백과를 여는 길이 없었다</b>. 게임에서는 F1 이나 액션 버튼으로 열지만
+        /// UI 를 손볼 때는 «지금 이 창이 어떻게 보이는가» 를 <b>바로</b> 봐야 한다
+        /// (2026-08-26 에 창 좌표와 탭 그림을 통째로 바꾸면서 이 구멍이 드러났다).
+        ///
+        /// ⚠ 플레이 중에만 된다 — 탭과 목록 칸은 <b>표를 읽어 런타임에 복제</b>되므로
+        ///   (<see cref="HelpPanel"/> 의 ★ 템플릿 예외) 에디트 모드에서는 창만 뜨고 속이 빈다.
+        /// </summary>
+        [MenuItem("LastSanctuary/도움말/백과 열기 (시험)", priority = 205)]
+        static void OpenEncyclopedia()
+        {
+            if (!Application.isPlaying)
+            {
+                Debug.LogWarning("[도움말] 플레이 중에만 됩니다 — 탭·목록은 표를 읽어 " +
+                                 "런타임에 만들어집니다.");
+                return;
+            }
+
+            HelpPanel panel = HelpPanel.Instance;
+            if (panel == null)
+            {
+                Debug.LogError("[도움말] HUD_Help 를 찾지 못했습니다 — " +
+                               "py -3 Tools/mcp_build_help_ui.py 를 돌리세요.");
+                return;
+            }
+
+            panel.SetOpen(true);
+            Debug.Log("[도움말] 백과를 띄웠습니다.");
+        }
+
         [MenuItem("LastSanctuary/도움말/안내 시험 — 전술 지침", priority = 210)]
         static void TourTactics() => TryTour("help_tactics");
 

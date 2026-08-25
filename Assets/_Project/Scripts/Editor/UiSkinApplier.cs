@@ -50,7 +50,12 @@ namespace LastSanctuary.EditorTools
         /// 그런데 이 적용기는 <c>UI_Root</c> <b>하나만</b> 훑고 있었다. 목록에 이름을 적어도
         /// 찾지 못했을 것이고, 실제로는 목록에도 없었다 — 두 겹으로 빠져 있었다.
         /// </summary>
-        static readonly string[] Roots = { "UI_Root", "Help_Root" };
+        /// <summary>
+        /// ★ <b>글자 여백</b>(<see cref="UiTextInset"/>)도 <b>같은 목록</b>을 쓴다 —
+        ///   두 벌로 두면 한쪽에만 캔버스를 더해 «그림은 깔렸는데 글자는 안 밀린» 상태가 된다
+        ///   (실제로 2026-08-25 에 그 상태였다: 배선만 Help_Root 를 알고 있었다).
+        /// </summary>
+        public static readonly string[] Roots = { "UI_Root", "Help_Root" };
         const string SpriteDir = "Assets/_Project/Resources/UI/";
 
         // ── 어떤 그림을 어디에 ──────────────────────────────────────────
@@ -325,6 +330,19 @@ namespace LastSanctuary.EditorTools
         {
             if (path.StartsWith("HUD_Actions/Buttons/")) return "Action";
             if (Choices.Contains(path)) return "Choice";
+
+            // ★★ <b>분류 탭은 «밝은» 계열을 쓴다</b> (2026-08-26 · 유저 지시:
+            //   *"도움말 ui 위 쪽 메뉴 이미지들 밝은 색 이미지로 변경 가시성이 너무 안 좋음"*).
+            //
+            //   <c>Btn_Panel_Normal</c> 의 속색(<c>#212B38</c>)은 창 판때기와 한 단밖에
+            //   차이가 안 나 <b>탭이 배경에 묻힌다</b>. <c>Btn_Tab_*</c> 는 그것을 팔레트
+            //   안에서 한 단 올린 것이다(<c>Tools/ui_make_tab_sprites.py</c>).
+            // ★ <b>경로에 <c>Tabs/</c> 가 있으면</b> 탭이다 — 이름을 하나하나 적지 않는다.
+            //   탭은 <c>TabTemplate</c> 을 복제해 런타임에 생기므로(HelpPanel.MakeTab)
+            //   목록으로 잡으면 복제본이 빠진다. 그리고 복제본은 <b>스프라이트를 물려받고</b>
+            //   <see cref="UI.HudTheme"/>.PaintButton 이 그 이름에서 계열을 읽으므로
+            //   여기 한 줄이면 «고른 탭/안 고른 탭» 까지 저절로 맞는다.
+            if (path.Contains("/Tabs/")) return "Tab";
             // ★ 배속·정지(57×40)는 <b>「칩」</b>을 쓴다. 비율만 보면 「닫기」로 떨어지는데
             //   닫기는 정사각이라 가로로 늘리면 모서리가 뭉갠다.
             // ⚠ 전용 그림 `Btn_Speed_*` 도 있지만 <b>안 쓴다</b> — 원화가 3:1 로 나와서

@@ -30,17 +30,52 @@ namespace LastSanctuary.EditorTools
     /// </summary>
     public static class UiTextInset
     {
-        const string Root = "UI_Root";
-
         /// <summary>테두리에 «닿는» 것도 막는 최소 숨통.</summary>
         const float Pad = 4f;
 
+        /// <summary>
+        /// ★★ <b>훑는 캔버스가 둘이다</b> (2026-08-26 · 유저 지시:
+        /// *"도움말 ui에 ui 이미지들 적용하고 텍스트 위치 안 가리게 맞추기"*).
+        ///
+        /// <b>왜 도움말 글자만 안 밀렸나</b> — 배선(<see cref="UiSkinApplier"/>)은
+        /// 2026-08-25 에 <c>Help_Root</c> 를 목록에 넣었는데 <b>이 파일은 안 넣었다</b>.
+        /// 그래서 도움말 창에는 그림이 깔릴 준비가 됐는데 글자는 <b>테두리 밑에 남는</b>
+        /// 짝짝이 상태가 됐다. 이제 <b>같은 목록</b>을 쓴다 — 캔버스가 하나 더 늘어도
+        /// 한 곳만 고치면 둘 다 따라온다.
+        /// </summary>
         [MenuItem("LastSanctuary/UI/글자 여백", priority = 42)]
         public static void Apply()
         {
-            GameObject root = GameObject.Find(Root);
-            if (root == null) { Debug.LogError($"[UI] {Root} 을 못 찾았습니다."); return; }
+            var log = new List<string>();
+            int moved = 0, framedTotal = 0, found = 0;
 
+            foreach (string rootName in UiSkinApplier.Roots)
+            {
+                GameObject root = GameObject.Find(rootName);
+                if (root == null)
+                {
+                    // ⚠ 없는 것이 <b>정상일 수 있다</b>(배선과 같은 판단).
+                    log.Add($"  (건너뜀) {rootName} 이 이 씬에 없다");
+                    continue;
+                }
+                found++;
+                moved += ApplyTo(root, log, out int framedHere);
+                framedTotal += framedHere;
+            }
+
+            if (found == 0)
+            {
+                Debug.LogError($"[UI] {string.Join(" · ", UiSkinApplier.Roots)} 을 하나도 " +
+                               "못 찾았습니다. 게임 씬을 열고 실행하세요.");
+                return;
+            }
+
+            EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+            Debug.Log($"[UI] 글자 여백 — 판 {framedTotal}개 · 민 글자 {moved}개\n" + string.Join("\n", log));
+        }
+
+        static int ApplyTo(GameObject root, List<string> log, out int framedCount)
+        {
             // 그림이 깔린 판 = 경계가 있는 스프라이트를 쓰는 Image
             var framed = new Dictionary<Transform, Vector4>();
             foreach (Image img in root.GetComponentsInChildren<Image>(true))
@@ -51,8 +86,8 @@ namespace LastSanctuary.EditorTools
                 if (b == Vector4.zero) continue;
                 framed[img.transform] = b;
             }
+            framedCount = framed.Count;
 
-            var log = new List<string>();
             int moved = 0;
 
             foreach (TMP_Text t in root.GetComponentsInChildren<TMP_Text>(true))
@@ -74,12 +109,11 @@ namespace LastSanctuary.EditorTools
                 if (Fit(lr, pr, b, out string what))
                 {
                     moved++;
-                    log.Add($"  {Path(t.transform, root.transform)}  {what}");
+                    log.Add($"  {root.name}/{Path(t.transform, root.transform)}  {what}");
                 }
             }
 
-            EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
-            Debug.Log($"[UI] 글자 여백 — 판 {framed.Count}개 · 민 글자 {moved}개\n" + string.Join("\n", log));
+            return moved;
         }
 
         /// <summary>

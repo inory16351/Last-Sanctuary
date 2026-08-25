@@ -14,6 +14,23 @@
 ★ 배경은 <b>투명으로 만들지 않는다</b> — 이 아이콘들은 액자(테두리)가 그려진 «판» 이고,
   유물 칸도 사각형이다. 굳이 배경을 파내면 액자가 깨진다.
 
+★★ <b>«쓰는 칸» 만 Resources 에 넣는다</b> (2026-08-26).
+
+예전에는 164칸을 <b>전부</b> `Resources/RelicIcons/` 에 썼다. 그런데 그 폴더는
+<b>런타임에 통째로 딸려 들어가는 자리</b>라, 쓰지도 않는 98칸(5.4MB)이 빌드에 실린다.
+그래서 손으로 지웠던 모양인데 — <b>손으로 한 일은 다시 돌리면 되돌아온다</b>.
+(`.gitignore` 의 «유물 아이콘 «팔레트»» 항목이 그 흔적이다.)
+
+이제 이 스크립트가 <b>스스로 가른다</b>:
+<code>
+  쓰는 칸  → Assets/_Project/Resources/RelicIcons/     (커밋한다)
+  나머지   → Assets/_Project/Art/RelicIconPalette/     (.gitignore 됨 · 고를 때만 본다)
+</code>
+「쓰는 칸」의 정본은 :data:`assign_relic_icons.ICONS` 하나다 — 목록을 두 벌로 만들지 않는다.
+
+⚠ <b>배정에서 빠진 그림은 지운다</b>(`.meta` 까지). 안 지우면 «아이콘을 바꿨는데
+  옛 그림이 폴더에 남아» 다음 사람이 어느 쪽이 산 것인지 못 가린다.
+
 사용법:  python Tools/slice_relic_icons.py
 결과:    Assets/_Project/Resources/RelicIcons/sheet<시트>_<행><열>.png
 ⚠ 그 뒤 Unity 에서 Assets/Refresh. 어느 유물이 어느 칸을 쓰는지는
@@ -26,6 +43,7 @@ import numpy as np
 from PIL import Image
 
 from vault_path import VAULT, PROJECT
+from assign_relic_icons import ICONS
 
 try:
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
@@ -34,6 +52,12 @@ except Exception:
 
 SRC_DIR = os.path.join(VAULT, '리소스', 'sprites')
 DST = os.path.join(PROJECT, 'Assets', '_Project', 'Resources', 'RelicIcons')
+
+#: 쓰지 않는 칸이 가는 곳. `.gitignore` 됨 — «다음에 유물을 더할 때 골라 쓸 후보» 다.
+PALETTE_DIR = os.path.join(PROJECT, 'Assets', '_Project', 'Art', 'RelicIconPalette')
+
+#: 지금 실제로 쓰는 칸. 정본은 `assign_relic_icons.py` 하나다.
+USED = set(ICONS.values())
 
 SHEETS = ['Lelic_icon_01.png', 'Lelic_icon_02.png',
           'Lelic_icon_03.png', 'Lelic_icon_04.png']
@@ -78,27 +102,66 @@ def slice_sheet(path, sheet_no):
           % (os.path.basename(path), im.size[0], im.size[1],
              len(rows), len(cols), len(rows) * len(cols)))
 
-    made = 0
+    made = free = 0
     for ri, (y0, y1) in enumerate(rows, 1):
         for ci, (x0, x1) in enumerate(cols, 1):
+            key = 'sheet%d_%02d%02d' % (sheet_no, ri, ci)
             cell = im.crop((x0, y0, x1, y1))
-            out = os.path.join(DST, 'sheet%d_%02d%02d.png' % (sheet_no, ri, ci))
-            cell.save(out)
-            made += 1
-    return made, len(rows), len(cols)
+            if key in USED:
+                cell.save(os.path.join(DST, key + '.png'))
+                made += 1
+            else:
+                cell.save(os.path.join(PALETTE_DIR, key + '.png'))
+                free += 1
+    return made, free
+
+
+def prune():
+    """
+    배정에서 빠진 그림을 <b>Resources 에서 치운다</b>(`.meta` 까지).
+
+    ⚠ 지우기 전에 <b>이번에 쓰는 칸이 다 만들어졌는지</b> :func:`main` 이 먼저 확인한다 —
+      순서가 바뀌면 «다 지웠는데 새것이 안 만들어진» 상태가 될 수 있다.
+    """
+    gone = []
+    for fn in sorted(os.listdir(DST)):
+        if not fn.endswith('.png'):
+            continue
+        if fn[:-4] in USED:
+            continue
+        os.remove(os.path.join(DST, fn))
+        meta = os.path.join(DST, fn + '.meta')
+        if os.path.exists(meta):
+            os.remove(meta)
+        gone.append(fn[:-4])
+    return gone
 
 
 def main():
     os.makedirs(DST, exist_ok=True)
-    total = 0
+    os.makedirs(PALETTE_DIR, exist_ok=True)
+    used = free = 0
     for i, name in enumerate(SHEETS, 1):
         p = os.path.join(SRC_DIR, name)
         if not os.path.exists(p):
             print('  ⚠ 없음: %s' % name)
             continue
-        n, r, c = slice_sheet(p, i)
-        total += n
-    print('총 %d칸을 %s 에 넣었다.' % (total, DST))
+        u, f = slice_sheet(p, i)
+        used += u
+        free += f
+
+    missing = sorted(k for k in USED
+                     if not os.path.exists(os.path.join(DST, k + '.png')))
+    if missing:
+        raise SystemExit('⚠ 배정표가 가리키는 칸이 시트에 없습니다 — 이름을 확인할 것:\n  '
+                         + '\n  '.join(missing))
+
+    gone = prune()
+
+    print('쓰는 칸 %d개 → %s' % (used, os.path.relpath(DST, PROJECT)))
+    print('후보 칸 %d개 → %s  (.gitignore 됨)' % (free, os.path.relpath(PALETTE_DIR, PROJECT)))
+    if gone:
+        print('치운 옛 그림 %d개: %s' % (len(gone), ' · '.join(gone)))
     print('⚠ Unity 에서 Assets/Refresh 를 실행할 것.')
 
 
