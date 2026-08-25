@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace LastSanctuary.UI
 {
@@ -35,7 +36,11 @@ namespace LastSanctuary.UI
     /// ⚠ <b>비활성 오브젝트도 찾아야 한다.</b> 세 창은 평소 꺼져 있어서
     /// <c>FindObjectsByType</c> 기본 인자로는 잡히지 않는다 —
     /// <c>FindObjectsInactive.Include</c> 가 반드시 필요하다(59-6절의 그 함정과 같은 뿌리).
-    /// 조회가 비싸므로 <b>한 번만</b> 하고 캐시한다. 창은 씬에 고정이라 늘거나 줄지 않는다.
+    /// 조회가 비싸므로 <b>씬마다 한 번만</b> 하고 캐시한다. 창은 씬에 고정이라 늘거나 줄지 않는다.
+    ///
+    /// ⚠⚠ <b>«씬마다» 가 핵심이다</b> — 예전에는 <b>프로세스마다</b> 한 번이었고, 그래서 씬을
+    /// 다시 여는 순간(게임 재시작 · 로비 왕복 · 패배/승리 다시하기) 목록이 <b>파괴된 컴포넌트</b>로
+    /// 가득 차 이 클래스가 통째로 무력해졌다. 자세한 것은 <see cref="Invalidate"/> 의 ⚠⚠.
     /// </summary>
     public static class HudExclusive
     {
@@ -52,6 +57,54 @@ namespace LastSanctuary.UI
             _panels.Clear();
             _scanned = false;
             _busy = false;
+
+            // ★★★ 씬을 다시 열 때마다 목록을 버린다 — 아래 <see cref="Invalidate"/> 의 ⚠⚠ 참조.
+            //   ⚠ 이 <c>Reset</c> 은 «프로세스마다 한 번» 이지만, 도메인 리로드를 꺼 두면
+            //     구독이 <b>지난 플레이에서 살아남는다</b>. -= 를 먼저 해서 두 번 걸리지 않게 한다
+            //     (정적 메서드라 델리게이트가 같은 것으로 비교된다 — 람다로 쓰면 안 된다).
+            SceneManager.sceneLoaded -= HandleSceneLoaded;
+            SceneManager.sceneLoaded += HandleSceneLoaded;
+        }
+
+        static void HandleSceneLoaded(Scene scene, LoadSceneMode mode) => Invalidate();
+
+        /// <summary>
+        /// ★★★ <b>스캔한 창 목록을 버린다</b> (2026-08-25 · 유저 리포트:
+        /// *"게임 재시작을 누르거나 게임을 껐다 키면 UI 창들이 여러개 켜지고 esc 로도 종료가 되지 않아"*).
+        ///
+        /// ══════════════════════════════════════════════════════════════════
+        ///  ⚠⚠ 무슨 일이 있었나 — <b>씬을 다시 열면 목록이 시체로 가득 찬다</b>
+        /// ══════════════════════════════════════════════════════════════════
+        /// <see cref="EnsureScanned"/> 는 «창은 씬에 고정이라 늘거나 줄지 않는다» 는 전제로
+        /// <b>한 번만</b> 훑고 캐시한다. 그 전제는 <b>씬 하나 안에서만</b> 참이었다:
+        ///
+        /// <code>
+        ///   로비 ▸ 게임 시작            → Proto_01 을 연다 → 여기서 스캔 (정상)
+        ///   환경설정 ▸ 게임 재시작      → Proto_01 을 <b>다시</b> 연다 → 옛 창은 전부 파괴
+        ///   환경설정 ▸ 로비 ▸ 이어하기  → 같은 일
+        ///   패배/승리 ▸ 다시하기        → 같은 일
+        /// </code>
+        ///
+        /// 목록에 남은 것은 <b>파괴된 컴포넌트</b>뿐이고, 세 함수가 전부 그것을 조용히 건너뛴다
+        /// (<c>p is Object o &amp;&amp; o == null</c>). 그래서 <b>새 씬의 창은 목록에 없다</b>:
+        ///
+        /// * <see cref="OpenOnly"/> 가 <b>아무것도 닫지 못한다</b> → 전술 지침·캐릭터 성장이 <b>동시에</b> 열린다.
+        /// * <see cref="CloseOpenPanel"/> 이 <c>false</c> 를 돌려준다 → Esc 가 «닫을 창이 없다» 로
+        ///   판단하고 <b>환경 설정을 하나 더 연다</b> — 누를수록 나빠진다.
+        ///
+        /// ★ <c>RuntimeInitializeOnLoadMethod</c> 로는 못 막는다. 그것은 <b>프로세스마다 한 번</b>이라
+        ///   씬을 다시 여는 것으로는 돌지 않는다 — <see cref="LastSanctuary.Save.RunResetService"/> 가
+        ///   생긴 이유와 <b>똑같은 뿌리</b>다(그 클래스의 ⚠⚠).
+        ///
+        /// ★ <b>등록 방식(<c>OnEnable</c> 에서 Register)으로는 못 바꾼다</b> — 창은 평소 비활성이고
+        ///   유니티는 비활성 오브젝트의 <c>Awake</c>·<c>OnEnable</c> 을 <b>아예 부르지 않는다</b>.
+        ///   «한 번도 열린 적 없는 창» 이 스스로 등록할 방법이 없어서 훑는 것이다. 그래서 고칠 곳은
+        ///   «훑는 방법» 이 아니라 <b>«언제 다시 훑는가»</b> 다.
+        /// </summary>
+        public static void Invalidate()
+        {
+            _panels.Clear();
+            _scanned = false;
         }
 
         /// <summary>
@@ -194,7 +247,7 @@ namespace LastSanctuary.UI
 
         static void EnsureScanned()
         {
-            if (_scanned) return;
+            if (_scanned && IsCacheAlive()) return;
             _scanned = true;
             _panels.Clear();
 
@@ -203,6 +256,31 @@ namespace LastSanctuary.UI
                                                              FindObjectsSortMode.None);
             for (int i = 0; i < all.Length; i++)
                 if (all[i] is IExclusiveHudPanel panel) _panels.Add(panel);
+        }
+
+        /// <summary>
+        /// ★ <b>캐시가 아직 «이 씬의 것» 인가</b> (2026-08-25 · <see cref="Invalidate"/> 의 안전망).
+        ///
+        /// <see cref="SceneManager.sceneLoaded"/> 구독이 정본이고 이쪽은 <b>그물의 두 번째 겹</b>이다.
+        /// 파괴된 컴포넌트가 <b>하나라도</b> 있으면 목록 전체가 옛 씬의 것이므로 다시 훑는다.
+        ///
+        /// ★ <b>빈 목록도 «못 믿는다» 로 본다</b> — 창이 하나도 없는 씬(로비·오프닝)에서
+        ///   한 번 훑고 나면 그 빈 목록이 게임 씬까지 따라가 <b>같은 증상</b>을 낳는다.
+        ///
+        /// ⚠ 값이 아홉 개 남짓이라 매 호출 검사해도 싸다 — 이 함수를 프레임마다 부르는 곳은
+        ///   <c>HelpService</c> 의 <see cref="AnyOpen"/> 하나뿐이고, 거기서도 참조 비교 아홉 번이다.
+        /// </summary>
+        static bool IsCacheAlive()
+        {
+            if (_panels.Count == 0) return false;
+
+            for (int i = 0; i < _panels.Count; i++)
+            {
+                IExclusiveHudPanel p = _panels[i];
+                if (p == null) return false;
+                if (p is Object o && o == null) return false;   // 파괴된 컴포넌트 — 옛 씬의 것이다
+            }
+            return true;
         }
     }
 }

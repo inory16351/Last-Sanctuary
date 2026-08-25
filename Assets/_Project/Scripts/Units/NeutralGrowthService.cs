@@ -30,6 +30,38 @@ namespace LastSanctuary.Units
     ///   <see cref="NeutralMonsterDefinitionSO.BuildStats"/></description></item>
     /// </list>
     ///
+    /// ══════════════════════════════════════════════════════════════════
+    ///  ★★★ 2026-08-25 — <b>자원 성장을 능력치 성장에서 떼어냈다</b>
+    /// ══════════════════════════════════════════════════════════════════
+    /// 유저 리포트: *"몬스터들 잡을때마다 자원 성장이 너무 기하급수적으로 일어나서 밸런스가
+    /// 무너짐. <b>몬스터의 스탯 성장과 자원 획득량 성장은 별개로 설정해야 할듯</b>"*.
+    ///
+    /// 예전에는 <see cref="ScaleEnergyReward"/> 하나가 «켜면 <b>능력치와 똑같은 배율</b>» 이었다.
+    /// 그런데 능력치 배율은 <b>상한이 0(무제한)</b> 으로 운영 중이라(씬 실측), 그 값이 자원에
+    /// 그대로 실리면 한 판의 자원 수입이 <b>처치 수의 제곱</b>으로 불어난다:
+    ///
+    /// <code>
+    ///   N 마리째 한 마리 값 = 기본 × (1 + 한마리당 × N)        ← 1차
+    ///   N 마리까지의 누적    = 기본 × (N + 한마리당 × N²/2)     ← <b>2차</b> 다
+    /// </code>
+    ///
+    /// 실측(id 1003 · 평균 265 · <c>growth_per_kill</c> 0.01 · 상한 없음):
+    /// <code>
+    ///   100마리 → 누적  39,750   (배율이 없을 때의 1.5배)
+    ///   300마리 → 누적 198,750   (2.5배)
+    ///   500마리 → 누적 463,750   (3.5배)   ← 멈출 곳이 없다
+    /// </code>
+    ///
+    /// → <b>칸을 둘로 나눴다.</b> 능력치는 지금 설계 그대로 무제한으로 두고
+    ///   (<see cref="MaxMultiplier"/>), 자원만 <b>제 몫과 제 상한</b>을 갖는다 —
+    ///   <see cref="EnergyGrowthRatio"/> · <see cref="EnergyMaxMultiplier"/>.
+    ///   ★ <c>ratio 1 · cap 0</c> 으로 두면 <b>예전과 완전히 같다</b> — 되돌리는 길을 남겼다.
+    ///
+    /// ★ <b>«비율» 로 이었고 자원 곡선을 따로 재지 않았다</b> — 종별 성장
+    ///   (<c>growth_per_kill</c>)이 표에 있어서 자원 쪽에도 같은 컬럼을 만들면 <b>표를 두 벌</b>
+    ///   관리하게 된다. 비율이면 종이 늘어도 손댈 곳이 없고, <c>0</c> 으로 두면 «자원은 전혀
+    ///   안 오른다» 는 완전한 독립도 그대로 성립한다.
+    ///
     /// ★ <b>능력치 상한은 여기 없다</b> — 체력은 상한 없이 오르고 공격 계열은
     ///   <b>웨이브 몬스터와 같은 칸</b>(<c>BalanceConfigSO.monsterAttackStatMax</c> ·
     ///   <c>bossAttackStatMax</c>)으로 자른다(유저 확정: *"체력 말고는 상한값 웨이브 몬스터와
@@ -53,9 +85,20 @@ namespace LastSanctuary.Units
                  "같은 칸(BalanceConfig 의 monsterAttackStatMax·bossAttackStatMax)을 쓴다")]
         [Min(0f)] [SerializeField] float maxMultiplier = 0f;
 
-        [Tooltip("처치 보상 에너지에도 같은 배율을 곱한다.\n" +
-                 "강해진 개체는 그만큼 더 준다 — 안 그러면 «잡기만 어렵고 이득은 같다» 가 된다")]
+        [Header("자원 획득량 성장 — ★★ 능력치 성장과 «별개» 다 (2026-08-25)")]
+        [Tooltip("처치 보상 에너지도 사냥 성장을 따라 오르게 한다.\n" +
+                 "강해진 개체는 그만큼 더 준다 — 안 그러면 «잡기만 어렵고 이득은 같다» 가 된다.\n" +
+                 "⚠ 끄면 아래 두 칸은 아무 일도 하지 않는다")]
         [SerializeField] bool scaleEnergyReward = true;
+
+        [Tooltip("★ 능력치 배율의 <b>늘어난 몫</b> 중 자원에 반영할 비율.\n" +
+                 "1 = 예전 동작(능력치와 똑같이 오른다) · 0 = 자원은 전혀 안 오른다.\n" +
+                 "예) 능력치 x3 · 이 값 0.25 → 자원 배율은 1 + (3-1)x0.25 = x1.5")]
+        [Range(0f, 1f)] [SerializeField] float energyGrowthRatio = 0.25f;
+
+        [Tooltip("★ 자원 배율 상한(0 = 무제한). 능력치 상한(위 maxMultiplier)과 <b>별개</b>다.\n" +
+                 "⚠ 능력치는 무제한으로 둬도 자원만 여기서 멈출 수 있다 — 이 칸이 생긴 이유다")]
+        [Min(0f)] [SerializeField] float energyMaxMultiplier = 2f;
 
         [Header("디버그")]
         [Tooltip("개체가 소환될 때 «종 id · 처치 수 · 배율» 을 콘솔에 찍는다")]
@@ -70,6 +113,8 @@ namespace LastSanctuary.Units
         public float StepMultiplier => Mathf.Max(0f, stepMultiplier);
         public float MaxMultiplier => Mathf.Max(0f, maxMultiplier);
         public bool ScaleEnergyReward => scaleEnergyReward;
+        public float EnergyGrowthRatio => Mathf.Clamp01(energyGrowthRatio);
+        public float EnergyMaxMultiplier => Mathf.Max(0f, energyMaxMultiplier);
         public bool LogGrowth => logGrowth;
 
         void Awake() => Instance = this;

@@ -143,10 +143,22 @@ namespace LastSanctuary.Units
         /// <summary>
         /// ★★ <b>이 개체에 걸린 사냥 성장 배율</b> (2026-08-21 · <see cref="NeutralKillTally"/>).
         /// <b>소환 순간에 굳는다</b> — 이미 서 있는 개체가 갑자기 세지지 않는다.
-        /// 능력치에 이미 반영돼 있고, 이 값을 따로 들고 있는 이유는 <b>보상 에너지</b>에도
-        /// 같은 배율을 걸어야 하기 때문이다(<see cref="RollEnergyReward"/>).
+        /// 능력치에 이미 반영돼 있다.
+        /// ⚠ <b>보상 에너지는 이 값을 쓰지 않는다</b>(2026-08-25) — <see cref="EnergyMultiplier"/>
+        ///   라는 <b>별개의 배율</b>을 쓴다. 아래 <see cref="RollEnergyReward"/> 참조.
         /// </summary>
         public float GrowthMultiplier { get; private set; } = 1f;
+
+        /// <summary>
+        /// ★★★ <b>이 개체의 «자원» 배율</b> — 능력치 배율과 <b>다른 값</b>이다 (2026-08-25).
+        ///
+        /// 예전에는 <see cref="GrowthMultiplier"/> 하나를 능력치와 보상에 <b>똑같이</b> 썼고,
+        /// 능력치 배율에 상한이 없어서 한 판 자원 수입이 처치 수의 <b>제곱</b>으로 불어났다
+        /// (<see cref="NeutralGrowthService"/> 의 ★★★). 이제 자원은 제 몫·제 상한을 쓴다.
+        /// ⚠ 능력치와 마찬가지로 <b>소환 순간에 굳는다</b> — 방금 잡은 한 마리가 자기 보상을
+        ///   올려주지 않는다.
+        /// </summary>
+        public float EnergyMultiplier { get; private set; } = 1f;
 
         /// <summary>
         /// 처치 시 지급할 에너지를 이 범위에서 무작위로 뽑는다 (정의 테이블 min/max_energy).
@@ -154,6 +166,11 @@ namespace LastSanctuary.Units
         /// ★★ 2026-08-21 — <b>사냥 성장 배율을 곱한다</b> (유저 지시: *"중립 몬스터 성장
         /// 배율에 자원값도 배율 적용 되어야 해"*). 강해진 개체가 같은 자원을 준다면
         /// «잡기만 어렵고 이득은 같다» 가 되어 사냥할 이유가 줄어든다.
+        ///
+        /// ★★★ 2026-08-25 — <b>그런데 «같은 배율» 은 너무 셌다</b> (유저 리포트: *"자원 성장이
+        /// 너무 기하급수적"*). 이제 <see cref="EnergyMultiplier"/> 라는 <b>별개의 배율</b>을 쓴다 —
+        /// 능력치는 그대로 두고 자원만 완만하게, 그리고 <b>상한이 있게</b> 오른다
+        /// (<see cref="NeutralGrowthService"/> 의 ★★★).
         /// ⚠ 배율은 <b>이 개체가 태어난 시점</b>의 값이다 — 방금 잡은 한 마리가 자기 보상을
         ///   올려주지 않는다(그러면 «마지막 한 마리만 이득» 이 되어 계단이 흐려진다).
         /// ⚠ 끄는 손잡이: <see cref="BalanceConfigSO.neutralHuntGrowthScalesEnergy"/>.
@@ -163,11 +180,13 @@ namespace LastSanctuary.Units
             if (definition == null) return 0;
 
             int rolled = Random.Range(definition.minEnergy, definition.maxEnergy + 1);
-            NeutralGrowthService cfg = NeutralGrowthService.Instance;
-            bool scales = cfg == null || cfg.ScaleEnergyReward;
-            if (!scales || GrowthMultiplier <= 1f) return rolled;
 
-            return Mathf.Max(rolled, Mathf.RoundToInt(rolled * GrowthMultiplier));
+            // ★★ 2026-08-25 — <b>능력치 배율이 아니라 «자원» 배율</b>을 쓴다.
+            //   끄기·비율·상한은 전부 EnergyMultiplier 안에서 이미 판단됐다
+            //   (GameSystems ▸ NeutralGrowthService 의 «자원 획득량 성장» 칸 셋).
+            if (EnergyMultiplier <= 1f) return rolled;
+
+            return Mathf.Max(rolled, Mathf.RoundToInt(rolled * EnergyMultiplier));
         }
 
         /// <summary>스포너가 복제 직후 호출한다.</summary>
@@ -183,6 +202,11 @@ namespace LastSanctuary.Units
                 ? NeutralKillTally.MultiplierFor(def.monId, def.growthPerKill)
                 : 1f;
 
+            // ★★ 자원 배율은 <b>따로</b> 굳힌다 — 능력치와 같은 값이 아니다(2026-08-25).
+            EnergyMultiplier = def != null
+                ? NeutralKillTally.EnergyMultiplierFor(def.monId, def.growthPerKill)
+                : 1f;
+
             stats = def != null ? def.BuildStats(GrowthMultiplier, balance) : new StatBlock { hp = 1 };
             SetupHealth(balance);
 
@@ -190,8 +214,8 @@ namespace LastSanctuary.Units
             if (cfg != null && cfg.LogGrowth && def != null)
                 Debug.Log($"[중립성장] {def.DisplayName}(id {def.monId}) · 처치 " +
                           $"{NeutralKillTally.KillsOf(def.monId)}마리 · " +
-                          $"{NeutralKillTally.StepsOf(def.monId)}단계 · 배율 x{GrowthMultiplier:0.##} " +
-                          $"→ 체력 {MaxHp}", this);
+                          $"{NeutralKillTally.StepsOf(def.monId)}단계 · 능력치 x{GrowthMultiplier:0.##} " +
+                          $"· 자원 x{EnergyMultiplier:0.##} → 체력 {MaxHp}", this);
         }
 
         protected override void OnDeath()

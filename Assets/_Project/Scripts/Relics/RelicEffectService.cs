@@ -383,8 +383,23 @@ namespace LastSanctuary.Relics
                 switch (type)
                 {
                     case RelicEffectType.KillEnergy:
+                    {
+                        // ★★ 2026-08-25 — <b>확률 칸(v2)이 생겼다</b> (유저 지시: *"자원 획득량이
+                        //   너무 사기니까 좀 조정해"* → *"%가 더 사기일듯 걍 자원 획득량을 좀
+                        //   줄이거나 «확률»을 넣어"*).
+                        //
+                        //   ★ <b>%(비율) 로 안 바꿨다</b> — 이 게임의 처치 보상은 웨이브 잡몹 10 ·
+                        //     중립 200~1200 으로 <b>대역이 60배 넘게 벌어진다</b>. 비율로 주면
+                        //     중립을 사냥할수록 값이 같이 불어나 «기하급수» 문제가 유물로 옮겨올
+                        //     뿐이다(NeutralGrowthService 의 ★★★). 절대값 + 확률이면
+                        //     <b>어떤 적을 잡아도 기댓값이 같다</b>.
+                        //   ⚠ <b>v2 가 0 이면 항상 터진다</b> — 확률 칸이 없던 시절의 표와 호환된다.
+                        int chance = Mathf.Clamp(v2, 0, 100);
+                        if (chance > 0 && Random.Range(0, 100) >= chance) break;
+
                         Resource.ResourceManager.Instance?.AddEnergy(Mathf.Max(0, v1));
                         break;
+                    }
 
                     case RelicEffectType.KillHeal:
                         killer.Heal(Mathf.Max(1, Mathf.RoundToInt(killer.MaxHp * v1 * 0.01f)));

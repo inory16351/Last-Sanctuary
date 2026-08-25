@@ -111,7 +111,11 @@ namespace LastSanctuary.Relics
         /// <summary>받은 <b>근접</b> 피해의 v1% 를 때린 적에게 반사.</summary>
         Thorns = 21,
 
-        /// <summary>처치할 때마다 에너지 +v1 (절대값).</summary>
+        /// <summary>
+        /// 처치할 때 <b>v2% 확률로</b> 에너지 +v1 (절대값).
+        /// ⚠ <b>v2 가 0 이면 «항상»</b> 이다 — 확률 칸이 없던 시절의 표(Ver01·Ver02)와
+        ///   호환된다. 확률을 넣고 싶으면 <c>value_02</c> 에 적는다(2026-08-25).
+        /// </summary>
         KillEnergy = 22,
 
         /// <summary>처치할 때마다 최대 체력의 v1% 회복.</summary>

@@ -146,6 +146,11 @@ namespace LastSanctuary.UI
             // 창들은 "닫힌 채로 시작"이 규칙이다. 창 스스로 Awake 에서 닫으면
             // <b>열리는 순간 닫히는</b> 버그가 되므로(UnitPortraitPanel.Awake 주석),
             // 항상 살아 있는 이쪽에서 한 번 확인해 닫는다.
+            // ★ 2026-08-25 — 전술 지침·부대 설정이 <b>이 목록에서 빠져 있었다</b>. 씬 값이 마침
+            //   비활성이라 드러나지 않았을 뿐, «닫힌 채로 시작» 이 규칙이면 여섯 창이 다 여기 있어야
+            //   한다(창을 켠 채 씬을 저장하는 사고는 실제로 일어난다 — EventPanel.Start 의 주석).
+            if (_tacticsPanel != null && _tacticsPanel.IsOpen) _tacticsPanel.Close();
+            if (_squadPanel != null && _squadPanel.IsOpen) _squadPanel.Close();
             if (_subjugationPanel != null && _subjugationPanel.IsOpen) _subjugationPanel.Close();
             if (_settingsPanel != null && _settingsPanel.IsOpen) _settingsPanel.Close();
             if (_relicPanel != null && _relicPanel.IsOpen) _relicPanel.Close();

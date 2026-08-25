@@ -94,6 +94,37 @@ namespace LastSanctuary.Units
             return cap > 0f ? Mathf.Min(mul, cap) : mul;
         }
 
+        /// <summary>
+        /// ★★★ <b>처치 보상 에너지에 걸리는 배율</b> — <b>능력치 배율과 별개</b>다 (2026-08-25).
+        ///
+        /// 유저 리포트: *"몬스터들 잡을때마다 자원 성장이 너무 기하급수적으로 일어나서 밸런스가
+        /// 무너짐. 몬스터의 스탯 성장과 자원 획득량 성장은 별개로 설정해야 할듯"*.
+        ///
+        /// <code>
+        ///   자원 배율 = 1 + (능력치 배율 - 1) × EnergyGrowthRatio     ▸ 그다음 EnergyMaxMultiplier 로 자른다
+        /// </code>
+        ///
+        /// ★ <b>«늘어난 몫» 에만 비율을 건다</b> — 배율 자체에 곱하면(<c>stat × ratio</c>) 성장이
+        ///   0 일 때도 자원이 <b>줄어든다</b>. 기준선 1 은 건드리지 않는 것이 맞다.
+        /// ★ 비율 1 · 상한 0 이면 <see cref="MultiplierFor(int,float)"/> 와 <b>완전히 같다</b>.
+        /// ⚠ 상한은 <b>자원 쪽 상한</b>이다. 능력치 상한(<see cref="NeutralGrowthService.MaxMultiplier"/>)은
+        ///   이미 <see cref="MultiplierFor(int,float)"/> 안에서 걸린 뒤라, 여기서 또 걸지 않는다.
+        /// </summary>
+        public static float EnergyMultiplierFor(int monId, float perKill)
+        {
+            NeutralGrowthService cfg = NeutralGrowthService.Instance;
+            if (cfg == null || !cfg.GrowthEnabled || !cfg.ScaleEnergyReward) return 1f;
+
+            float stat = MultiplierFor(monId, perKill);
+            if (stat <= 1f) return 1f;
+
+            float mul = 1f + (stat - 1f) * cfg.EnergyGrowthRatio;
+
+            // 0 = 무제한 (능력치 상한 칸과 같은 규약)
+            float cap = cfg.EnergyMaxMultiplier;
+            return cap > 0f ? Mathf.Min(mul, cap) : mul;
+        }
+
         /// <summary>표시·로그용 — 지금 몇 단계인가.</summary>
         public static int StepsOf(int monId)
         {

@@ -42,6 +42,13 @@ mon_name_1002	종양귀	Tumorling
 mon_name_1003	종양 두더지	TumorMole
 skill_name_2001	할퀴기	
 skill_name_2002	죽음의 포효	
+skill_name_2003	꼬리치기	
+skill_name_2004	거대한 위협	
+skill_name_2005	소름 끼치는 흉터	
+skill_name_2006	치명적인 맹독	
+skill_name_2007	화염 방출	
+skill_name_2008	급속 재생	
+skill_name_2009	공포	
 monster_name_100001	지옥 송곳니	HellFang
 monster_name_100002	영혼 사수	SoulArcher
 monster_name_120001	단탈리온	Dantalian
@@ -190,7 +197,7 @@ unit_name_aru_golem	강림한 골렘	Descended Golem
 character_name_9010	아르세니아	Arsenia
 character_name_9011	불칸	Vulcan
 character_title_9010	부서진 날개의 연금술사	The Alchemist of Broken Wings
-character_title_9011	화염의 마수	The Beast of Flames
+character_title_9011	대마법사	The Archmage
 skill_explain_80031	불칸의 분노는 적들의 사지를 불태웁니다.	
 skill_explain_80032	현자의 지혜는 전장의 위협을 슬기롭게 헤쳐나갈 힘이 있습니다.	
 skill_explain_80033	연옥의 화염에게 자비란 없습니다.	
@@ -753,7 +760,7 @@ relic_desc_700002	공격 속도가 1 증가합니다.
 relic_desc_700003	체력이 1 증가합니다.	
 relic_desc_700004	체력 재생이 1 증가합니다.	
 relic_desc_700005	저항력이 4 증가합니다.	
-relic_desc_700006	적을 처치할 때마다 에너지를 12 얻습니다.	
+relic_desc_700006	적을 처치할 때 40% 확률로 에너지를 5 얻습니다.	
 relic_desc_700007	명중률이 2 증가합니다.	
 relic_desc_700008	이동 속도가 1 증가합니다.	
 relic_desc_700009	회복력이 1 증가합니다.	
