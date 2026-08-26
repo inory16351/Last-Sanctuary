@@ -204,7 +204,32 @@ JOBS = [
     ("UI_07.png", ["Slot_Empty", "Slot_Filled", "Slot_Locked"], "Frames", 44, None, "zero", False),
     ("UI_08.png", "Wave_Banner",    "Frames",  92,  None, "auto", False),
     ("UI_09.png", ["Divider_Plain", "Divider_Diamond", "Divider_Header"], "Frames", None, 208, "zero", False),
+
+    # ★★ 2026-08-26 — 로스터 전용 세 장 (볼트 `로스터 UI 프롬프트.md` 로 뽑았다).
+    #
+    #   `Btn_Roster_*` 는 <b>340×78</b> 이다 — 지금까지 로스터 행은 `Btn_Panel`(178×40)을
+    #   그 크기로 늘려 쓰고 있어서 좌우 마개 장식이 뭉툭하고 세로 테두리가 두 배로 불었다.
+    #   ⚠ 이름이 <c>Btn_&lt;계열&gt;_&lt;상태&gt;</c> 규약을 지켜야 <c>HudTheme.PaintButton</c> 이
+    #     «고른 행/죽은 행» 을 스스로 갈아끼운다(도움말 분류 탭이 붙은 그 방식).
+    ("BUTTON_07.png", "Btn_Roster_%s", "Buttons", 78, None, "auto", False),
+
+    # ⚠ <b>부대 색 띠는 회색조로 왔다</b> — 코드가 부대 색을 <b>곱한다</b>. 색이 구워져
+    #   있으면 곱한 결과가 탁해진다(`Bar_Fill` 이 흰 그라디언트인 것과 같은 규약).
+    #   그래서 <b>팔레트 스냅에서 빼야 한다</b> — 16색 HUD 팔레트에 넣으면 회색 층이
+    #   청록 계열로 끌려간다. 아래 GREY_ONLY 를 볼 것.
+    ("UI_10.png", "Roster_SquadTab", "Frames", 78, None, "auto", True),
+
+    # 얼굴 칸 액자 — 안쪽이 <b>완전히 뚫려 있어야</b> 한다(알파 이진화가 그 일을 한다).
+    ("UI_11.png", "Roster_PortraitSlot", "Frames", 64, None, "auto", True),
 ]
+
+#: ★★ <b>팔레트 스냅을 건너뛰는 그림</b> (2026-08-26 신설).
+#:
+#: 코드가 색을 <b>곱하는</b> 그림은 회색조로 와야 하고, 그 회색을 16색 HUD 팔레트에
+#: 스냅하면 <b>청록 계열로 끌려간다</b> — 곱했을 때 부대 색이 탁해진다.
+#: <c>Bar_Fill</c> 이 이미 :data:`GREYS` 로 따로 처리되던 것과 같은 이유이고,
+#: 여기 적힌 이름은 그 <c>GREYS</c> 표를 쓴다.
+GREY_ONLY = {"Bar_Fill", "Roster_SquadTab"}
 
 
 def run():
@@ -254,7 +279,7 @@ def run():
         if w and len(cuts) > 1:
             common = w / max(c.shape[1] for c in cuts)
 
-        palette = GREYS if want[0] == "Bar_Fill" else PALETTE
+        palette = GREYS if want[0] in GREY_ONLY else PALETTE
 
         # ④ 낱장을 만든다 — 아직 저장하지 않는다.
         #    ★ 한 묶음(상태 4장)은 <b>크기와 경계를 통일</b>해야 한다. 상태마다 따로

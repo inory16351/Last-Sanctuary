@@ -124,6 +124,25 @@ namespace LastSanctuary.EditorTools
             "HUD_HelpTour/Frame",
         };
 
+        /// <summary>
+        /// ★★ <see cref="Skip"/> 을 <b>되뚫는</b> 예외 (2026-08-26 신설).
+        ///
+        /// <c>Skip</c> 은 <b>이름 조각</b>으로 걸러서(<c>path.Contains</c>) «RowTemplate» 한 낱말이
+        /// 로스터 · 토벌 · 부대 <b>전부</b>의 모체를 함께 막는다. 로스터 행만 전용 그림
+        /// (<c>Btn_Roster_*</c>)을 받게 하려면 그 하나만 되뚫어야 한다 —
+        /// <c>Skip</c> 에서 «RowTemplate» 을 빼면 나머지 창의 모체까지 같이 열린다.
+        ///
+        /// ⚠ <b>여기 넣는 것만으로는 부족하다.</b> 그 모체의 배경색을 <b>코드가 직접 칠하고
+        ///   있으면</b> 그림 위에 곱해져 새까매진다. 로스터는 그래서
+        ///   <c>CharacterRosterPanel</c> 의 칠하기 세 곳을
+        ///   <see cref="UI.HudTheme"/>.PaintButton 으로 바꾼 뒤에 열었다.
+        ///   <b>다른 모체를 열 때도 그쪽을 먼저 고칠 것.</b>
+        /// </summary>
+        static readonly HashSet<string> SkipExempt = new HashSet<string>
+        {
+            "HUD_Roster/RowTemplate",
+        };
+
         static readonly Dictionary<string, Sprite> Cache = new Dictionary<string, Sprite>();
 
         static Sprite Load(string name)
@@ -164,7 +183,7 @@ namespace LastSanctuary.EditorTools
                 string path = PathOf(img.transform, root.transform);
                 string name = img.name;
 
-                if (Skip.Any(s => path.Contains(s))) continue;
+                if (Skip.Any(s => path.Contains(s)) && !SkipExempt.Contains(path)) continue;
 
                 // ── 게이지 ────────────────────────────────────────────
                 if (FillNames.Contains(name))
@@ -226,7 +245,7 @@ namespace LastSanctuary.EditorTools
                     Sprite face = Load($"Btn_{kind}_Normal");
                     Set(img, face, Image.Type.Sliced);
                     WireSwap(btn, kind);
-                    InsetLabel(btn, face);
+                    if (!InsetSkip.Contains(kind)) InsetLabel(btn, face);
                     buttons++;
                     log.Add($"  버튼 {kind,-6} {path}");
                     continue;
@@ -343,6 +362,16 @@ namespace LastSanctuary.EditorTools
             //   <see cref="UI.HudTheme"/>.PaintButton 이 그 이름에서 계열을 읽으므로
             //   여기 한 줄이면 «고른 탭/안 고른 탭» 까지 저절로 맞는다.
             if (path.Contains("/Tabs/")) return "Tab";
+
+            // ★★ <b>로스터 행은 전용 그림을 쓴다</b> (2026-08-26 · 유저가 원화를 뽑아 줬다).
+            //   행 카드는 <b>340×78</b> 인데 비율(4.36)만 보면 «Panel»(178×40)로 떨어져
+            //   <b>가로 1.9배 · 세로 2배</b>로 늘어났다 — 좌우 마개 장식이 뭉툭해지고 위아래
+            //   테두리가 두 배로 불었다. `Btn_Roster_*` 는 그 크기로 그린 것이다.
+            // ★ `HUD_Roster` 아래 버튼은 행 카드(`RowTemplate`)뿐이라 경로 한 줄로 충분하다.
+            //   행은 런타임에 그 모체를 복제해 생기고, 복제본은 스프라이트를 물려받으며
+            //   <see cref="UI.HudTheme"/>.PaintButton 이 이름에서 계열을 읽으므로
+            //   «고른 행 / 죽은 행» 까지 저절로 맞는다(위 탭과 같은 짜임).
+            if (path.StartsWith("HUD_Roster/")) return "Roster";
             // ★ 배속·정지(57×40)는 <b>「칩」</b>을 쓴다. 비율만 보면 「닫기」로 떨어지는데
             //   닫기는 정사각이라 가로로 늘리면 모서리가 뭉갠다.
             // ⚠ 전용 그림 `Btn_Speed_*` 도 있지만 <b>안 쓴다</b> — 원화가 3:1 로 나와서
@@ -410,6 +439,16 @@ namespace LastSanctuary.EditorTools
         ///   고정된 것은 밀면 자리가 어긋난다.
         /// ⚠ 세로는 손대지 않는다 — 버튼 그림의 위아래 경계는 0 이다(가로로만 늘어난다).
         /// </summary>
+        /// <summary>
+        /// 라벨을 그림의 장식 안쪽으로 민다.
+        ///
+        /// ⚠ <b>«글자 한 줄» 버튼에만 맞는 일이다.</b> 로스터 행처럼 <b>초상화·게이지·글자가
+        ///   같이 들어가는 복합 행</b>은 자리를 이 함수가 정할 수 없다 — 이름은 초상화
+        ///   오른쪽에서 시작해야 하는데 이 함수는 «장식 폭 + 4» 를 준다. 그런 계열은
+        ///   <see cref="InsetSkip"/> 에 넣어 건너뛴다.
+        /// </summary>
+        static readonly HashSet<string> InsetSkip = new HashSet<string> { "Roster" };
+
         static void InsetLabel(Button btn, Sprite face)
         {
             if (face == null) return;
@@ -425,8 +464,26 @@ namespace LastSanctuary.EditorTools
                     !Mathf.Approximately(lr.anchorMax.x, 1f)) continue;   // 늘어난 라벨만
 
                 Undo.RecordObject(lr, "UI 스킨 배선");
-                lr.offsetMin = new Vector2(l, 0f);
-                lr.offsetMax = new Vector2(-r, 0f);
+
+                // ★★★ 2026-08-26 — <b>세로를 건드리면 안 된다</b> (유저 리포트:
+                //   *"텍스트랑 체력바 이미지가 너무 달라서 안 붙으니까"*).
+                //
+                //   예전에는 <c>offsetMin/Max</c> 를 <c>(l, 0)</c>·<c>(-r, 0)</c> 로 <b>통째로</b>
+                //   덮어썼다. 그런데 이 값의 <b>y 는 «세로 여백» 이 아니라 «앵커에서의 거리»</b> 다 —
+                //   가로만 늘어나는 라벨(<c>anchorMin.y == anchorMax.y</c>)은 그 둘이 같은 점이라
+                //   <b>둘 다 0 이면 높이가 0</b> 이 된다. 실측: 로스터 행의 <c>Name</c> 이
+                //   <c>size(-166, <b>0</b>)</c> 이었다 — 글자가 <b>높이 0 인 칸</b> 안에 있었다.
+                //
+                // ⚠ <b>실제로 터진 것은 하나뿐이었다</b> — 씬 전체를 세어 보니 «높이 0» 인
+                //   라벨은 로스터의 <c>Name</c> <b>하나</b>였다(2026-08-26 실측 0개 남음).
+                //   다른 버튼 라벨은 <b>세로로도 늘어나는</b> 앵커(<c>anchorMin.y 0 · anchorMax.y 1</c>)
+                //   라 그 자리의 0 은 «부모 높이» 를 뜻해 <b>정상</b>이었다.
+                //   즉 «버튼 글자가 가끔 가려진다»(166-3)와는 <b>다른 문제</b>다 — 그쪽은
+                //   자동 크기로 막았고, 이것은 그것과 별개로 여기 있던 함정이다.
+                //
+                // ★ 이제 <b>x 만</b> 민다. 세로는 씬이 정한 그대로 둔다.
+                lr.offsetMin = new Vector2(l, lr.offsetMin.y);
+                lr.offsetMax = new Vector2(-r, lr.offsetMax.y);
                 EditorUtility.SetDirty(lr);
             }
         }

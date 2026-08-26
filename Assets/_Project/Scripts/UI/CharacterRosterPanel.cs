@@ -83,6 +83,22 @@ namespace LastSanctuary.UI
         [Tooltip("사망한 캐릭터의 행 배경색")]
         [SerializeField] Color rowDead = new Color(0.08f, 0.08f, 0.09f, 0.55f);
 
+        [Tooltip("★ 얼굴이 세로로 잘릴 때 어디를 남길지 — 1 이면 맨 위, 0.5 면 가운데.\n" +
+                 "인물화는 위쪽에 얼굴이 있으므로 0.85 다(캐릭터 상세 카드와 같은 값)")]
+        [Range(0f, 1f)] [SerializeField] float portraitVerticalAnchor = 0.85f;
+
+        [Tooltip("죽은 캐릭터의 얼굴을 얼마나 어둡게 할지 — 1 이면 그대로, 0 이면 검정")]
+        [Range(0f, 1f)] [SerializeField] float deadPortraitDim = 0.35f;
+
+        [Tooltip("★ 부대를 «행 전체 색» 으로 말한다(2026-08-26 유저 확정).\n" +
+                 "끄면 예전처럼 «테두리 선 + 왼쪽 띠» 로 돌아간다 — 다만 행 카드 그림이 들어온 뒤로 " +
+                 "그 선은 카드 장식에 묻혀 잘 안 보인다")]
+        [SerializeField] bool squadUsesRowTint = true;
+
+        [Tooltip("행이 부대 색으로 얼마나 물들지 — 0 이면 그대로(흰색), 1 이면 부대 색을 그대로 곱한다.\n" +
+                 "카드 속색이 어두워서 1 로 두면 탁해진다")]
+        [Range(0f, 1f)] [SerializeField] float squadTintStrength = 0.55f;
+
         [Tooltip("사망한 캐릭터의 체력바 색. 비어서(투명) 안 보이는 것보다 " +
                  "꽉 찬 회색 막대가 '사망'을 훨씬 눈에 띄게 알려준다")]
         [SerializeField] Color deadBarColor = new Color(0.42f, 0.42f, 0.45f, 0.9f);
@@ -120,6 +136,38 @@ namespace LastSanctuary.UI
             /// 컴포넌트는 있어도 <b>보이지 않는다</b> — 붙였다 뗐다 하면 레이아웃이 흔들린다.
             /// </summary>
             public Outline SquadOutline;
+
+            /// <summary>
+            /// ★★ <b>부대 색 띠</b>(2026-08-26 · 유저가 원화를 뽑아 줬다 — `Roster_SquadTab`).
+            ///
+            /// 행 <b>왼쪽 가장자리</b>에 세우는 7px 짜리 세로 띠다. 원화가 <b>회색조</b>라
+            /// 여기서 부대 색을 <b>곱한다</b>(`Bar_Fill` 과 같은 규약).
+            /// ★ <see cref="SquadOutline"/> 과 <b>같은 색</b>을 쓴다 — 둘이 갈리면 «테두리는
+            ///   파란데 띠는 주황» 이 된다. 색을 고르는 곳은 <see cref="ApplySquadOutline"/> 한 곳이다.
+            /// ⚠ 부대가 없으면 <b>알파 0</b> 이다(끄지 않는다) — 껐다 켜면 레이아웃이 흔들린다.
+            /// </summary>
+            public Image SquadTab;
+
+            /// <summary>
+            /// ★★ <b>얼굴</b>(2026-08-26). <c>Portrait</c>(60×60 · <see cref="RectMask2D"/>) 안의
+            /// <c>PortraitArt</c> 다 — <see cref="PortraitFit"/>.Cover 가 «액자를 꽉 채우게»
+            /// 키우므로 <b>넘치는 만큼을 잘라 줄 부모</b>가 필요하다. 그 부모가 마스크다.
+            /// ⚠ 액자 그림(<c>PortraitFrame</c>)은 <b>형제</b>이고 <b>뒤 형제</b>라 얼굴 위에 그려진다 —
+            ///   자식으로 두면 얼굴이 액자 테두리를 덮는다.
+            /// </summary>
+            public Image PortraitArt;
+
+            /// <summary>얼굴 액자 그림. 얼굴이 없으면 같이 숨긴다(빈 액자만 남으면 «고장» 으로 보인다).</summary>
+            public Image PortraitFrame;
+
+            /// <summary>
+            /// ★★ <b>장착한 유물 아이콘</b>(2026-08-26 · 유저 지시:
+            /// *"캐릭터 로스터에 캐릭터가 장착하고 있는 유물 아이콘도 연동해서 넣어줘"*).
+            /// 얼굴 <b>오른쪽 아래에 겹쳐</b> 놓는다 — 유물은 «그 캐릭터의 것» 이라 얼굴에
+            /// 붙는 것이 뜻에 맞고, 본문 폭을 한 픽셀도 안 먹는다.
+            /// ⚠ 없으면 <b>알파 0</b> 이다(끄지 않는다 — 껐다 켜면 레이아웃이 흔들린다).
+            /// </summary>
+            public Image RelicIcon;
 
             /// <summary>행을 꾹 누르면 캐릭터 성장 창을 여는 판정(유저 확정 2026-08-12).
             /// 모체(<c>RowTemplate</c>)에 붙어 있어서 복제되는 모든 행이 물려받는다.</summary>
@@ -503,7 +551,40 @@ namespace LastSanctuary.UI
                 LongPress = clone.GetComponent<UiLongPress>(),
                 Name = FindText(clone, "Name"),
                 Duty = FindText(clone, "Duty"),
+                SquadTab = FindImage(clone, "SquadTab"),
+                PortraitFrame = FindImage(clone, "PortraitFrame"),
+                RelicIcon = FindImage(clone, "RelicIcon"),
             };
+
+            Transform portrait = clone.Find("Portrait");
+            if (portrait != null) row.PortraitArt = FindImage(portrait, "PortraitArt");
+
+            // ★ 액자 그림도 코드가 꽂는다(SquadTab 과 같은 이유 — MCP 가 Sprite 를 못 넣는다).
+            if (row.PortraitFrame != null && row.PortraitFrame.sprite == null)
+            {
+                Sprite frame = Resources.Load<Sprite>(PortraitFrameResource);
+                if (frame != null)
+                {
+                    row.PortraitFrame.sprite = frame;
+                    row.PortraitFrame.type = Image.Type.Sliced;
+                }
+            }
+
+            // ★★ 부대 색 띠 — 그림은 <b>코드가 꽂는다</b>(2026-08-26).
+            //   MCP 로는 씬 오브젝트에 Sprite 참조를 넣을 수 없다(8절 1번) — 모체에는
+            //   빈 <see cref="Image"/> 만 두고 여기서 <c>Resources</c> 로 읽는다.
+            //   <c>RallyFlag</c>·<c>CombatProjectileFx</c> 가 쓰는 그 방식이다.
+            if (row.SquadTab != null && row.SquadTab.sprite == null)
+            {
+                Sprite tab = Resources.Load<Sprite>(SquadTabResource);
+                if (tab != null) { row.SquadTab.sprite = tab; row.SquadTab.type = Image.Type.Sliced; }
+                else if (!_squadTabWarned)
+                {
+                    _squadTabWarned = true;
+                    Debug.LogWarning($"[로스터] {SquadTabResource} 를 찾지 못했습니다 — " +
+                                     "부대 색 띠가 안 보입니다.", this);
+                }
+            }
 
             // ★ <b>이름이 칸을 넘지 않게</b> (2026-08-25 · 유저 지시: *"캐릭터 로스터에
             //   텍스트 짤리는거 수정"*).
@@ -753,10 +834,22 @@ namespace LastSanctuary.UI
         /// <summary>죽은 캐릭터의 행을 회색으로 — "확실하게 죽었다"는 걸 알아볼 수 있게 한다.</summary>
         void ApplyDeadAppearance(Row row)
         {
-            if (row.Background != null) row.Background.color = rowDead;
+            // ★★ 2026-08-26 — <b>색을 직접 칠하지 않고 <see cref="HudTheme.PaintButton"/> 을 지난다.</b>
+            //   행에 그림(`Btn_Roster_*`)이 깔리면서, 어두운 색을 그대로 칠하면 그 색이
+            //   그림에 <b>곱해져</b> 새까매진다 — 그 함수가 «그림을 넣었는데 안 보인다» 로
+            //   적어 둔 바로 그 사고다. 그림이 없으면 예전처럼 이 색을 칠한다.
+            HudTheme.PaintButton(row.Background, ButtonState.Off, rowDead);
 
             // 죽으면 부대에서 빠진다(SquadService 가 OnAnyDied 로 정리한다) — 테두리도 지운다.
+            // ⚠ 부대 색 띠도 <b>같이</b> 지운다 — 안 지우면 사망 행에만 색 띠가 남아
+            //   «죽었는데 아직 부대원» 으로 읽힌다.
             if (row.SquadOutline != null) row.SquadOutline.effectColor = Color.clear;
+            if (row.SquadTab != null) row.SquadTab.color = Color.clear;
+
+            // ★ 얼굴은 <b>지우지 않고 어둡게</b> 한다 — 누가 죽었는지는 얼굴로 알아보는 것이
+            //   가장 빠르다. 액자는 그대로 두어 «칸이 비었다» 로 보이지 않게 한다.
+            if (row.PortraitArt != null && row.PortraitArt.sprite != null)
+                row.PortraitArt.color = new Color(deadPortraitDim, deadPortraitDim, deadPortraitDim, 1f);
             if (row.Name != null) { row.Name.text = row.CachedName; row.Name.color = deadTextColor; }
             if (row.Duty != null) { row.Duty.text = "사망"; row.Duty.color = deadTextColor; }
 
@@ -793,7 +886,7 @@ namespace LastSanctuary.UI
         /// <summary>행이 재활용될 때 이전 사망 표시(회색)를 지우고 정상 색으로 되돌린다.</summary>
         void ApplyAliveAppearance(Row row)
         {
-            if (row.Background != null) row.Background.color = rowNormal;
+            HudTheme.PaintButton(row.Background, ButtonState.Normal, rowNormal);
             // ⚠ 각성 색은 <see cref="RefreshValues"/> 가 매 프레임 다시 칠한다 — 여기서는
             //   «재활용된 행의 회색을 지운다» 만 한다(그 함수의 ⚠ 참조).
             if (row.Name != null) row.Name.color = HudTheme.TextMain;
@@ -806,6 +899,73 @@ namespace LastSanctuary.UI
             Transform child = parent.Find(childName);
             return child != null ? child.GetComponent<TMP_Text>() : null;
         }
+
+        /// <summary>모체에서 이 이름의 자식 <see cref="Image"/>. 없으면 null(그림 없이도 굴러간다).</summary>
+        static Image FindImage(Transform parent, string childName)
+        {
+            Transform child = parent.Find(childName);
+            return child != null ? child.GetComponent<Image>() : null;
+        }
+
+        /// <summary>부대 색 띠 원화. <c>Tools/ui_sprite_cut.py</c> 가 <c>UI_10.png</c> 에서 자른다.</summary>
+        const string SquadTabResource = "UI/Frames/Roster_SquadTab";
+
+        /// <summary>얼굴 액자 원화. <c>UI_11.png</c> 에서 자른 것.</summary>
+        const string PortraitFrameResource = "UI/Frames/Roster_PortraitSlot";
+
+        /// <summary>
+        /// ★★ 행의 <b>얼굴 · 액자 · 유물 아이콘</b>을 그 캐릭터에 맞춘다 (2026-08-26).
+        ///
+        /// ★ <b>얼굴은 «맞춰 넣기» 가 아니라 «꽉 채우기» 다</b> — 인물화는 세로가 길어
+        ///   <c>preserveAspect</c> 로 넣으면 60×60 칸의 <b>폭 절반</b>만 쓰고 양옆이 빈다
+        ///   (90-7절이 상세 카드에서 겪은 그것). <see cref="PortraitFit"/>.Cover 가 부모를
+        ///   꽉 채우게 키우고, 부모의 <see cref="RectMask2D"/> 가 넘친 만큼 잘라낸다.
+        /// ⚠ <b>세로로 잘릴 때 위쪽(얼굴)을 남긴다</b> — <c>verticalAnchor</c> 0.85.
+        ///   상세 카드가 사람에게 쓰는 값과 같다.
+        /// ⚠ 그림이 없으면 <b>얼굴·액자를 같이</b> 알파 0 으로 지운다 — 액자만 남으면
+        ///   «그림이 깨졌다» 로 보인다.
+        /// </summary>
+        void ApplyPortrait(Row row, CharacterUnit unit)
+        {
+            Sprite art = unit != null ? unit.Portrait : null;
+
+            if (row.PortraitArt != null)
+            {
+                if (!ReferenceEquals(row.PortraitArt.sprite, art))
+                {
+                    row.PortraitArt.sprite = art;
+                    if (art != null) PortraitFit.Cover(row.PortraitArt, portraitVerticalAnchor);
+                }
+                row.PortraitArt.color = art != null ? Color.white : Color.clear;
+            }
+
+            if (row.PortraitFrame != null)
+                row.PortraitFrame.color = art != null ? Color.white : Color.clear;
+        }
+
+        /// <summary>
+        /// ★★ 행의 <b>장착 유물 아이콘</b>. 안 꼈으면 알파 0 이다.
+        ///
+        /// ★ <b>등급 색으로 칠하지 않는다</b> — 아이콘은 원화라 색을 곱하면 탁해진다.
+        ///   등급은 <b>테두리 색</b>으로 말하는 것이 이 프로젝트의 규약이지만, 26px 짜리
+        ///   아이콘에 테두리를 두르면 그림이 안 보인다. 여기서는 «무엇을 꼈나» 만 보이면 된다
+        ///   (등급까지 알고 싶으면 유물 창·상세 카드가 이미 색으로 말한다).
+        /// ⚠ <see cref="Relics.RelicInventory"/> 가 없으면(로비·테스트) 조용히 지운다.
+        /// </summary>
+        void ApplyRelicIcon(Row row, CharacterUnit unit)
+        {
+            if (row.RelicIcon == null) return;
+
+            Relics.RelicInventory inv = Relics.RelicInventory.Instance;
+            Relics.RelicDefinitionSO relic = inv != null && unit != null ? inv.EquippedOn(unit) : null;
+            Sprite icon = relic != null ? relic.icon : null;
+
+            if (!ReferenceEquals(row.RelicIcon.sprite, icon)) row.RelicIcon.sprite = icon;
+            row.RelicIcon.color = icon != null ? Color.white : Color.clear;
+        }
+
+        /// <summary>띠 원화가 없다는 경고는 <b>한 번만</b> 낸다 — 행마다 뜨면 로그가 묻힌다.</summary>
+        bool _squadTabWarned;
 
         void SelectRow(Row row)
         {
@@ -950,10 +1110,15 @@ namespace LastSanctuary.UI
 
                 row.Erosion.Refresh(unit);
 
-                if (row.Background != null)
-                    row.Background.color = ReferenceEquals(unit, selected) ? rowSelected : rowNormal;
+                // ★ 고른 행은 «켜짐» 그림, 나머지는 «평소» 그림이다(2026-08-26).
+                bool picked = ReferenceEquals(unit, selected);
+                HudTheme.PaintButton(row.Background,
+                                     picked ? ButtonState.On : ButtonState.Normal,
+                                     picked ? rowSelected : rowNormal);
 
                 ApplySquadOutline(row, unit);
+                ApplyPortrait(row, unit);
+                ApplyRelicIcon(row, unit);
             }
         }
 
@@ -991,12 +1156,46 @@ namespace LastSanctuary.UI
         /// </summary>
         void ApplySquadOutline(Row row, CharacterUnit unit)
         {
-            if (row.SquadOutline == null) return;
+            // ⚠ 아웃라인이 없어도 <b>행 물들이기는 해야 한다</b> — 예전에는 여기서 통째로
+            //   돌아섰다(그때는 아웃라인이 유일한 표시였다).
+            if (row.SquadOutline == null && !squadUsesRowTint) return;
 
             int order = groupBySquad ? SquadOrderOf(unit) : int.MaxValue;
-            row.SquadOutline.effectColor = order == int.MaxValue
-                ? Color.clear
-                : HudTheme.SquadColor(order);
+            bool has = order != int.MaxValue;
+            Color squad = has ? HudTheme.SquadColor(order) : Color.white;
+
+            if (squadUsesRowTint)
+            {
+                // ★★★ <b>행 «전체» 를 부대 색으로 물들인다</b> (2026-08-26 · 유저 지시:
+                //   *"부대 지정선 이렇게 하지말고 아까처럼 전체 색 바뀌는걸로 해줘"* ·
+                //   *"안 보임 이렇게 하면"*).
+                //
+                //   테두리(1~2px)와 왼쪽 띠(7px)는 <b>행 카드 그림이 들어온 뒤로 안 보였다</b> —
+                //   카드에 이미 밝은 테두리 장식이 있어 그 위에 얇은 선을 하나 더 그으면
+                //   장식에 묻힌다. 면(面)으로 말해야 한 눈에 갈린다.
+                //
+                // ⚠ <b>곱셈이다.</b> 카드 속색이 어두운 남색(#212B38)이라 부대 색을 그대로
+                //   곱하면 너무 탁해진다 — <see cref="squadTintStrength"/> 만큼만 흰색에서
+                //   부대 색 쪽으로 옮겨 «물든» 정도로 둔다.
+                // ⚠ <see cref="HudTheme.PaintButton"/> 이 매번 색을 흰색으로 되돌리므로
+                //   <b>반드시 그 뒤에</b> 불려야 한다(RefreshValues 의 호출 순서가 그렇다).
+                if (row.Background != null)
+                {
+                    Color tint = has ? Color.Lerp(Color.white, squad, squadTintStrength) : Color.white;
+                    if (row.Background.color != tint) row.Background.color = tint;
+                }
+
+                // 면으로 말하기로 했으면 선은 <b>지운다</b> — 둘 다 켜면 시끄럽다.
+                if (row.SquadOutline != null) row.SquadOutline.effectColor = Color.clear;
+                if (row.SquadTab != null) row.SquadTab.color = Color.clear;
+                return;
+            }
+
+            // ── 예전 방식(선) — <see cref="squadUsesRowTint"/> 를 끄면 이쪽으로 돌아온다 ──
+            row.SquadOutline.effectColor = has ? squad : Color.clear;
+
+            // ★ 띠도 <b>같은 색</b>이다 — 둘이 갈리면 «테두리는 파란데 띠는 주황» 이 된다.
+            if (row.SquadTab != null) row.SquadTab.color = has ? squad : Color.clear;
         }
 
         /// <summary>

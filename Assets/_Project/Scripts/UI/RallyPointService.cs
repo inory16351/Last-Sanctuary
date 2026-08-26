@@ -85,6 +85,10 @@ namespace LastSanctuary.UI
         [Tooltip("마우스를 따라다니는 분신 깃발의 색")]
         [SerializeField] Color dragGhostColor = new Color(1f, 0.96f, 0.8f, 0.85f);
 
+        [Tooltip("★ 범위를 펼쳐둔 깃발을 flagHighlight 쪽으로 얼마나 끌어올릴지.\n" +
+                 "0 이면 부대 색 그대로(강조 없음) · 1 이면 flagHighlight 그대로(부대 색이 사라진다)")]
+        [Range(0f, 1f)] [SerializeField] float expandedLift = 0.45f;
+
         [Header("디버그")]
         [SerializeField] bool logChanges = true;
 
@@ -630,6 +634,53 @@ namespace LastSanctuary.UI
 
         public bool HasRallyForSquad(int squadId) => FindBySquad(squadId) != null;
 
+        /// <summary>이 id 의 집결지. 없으면 null.</summary>
+        RallyPoint FindById(int pointId)
+        {
+            if (pointId == 0) return null;
+            for (int i = 0; i < _points.Count; i++)
+                if (_points[i].Id == pointId) return _points[i];
+            return null;
+        }
+
+        /// <summary>
+        /// ★★ 이 집결지의 깃발에 입힐 <b>부대 색</b> (2026-08-26 · 유저 지시: *"다른 색으로 해줘"*).
+        ///
+        /// ⚠ <b>부대 id 가 아니라 «목록에서의 순번» 으로 색을 고른다</b> —
+        ///   <c>CharacterRosterPanel.SquadOrderOf</c> 가 세운 규칙 그대로다. id 는 부대를
+        ///   지웠다 만들면 1·2·5 처럼 띄엄띄엄해져 <b>색이 건너뛴다</b>. 순번이면 «위에서 몇
+        ///   번째 부대» 와 색이 언제나 같이 가고, <b>로스터 테두리 · 부대 창 카드 · 이 깃발
+        ///   셋이 같은 색</b>이 된다. 그것이 이 색의 유일한 쓸모다.
+        ///
+        /// ★ <b>부대 미지정(<c>SquadId</c> 0 = 전체 공용)이면 깃발 원래 색</b>을 돌려준다 —
+        ///   «없음» 을 어느 부대 색으로도 칠하면 그것도 하나의 부대처럼 보인다
+        ///   (로스터가 부대 없는 행의 테두리를 <b>투명</b>으로 두는 것과 같은 판단이다).
+        /// ⚠ 원화의 <b>천이 회색</b>이라야 이 곱셈이 산다. 천에 색이 구워져 있으면 곱한 결과가
+        ///   탁해진다(볼트 <c>로스터 UI 프롬프트.md</c> 와 같은 이유 · <c>Bar_Fill</c> 이 흰
+        ///   그라디언트인 것과 같은 규약).
+        /// </summary>
+        Color SquadTintFor(RallyPoint point, RallyFlag flag)
+        {
+            Color basis = flag != null ? flag.DefaultTint : Color.white;
+            if (point == null || point.SquadId == 0) return basis;
+
+            int order = SquadOrderOf(point.SquadId);
+            return order < 0 ? basis : HudTheme.SquadColor(order);
+        }
+
+        /// <summary>부대 id → 부대 목록에서의 순번(0부터). 없으면 −1.</summary>
+        static int SquadOrderOf(int squadId)
+        {
+            Units.SquadService squads = Units.SquadService.Instance;
+            if (squads == null || squadId == 0) return -1;
+
+            var list = squads.Squads;
+            for (int i = 0; i < list.Count; i++)
+                if (list[i] != null && list[i].Id == squadId) return i;
+
+            return -1;
+        }
+
         /// <summary>집결지가 하나라도 있는지.</summary>
         public bool HasAnyRally => _points.Count > 0;
 
@@ -739,11 +790,16 @@ namespace LastSanctuary.UI
                 flag.transform.position = p.World;
                 flag.Bind(p.Id);
 
+                // ★★ 깃발은 <b>그 집결지를 쓰는 부대의 색</b>으로 칠한다 (2026-08-26 · 유저 지시).
+                //   상태(잔상·펼침)는 그 색 «위에» 얹는다 — 상태가 부대 색을 지우면
+                //   «어느 부대의 집결지인가» 가 그 순간 사라진다.
+                Color squad = SquadTintFor(p, flag);
+
                 // 끌고 있는 깃발은 원래 자리에 옅은 잔상으로 남는다 — 분신이 어디서 떨어져
                 // 나왔는지, 취소하면 어디로 돌아가는지가 보여야 한다.
-                flag.SetTint(p.Id == _dragPointId ? dragSourceColor
-                           : p.Id == ExpandedPointId ? flagHighlight
-                           : flag.DefaultTint);
+                flag.SetTint(p.Id == _dragPointId ? squad * dragSourceColor
+                           : p.Id == ExpandedPointId ? Color.Lerp(squad, flagHighlight, expandedLift)
+                           : squad);
             }
 
             UpdateGhostFlag();
@@ -775,7 +831,10 @@ namespace LastSanctuary.UI
 
             if (!_ghostFlag.gameObject.activeSelf) _ghostFlag.gameObject.SetActive(true);
             _ghostFlag.transform.position = _dragWorld;
-            _ghostFlag.SetTint(dragGhostColor);
+
+            // ★ 분신도 <b>끌고 있는 그 집결지의 부대 색</b>을 쓴다 — 잔상(원래 자리)과 분신이
+            //   같은 색이라야 «이것이 저것이 옮겨간 것» 으로 읽힌다.
+            _ghostFlag.SetTint(SquadTintFor(FindById(_dragPointId), _ghostFlag) * dragGhostColor);
         }
 
         /// <summary>이름표는 깃발 꼭대기 위에 뜬다. UI 라 줌과 무관하게 항상 같은 크기로 읽힌다.</summary>
