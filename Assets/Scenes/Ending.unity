@@ -278,14 +278,18 @@ MonoBehaviour:
   captionShadeHeight: 480
   rollFadeSeconds: 1.2
   rollFontSize: 26
-  rollSize: {x: 900, y: 460}
-  rollRaise: 90
-  rollMaxNames: 8
+  rollSize: {x: 860, y: 620}
+  rollRaise: 140
+  rollFontSizeMin: 14
+  rollLineSpacing: 8
+  rollTextColor: {r: 0.11, g: 0.09, b: 0.07, a: 1}
+  rollOutlineColor: {r: 1, g: 0.97, b: 0.9, a: 0.95}
+  rollOutlineDistance: {x: 2, y: -2}
   rollFallenHeader: "\uB3CC\uC544\uC624\uC9C0 \uBABB\uD55C \uC774\uB4E4"
   rollSurvivorHeader: "\uB05D\uAE4C\uC9C0 \uB0A8\uC740 \uC774\uB4E4"
+  rollHeaderColorHex: '#6B4A21'
   rollFallenFormat: "{0}  <size=80%>{1} \xB7 Lv.{2} \xB7 {3}\uC6E8\uC774\uBE0C</size>"
   rollSurvivorFormat: "{0}  <size=80%>{1} \xB7 Lv.{2}</size>"
-  rollMoreFormat: "<size=80%>\u2026 \uADF8\uB9AC\uACE0 {0}\uBA85</size>"
   skipButtonDelaySeconds: 3.5
   skipButtonText: "\uAC74\uB108\uB6F0\uAE30"
   skipButtonResource: UI/Lobby/LobbyButtonSkip

@@ -537,6 +537,23 @@ namespace LastSanctuary.UI
                 {
                     RectTransform clone = Instantiate(_digMarkTemplate, _digMarkParent);
                     clone.name = $"DigMark_{_digMarks.Count + 1:00}";
+
+                    // ★★★ <b>자리 기준을 «가운데» 로 못 박는다</b> (2026-08-26 · 유저 보고:
+                    //   *"미니맵에서 자꾸 느낌표들이 미니맵 바깥으로 나가는 버그"*).
+                    //
+                    //   아래에서 자리를 <c>Lerp(area.xMin, area.xMax, u)</c> 로 잡는데,
+                    //   <c>RectTransform.rect</c> 는 <b>피벗(가운데) 기준</b>이라 그 값의 범위가
+                    //   <c>−140 … +140</c> 이다. 그런데 씬의 모체는 앵커가 <c>(0,0)</c>
+                    //   — <b>부모의 왼아래 귀퉁이 기준</b>이었다. 그래서 «가운데 기준으로 −140»
+                    //   이 «왼쪽 끝에서 −140» 으로 읽혀 <b>미니맵 왼쪽 바깥 140px</b> 에 찍혔다.
+                    //   지도 왼쪽 절반(u &lt; 0.5)·아래쪽 절반(v &lt; 0.5)의 표식이 전부 밖으로 샜다.
+                    //
+                    // ★ 앵커를 <b>코드가</b> 박는다 — 모체를 인스펙터에서 만지다 앵커가 다시
+                    //   틀어져도 표식이 안 샌다(<c>RelicIconStrip</c> 이 복제본의 앵커를
+                    //   원본에서 그대로 물려받게 한 것과 같은 «자리 규칙은 한 곳» 이다).
+                    clone.anchorMin = clone.anchorMax = new Vector2(0.5f, 0.5f);
+                    clone.pivot = new Vector2(0.5f, 0.5f);
+
                     _digMarks.Add(clone);
                 }
 
@@ -546,12 +563,26 @@ namespace LastSanctuary.UI
                 // 칸 <b>가운데</b>를 가리킨다(+0.5) — 안 하면 한 칸씩 왼쪽·아래로 치우친다.
                 float u = (local.x + 0.5f) / _size.x;
                 float v = (local.y + 0.5f) / _size.y;
-                if (u < 0f || u > 1f || v < 0f || v > 1f) { slot++; continue; }
+
+                // ⚠ <b>여기서 <c>slot++</c> 를 하면 안 된다</b> — 그 칸은 자리를 못 받고
+                //   넘어가는데 <see cref="HideDigMarksFrom"/> 는 <c>slot</c> 뒤만 끄므로
+                //   <b>지난 프레임의 자리에 그대로 켜져 남는다</b>. 칸을 안 쓰고 넘어가면
+                //   다음 표식이 그 칸을 이어서 쓴다.
+                if (u < 0f || u > 1f || v < 0f || v > 1f) continue;
 
                 float bounce = _dig.BounceFor(slot, site.Ordered ? 0f : digMarkBounceScale);
+
+                // ⚠ <b>귀퉁이의 표식은 반쪽이 밖으로 나간다</b> — 자리는 «칸의 가운데» 인데
+                //   그림은 14px 이라, 지도 끝(u=0·1)에 있는 칸은 7px 이 판 밖으로 삐져나온다.
+                //   튀는 높이(<paramref name="bounce"/>)도 위쪽 끝에서 같은 짓을 한다.
+                //   → <b>반지름만큼 안으로 물린다</b>. 자르지 않고 «끝에 붙여» 두는 편이
+                //     «지도 끝에 뭔가 있다» 를 그대로 알려 준다.
+                float half = digMarkPixels * 0.5f;
                 item.anchoredPosition = new Vector2(
-                    Mathf.Lerp(area.xMin, area.xMax, u),
-                    Mathf.Lerp(area.yMin, area.yMax, v) + bounce);
+                    Mathf.Clamp(Mathf.Lerp(area.xMin, area.xMax, u),
+                                area.xMin + half, area.xMax - half),
+                    Mathf.Clamp(Mathf.Lerp(area.yMin, area.yMax, v) + bounce,
+                                area.yMin + half, area.yMax - half));
                 item.sizeDelta = new Vector2(digMarkPixels, digMarkPixels);
 
                 if (item.TryGetComponent(out Image img))

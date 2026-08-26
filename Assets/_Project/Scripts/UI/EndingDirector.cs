@@ -354,21 +354,58 @@ namespace LastSanctuary.UI
                  "자막이 왼쪽 아래에 있으므로 조금 올려야 겹치지 않는다")]
         [SerializeField] float rollRaise = 90f;
 
-        [Tooltip("이름을 이만큼까지만 적는다. 넘으면 «… 그리고 N명» 으로 접는다 — " +
-                 "한 판에 스무 명이 죽으면 칸을 넘겨 화면 밖으로 흐른다")]
-        [Min(1)] [SerializeField] int rollMaxNames = 8;
+        // ══════════════════════════════════════════════════════════════
+        //  ★★★ 2026-08-26 — <b>«… 그리고 N명» 을 없앴다</b>
+        //  (유저 지시: *"남은 인물들 확실하게 다 나오게 하고 (그외 4명) 이런 식 말고"*)
+        // ══════════════════════════════════════════════════════════════
+        //  예전에는 <c>rollMaxNames</c>(8) 까지만 적고 나머지를 접었다. 칸을 넘겨
+        //  <b>화면 밖으로 흐르는 것</b>을 막으려는 것이었는데, 이 명단은 <b>«그 판을 함께
+        //  치른 사람들» 이 전부다</b> — 아홉 번째 사람이 «그외 1명» 이 되면 그 판의
+        //  기록이 아니게 된다.
+        //
+        //  ★ 흐르는 문제는 <b>접는 대신 «작게»</b> 로 푼다 — TMP 자동 크기가 칸에 맞춰
+        //    줄인다(<see cref="rollFontSizeMin"/> 까지). <c>HudTheme.FitText</c> 가 유물
+        //    설명에서 «자르지 않고 줄인다» 를 택한 것과 <b>같은 판단</b>이다.
+        [Tooltip("이름이 많아 칸을 넘길 때 글자가 줄어드는 최소 크기(px). " +
+                 "★ 이름을 «접지» 않는다 — 그 판을 함께 치른 사람은 전부 적는다")]
+        [Min(6f)] [SerializeField] float rollFontSizeMin = 14f;
+
+        [Tooltip("줄 사이 간격. 이름이 많으면 자동 크기와 함께 이것이 칸을 벌어 준다")]
+        [SerializeField] float rollLineSpacing = 8f;
+
+        // ══════════════════════════════════════════════════════════════
+        //  ★★★ 2026-08-26 — <b>글자가 안 보이던 이유</b>
+        //  (유저 지시: *"지금 글씨 안 보이니까 폰트 색 변경해서 가시성 높이고 왼쪽 정렬해줘"*)
+        // ══════════════════════════════════════════════════════════════
+        //  명단은 <b>컷 2</b> 에서만 뜬다. 그 배경(<c>Ending/BG_02</c>)은 성문 앞 도열 장면인데
+        //  <b>하늘도 석조도 전부 밝은 크림색</b>이고, 명단이 놓이는 화면 <b>가운데</b>가
+        //  그중에서도 가장 밝다(아치 안쪽의 빛). 그런데 글자는 HUD 기본색
+        //  <c>HudTheme.TextMain</c>(0.88, 0.92, 0.94) — <b>밝은 회백색</b>이었다.
+        //  밝은 것 위에 밝은 것을 얹었으니 안 보이는 것이 당연했다.
+        //
+        //  ★ 그래서 <b>먹색 글자 + 크림색 테두리</b> 로 뒤집었다 — «밝은 종이에 쓴 먹»
+        //    이라 이 장면의 톤과도 맞는다. 테두리가 있어 어두운 깃발 쪽으로 밀려도 읽힌다.
+        //  ⚠ 색을 인스펙터로 뺀 이유는 <b>배경 그림이 바뀌면 다시 뒤집어야 하기</b> 때문이다.
+        [Tooltip("★ 명단 글자색. 컷 2 배경이 «밝은 크림색» 이라 밝은 글자는 묻힌다 — 먹색이 맞다")]
+        [SerializeField] Color rollTextColor = new Color(0.11f, 0.09f, 0.07f, 1f);
+
+        [Tooltip("글자 둘레 테두리 색 — 어두운 자리로 밀려도 읽히게 한다. 알파 0 이면 안 두른다")]
+        [SerializeField] Color rollOutlineColor = new Color(1f, 0.97f, 0.90f, 0.95f);
+
+        [Tooltip("테두리 두께(px)")]
+        [SerializeField] Vector2 rollOutlineDistance = new Vector2(2f, -2f);
 
         [SerializeField] string rollFallenHeader = "돌아오지 못한 이들";
         [SerializeField] string rollSurvivorHeader = "끝까지 남은 이들";
+
+        [Tooltip("머리글의 색 (리치 텍스트 hex · # 포함). 본문보다 흐리되 배경에는 지지 않아야 한다")]
+        [SerializeField] string rollHeaderColorHex = "#6B4A21";
 
         [Tooltip("{0}=이름 · {1}=칭호 · {2}=레벨 · {3}=쓰러진 웨이브")]
         [SerializeField] string rollFallenFormat = "{0}  <size=80%>{1} · Lv.{2} · {3}웨이브</size>";
 
         [Tooltip("{0}=이름 · {1}=칭호 · {2}=레벨")]
         [SerializeField] string rollSurvivorFormat = "{0}  <size=80%>{1} · Lv.{2}</size>";
-
-        [Tooltip("{0}=더 있는 인원 수")]
-        [SerializeField] string rollMoreFormat = "<size=80%>… 그리고 {0}명</size>";
 
         [Header("건너뛰기 버튼")]
         [Min(0f)] [SerializeField] float skipButtonDelaySeconds = 3.5f;
@@ -633,24 +670,25 @@ namespace LastSanctuary.UI
             StartCoroutine(Fade(_roll, 0f, 1f, rollFadeSeconds));
         }
 
+        /// <summary>
+        /// ★★ <b>한 사람도 빼지 않고 적는다</b> (2026-08-26 · <see cref="rollFontSizeMin"/> 의 ★★★).
+        /// 칸을 넘기면 TMP 자동 크기가 글자를 줄인다 — <b>접지 않는다</b>.
+        /// </summary>
         void AppendGroup(StringBuilder sb, string header,
                          IReadOnlyList<RunRecord.Entry> rows, bool fallen)
         {
             if (rows == null || rows.Count == 0) return;
 
-            sb.Append("<color=#8E9AA6>").Append(header).Append("</color>").AppendLine();
+            sb.Append("<color=").Append(rollHeaderColorHex).Append('>')
+              .Append(header).Append("</color>").AppendLine();
 
-            int shown = Mathf.Min(rows.Count, rollMaxNames);
-            for (int i = 0; i < shown; i++)
+            for (int i = 0; i < rows.Count; i++)
             {
                 RunRecord.Entry e = rows[i];
                 sb.AppendLine(fallen
                     ? string.Format(rollFallenFormat, e.name, e.title, e.level, e.wave)
                     : string.Format(rollSurvivorFormat, e.name, e.title, e.level));
             }
-
-            int more = rows.Count - shown;
-            if (more > 0) sb.AppendLine(string.Format(rollMoreFormat, more));
         }
 
         void HideRoll()
@@ -907,15 +945,38 @@ namespace LastSanctuary.UI
 
             _rollText = rect.gameObject.AddComponent<TextMeshProUGUI>();
             _rollText.font = HudTheme.Font;
-            _rollText.fontSize = rollFontSize;
-            _rollText.color = HudTheme.TextMain;
-            _rollText.alignment = TextAlignmentOptions.Center;
-            _rollText.lineSpacing = 16f;
+            _rollText.color = rollTextColor;
+
+            // ★ <b>왼쪽 정렬</b>(2026-08-26 유저 지시). 세로는 <b>가운데</b>(<c>Left</c>) 다 —
+            //   <c>TopLeft</c> 로 두면 살아남은 사람이 셋뿐일 때 명단이 <b>칸 꼭대기에</b>
+            //   붙어 화면 위쪽에 외따로 뜬다. 가운데 정렬이면 인원수와 무관하게 자리가 같다.
+            _rollText.alignment = TextAlignmentOptions.Left;
+            _rollText.lineSpacing = rollLineSpacing;
             _rollText.textWrappingMode = TextWrappingModes.NoWrap;
             _rollText.overflowMode = TextOverflowModes.Overflow;
+
+            // ★★ <b>접지 않고 줄인다</b> — 이름을 다 적기로 했으므로(위 ★★★) 칸을 넘길 때
+            //   글자가 작아지는 쪽으로 받는다. 최대는 인스펙터의 <see cref="rollFontSize"/> 다.
+            _rollText.enableAutoSizing = true;
+            _rollText.fontSizeMax = rollFontSize;
+            _rollText.fontSizeMin = Mathf.Min(rollFontSizeMin, rollFontSize);
+
             _rollText.raycastTarget = false;
             _rollText.richText = true;
             _rollText.text = string.Empty;
+
+            // ★★ <b>테두리는 컴포넌트로 두른다</b> — TMP 의 <c>outlineWidth</c> 는
+            //   <b>공유 머티리얼</b>을 건드려서 같은 폰트를 쓰는 <b>화면의 모든 글자</b>가
+            //   같이 두꺼워진다(자막·건너뛰기 버튼까지). <see cref="Outline"/> 는 이 글자의
+            //   메시만 네 방향으로 겹쳐 그리므로 <b>여기만</b> 바뀐다.
+            // ⚠ 알파가 0 이면 두르지 않는다 — 배경이 어두운 그림으로 바뀌면 끌 수 있게.
+            if (rollOutlineColor.a > 0f)
+            {
+                var outline = rect.gameObject.AddComponent<Outline>();
+                outline.effectColor = rollOutlineColor;
+                outline.effectDistance = rollOutlineDistance;
+                outline.useGraphicAlpha = true;
+            }
 
             _roll = rect.gameObject.AddComponent<CanvasGroup>();
             _roll.alpha = 0f;

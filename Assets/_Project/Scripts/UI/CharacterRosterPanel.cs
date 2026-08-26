@@ -101,9 +101,10 @@ namespace LastSanctuary.UI
                  "그 선은 카드 장식에 묻혀 잘 안 보인다")]
         [SerializeField] bool squadUsesRowTint = true;
 
-        [Tooltip("★ 행 위에 얹는 부대 색 층의 진하기(알파).\n" +
-                 "0.22 쯤이 «물들었다» 가 보이는 최소치다 — 진하면 이름·수치까지 물든다")]
-        [Range(0f, 0.6f)] [SerializeField] float squadTintAlpha = 0.22f;
+        [Tooltip("★ 카드 «안쪽 홈» 에 까는 부대 색 판의 진하기(알파).\n" +
+                 "판은 글자·얼굴 «아래» 에 깔리므로 진해도 이름·수치가 안 물든다 — " +
+                 "0.5 쯤이면 여섯 색이 한눈에 갈린다")]
+        [Range(0f, 1f)] [SerializeField] float squadTintAlpha = 0.5f;
 
         [Tooltip("사망한 캐릭터의 체력바 색. 비어서(투명) 안 보이는 것보다 " +
                  "꽉 찬 회색 막대가 '사망'을 훨씬 눈에 띄게 알려준다")]
@@ -585,6 +586,18 @@ namespace LastSanctuary.UI
                 var inv = Relics.RelicInventory.Instance;
                 row.Relics.Build(row.RelicIcon, inv != null ? inv.EquipSlots : 3,
                                  relicIconStepPixels);
+            }
+
+            // ★★ <b>부대 색 판은 «맨 아래» 로 내린다</b> (2026-08-26 · 2차).
+            //   유니티 UI 는 형제 순서대로 그리므로 <b>첫째 자식 = 가장 먼저 = 제일 뒤</b> 다.
+            //   판이 마지막 자식이면 이름·체력바·얼굴 <b>위에</b> 깔려 글자가 물든다 —
+            //   그래서 알파를 0.22 로 묶어 둘 수밖에 없었고, 그러니 색이 안 보였다.
+            //   맨 아래로 내리면 <b>카드 위·내용 아래</b> 라 진하게 칠해도 안전하다.
+            // ⚠ 위치는 씬에서 «카드 안쪽 홈» 에 맞춰 잡았다 — 여기서 칸을 건드리지 않는다.
+            if (row.SquadTint != null)
+            {
+                row.SquadTint.raycastTarget = false;
+                row.SquadTint.transform.SetAsFirstSibling();
             }
 
             Transform portrait = clone.Find("Portrait");
@@ -1221,20 +1234,23 @@ namespace LastSanctuary.UI
                 //   여전히 어둡다(<see cref="HudTheme.PaintButton"/> 이 흰색으로 두는 그대로).
                 if (row.SquadTint != null)
                 {
-                    // ★★★ <b>층이 카드와 «같은 그림» 을 쓴다</b> (2026-08-26 · 유저:
-                    //   *"이미지에 딱 맞게 만들어줘"*).
+                    // ★★★ 2026-08-26 (2차) — <b>층이 카드 그림을 물려받으면 안 된다</b>
+                    //   (유저 보고: *"같은 부대일 때 같은 색으로 묶어두는 기능 없어짐"*).
                     //
-                    //   처음에는 그림 없는 <b>흰 사각형</b>이었다. 그래서 카드의 모서리 컷·
-                    //   레일 실루엣과 어긋나 <b>네모난 색판이 삐져나와</b> 보였다 —
-                    //   그것이 «어색하다» 의 정체다.
-                    // ★ 카드가 지금 쓰는 스프라이트를 그대로 물려받으면 <b>실루엣이 1px도
-                    //   안 어긋난다</b>. 상태(Normal/On/Off)가 바뀌어도 같이 따라간다.
-                    if (row.Background != null &&
-                        !ReferenceEquals(row.SquadTint.sprite, row.Background.sprite))
-                    {
-                        row.SquadTint.sprite = row.Background.sprite;
-                        row.SquadTint.type = row.Background.type;
-                    }
+                    //   앞선 판은 «실루엣을 맞추려고» <c>SquadTint.sprite = Background.sprite</c>
+                    //   를 했다. 그런데 <see cref="Image"/> 는 <b>그림에 색을 곱해서</b> 그린다 —
+                    //   카드 그림의 속살이 <c>#212B38</c> 로 어두우니 부대 색을 곱해도
+                    //   <b>어두운 색</b>이 나오고, 그걸 알파로 얹으니 «살짝 어두워진 것» 밖에
+                    //   안 됐다. 색이 안 보이니 <b>기능이 사라진 것처럼</b> 보였다.
+                    //
+                    // ★ 그래서 <b>그림 없는 흰 판</b>으로 되돌린다 — 흰색에 부대 색을 곱하면
+                    //   부대 색 그대로다. 예전에 «네모가 삐져나와» 보였던 것은 판이 행
+                    //   <b>전체</b>를 덮었기 때문인데, 이제 칸을 <b>카드 안쪽 홈에 맞춰</b>
+                    //   씬에서 잡아 뒀다(위·아래 테두리와 아래 레일을 비켜 간다).
+                    // ⚠ <b>판은 첫째 자식</b>이라 카드 위·글자 아래에 깔린다
+                    //   (<see cref="CreateRow"/> 의 <c>SetAsFirstSibling</c>). 그래서 알파를
+                    //   0.5 까지 올려도 이름·수치가 물들지 않는다.
+                    if (row.SquadTint.sprite != null) row.SquadTint.sprite = null;
 
                     Color layer = has
                         ? new Color(squad.r, squad.g, squad.b, squadTintAlpha)

@@ -273,6 +273,61 @@ namespace LastSanctuary.UI
             return s;
         }
 
+        /// <summary>
+        /// ★★★ <b>그림이 «아예 없는» 버튼에 살을 입힌다</b> (2026-08-26 · 유저 보고:
+        /// *"언어 변경 버튼이 없음 현재 언어만 나옴"*).
+        ///
+        /// <b>왜 생겼나</b> — <see cref="PaintButton"/> 은 <b>이미 붙어 있는</b> 그림에서
+        /// 계열을 읽는다. 그런데 환경설정의 「언어」 버튼은 씬에 <see cref="Image"/> 자체가
+        /// 없었다 — <c>Button</c> 과 글자만 있었다. 그래서 ① <b>보이지 않고</b>
+        /// ② <b>눌리지도 않았다</b>(<c>Graphic</c> 이 없으면 레이캐스트가 통과한다).
+        /// «현재 언어만 나온다» 의 정체가 그것이다.
+        ///
+        /// <b>무엇을 하나</b> — 없으면 <see cref="Image"/> 를 붙이고, 계열의 네 그림을
+        /// <c>Resources</c> 에서 읽어 꽂고, <c>targetGraphic</c> 과 <see cref="SpriteState"/>
+        /// 까지 맞춘다. 즉 «다른 버튼과 똑같이» 만든다.
+        ///
+        /// ★ <b>그림 꽂기는 코드가 한다</b> — MCP 로는 씬 오브젝트에 <see cref="Sprite"/>
+        ///   참조를 넣을 수 없다(진행상황 8절 4번). 칸(<c>RectTransform</c>)은 MCP 가,
+        ///   그림은 코드가 — <c>CharacterRosterPanel</c> 의 액자·부대 띠와 같은 방식이다.
+        /// ⚠ <b>이미 그림이 있으면 손대지 않는다</b> — 씬에서 다른 계열을 골라 뒀을 수 있다.
+        /// </summary>
+        /// <param name="button">대상 버튼. null 이면 아무 일도 하지 않는다.</param>
+        /// <param name="family">그림 계열의 앞부분. 밑줄까지 준다(<c>"Btn_Action_"</c>).</param>
+        /// <returns>그림이 붙어 있게 됐으면 true.</returns>
+        public static bool EnsureButtonSkin(Button button, string family = "Btn_Action_")
+        {
+            if (button == null) return false;
+
+            Image img = button.GetComponent<Image>();
+            if (img == null) img = button.gameObject.AddComponent<Image>();
+
+            if (img.sprite == null)
+            {
+                Sprite normal = LoadButton(family + ButtonState.Normal);
+                if (normal == null) return false;
+
+                img.sprite = normal;
+                img.type = Image.Type.Sliced;
+                img.color = Color.white;
+            }
+
+            // ⚠ <c>Graphic</c> 이 없으면 «눌리지 않는다» — 레이캐스트를 받을 판이 이것뿐이다.
+            img.raycastTarget = true;
+
+            if (button.targetGraphic == null) button.targetGraphic = img;
+            button.transition = Selectable.Transition.SpriteSwap;
+            button.spriteState = new SpriteState
+            {
+                highlightedSprite = LoadButton(family + ButtonState.Hover),
+                pressedSprite = LoadButton(family + ButtonState.On),
+                selectedSprite = LoadButton(family + ButtonState.Normal),
+                disabledSprite = LoadButton(family + ButtonState.Off),
+            };
+
+            return true;
+        }
+
         // ── 글자가 칸을 넘지 않게 ────────────────────────────────────────
 
         /// <summary>

@@ -83,8 +83,11 @@ namespace LastSanctuary.UI
         [Tooltip("언어 버튼에 찍는 글 — {0} 에 지금 언어 이름이 들어간다")]
         [SerializeField] string languageLabelFormat = "언어 : {0}";
 
-        [Tooltip("언어 선택을 다음에도 기억할 PlayerPrefs 열쇠")]
-        [SerializeField] string languagePrefKey = "ls_language";
+        // ★★ 2026-08-26 — <b>열쇠·기본값·이름은 <see cref="LanguageSetting"/> 이 들고 있다</b>
+        //   (유저 지시: *"로비화면 환경 설정에도 환경 설정 버튼들 같이 붙여주고"*).
+        //   로비 창에도 같은 버튼이 생기면서 규칙이 두 벌이 될 뻔했다 — 한쪽만 고치면
+        //   «로비에서 바꿨는데 게임에서 안 바뀐다» 가 된다. 그래서 예전의
+        //   <c>languagePrefKey</c> 필드를 없애고 그쪽을 정본으로 삼는다.
 
         // ══════════════════════════════════════════════════════════════
         //  ★★★ <b>「도움말 다시 보기」</b> (2026-08-26 신설)
@@ -217,6 +220,13 @@ namespace LastSanctuary.UI
 
             if (_languageButton != null)
             {
+                // ★★★ 2026-08-26 — <b>이 버튼만 그림이 없었다</b> (유저 보고: *"언어 변경
+                //   버튼이 없음 현재 언어만 나옴"*). 씬에 <c>Image</c> 자체가 없어서
+                //   ① 판이 안 보이고 ② <c>Graphic</c> 이 없으니 <b>눌리지도 않았다</b> —
+                //   글자만 떠 있었으니 «현재 언어만 나온다» 로 보인 것이다.
+                //   옆의 저장·로비·재시작·나가기와 <b>같은 계열</b>(Btn_Action)로 맞춘다.
+                HudTheme.EnsureButtonSkin(_languageButton);
+
                 _languageButton.onClick.RemoveAllListeners();
                 _languageButton.onClick.AddListener(HandleToggleLanguage);
                 RestoreLanguage();
@@ -348,13 +358,7 @@ namespace LastSanctuary.UI
         // ══════════════════════════════════════════════════════════════
 
         /// <summary>지난번에 고른 언어를 되살린다. 없으면 한국어.</summary>
-        void RestoreLanguage()
-        {
-            int saved = PlayerPrefs.GetInt(languagePrefKey, (int)Data.GameLanguage.Korean);
-            Data.StringTable.Language = saved == (int)Data.GameLanguage.English
-                ? Data.GameLanguage.English
-                : Data.GameLanguage.Korean;
-        }
+        void RestoreLanguage() => LanguageSetting.Restore();
 
         /// <summary>
         /// ★★ 한국어 ↔ English 를 오간다.
@@ -366,13 +370,7 @@ namespace LastSanctuary.UI
         /// </summary>
         void HandleToggleLanguage()
         {
-            Data.GameLanguage next = Data.StringTable.Language == Data.GameLanguage.Korean
-                ? Data.GameLanguage.English
-                : Data.GameLanguage.Korean;
-
-            Data.StringTable.Language = next;
-            PlayerPrefs.SetInt(languagePrefKey, (int)next);
-            PlayerPrefs.Save();
+            Data.GameLanguage next = LanguageSetting.Toggle();
 
             RefreshLanguageLabel();
             SetStatus(string.Format(languageLabelFormat, LanguageName(next)));
@@ -393,8 +391,7 @@ namespace LastSanctuary.UI
         /// ⚠ <b>제 나라 말로 적는다</b>(한국어 / English) — «Korean» 이라고 쓰면 한국어를
         ///   못 읽는 사람이 지금 무엇이 켜져 있는지 알 수 없다. 언어 이름은 번역하지 않는 것이 관례다.
         /// </summary>
-        static string LanguageName(Data.GameLanguage lang) =>
-            lang == Data.GameLanguage.English ? "English" : "한국어";
+        static string LanguageName(Data.GameLanguage lang) => LanguageSetting.NameOf(lang);
 
         /// <summary>
         /// ★★★ <b>읽은 조언을 전부 잊는다</b> — 위 helpResetButtonPath 의 ★★★ 참조.
