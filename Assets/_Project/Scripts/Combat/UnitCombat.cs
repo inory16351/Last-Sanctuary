@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using LastSanctuary.Map;
 using LastSanctuary.Fog;
@@ -1623,8 +1623,25 @@ namespace LastSanctuary.Combat
                 if (!IsFogVisible(attacker.transform.position)) continue;
 
                 float sqr = ((Vector2)(attacker.transform.position - myPos)).sqrMagnitude;
-                // 인식 범위 밖까지 달려가지는 않는다 — 목줄과 같은 취지의 안전장치.
-                if (sqr > EffectiveDetectRange * EffectiveDetectRange) continue;
+
+                // ★★★ <b>«동료 구원 거리» 가 «인식 범위» 에 눌려 있었다</b>
+                //   (2026-08-26 · 유저 리포트: *"동료 지원 거리에서 동료가 공격 받아도
+                //   원거리에서 즉시 지원을 하러 안 온다"*).
+                //
+                //   예전 줄은 <c>EffectiveDetectRange</c> <b>하나만</b> 봤다. 캐릭터 템플릿의
+                //   실측값은 <c>detectRange 6</c> · <c>allyCallRange 12</c> 라, 12타일 떨어진
+                //   동료가 맞고 있어도 <b>때리는 적이 6타일 밖이면 걸러졌다</b> —
+                //   즉 인스펙터의 «동료 구원 거리 12» 가 <b>한 번도 12로 동작한 적이 없다</b>.
+                //   규칙이 두 값에 갈려 있었고 작은 쪽이 조용히 이기고 있었던 것이다.
+                //
+                // ★ 이제 <b>둘 중 큰 쪽</b>을 쓴다 — 반격(<c>retaliateChaseRange</c>)·
+                //   동료 구원이 목줄 관문에서 이미 <c>max(leashRange, …)</c> 로 다루어지는
+                //   그 규칙과 <b>같은 모양</b>이다(아래 «하나뿐인 목줄 관문» 주석).
+                //   달려간 거리는 그 목줄 관문이 <b>귀환 지점 기준</b>으로 다시 자른다.
+                // ⚠ <b>안 보이는 적은 여전히 거른다</b>(바로 위 <c>IsFogVisible</c>) —
+                //   가서도 못 때리는 곳으로 달려가지 않는다는 규칙은 그대로다.
+                float reach = Mathf.Max(EffectiveDetectRange, allyCallRange);
+                if (sqr > reach * reach) continue;
                 if (sqr >= bestSqr) continue;
 
                 best = attacker;

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -51,6 +51,10 @@ namespace LastSanctuary.UI
         [SerializeField] string hintEmpty = "아직 얻은 유물이 없습니다. 발굴하거나 사냥해 보세요.";
         [SerializeField] string hintPick = "유물을 고르면 설명이 나옵니다.";
         [SerializeField] string hintNoCharacter = "장착하려면 로스터에서 캐릭터를 먼저 고르세요.";
+
+        // ★ 유물 칸 (2026-08-26 · 1칸 → 3칸)
+        [Tooltip("{0} = 쓰고 있는 칸 · {1} = 전체 칸")]
+        [SerializeField] string slotFormat = "(유물 칸 {0}/{1})";
         [SerializeField] string equipLabel = "장착";
         [SerializeField] string unequipLabel = "해제";
         [SerializeField] string countFormat = "x{0}";
@@ -237,18 +241,32 @@ namespace LastSanctuary.UI
             SetText(_detailWearer, wearer, Color.white);
 
             if (_hint != null)
+            {
+                // ★ 칸이 셋이 되면서 «왜 못 끼는지» 가 «수량» 말고 «칸» 일 수도 있게 됐다.
+                //   그래서 고른 캐릭터의 칸 상태를 그대로 적는다 — 버튼이 회색인 이유가 보인다.
+                string slotNote = inv != null && target != null
+                    ? string.Format(slotFormat, inv.UsedSlots(target), inv.EquipSlots)
+                    : string.Empty;
+
                 _hint.text = _sorted.Count == 0 ? hintEmpty
                            : r == null ? hintPick
                            : target == null ? hintNoCharacter
-                           : hintPick;
+                           : string.IsNullOrEmpty(slotNote) ? hintPick
+                           : $"{hintPick}  {slotNote}";
+            }
 
             // ── 장착 버튼 ──
             if (_equipButton == null) return;
 
+            // ★★★ 2026-08-26 — 칸이 셋이다. «그 캐릭터가 이 유물을 꼈나» 를 물어야 하고
+            //   (예전엔 «그 캐릭터의 유일한 유물이 이것인가» 였다), 빈 칸이 있어야 낄 수 있다.
             bool alreadyOn = r != null && inv != null && target != null &&
-                             inv.EquippedOn(target) == r;
+                             inv.IsEquippedOn(target, r);
+            bool hasFreeSlot = inv != null && target != null &&
+                               inv.UsedSlots(target) < inv.EquipSlots;
             bool canEquip = r != null && inv != null && target != null &&
-                            !target.IsSummoned && (alreadyOn || inv.FreeCount(r.relicId) > 0);
+                            !target.IsSummoned &&
+                            (alreadyOn || (hasFreeSlot && inv.FreeCount(r.relicId) > 0));
 
             _equipButton.interactable = canEquip;
             if (_equipLabelText != null)
@@ -261,7 +279,7 @@ namespace LastSanctuary.UI
             {
                 CharacterUnit unit = SelectedCharacter();
                 if (unit == null || RelicInventory.Instance == null) return;
-                if (off) RelicInventory.Instance.Unequip(unit);
+                if (off) RelicInventory.Instance.Unequip(unit, captured);
                 else if (!RelicInventory.Instance.TryEquip(unit, captured, out string why))
                     HudLog.Add(why, HudLogKind.Warn);
                 _nextRefresh = 0f;

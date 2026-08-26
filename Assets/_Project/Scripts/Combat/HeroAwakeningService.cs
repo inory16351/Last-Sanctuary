@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using LastSanctuary.UI;
 using LastSanctuary.Units;
@@ -16,6 +16,22 @@ namespace LastSanctuary.Combat
 
         /// <summary>각성했다. 능력치가 상한을 넘어 올라가 있다.</summary>
         Awakened = 2,
+
+        /// <summary>
+        /// ★★ <b>눈금은 찼는데 레벨이 모자라다</b> (2026-08-26 신설).
+        ///
+        /// <b>왜 생겼나</b> — 유저 리포트: *"각성 15LV 부터 가능해야 하는데 적용 안됨
+        /// (더 낮은 레벨에도 각성 가능)"*. 실제로 <b>각성 자체는 막혀 있었다</b>
+        /// (<see cref="HeroAwakeningService.TryAwaken"/> 가 <c>awakenMinLevel</c> 을 본다).
+        /// 막히지 않은 것은 <b>화면</b>이었다 — <see cref="HeroAwakeningService.StateOf"/> 가
+        /// 처치 수만 보고 <see cref="Ready"/>(★ 각성 가능)를 돌려줘서, Lv5 짜리 캐릭터에도
+        /// «각성 가능» 표시가 떴다. 규칙이 두 곳(판정·표시)에 <b>갈라져 있었던</b> 것이다.
+        ///
+        /// ★ 그래서 <see cref="Ready"/> 에 레벨 조건을 <b>같이</b> 넣고, «눈금은 찼지만
+        ///   레벨이 남았다» 는 <b>따로 이름을 줬다</b> — 그냥 <see cref="None"/> 으로 되돌리면
+        ///   «다 모았는데 왜 아무 표시가 없나» 가 된다.
+        /// </summary>
+        LevelLocked = 3,
     }
 
     /// <summary>
@@ -233,7 +249,11 @@ namespace LastSanctuary.Combat
             if (s == null) return HeroState.None;
 
             // ★★ <b>지금 포지션의 길만 본다</b> — 아래 <see cref="IsHealerNow"/> 의 ★★ 참조.
-            return s.ProgressOf(unit, k) >= s.GoalOf(unit, k) ? HeroState.Ready : HeroState.None;
+            if (s.ProgressOf(unit, k) < s.GoalOf(unit, k)) return HeroState.None;
+
+            // ★★ <b>레벨 조건을 여기서도 본다</b> — <see cref="HeroState.LevelLocked"/> 의 doc 참조.
+            //   판정(TryAwaken)과 표시(여기)가 <b>같은 값을 같은 순서로</b> 보게 맞춘 것이다.
+            return unit.UpgradeCount >= s.awakenMinLevel ? HeroState.Ready : HeroState.LevelLocked;
         }
 
         // ==================================================================
@@ -290,6 +310,12 @@ namespace LastSanctuary.Combat
             current = healer ? k.Heals : k.Kills;
             goal = healer ? s.HealsNeededFor(k) : s.KillsNeededFor(k);
         }
+
+        /// <summary>
+        /// 각성에 필요한 <b>최소 레벨</b>(= 강화 횟수). 서비스가 씬에 없으면 0 —
+        /// «조건이 없다» 가 아니라 «판정할 수 없다» 는 뜻이고, 그때는 각성도 일어나지 않는다.
+        /// </summary>
+        public static int AwakenMinLevel => Instance != null ? Instance.awakenMinLevel : 0;
 
         /// <summary>다음 각성까지 필요한 처치 수. 이미 최대 각성이면 0.</summary>
         public static int KillsRemainingFor(CharacterUnit unit)

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using TMPro;
 using UnityEngine;
@@ -90,6 +90,12 @@ namespace LastSanctuary.UI
         [Tooltip("죽은 캐릭터의 얼굴을 얼마나 어둡게 할지 — 1 이면 그대로, 0 이면 검정")]
         [Range(0f, 1f)] [SerializeField] float deadPortraitDim = 0.35f;
 
+        // ★★★ 유물 칸 셋 (2026-08-26)
+        [Tooltip("★ 유물 아이콘을 늘어놓는 간격(픽셀). <b>음수면 왼쪽으로</b> 자란다 — " +
+                 "행의 아이콘은 얼굴 오른쪽 아래에 붙어 있어서 오른쪽으로 자라면 본문 글자를 " +
+                 "덮는다. 0 이면 «아이콘 폭 + 2px» 를 쓴다")]
+        [SerializeField] float relicIconStepPixels = -18f;
+
         [Tooltip("★ 부대를 «행 전체 색» 으로 말한다(2026-08-26 유저 확정).\n" +
                  "끄면 예전처럼 «테두리 선 + 왼쪽 띠» 로 돌아간다 — 다만 행 카드 그림이 들어온 뒤로 " +
                  "그 선은 카드 장식에 묻혀 잘 안 보인다")]
@@ -168,6 +174,13 @@ namespace LastSanctuary.UI
             /// ⚠ 없으면 <b>알파 0</b> 이다(끄지 않는다 — 껐다 켜면 레이아웃이 흔들린다).
             /// </summary>
             public Image RelicIcon;
+
+            /// <summary>
+            /// ★★★ 유물 칸이 셋이 되면서(2026-08-26) 아이콘도 셋이다.
+            /// 씬에는 <see cref="RelicIcon"/> <b>하나만</b> 있고 나머지는
+            /// <see cref="RelicIconStrip"/> 이 복제한다 — 그쪽 클래스 주석의 «왜 복제인가» 참조.
+            /// </summary>
+            public RelicIconStrip Relics;
 
             /// <summary>행을 꾹 누르면 캐릭터 성장 창을 여는 판정(유저 확정 2026-08-12).
             /// 모체(<c>RowTemplate</c>)에 붙어 있어서 복제되는 모든 행이 물려받는다.</summary>
@@ -555,6 +568,16 @@ namespace LastSanctuary.UI
                 PortraitFrame = FindImage(clone, "PortraitFrame"),
                 RelicIcon = FindImage(clone, "RelicIcon"),
             };
+
+            // ★ 유물 칸 수는 <b>장부가 정본</b>이다(RelicInventory.EquipSlots) — 여기에 3 을
+            //   박아 두면 인스펙터에서 칸을 늘렸을 때 로스터만 못 따라온다.
+            if (row.RelicIcon != null)
+            {
+                row.Relics = new RelicIconStrip();
+                var inv = Relics.RelicInventory.Instance;
+                row.Relics.Build(row.RelicIcon, inv != null ? inv.EquipSlots : 3,
+                                 relicIconStepPixels);
+            }
 
             Transform portrait = clone.Find("Portrait");
             if (portrait != null) row.PortraitArt = FindImage(portrait, "PortraitArt");
@@ -954,14 +977,9 @@ namespace LastSanctuary.UI
         /// </summary>
         void ApplyRelicIcon(Row row, CharacterUnit unit)
         {
-            if (row.RelicIcon == null) return;
-
-            Relics.RelicInventory inv = Relics.RelicInventory.Instance;
-            Relics.RelicDefinitionSO relic = inv != null && unit != null ? inv.EquippedOn(unit) : null;
-            Sprite icon = relic != null ? relic.icon : null;
-
-            if (!ReferenceEquals(row.RelicIcon.sprite, icon)) row.RelicIcon.sprite = icon;
-            row.RelicIcon.color = icon != null ? Color.white : Color.clear;
+            // ★★★ 2026-08-26 — 칸이 셋이 되어 «띠» 가 그린다. 칸이 하나였을 때의 규칙
+            //   (등급 색으로 안 칠한다 · 빈 칸은 알파 0)은 그대로 띠 안에 있다.
+            row.Relics?.Refresh(unit);
         }
 
         /// <summary>띠 원화가 없다는 경고는 <b>한 번만</b> 낸다 — 행마다 뜨면 로그가 묻힌다.</summary>

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using LastSanctuary.Combat;
 using LastSanctuary.Units;
@@ -49,13 +49,27 @@ namespace LastSanctuary.Relics
             /// 뒤로는 그러면 <b>같은 유물의 상시 보너스까지 사라진다</b>.
             /// </summary>
             public bool conditional;
+
+            /// <summary>
+            /// ★★★ <b>어느 유물이 붙였는가</b> (2026-08-26 · 칸이 셋이 되면서 필요해졌다).
+            ///
+            /// <b>왜</b> — 칸이 하나였을 때는 벗을 때 <c>RemoveAllFor(unit)</c> 로 그 캐릭터의
+            /// 보정을 통째로 떼면 됐다. 칸이 셋이 되면 그 한 줄이 <b>같이 끼고 있던 나머지 둘의
+            /// 보너스까지 지운다</b> — «유물 하나를 벗었더니 능력치가 세 개만큼 빠지는» 고장이다.
+            /// 그래서 붙인 주인을 적어 두고 <b>그 유물 것만</b> 뗀다.
+            /// </summary>
+            public RelicDefinitionSO owner;
         }
 
         static readonly List<Applied> _live = new List<Applied>();
 
-        /// <summary>지금 유물을 낀 캐릭터들 — 반응 계열이 «누가 무엇을 꼈나» 를 물을 때 쓴다.</summary>
-        static readonly Dictionary<CharacterUnit, RelicDefinitionSO> _worn =
-            new Dictionary<CharacterUnit, RelicDefinitionSO>();
+        /// <summary>
+        /// 지금 유물을 낀 캐릭터들 — 반응 계열이 «누가 무엇을 꼈나» 를 물을 때 쓴다.
+        /// ★★★ 2026-08-26 — 칸이 셋이 되어 <b>값이 목록</b>이 됐다. 빈 목록은 두지 않는다
+        ///   (다 벗으면 항목째 지운다) — 그래야 <see cref="Tick"/>·웨이브 순회가 헛돌지 않는다.
+        /// </summary>
+        static readonly Dictionary<CharacterUnit, List<RelicDefinitionSO>> _worn =
+            new Dictionary<CharacterUnit, List<RelicDefinitionSO>>();
 
         /// <summary>이 판에서 <see cref="RelicEffectType.ReviveOnce"/> 를 이미 쓴 캐릭터.</summary>
         static readonly HashSet<CharacterUnit> _revivedOnce = new HashSet<CharacterUnit>();
@@ -89,14 +103,19 @@ namespace LastSanctuary.Relics
             if (unit == null || relic == null) return;
             Hook();
 
-            _worn[unit] = relic;
+            if (!_worn.TryGetValue(unit, out List<RelicDefinitionSO> list))
+            {
+                list = new List<RelicDefinitionSO>(3);
+                _worn[unit] = list;
+            }
+            if (!list.Contains(relic)) list.Add(relic);
 
             // ★★ 2026-08-24 — <b>효과 슬롯 둘</b>을 다 돈다(표 Ver02).
             foreach (var (type, v1, _) in relic.Effects())
             {
                 // ★★ 표 Ver02 — 능력치는 <b>정수 그대로</b> 더한다(%가 아니다).
                 if (StatEffects.TryGetValue(type, out StatType stat))
-                    AddStat(unit, stat, v1);
+                    AddStat(unit, stat, v1, relic);
 
                 // 시야는 능력치가 아니라 <see cref="VisionSource"/> 의 칸이다 — 따로 민다.
                 else if (type == RelicEffectType.VisionUp)
@@ -111,15 +130,24 @@ namespace LastSanctuary.Relics
         {
             if (unit == null) return;
 
-            RemoveAllFor(unit);
-            _worn.Remove(unit);
+            // ★★★ <b>그 유물이 붙인 것만</b> 뗀다 — Applied.owner 의 주석 참조.
+            RemoveOwnedBy(unit, relic);
+
+            if (_worn.TryGetValue(unit, out List<RelicDefinitionSO> list))
+            {
+                list.Remove(relic);
+                if (list.Count == 0) _worn.Remove(unit);
+            }
 
             if (relic != null)
                 foreach (var (type, v1, _) in relic.Effects())
                     if (type == RelicEffectType.VisionUp)
                         ScaleVision(unit, 1f / Mathf.Max(0.01f, 1f + Mathf.Abs(v1) * 0.01f));
 
-            _killGrowth.Remove(unit);
+            // ⚠ 「심장에 박힌 가시」의 누적 장부는 <b>그 유물을 벗을 때만</b> 지운다 —
+            //   다른 칸을 벗었다고 상한이 초기화되면 벗었다 끼우기로 무한 성장이 된다.
+            if (relic != null && HasEffect(relic, RelicEffectType.KillGrowth))
+                _killGrowth.Remove(unit);
         }
 
         /// <summary>판을 갈아엎을 때 — 걸어둔 것을 전부 되돌린다.</summary>
@@ -136,9 +164,26 @@ namespace LastSanctuary.Relics
             _killGrowth.Clear();
         }
 
-        /// <summary>이 캐릭터가 낀 유물. 없으면 null. 다른 시스템(발굴 속도 등)이 묻는다.</summary>
+        /// <summary>
+        /// 이 캐릭터가 낀 유물의 <b>첫 칸</b>. 없으면 null.
+        /// ⚠ 칸이 셋이 된 뒤로 이것은 «대표 하나» 다 — 효과를 물을 때는 반드시
+        ///   <see cref="ValueOf"/>·<see cref="TryValueOf"/> 를 쓸 것(그쪽이 세 칸을 다 본다).
+        /// </summary>
         public static RelicDefinitionSO WornBy(CharacterUnit unit) =>
-            unit != null && _worn.TryGetValue(unit, out var r) ? r : null;
+            unit != null && _worn.TryGetValue(unit, out var list) && list.Count > 0 ? list[0] : null;
+
+        /// <summary>이 캐릭터가 낀 유물 전부. 없으면 null (빈 목록을 만들지 않는다).</summary>
+        public static List<RelicDefinitionSO> WornList(CharacterUnit unit) =>
+            unit != null && _worn.TryGetValue(unit, out var list) ? list : null;
+
+        /// <summary>그 유물이 이 효과를 가지고 있는가.</summary>
+        static bool HasEffect(RelicDefinitionSO relic, RelicEffectType want)
+        {
+            if (relic == null) return false;
+            foreach (var (type, _, _) in relic.Effects())
+                if (type == want) return true;
+            return false;
+        }
 
         /// <summary>
         /// 이 캐릭터의 <b>발굴 속도 배율</b>. <see cref="RelicEffectType.DigSpeed"/> 를
@@ -153,22 +198,49 @@ namespace LastSanctuary.Relics
         /// </summary>
         public static int ValueOf(CharacterUnit unit, RelicEffectType want)
         {
-            RelicDefinitionSO r = WornBy(unit);
-            if (r == null) return 0;
-            foreach (var (type, v1, _) in r.Effects())
-                if (type == want) return v1;
-            return 0;
+            // ★★★ 2026-08-26 — <b>세 칸을 다 돌고 «더한다»</b>.
+            //   유저 확정: *"수치 그대로 — 3칸은 그대로 3배"*. 흡혈 5% 짜리 둘을 끼면 10% 다.
+            //   ⚠ 예전에는 «첫 칸의 첫 일치» 하나만 돌려줬다 — 칸이 늘어난 채로 그대로 두면
+            //     두 번째·세 번째 칸의 효과가 <b>조용히 사라진다</b>.
+            List<RelicDefinitionSO> list = WornList(unit);
+            if (list == null) return 0;
+
+            int sum = 0;
+            for (int i = 0; i < list.Count; i++)
+            {
+                RelicDefinitionSO r = list[i];
+                if (r == null) continue;
+                foreach (var (type, v1, _) in r.Effects())
+                    if (type == want) sum += v1;
+            }
+            return sum;
         }
 
         /// <summary>위와 같되 <b>보조 수치</b>(v2)까지 함께. 없으면 <c>false</c>.</summary>
         public static bool TryValueOf(CharacterUnit unit, RelicEffectType want, out int v1, out int v2)
         {
             v1 = v2 = 0;
-            RelicDefinitionSO r = WornBy(unit);
-            if (r == null) return false;
-            foreach (var (type, a, b) in r.Effects())
-                if (type == want) { v1 = a; v2 = b; return true; }
-            return false;
+
+            // ★ 짝(v1,v2)은 <b>더하지 않는다</b> — v2 는 «문턱»·«초»·«상한» 이라 더하면 뜻이 깨진다
+            //   (체력 30% 아래 + 체력 50% 아래 = 체력 80% 아래가 아니다).
+            //   그래서 <b>v1 이 가장 큰 하나</b>를 고른다 — «가장 센 것이 이긴다» 가
+            //   이 게임의 다른 중첩 규칙(패시브 보정)과 같은 결이다.
+            List<RelicDefinitionSO> list = WornList(unit);
+            if (list == null) return false;
+
+            bool found = false;
+            for (int i = 0; i < list.Count; i++)
+            {
+                RelicDefinitionSO r = list[i];
+                if (r == null) continue;
+                foreach (var (type, a, b) in r.Effects())
+                {
+                    if (type != want) continue;
+                    if (found && a <= v1) continue;
+                    v1 = a; v2 = b; found = true;
+                }
+            }
+            return found;
         }
 
         /// <summary>
@@ -194,15 +266,33 @@ namespace LastSanctuary.Relics
         /// ★ <see cref="CharacterUnit.AddFlatStatBonus"/> 는 <b>능력치 상한(100)을 넘긴다</b> —
         ///   표 <c>EffectType</c> 시트가 «상한을 초월합니다» 라고 못박은 그 통로다.
         /// </summary>
-        static void AddStat(CharacterUnit unit, StatType stat, int amount, bool conditional = false)
+        static void AddStat(CharacterUnit unit, StatType stat, int amount,
+                            RelicDefinitionSO owner, bool conditional = false)
         {
             if (amount == 0 || unit == null) return;
 
             unit.AddFlatStatBonus(stat, amount);
             _live.Add(new Applied
             {
-                unit = unit, stat = stat, delta = amount, conditional = conditional,
+                unit = unit, stat = stat, delta = amount,
+                conditional = conditional, owner = owner,
             });
+        }
+
+        /// <summary>
+        /// ★★★ <b>그 유물이 붙인 보정만</b> 되돌린다 (2026-08-26 · 칸이 셋).
+        /// <paramref name="relic"/> 이 null 이면 <b>주인 없는 것</b>(옛 경로)만 뗀다 —
+        /// 아무거나 떼면 다른 칸의 보너스가 함께 사라진다.
+        /// </summary>
+        static void RemoveOwnedBy(CharacterUnit unit, RelicDefinitionSO relic)
+        {
+            for (int i = _live.Count - 1; i >= 0; i--)
+            {
+                if (_live[i].unit != unit) continue;
+                if (_live[i].owner != relic) continue;
+                if (unit != null) unit.AddFlatStatBonus(_live[i].stat, -_live[i].delta);
+                _live.RemoveAt(i);
+            }
         }
 
         /// <summary>
@@ -211,12 +301,15 @@ namespace LastSanctuary.Relics
         /// 그러지 않으면 「두꺼워진 가피」가 문턱을 넘을 때마다 <b>같은 유물의 상시 보너스까지</b>
         /// 지운다(효과 슬롯이 둘이 된 뒤로 실제로 그렇게 된다).
         /// </summary>
-        static void RemoveAllFor(CharacterUnit unit, bool onlyConditional = false)
+        static void RemoveAllFor(CharacterUnit unit, bool onlyConditional = false,
+                                 RelicDefinitionSO owner = null)
         {
             for (int i = _live.Count - 1; i >= 0; i--)
             {
                 if (_live[i].unit != unit) continue;
                 if (onlyConditional && !_live[i].conditional) continue;
+                // ★ 주인을 지정했으면 그 유물 것만 — 칸이 셋이라 문턱형도 유물마다 따로 붙는다.
+                if (owner != null && _live[i].owner != owner) continue;
                 if (unit != null) unit.AddFlatStatBonus(_live[i].stat, -_live[i].delta);
                 _live.RemoveAt(i);
             }
@@ -244,13 +337,16 @@ namespace LastSanctuary.Relics
             bool wantOn = unit.IsAlive &&
                           unit.CurrentHp * 100 <= unit.MaxHp * Mathf.Max(1, threshold);
 
+            // ★ <b>이 유물이</b> 붙여 둔 문턱형이 있는지만 본다 — 칸이 셋이면 같은 캐릭터에게
+            //   문턱형이 둘 붙어 있을 수 있고, 그때 «누가 켜져 있나» 를 섞으면 한쪽이 영영 안 꺼진다.
             bool isOn = false;
             for (int i = 0; i < _live.Count; i++)
-                if (_live[i].unit == unit && _live[i].conditional) { isOn = true; break; }
+                if (_live[i].unit == unit && _live[i].conditional && _live[i].owner == relic)
+                { isOn = true; break; }
 
             if (wantOn == isOn) return;
-            if (wantOn) AddStat(unit, StatType.Defense, bonus, conditional: true);
-            else RemoveAllFor(unit, onlyConditional: true);
+            if (wantOn) AddStat(unit, StatType.Defense, bonus, relic, conditional: true);
+            else RemoveAllFor(unit, onlyConditional: true, owner: relic);
         }
 
         /// <summary>
@@ -266,9 +362,10 @@ namespace LastSanctuary.Relics
             _tickScratch.Clear();
             foreach (var kv in _worn)
             {
-                if (kv.Value == null) continue;
-                foreach (var (type, _, _) in kv.Value.Effects())
-                    if (type == RelicEffectType.LowHpDefenseUp) { _tickScratch.Add(kv); break; }
+                List<RelicDefinitionSO> list = kv.Value;
+                for (int i = 0; i < list.Count; i++)
+                    if (HasEffect(list[i], RelicEffectType.LowHpDefenseUp))
+                        _tickScratch.Add(new KeyValuePair<CharacterUnit, RelicDefinitionSO>(kv.Key, list[i]));
             }
             for (int i = 0; i < _tickScratch.Count; i++)
                 UpdateLowHpBonus(_tickScratch[i].Key, _tickScratch[i].Value);
@@ -346,7 +443,9 @@ namespace LastSanctuary.Relics
             // ── 부활 : 죽은 쪽이 유물을 꼈나 ──
             if (dead is CharacterUnit fallen)
             {
-                RelicDefinitionSO own = WornBy(fallen);
+                // ★ 칸이 셋이므로 «첫 칸» 이 아니라 <b>부활을 가진 칸</b>을 찾는다 —
+                //   안 그러면 2·3번 칸의 부활 유물이 이름만 엉뚱하게 찍힌다.
+                RelicDefinitionSO own = RelicWith(fallen, RelicEffectType.ReviveOnce);
                 int revivePct = ValueOf(fallen, RelicEffectType.ReviveOnce);
                 if (own != null && revivePct > 0 && !_revivedOnce.Contains(fallen))
                 {
@@ -374,10 +473,16 @@ namespace LastSanctuary.Relics
         public static void HandleKillCredit(CharacterUnit killer)
         {
             if (killer == null || !killer.IsAlive) return;
-            RelicDefinitionSO r = WornBy(killer);
-            if (r == null) return;
+            List<RelicDefinitionSO> worn = WornList(killer);
+            if (worn == null) return;
 
-            // ★ 슬롯 둘을 다 본다 — «첫 칸만 보는» 코드는 표 Ver02 에서 조용히 틀린다.
+            // ★★★ 2026-08-26 — <b>낀 유물 셋을</b> 다 돌고, 유물마다 <b>효과 슬롯 둘</b>을 다 본다.
+            //   예전에는 «낀 유물 하나 × 효과 둘» 이었다.
+            for (int w = 0; w < worn.Count; w++)
+            {
+            RelicDefinitionSO r = worn[w];
+            if (r == null) continue;
+
             foreach (var (type, v1, v2) in r.Effects())
             {
                 switch (type)
@@ -418,11 +523,25 @@ namespace LastSanctuary.Relics
                         _killGrowth.TryGetValue(killer, out int done);
                         if (done >= Mathf.Max(1, v2)) break;
                         _killGrowth[killer] = done + 1;
-                        AddStat(killer, StatType.Attack, v1);
+                        AddStat(killer, StatType.Attack, v1, r);
                         break;
                     }
                 }
             }
+            }
+        }
+
+        /// <summary>
+        /// 이 캐릭터가 낀 유물 중 <paramref name="want"/> 효과를 가진 <b>첫 하나</b>.
+        /// 「무엇이 그랬는지」를 화면에 적어야 할 때 쓴다(부활 로그 등).
+        /// </summary>
+        static RelicDefinitionSO RelicWith(CharacterUnit unit, RelicEffectType want)
+        {
+            List<RelicDefinitionSO> list = WornList(unit);
+            if (list == null) return null;
+            for (int i = 0; i < list.Count; i++)
+                if (HasEffect(list[i], want)) return list[i];
+            return null;
         }
 
         /// <summary>「심장에 박힌 가시」가 이 캐릭터에게 이미 몇 번 쌓였나 (상한 검사용).</summary>
@@ -459,15 +578,21 @@ namespace LastSanctuary.Relics
             foreach (var kv in _worn)
             {
                 CharacterUnit unit = kv.Key;
-                RelicDefinitionSO r = kv.Value;
-                if (unit == null || !unit.IsAlive || r == null) continue;
+                if (unit == null || !unit.IsAlive) continue;
 
-                foreach (var (type, v1, _) in r.Effects())
+                List<RelicDefinitionSO> list = kv.Value;
+                for (int i = 0; i < list.Count; i++)
                 {
-                    if (type == RelicEffectType.WaveEnergy)
-                        Resource.ResourceManager.Instance?.AddEnergy(Mathf.Max(0, v1));
-                    else if (type == RelicEffectType.WaveHeal)
-                        unit.Heal(Mathf.Max(1, Mathf.RoundToInt(unit.MaxHp * v1 * 0.01f)));
+                    RelicDefinitionSO r = list[i];
+                    if (r == null) continue;
+
+                    foreach (var (type, v1, _) in r.Effects())
+                    {
+                        if (type == RelicEffectType.WaveEnergy)
+                            Resource.ResourceManager.Instance?.AddEnergy(Mathf.Max(0, v1));
+                        else if (type == RelicEffectType.WaveHeal)
+                            unit.Heal(Mathf.Max(1, Mathf.RoundToInt(unit.MaxHp * v1 * 0.01f)));
+                    }
                 }
             }
         }

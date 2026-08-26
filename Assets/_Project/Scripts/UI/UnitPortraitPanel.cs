@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using LastSanctuary.Combat;
@@ -57,6 +57,11 @@ namespace LastSanctuary.UI
 
         [Tooltip("잠긴 스킬의 <b>아이콘</b> 색 — 알파를 낮춰 '비활성' 으로 읽히게 한다")]
         [SerializeField] Color lockedIconColor = new Color(1f, 1f, 1f, 0.25f);
+
+        // ★★★ 유물 칸 셋 (2026-08-26)
+        [Tooltip("★ 유물 아이콘을 늘어놓는 간격(픽셀). 카드의 유물 줄은 <b>왼쪽 끝</b>에서 " +
+                 "시작하므로 오른쪽으로 자란다(양수). 0 이면 «아이콘 폭 + 2px»")]
+        [SerializeField] float relicIconStepPixels = 30f;
 
         [Tooltip("잠긴 스킬의 <b>글자</b> 색")]
         [SerializeField] Color lockedTextColor = new Color(0.45f, 0.49f, 0.55f, 1f);
@@ -132,6 +137,12 @@ namespace LastSanctuary.UI
         Transform _relicRoot;
         Image _relicIcon;
         TMP_Text _relicLabel;
+
+        /// <summary>
+        /// ★★★ 유물 칸 셋 (2026-08-26). 씬에는 아이콘 하나(<c>Relic/Icon</c>)만 있고
+        /// 나머지 둘은 <see cref="RelicIconStrip"/> 이 복제한다.
+        /// </summary>
+        readonly RelicIconStrip _relicStrip = new RelicIconStrip();
 
         /// <summary>체력 묶음(보스·몬스터 전용).</summary>
         Transform _hpRoot;
@@ -627,27 +638,29 @@ namespace LastSanctuary.UI
         /// </summary>
         void ShowRelic(CharacterUnit character)
         {
-            RelicInventory inv = RelicInventory.Instance;
-            RelicDefinitionSO relic = character != null && inv != null
-                ? inv.EquippedOn(character)
-                : null;
+            // ★★★ 2026-08-26 — <b>아이콘만</b> 보여준다 (유저 지시:
+            //   *"유물 장착 인벤토리 3칸으로 변경 / 초상화UI(<b>아이콘만</b>)"*).
+            //
+            //   ⚠ <b>이름 칸을 지우지 않고 «끈다»</b>. 씬 오브젝트(<c>Relic/Label</c>)를
+            //     없애면 옛 씬·옛 세이브와 어긋나고, 나중에 되돌리려면 좌표를 다시 실측해야
+            //     한다. 값이 아니라 <b>표시 여부</b>로 다루는 것이 이 프로젝트의 관례다.
+            //   ★ 이름이 사라져도 <b>등급을 잃지 않는다</b> — 유물 관리 창과 성장 창이
+            //     여전히 등급 색으로 말한다. 이 카드에서는 «무엇을 몇 개 꼈나» 만 보이면 된다.
+            if (_relicLabel != null && _relicLabel.gameObject.activeSelf)
+                _relicLabel.gameObject.SetActive(false);
 
-            if (_relicRoot != null) _relicRoot.gameObject.SetActive(relic != null);
-            if (relic == null) return;
-
-            if (_relicLabel != null)
+            if (_relicIcon != null && _relicStrip.Count == 0)
             {
-                _relicLabel.text = relic.DisplayName;
-                _relicLabel.color = relic.GradeColor;
+                RelicInventory bootstrap = RelicInventory.Instance;
+                _relicStrip.Build(_relicIcon, bootstrap != null ? bootstrap.EquipSlots : 3,
+                                  relicIconStepPixels);
             }
 
-            if (_relicIcon != null)
-            {
-                Sprite icon = relic.icon;
-                _relicIcon.sprite = icon;
-                // 아이콘이 없는 유물은 흰 사각형이 남지 않게 알파로 지운다(스킬 아이콘과 같은 규칙).
-                _relicIcon.color = icon == null ? new Color(1f, 1f, 1f, 0f) : Color.white;
-            }
+            int worn = _relicStrip.Refresh(character);
+
+            // 아무것도 안 끼웠거나 캐릭터가 아니면 <b>줄을 통째로 숨긴다</b> —
+            // 빈 줄을 남기면 그 자리가 «비어 있다» 가 아니라 «깨졌다» 로 보인다.
+            if (_relicRoot != null) _relicRoot.gameObject.SetActive(worn > 0);
         }
 
         // ------------------------------------------------------------------

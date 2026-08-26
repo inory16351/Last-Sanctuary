@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using LastSanctuary.Combat;
 using LastSanctuary.Resource;
 
@@ -72,6 +72,32 @@ namespace LastSanctuary.Units
         [Min(0)] [SerializeField] int costRoundTo = 10;
 
         // ──────────────────────────────────────────────────────────────────
+        // ★★★ <b>만렙</b> (2026-08-26 신설 · 유저 지시: *"만렙 40 LV 로 설정"*)
+        //
+        // <b>왜 «비용» 이 아니라 «칸» 으로 막나</b> — 등비 곡선(<see cref="steepStartLevel"/>)은
+        // 값이 커질 뿐 <b>끝이 없다</b>. 실제로 Lv90 쯤에서 <c>int</c> 를 넘겨 <b>음수 비용</b>이
+        // 되는 것을 그쪽 주석이 이미 «가장 나쁜 방향의 고장» 이라 적어 두었다. 곡선으로
+        // 천장을 흉내 내는 대신 <b>«더는 못 올린다» 를 규칙으로 못박는다</b>.
+        //
+        // ★ <b>막는 곳은 이 서비스 하나다.</b> 버튼 잠금(<c>CharacterGrowthPanel</c>)도
+        //   <see cref="CanUpgrade"/> 를 읽으므로 <b>여기 한 줄이면 화면과 처리가 같이 닫힌다</b> —
+        //   소환수 금지(아래 ★★)가 이미 그 방식이고, 이 프로젝트가 «막는 곳을 한 군데만 두면
+        //   다른 경로로 새어 들어온다» 를 반복해 겪은 뒤 세운 규칙이다.
+        // ⚠ <b>정신 이상 「고조」의 무료 강화도 막힌다</b>(<see cref="GrowFree"/>) —
+        //   «자원을 안 쓴다» 는 «천장을 넘는다» 는 뜻이 아니다.
+        // ⚠ 저장·복원은 손댈 것이 없다 — 이 프로젝트는 레벨을 <b>강화 횟수 그 자체</b>로
+        //   들고 있다(위 클래스 주석). 상한을 낮춰도 이미 그 위에 있는 옛 세이브는
+        //   <b>값을 잃지 않고</b> 다만 더 오르지 않을 뿐이다.
+        // ──────────────────────────────────────────────────────────────────
+
+        [Header("만렙")]
+        [Tooltip("★ 강화 횟수(=레벨)가 이 값에 닿으면 <b>더는 강화할 수 없다</b>. " +
+                 "0 이면 만렙이 없다(예전 동작). " +
+                 "경제 모델은 «30웨이브에 12명 평균 Lv35» 를 착지점으로 잡고 있고, " +
+                 "만렙 40 은 그 위 다섯 칸을 <b>유물·에픽 보상으로만 닿는 구간</b>으로 남긴 것이다")]
+        [Min(0)] [SerializeField] int maxLevel = 40;
+
+        // ──────────────────────────────────────────────────────────────────
         // 성장량 — 유저 지시 2026-08-14로 전면 교체됐다.
         //
         //   이전: growthMin(1) ~ growthMax(5) 균등 랜덤. 1·2·3·4·5 가 전부 20%.
@@ -128,6 +154,13 @@ namespace LastSanctuary.Units
 
         // ------------------------------------------------------------------
 
+        /// <summary>만렙(강화 횟수 상한). 0 이면 상한이 없다.</summary>
+        public int MaxLevel => maxLevel;
+
+        /// <summary>이 캐릭터가 <b>만렙에 닿았는가</b>. 상한이 0 이면 언제나 거짓이다.</summary>
+        public bool IsMaxLevel(CharacterUnit unit) =>
+            maxLevel > 0 && unit != null && unit.UpgradeCount >= maxLevel;
+
         /// <summary>이 캐릭터를 지금 강화하는 데 드는 비용.</summary>
         public int CostFor(CharacterUnit unit) =>
             unit == null ? 0 : CostForLevel(unit.UpgradeCount);
@@ -182,6 +215,7 @@ namespace LastSanctuary.Units
         {
             if (unit == null || !unit.IsAlive) return false;
             if (unit.IsSummoned) return false;          // 골렘 — 위 ★★
+            if (IsMaxLevel(unit)) return false;         // 만렙 — 위 ★★★
             ResourceManager resources = ResourceManager.Instance;
             return resources != null && resources.CanAfford(CostFor(unit));
         }
@@ -195,6 +229,7 @@ namespace LastSanctuary.Units
             // ⚠ <b>여기서도 막는다</b> — 이 프로젝트의 규칙이다("막는 곳을 한 군데만 두면
             //   다른 경로로 새어 들어온다" · CharacterTactics 의 잠금 주석과 같다).
             if (unit.IsSummoned) return false;
+            if (IsMaxLevel(unit)) return false;         // 만렙
 
             ResourceManager resources = ResourceManager.Instance;
             if (resources == null)
@@ -242,6 +277,8 @@ namespace LastSanctuary.Units
             int applied = 0;
             for (int i = 0; i < times; i++)
             {
+                // ⚠ 만렙은 <b>공짜 강화도</b> 넘지 못한다 — 위 ★★★ 참조.
+                if (IsMaxLevel(unit)) break;
                 StatBlock before = unit.Stats;
                 StatBlock grown = Grow(before, unit.Balance, unit.GrowthFocus);
                 unit.ApplyUpgrade(grown);

@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using LastSanctuary.Combat;
 using LastSanctuary.Fog;
 using LastSanctuary.Map;
@@ -244,6 +244,34 @@ namespace LastSanctuary.Units
         [Tooltip("가로막는 위치를 다시 계산하는 주기(초). 적이 움직이므로 순찰보다 자주 갱신한다")]
         [Min(0.1f)] [SerializeField] float frontInterceptRepick = 0.5f;
 
+        // ══════════════════════════════════════════════════════════════
+        //  ★★★ <b>혼자 나가지 않는다</b> (2026-08-26 · 유저 리포트:
+        //  *"전방 포지션의 캐릭터가 지나치게 공격적이어서 앞으로 혼자 나가서 죽는 문제"*)
+        // ══════════════════════════════════════════════════════════════
+        //  <b>무엇이 부딪히고 있었나</b> — 가로막기는 <b>구역 밖</b>(경계 + 여유)에 서고
+        //  목줄까지 <see cref="frontInterceptLeashBonus"/> 만큼 늘린다. 그런데 지원
+        //  (<see cref="TryPickSupportSpot"/>)은 «<b>구역 안</b>의 적» 만 봤다. 그래서
+        //  <b>전방이 나가 서는 그 자리가 곧 지원이 닿지 않는 자리</b>였다 —
+        //  두 규칙이 서로를 밀어내고 있었고, 그 사이가 벌어질수록 전방은 혼자가 됐다.
+        //
+        //  고친 것은 둘이다:
+        //    ① 지원이 <b>구역 밖으로도</b> 따라 나간다 (TryPickSupportSpot 의 ★★★)
+        //    ② 전방은 <b>동료가 따라올 수 있을 때만</b> 나간다 (아래 두 값)
+        //
+        //  ⚠ «적극적으로 방어한다» 는 원래 지시를 <b>되돌리는 것이 아니다</b> —
+        //    동료가 곁에 있으면 예전과 똑같이 나간다. 달라지는 것은 «혼자일 때» 와
+        //    «떼 앞일 때» 뿐이다.
+
+        [Header("전방 포지션 — 혼자 나가지 않기 (2026-08-26)")]
+        [Tooltip("가로막으러 나설 때 <b>이 거리 안에 아군이 한 명도 없으면</b> 구역 밖으로 " +
+                 "나가지 않는다(타일). 구역 경계 안쪽에서 맞이한다. " +
+                 "0 이면 언제나 나간다(예전 동작)")]
+        [Min(0f)] [SerializeField] float frontInterceptAllyRange = 12f;
+
+        [Tooltip("가로막기 판정 거리 안의 웨이브 몬스터가 이 수 이상이면 <b>나가지 않는다</b> — " +
+                 "떼 앞으로 혼자 걸어 들어가는 것을 막는다. 0 이면 마리 수를 보지 않는다(예전 동작)")]
+        [Min(0)] [SerializeField] int frontInterceptSwarmCount = 4;
+
         [Header("중위·후방 포지션 — 사거리 지원")]
         [Tooltip("구역 안에서 교전이 벌어졌을 때 지원하러 나서는 판정 거리(타일). " +
                  "이 거리 안에 '지금 싸우고 있는' 적이 있으면 순찰을 멈추고 자기 최대 사거리 " +
@@ -256,6 +284,12 @@ namespace LastSanctuary.Units
         [Tooltip("중위 포지션이 전방 아군보다 얼마나 뒤에 설지(타일). " +
                  "자기 최대 사거리를 넘지는 않는다 — 넘으면 자기가 못 때린다")]
         [Min(0f)] [SerializeField] float midBehindGap = 1.5f;
+
+        [Tooltip("★★ 지원하러 나설 때 <b>구역 밖 이만큼까지</b> 따라 나간다(타일). " +
+                 "전방이 가로막으러 서는 자리가 구역 «경계 + 여유» 라 0 이면 그 싸움이 " +
+                 "영영 «구역 밖» 으로 걸러진다 — 지원이 한 번도 안 붙던 이유가 이것이었다. " +
+                 "0 이면 예전처럼 구역 안만 본다")]
+        [Min(0f)] [SerializeField] float supportOutsideZone = 8f;
 
         [Header("후퇴 (전술 지침의 '후퇴 판단 기준')")]
         [Tooltip("전방 아군이 후퇴 중인지 다시 확인하는 간격(초). 매 프레임 전체 유닛을 훑지 않기 위한 값")]
@@ -715,6 +749,8 @@ namespace LastSanctuary.Units
 
             DamageableUnit threat = null;
             float bestSqr = frontInterceptRange * frontInterceptRange;
+            float rangeSqr = bestSqr;
+            int swarm = 0;                       // 판정 거리 안의 웨이브 몬스터 수 (아래 ★★★)
 
             var all = UnitRegistry.All;
             for (int i = 0; i < all.Count; i++)
@@ -726,18 +762,30 @@ namespace LastSanctuary.Units
                 // "구역에 얼마나 가까운가"로 고른다 — 나에게 가까운 적이 아니라
                 // 지키는 구역을 위협하는 적을 막아야 한다.
                 float sqr = ((Vector2)(u.transform.position - center)).sqrMagnitude;
-                if (sqr > bestSqr) continue;
+                if (sqr > rangeSqr) continue;
+                swarm++;
 
+                if (sqr > bestSqr) continue;
                 bestSqr = sqr;
                 threat = u;
             }
             if (threat == null) return false;
 
+            // ★★★ <b>나가도 되는가</b> — 위 「혼자 나가지 않기」의 두 조건.
+            //   ⚠ <b>«가로막기를 그만둔다» 가 아니다.</b> 나가는 거리(overshoot)와 목줄
+            //     보너스만 거두고, 그 적을 향해 <b>구역 안에서</b> 맞이하러 서는 것은 그대로다.
+            //     완전히 손을 떼면 전방이 순찰로 돌아가 뒤가 더 위험해진다.
+            bool alone = frontInterceptAllyRange > 0f && !HasAllyNear(frontInterceptAllyRange);
+            bool swarmed = frontInterceptSwarmCount > 0 && swarm >= frontInterceptSwarmCount;
+            bool holdBack = alone || swarmed;
+
             Vector2 toThreat = (Vector2)(threat.transform.position - center);
             Vector2 dir = toThreat.sqrMagnitude > 0.01f ? toThreat.normalized : Vector2.up;
 
             // 적이 이미 구역 안까지 들어왔으면 그 앞을 막는 게 의미가 없다 — 적 쪽으로 붙는다.
-            float outward = Mathf.Min(halfExtent + frontInterceptOvershoot, toThreat.magnitude);
+            // ★ 물러나 맞이할 때는 <b>구역 경계보다 안쪽</b>(0.8배)에 선다 — 지원 사거리 안이다.
+            float reach = holdBack ? halfExtent * 0.8f : halfExtent + frontInterceptOvershoot;
+            float outward = Mathf.Min(reach, toThreat.magnitude);
             Vector3 spot = center + (Vector3)(dir * outward);
 
             // 벽에 박힌 자리면 중심 쪽으로 조금씩 당겨보며 설 수 있는 곳을 찾는다.
@@ -746,10 +794,35 @@ namespace LastSanctuary.Units
 
             if (!IsWalkable(spot)) return false;
 
+            // ★ 목줄 보너스도 «나갔을 때만» 준다 — 그것이 없으면 물러나 선 자리에서
+            //   적을 쫓아 다시 그만큼 나가 버려서 위 판정이 무의미해진다.
+            float bonus = holdBack ? 0f : frontInterceptLeashBonus;
+
             _destination = spot;
             _repickTime = Time.time + frontInterceptRepick;
-            _combat.SetHome(_destination, leash + halfExtent + frontInterceptLeashBonus);
+            _combat.SetHome(_destination, leash + halfExtent + bonus);
             return true;
+        }
+
+        /// <summary>
+        /// 이 거리(타일) 안에 <b>싸울 수 있는 아군</b>이 하나라도 있는가.
+        /// 성역은 세지 않는다 — 움직이지 않는 건물은 «따라와 주는 동료» 가 아니다
+        /// (<see cref="FrontAllyDistanceTo"/> 가 같은 이유로 성역을 뺀다). 포탑은 센다.
+        /// </summary>
+        bool HasAllyNear(float tiles)
+        {
+            float limitSqr = tiles * tiles;
+            var all = UnitRegistry.All;
+            for (int i = 0; i < all.Count; i++)
+            {
+                DamageableUnit u = all[i];
+                if (u == null || !u.IsAlive || ReferenceEquals(u, _self)) continue;
+                if (u.Faction != Faction.Angel) continue;
+                if (u.Kind != UnitKind.Character && u.Kind != UnitKind.Tower) continue;
+                if (((Vector2)(u.transform.position - transform.position)).sqrMagnitude <= limitSqr)
+                    return true;
+            }
+            return false;
         }
 
         /// <summary>
@@ -772,6 +845,19 @@ namespace LastSanctuary.Units
             DamageableUnit foe = null;
             float bestSqr = supportRange * supportRange;
 
+            // ★★★ <b>구역 밖에서 벌어진 싸움도 지원한다</b>
+            //   (2026-08-26 · 유저 리포트: *"동료 지원 거리에서 동료가 공격 받아도 원거리에서
+            //   즉시 지원을 하러 안 온다"*).
+            //
+            //   예전에는 <c>IsInsideZone(…, halfExtent)</c> 였다 — <b>구역 «안» 의 적만</b>.
+            //   그런데 전방은 가로막으러 <b>구역 «경계 + 여유»</b> 로 나가 서므로
+            //   (<see cref="TryPickInterceptSpot"/>), 실제 접전은 거의 언제나 그 «밖» 이다.
+            //   즉 <b>지원이 켜지는 조건과 전투가 벌어지는 자리가 어긋나 있었다.</b>
+            //   ⚠ 그렇다고 조건을 없애면 «지나가는 적을 쫓아 구역을 비운다» 가 되돌아온다
+            //     (이 함수가 원래 그것을 막으려고 만든 조건이다). 그래서 <b>없애지 않고
+            //     구역을 <see cref="supportOutsideZone"/> 만큼 넓혀서</b> 본다.
+            float zone = halfExtent + supportOutsideZone;
+
             var all = UnitRegistry.All;
             for (int i = 0; i < all.Count; i++)
             {
@@ -779,10 +865,10 @@ namespace LastSanctuary.Units
                 if (u == null || !u.IsAlive) continue;
                 if (u.Faction != Faction.Cancer) continue;
                 if (!u.IsInCombat) continue;                                   // 아직 아무 일도 없는 적은 제외
-                if (!IsInsideZone(u.transform.position, center, halfExtent)) continue;
+                if (!IsInsideZone(u.transform.position, center, zone)) continue;
 
                 // 지원은 "싸움이 난 곳"으로 가는 것이므로 나에게 가까운 쪽부터 본다
-                // (가로막기와 달리 구역 중심 기준이 아니다 — 이미 구역 안의 적만 남았다).
+                // (가로막기와 달리 구역 중심 기준이 아니다 — 이미 넓힌 구역 안의 적만 남았다).
                 float sqr = ((Vector2)(u.transform.position - transform.position)).sqrMagnitude;
                 if (sqr > bestSqr) continue;
 
@@ -796,7 +882,9 @@ namespace LastSanctuary.Units
 
             _destination = spot;
             _repickTime = Time.time + supportRepick;
-            _combat.SetHome(_destination, leash + halfExtent);
+            // ⚠ <b>목줄도 같은 «넓힌 구역» 을 쓴다</b> — 설 자리는 구역 밖인데 목줄만 구역
+            //   안이면, 도착하자마자 목줄 관문이 그 적을 잘라내 «가서 가만히 서 있는» 상태가 된다.
+            _combat.SetHome(_destination, leash + zone);
             return true;
         }
 

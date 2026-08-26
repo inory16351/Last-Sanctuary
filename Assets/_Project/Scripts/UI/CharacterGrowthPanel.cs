@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -61,6 +61,14 @@ namespace LastSanctuary.UI
         [SerializeField] string noteSummoned = "소환수는 강화할 수 없습니다.";
 
         [SerializeField] string enhanceSummoned = "강화 불가";
+
+        // ★★ 만렙 (2026-08-26 · 유저 지시 *"만렙 40 LV 로 설정"*).
+        //   «능력치 상한»(enhanceMaxed)과 <b>다른 사건</b>이라 문구를 따로 둔다 —
+        //   상한은 «12종이 전부 100 이다», 만렙은 «강화 횟수가 40 이다» 이고
+        //   실제로 <b>상한에 안 닿은 채 만렙에 먼저 닿는</b> 캐릭터가 있다(성장 유형 밖 능력치).
+        [SerializeField] string enhanceLevelMaxed = "만렙";
+        [Tooltip("{0} = 만렙 레벨")]
+        [SerializeField] string noteLevelMaxedFormat = "Lv.{0} — 더는 강화할 수 없습니다.";
         [SerializeField] string noteNoSelection = "-";
 
         [Header("문구 — 성장 유형 (토글 1단계)")]
@@ -97,6 +105,12 @@ namespace LastSanctuary.UI
         [Tooltip("각성 가능 상태(처치 수 <b>또는</b> 회복 수를 채웠다)일 때 덧붙이는 말")]
         [SerializeField] string heroReadyMark = " · 각성 가능";
 
+        // ★★ 눈금은 찼는데 <b>레벨</b>이 모자란 상태 (2026-08-26 · 유저 리포트
+        //   *"각성 15LV 부터 가능해야 하는데 적용 안됨"*). 예전에는 이 상태에도
+        //   위 «각성 가능» 이 그대로 떴다 — 판정은 막고 있는데 화면만 열려 있었다.
+        [Tooltip("{0} = 각성에 필요한 최소 레벨")]
+        [SerializeField] string heroLevelLockFormat = " · Lv.{0} 부터 각성";
+
         [Tooltip("이미 각성한 캐릭터 앞에 붙는 표식")]
         [SerializeField] string heroAwakenedMark = "★영웅 ";
 
@@ -129,6 +143,10 @@ namespace LastSanctuary.UI
         [Header("색")]
         [Tooltip("'각성 가능' 문구 색")]
         [SerializeField] Color heroReadyColor = new Color(0.98f, 0.85f, 0.35f, 1f);
+
+        [Tooltip("눈금은 찼지만 레벨이 모자랄 때의 글자색. 「각성 가능」보다 흐리게 둔다 — " +
+                 "지금 할 수 있는 일이 아니라 «앞으로 열릴 것» 이기 때문이다")]
+        [SerializeField] Color heroLockedColor = new Color(0.62f, 0.66f, 0.72f, 1f);
 
         [Tooltip("'★영웅' 표식 색")]
         [SerializeField] Color heroAwakenedColor = new Color(0.98f, 0.62f, 0.30f, 1f);
@@ -570,7 +588,13 @@ namespace LastSanctuary.UI
             if (_relicSlot == null) return;
 
             var inv = Relics.RelicInventory.Instance;
-            Relics.RelicDefinitionSO relic = has && inv != null ? inv.EquippedOn(_unit) : null;
+
+            // ★★★ 2026-08-26 — 칸이 셋이다. 아이콘 칸은 <b>첫 칸</b>을 보여주고,
+            //   이름·효과 줄은 <b>낀 것 전부</b>를 이어 붙인다 — 이 창은 «그래서 이 캐릭터가
+            //   무엇을 받고 있나» 를 답하는 자리이므로 하나만 보여주면 거짓말이 된다.
+            _wornScratch.Clear();
+            if (has && inv != null) inv.CollectEquipped(_unit, _wornScratch);
+            Relics.RelicDefinitionSO relic = _wornScratch.Count > 0 ? _wornScratch[0] : null;
 
             if (_relicSlotIcon != null)
             {
@@ -579,22 +603,63 @@ namespace LastSanctuary.UI
             }
             if (_relicSlotName != null)
             {
-                _relicSlotName.text = relic != null ? relic.DisplayName
-                                    : has ? "없음"
-                                    : "캐릭터를 선택하세요";
-                _relicSlotName.color = relic != null
-                    ? relic.GradeColor
-                    : new Color(0.62f, 0.68f, 0.75f, 1f);
+                if (_wornScratch.Count == 0)
+                {
+                    _relicSlotName.text = has ? "없음" : "캐릭터를 선택하세요";
+                    _relicSlotName.color = new Color(0.62f, 0.68f, 0.75f, 1f);
+                }
+                else
+                {
+                    // 이름마다 <b>제 등급 색</b>을 입힌다 — TMP 하나에 여러 색을 쓰는
+                    // 이 프로젝트의 기존 방식(로스터의 레벨 표기와 같다).
+                    _sb.Clear();
+                    for (int i = 0; i < _wornScratch.Count; i++)
+                    {
+                        if (i > 0) _sb.Append(" · ");
+                        Relics.RelicDefinitionSO w = _wornScratch[i];
+                        _sb.Append("<color=#")
+                           .Append(ColorUtility.ToHtmlStringRGB(w.GradeColor))
+                           .Append('>').Append(w.DisplayName).Append("</color>");
+                    }
+                    if (inv != null && inv.EquipSlots > 1)
+                        _sb.Append(" <size=78%>(").Append(_wornScratch.Count)
+                           .Append('/').Append(inv.EquipSlots).Append(")</size>");
+
+                    _relicSlotName.text = _sb.ToString();
+                    _relicSlotName.color = Color.white;   // 색은 태그가 칸마다 따로 준다
+                }
             }
 
             // ★ 효과 줄 — 무엇을 끼고 있는지보다 «그래서 뭐가 좋아지는지» 가 먼저 궁금하다.
             if (_relicSlotEffect != null)
-                _relicSlotEffect.text = relic != null ? relic.Desc
-                                      : has ? "「유물 관리 열기」로 이 캐릭터에게 유물을 끼웁니다."
-                                      : "";
+            {
+                if (_wornScratch.Count == 0)
+                {
+                    _relicSlotEffect.text = has
+                        ? "「유물 관리 열기」로 이 캐릭터에게 유물을 끼웁니다."
+                        : "";
+                }
+                else
+                {
+                    _sb.Clear();
+                    for (int i = 0; i < _wornScratch.Count; i++)
+                    {
+                        if (i > 0) _sb.AppendLine();
+                        _sb.Append(_wornScratch[i].Desc);
+                    }
+                    _relicSlotEffect.text = _sb.ToString();
+                }
+            }
 
             if (_relicSlotButton != null) _relicSlotButton.interactable = has && !_unit.IsSummoned;
         }
+
+        /// <summary>낀 유물을 담아 두는 재사용 목록 — 0.2초마다 도는 갱신에서 할당하지 않으려는 것.</summary>
+        readonly System.Collections.Generic.List<Relics.RelicDefinitionSO> _wornScratch =
+            new System.Collections.Generic.List<Relics.RelicDefinitionSO>(3);
+
+        /// <summary>같은 이유의 문자열 버퍼.</summary>
+        readonly System.Text.StringBuilder _sb = new System.Text.StringBuilder(160);
 
         /// <summary>유물 관리 창을 연다 — 고르는 일은 그쪽이 한다(위 ★★).</summary>
         void OpenRelicPanel()
@@ -637,6 +702,13 @@ namespace LastSanctuary.UI
                     break;
                 case HeroState.Ready:
                     line += Tint(heroReadyMark, heroReadyColor);
+                    break;
+
+                // ★ 눈금은 찼지만 레벨이 남았다 — «무엇이 남았는지» 를 그대로 적는다.
+                case HeroState.LevelLocked:
+                    int need = HeroAwakeningService.AwakenMinLevel;
+                    if (need > 0 && !string.IsNullOrEmpty(heroLevelLockFormat))
+                        line += Tint(string.Format(heroLevelLockFormat, need), heroLockedColor);
                     break;
             }
 
@@ -969,15 +1041,17 @@ namespace LastSanctuary.UI
                               AreStatsAtCap(_unit.Stats, _unit.Balance.statMax);
             // ★★ 소환수는 <b>어느 단계에서도</b> 강화할 수 없다 (noteSummoned 의 긴 주석).
             bool summoned = has && _unit.IsSummoned;
+            // ★★ 만렙은 능력치 상한과 <b>따로</b> 본다 — 위 enhanceLevelMaxed 주석 참조.
+            bool levelCapped = has && _upgrades != null && _upgrades.IsMaxLevel(_unit);
             bool canUpgrade = has && !summoned && _upgrades != null &&
-                              _upgrades.CanUpgrade(_unit) && !statCapped;
+                              _upgrades.CanUpgrade(_unit) && !statCapped && !levelCapped;
             int cost = has && _upgrades != null ? _upgrades.CostFor(_unit) : 0;
 
             // 토글 1단계("성장 유형 결정")에서는 <b>에너지가 없어도 눌려야 한다</b> —
             // 그 클릭은 강화가 아니라 유형 칸을 펼치는 조작이기 때문이다. 여기서 canUpgrade 로
             // 잠가버리면 돈이 없을 때 유형을 미리 정해둘 수조차 없다.
             bool pickingStage = has && !summoned &&
-                               _unit.GrowthFocus == StatGrowthFocus.None && !statCapped;
+                               _unit.GrowthFocus == StatGrowthFocus.None && !statCapped && !levelCapped;
 
             if (_enhanceButton != null) _enhanceButton.interactable = pickingStage || canUpgrade;
 
@@ -993,6 +1067,7 @@ namespace LastSanctuary.UI
             {
                 if (!has) _enhanceLabel.text = enhanceNoSelection;
                 else if (summoned) _enhanceLabel.text = enhanceSummoned;
+                else if (levelCapped) _enhanceLabel.text = enhanceLevelMaxed;
                 else if (statCapped) _enhanceLabel.text = enhanceMaxed;
                 else if (pickingStage) _enhanceLabel.text = enhancePickType;
                 else _enhanceLabel.text = string.Format(enhanceFormat, cost);
@@ -1002,6 +1077,8 @@ namespace LastSanctuary.UI
             {
                 if (!has) _noteText.text = noteNoSelection;
                 else if (summoned) _noteText.text = noteSummoned;
+                else if (levelCapped)
+                    _noteText.text = string.Format(noteLevelMaxedFormat, _upgrades.MaxLevel);
                 else if (statCapped) _noteText.text = enhanceMaxed;
                 else if (pickingStage) _noteText.text = notePickType;
                 else if (!canUpgrade) _noteText.text = noteUnaffordable;

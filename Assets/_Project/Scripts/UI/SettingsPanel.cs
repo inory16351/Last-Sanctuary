@@ -1,4 +1,4 @@
-using TMPro;
+﻿using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -67,12 +67,32 @@ namespace LastSanctuary.UI
         //     아니라 환경설정으로 가야할듯"*). 처음엔 HUD 액션에 넣었다가 이쪽으로 옮겼다 —
         //     «한 번 정해 두고 잘 안 만지는 값» 이라 상시 버튼 줄보다 이 창이 맞다.
         [SerializeField] string hotkeyButtonPath = "Body/HotkeyButton";
+
+        // ══════════════════════════════════════════════════════════════
+        //  ★★★ <b>「도움말 다시 보기」</b> (2026-08-26 신설)
+        // ══════════════════════════════════════════════════════════════
+        //  <b>왜 생겼나</b> — 유저 리포트: *"도움말이 허드 액션에 있는 버튼 최초로 클릭했을때
+        //  나와야 하는 데 안나옴"*. <b>기능은 멀쩡했다</b> —
+        //  <see cref="Help.HelpService.InterceptFirstUse"/> 가 «이미 읽었다» 를 보고
+        //  거절하고 있었을 뿐이다(그 기억은 <c>PlayerPrefs</c> 에 남아 <b>판을 다시 시작해도
+        //  지워지지 않는다</b> — 문명과 같은 설계다).
+        //
+        //  ⚠ 그런데 <see cref="Help.HelpService.ForgetAll"/> 의 주석은 «환경 설정에서 부른다»
+        //    라고 적혀 있었는데 <b>실제로는 어디서도 부르지 않았다</b>(에디터 메뉴 하나뿐).
+        //    즉 게임 안에서 되돌릴 방법이 <b>없었다</b> — «안 나온다» 를 확인할 길도 없었다.
+        //    그 구멍을 여기서 메운다.
+        [SerializeField] string helpResetButtonPath = "Body/HelpResetButton";
         [SerializeField] string closeButtonPath = "Header/CloseButton";
         [SerializeField] string statusPath = "Body/Status";
 
         [Header("문구")]
         [SerializeField] string savedFormat = "저장했습니다 ({0})";
         [SerializeField] string saveFailed = "저장하지 못했습니다.";
+
+        // ★★★ 도움말 다시 보기 (2026-08-26)
+        [SerializeField] string helpResetDone =
+            "도움말을 처음 상태로 되돌렸습니다 — 각 버튼을 다시 누르면 설명이 나옵니다.";
+        [SerializeField] string helpResetFailed = "도움말 서비스를 찾지 못했습니다.";
 
         [Header("게임 재시작")]
         [Tooltip("한 번 눌렀을 때 뜨는 경고. 이 상태에서 한 번 더 눌러야 실제로 재시작한다")]
@@ -96,6 +116,7 @@ namespace LastSanctuary.UI
         Button _lobbyButton;
         Button _restartButton;
         Button _hotkeyButton;
+        Button _helpResetButton;
         Button _quitButton;
         Button _closeButton;
         TMP_Text _status;
@@ -135,6 +156,7 @@ namespace LastSanctuary.UI
             _lobbyButton = FindComponent<Button>(lobbyButtonPath);
             _restartButton = FindComponent<Button>(restartButtonPath);
             _hotkeyButton = FindComponent<Button>(hotkeyButtonPath);
+            _helpResetButton = FindComponent<Button>(helpResetButtonPath);
             _quitButton = FindComponent<Button>(quitButtonPath);
             _closeButton = FindComponent<Button>(closeButtonPath);
             _status = FindComponent<TMP_Text>(statusPath);
@@ -171,6 +193,17 @@ namespace LastSanctuary.UI
             {
                 Debug.LogWarning($"[환경설정] '{hotkeyButtonPath}' 을 찾지 못했습니다 — " +
                                  "단축키 설정 버튼이 씬에 없습니다.", this);
+            }
+
+            if (_helpResetButton != null)
+            {
+                _helpResetButton.onClick.RemoveAllListeners();
+                _helpResetButton.onClick.AddListener(HandleForgetHelp);
+            }
+            else
+            {
+                Debug.LogWarning($"[환경설정] '{helpResetButtonPath}' 을 찾지 못했습니다 — " +
+                                 "「도움말 다시 보기」 버튼이 씬에 없습니다.", this);
             }
 
             if (_quitButton != null)
@@ -275,6 +308,28 @@ namespace LastSanctuary.UI
 
             Close();
             panel.SetOpen(true);
+        }
+
+        /// <summary>
+        /// ★★★ <b>읽은 조언을 전부 잊는다</b> — 위 helpResetButtonPath 의 ★★★ 참조.
+        ///
+        /// ⚠ <b>두 번 확인하지 않는다.</b> 재시작·저장 없이 나가기와 달리 이 조작은
+        ///   <b>되돌릴 수 있다</b>(다시 읽으면 그만이다). 확인을 붙이면 «위험한 버튼» 처럼
+        ///   보여서 오히려 안 쓰게 된다.
+        /// ★ 창을 닫지 않는다 — 조언 카드는 <b>계기가 왔을 때</b> 뜨는 것이라 지금 뜰 것이 없다.
+        ///   대신 상태 칸에 «되돌렸다» 를 적어 눌린 것이 보이게 한다.
+        /// </summary>
+        void HandleForgetHelp()
+        {
+            Help.HelpService help = Help.HelpService.Instance;
+            if (help == null)
+            {
+                SetStatus(helpResetFailed);
+                return;
+            }
+
+            help.ForgetAll();
+            SetStatus(helpResetDone);
         }
 
         /// <summary>

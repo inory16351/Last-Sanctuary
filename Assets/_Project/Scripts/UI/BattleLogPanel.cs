@@ -1,9 +1,10 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using LastSanctuary.Combat;
 using LastSanctuary.Resource;
 using LastSanctuary.Units;
+using UnityEngine.UI;
 
 namespace LastSanctuary.UI
 {
@@ -30,8 +31,27 @@ namespace LastSanctuary.UI
         [SerializeField] RectTransform lineTemplate;
 
         [Header("표시")]
-        [Tooltip("화면에 남겨둘 최대 줄 수. 넘으면 가장 오래된 줄부터 밀려난다")]
-        [Min(1)] [SerializeField] int maxLines = 10;
+        // ★★★ <b>줄 수를 50 으로 늘리고 «올려서 보게» 했다</b> (2026-08-26 · 유저 지시:
+        //   *"로그 50개 까지 저장해서 올려서 볼 수 있도록 스크롤 바 추가"*).
+        //
+        //   예전에는 10줄이었고 <b>틀에 보이는 만큼만</b> 이 전부였다 — 난전에서는 한 웨이브가
+        //   지나가는 동안 «누가 죽었는지» 가 이미 밀려나 있었다. 이제 <b>가장 오래된 줄을
+        //   재사용하는 그 구조 그대로</b> 상한만 50 으로 올리고, 틀보다 길어진 만큼은
+        //   <see cref="ScrollRect"/> 가 잘라서 보여준다.
+        //
+        // ⚠ <b>줄 재사용은 그대로 둔다</b>(맨 위 클래스 주석) — 50줄이 되어도 Instantiate 는
+        //   최대 50번뿐이고 그 뒤로는 한 번도 일어나지 않는다.
+        [Tooltip("보관할 최대 줄 수. 넘으면 가장 오래된 줄부터 밀려난다. " +
+                 "★ 틀에 보이는 줄 수가 아니라 <b>스크롤로 올려 볼 수 있는</b> 줄 수다")]
+        [Min(1)] [SerializeField] int maxLines = 50;
+
+        [Tooltip("새 줄이 붙으면 <b>맨 아래로 따라 내려간다</b>. " +
+                 "★ 유저가 위로 올려 둔 동안에는 따라가지 않는다 — 읽고 있는 자리를 뺏지 않으려는 것이다")]
+        [SerializeField] bool followNewLines = true;
+
+        [Tooltip("맨 아래에서 이만큼 안쪽이면 «바닥에 있다» 로 본다(0~1). " +
+                 "정확히 0 일 때만 따라가면 한 픽셀 스크롤에도 따라가기가 끊긴다")]
+        [Range(0f, 0.5f)] [SerializeField] float bottomEpsilon = 0.02f;
 
         [Header("구독할 이벤트")]
         [SerializeField] bool logKills = true;
@@ -43,6 +63,9 @@ namespace LastSanctuary.UI
 
         readonly List<TMP_Text> _lines = new List<TMP_Text>();
 
+        /// <summary>줄이 틀보다 길어졌을 때 올려 보는 통로. 씬에 없으면 null 이고 예전처럼 동작한다.</summary>
+        ScrollRect _scroll;
+
         ResourceManager _resources;
         CharacterUpgradeService _upgrades;
         UnitSpawner _spawner;
@@ -51,7 +74,12 @@ namespace LastSanctuary.UI
         {
             // MCP 로는 씬 오브젝트 참조를 인스펙터에 넣을 수 없어서(진행상황 8절 4번),
             // 비어 있으면 이름으로 찾는다.
-            if (linesRoot == null) linesRoot = transform.Find("Lines") as RectTransform;
+            // ★ 스크롤 틀이 생기면서 «줄이 쌓이는 곳» 이 한 겹 안으로 들어갔다.
+            //   ⚠ <b>옛 경로를 폴백으로 남긴다</b> — 씬을 아직 안 고친 상태에서도 로그가
+            //     그대로 나와야 한다(유물 창이 스크롤을 얻을 때 쓴 그 방법 · 135-3절).
+            if (linesRoot == null)
+                linesRoot = transform.Find("ScrollView/Viewport/Lines") as RectTransform
+                         ?? transform.Find("Lines") as RectTransform;
             if (lineTemplate == null) lineTemplate = transform.Find("LineTemplate") as RectTransform;
 
             if (linesRoot == null || lineTemplate == null)
@@ -63,6 +91,8 @@ namespace LastSanctuary.UI
             }
 
             lineTemplate.gameObject.SetActive(false);
+
+            BindScrollRect();
 
             HudLog.OnLine += Append;
 
@@ -88,6 +118,54 @@ namespace LastSanctuary.UI
             if (_resources != null) _resources.OnEnergyChanged -= HandleEnergyChanged;
             if (_upgrades != null) _upgrades.OnUpgraded -= HandleUpgraded;
             if (_spawner != null) _spawner.OnCharacterSpawned -= HandleCharacterSpawned;
+        }
+
+        /// <summary>
+        /// <see cref="ScrollRect"/>·<see cref="Scrollbar"/> 의 object-참조 필드
+        /// (content/viewport/handleRect 등)는 MCP 로 넣을 수 없다(진행상황 8절 4번) —
+        /// 이름으로 찾아 코드가 꽂는다. 인스펙터에 이미 들어 있으면 건드리지 않는다.
+        ///
+        /// ★ <see cref="CharacterRosterPanel.BindScrollRect"/> · <c>RelicPanel</c> 과
+        ///   <b>같은 함수 모양</b>이다 — 창이 늘 때마다 배선 규칙이 갈리지 않게.
+        /// ⚠ 스크롤 틀이 씬에 없으면 <b>조용히 넘어간다</b>. 그 경우 로그는 예전처럼
+        ///   «보이는 만큼만» 나오고 기능이 깨지지는 않는다.
+        /// </summary>
+        void BindScrollRect()
+        {
+            _scroll = transform.Find("ScrollView")?.GetComponent<ScrollRect>();
+            if (_scroll == null) return;
+
+            if (_scroll.content == null) _scroll.content = linesRoot;
+            if (_scroll.viewport == null)
+                _scroll.viewport = transform.Find("ScrollView/Viewport") as RectTransform;
+
+            if (_scroll.verticalScrollbar == null)
+            {
+                var scrollbar = transform.Find("Scrollbar")?.GetComponent<Scrollbar>();
+                if (scrollbar != null)
+                {
+                    _scroll.verticalScrollbar = scrollbar;
+                    if (scrollbar.handleRect == null)
+                        scrollbar.handleRect = transform.Find("Scrollbar/Handle") as RectTransform;
+                    if (scrollbar.targetGraphic == null)
+                        scrollbar.targetGraphic = transform.Find("Scrollbar/Handle")?.GetComponent<Image>();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 지금 <b>맨 아래를 보고 있는가</b>. 스크롤 틀이 없으면 언제나 참이다
+        /// (그때는 «따라간다» 는 개념 자체가 없다).
+        ///
+        /// ⚠ 세로 스크롤에서 <c>verticalNormalizedPosition</c> 은 <b>0 이 바닥</b>이다.
+        ///   내용이 틀보다 짧으면 이 값이 1 로 튀므로 «넘치는가» 를 먼저 본다 —
+        ///   안 그러면 로그가 몇 줄 없을 때 따라가기가 꺼진 것처럼 보인다.
+        /// </summary>
+        bool IsAtBottom()
+        {
+            if (_scroll == null || _scroll.content == null || _scroll.viewport == null) return true;
+            if (_scroll.content.rect.height <= _scroll.viewport.rect.height) return true;
+            return _scroll.verticalNormalizedPosition <= bottomEpsilon;
         }
 
         // ------------------------------------------------------------------
@@ -173,9 +251,20 @@ namespace LastSanctuary.UI
                 _lines.Add(line);
             }
 
+            bool follow = followNewLines && IsAtBottom();
+
             line.text = message;
             line.color = HudLog.ColorOf(kind);
             line.transform.SetAsLastSibling();   // 항상 맨 아래가 최신
+
+            // ★ <b>레이아웃이 돌기 전에는 내려갈 곳을 모른다</b> — 줄을 하나 붙인 «그 프레임» 의
+            //   content 높이는 아직 옛값이다. 강제로 다시 계산한 뒤 내린다.
+            //   ⚠ 유저가 위로 올려 둔 상태(follow == false)면 <b>건드리지 않는다</b>.
+            if (follow && _scroll != null && _scroll.content != null)
+            {
+                LayoutRebuilder.ForceRebuildLayoutImmediate(_scroll.content);
+                _scroll.verticalNormalizedPosition = 0f;
+            }
         }
     }
 }
