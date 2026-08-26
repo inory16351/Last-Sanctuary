@@ -99,6 +99,22 @@ namespace LastSanctuary.Relics
             return outcomes[outcomes.Count - 1];
         }
 
+        /// <summary>
+        /// 이 <c>outcome_type</c> 의 행. 표에 없으면 <c>null</c>.
+        ///
+        /// ★ 승급(<c>RelicDigService.PromoteIfExhausted</c>)이 쓴다 — 결과를 «바꿔치기» 할 때
+        ///   <b>행 자체</b>를 갈아야 문구·대사·설명이 전부 같이 따라온다. 문자열만 손보면
+        ///   에픽을 주면서 «몸이 스스로 만들어 굳힌 흔적» 이라는 <b>일반의 대사</b>가 남는다.
+        /// </summary>
+        public DigOutcomeRow Find(string outcomeType)
+        {
+            if (outcomes == null || string.IsNullOrEmpty(outcomeType)) return null;
+            for (int i = 0; i < outcomes.Count; i++)
+                if (outcomes[i] != null && outcomes[i].outcomeType == outcomeType)
+                    return outcomes[i];
+            return null;
+        }
+
         /// <summary>이 처치 대상·등급의 드랍 확률(%). 표에 없으면 0.</summary>
         public float DropPercent(string killSource, RelicGrade grade)
         {

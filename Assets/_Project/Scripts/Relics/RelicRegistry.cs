@@ -92,6 +92,27 @@ namespace LastSanctuary.Relics
             return last;
         }
 
+        /// <summary>
+        /// 이 등급에 <b>아직 안 가진 것이 남아 있는가</b> — <b>추첨을 굴리지 않고</b> 묻는다.
+        ///
+        /// ★ <see cref="RollGrade"/> 가 <c>null</c> 을 돌려주는 조건과 <b>정확히 같은 조건</b>이다.
+        ///   «한 번 굴려 보고 null 이면 없는 것» 으로 대신할 수도 있지만, 그러면 «묻는 것» 과
+        ///   «뽑는 것» 이 한 호출에 섞여 <b>승급 판정이 추첨을 한 번 더 돌리는</b> 모양이 된다.
+        ///   부르는 쪽(<c>RelicDigService.PromoteIfExhausted</c>)은 «마른 등급인가» 만 알면 된다.
+        /// </summary>
+        public static bool HasRemaining(RelicGrade grade, bool digOnly = false)
+        {
+            EnsureLoaded();
+            var table = digOnly ? _digOnlyPool : _commonPool;
+            if (!table.TryGetValue(grade, out var pool) || pool.Count == 0) return false;
+
+            RelicInventory inv = RelicInventory.Instance;
+            for (int i = 0; i < pool.Count; i++)
+                if (!IsOwned(inv, pool[i])) return true;
+
+            return false;
+        }
+
         /// <summary>이미 가지고 있는가. 보관함이 없으면(로비·테스트) 언제나 <c>false</c>.</summary>
         static bool IsOwned(RelicInventory inv, RelicDefinitionSO relic) =>
             inv != null && relic != null && inv.OwnedCount(relic.relicId) > 0;

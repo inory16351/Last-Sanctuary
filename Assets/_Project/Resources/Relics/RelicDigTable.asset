@@ -62,7 +62,7 @@ MonoBehaviour:
     descKey: "dig_outcome_desc_dig_erosion_down"
     scriptKey: "dig_outcome_script_dig_erosion_down"
   - outcomeType: "dig_nothing"
-    weight: 12
+    weight: 11
     value01: 0
     value02: 0
     outcomeDesc: "아무것도 나오지 않습니다."
@@ -86,7 +86,7 @@ MonoBehaviour:
     descKey: "dig_outcome_desc_dig_relic_rare"
     scriptKey: "dig_outcome_script_dig_relic_rare"
   - outcomeType: "dig_relic_epic"
-    weight: 1
+    weight: 2
     value01: 0
     value02: 0
     outcomeDesc: "에픽 등급 <b>발굴 전용</b> 유물 하나를 얻습니다."

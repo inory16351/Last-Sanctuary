@@ -297,12 +297,56 @@ namespace LastSanctuary.Relics
         ///   표식이 로스터 판 위로 삐져나오는 것도 같은 종류의 사고였다.
         /// ⚠ 클릭은 그리는 순서의 <b>역순</b>이라, 뒤로 내려도 위에 아무것도 없으면 그대로 눌린다.
         ///   창을 열면 그 창이 클릭을 먹는데 — 그것이 이 수정이 원하는 바다.
+        ///
+        /// ══════════════════════════════════════════════════════════════════
+        ///  ★★★ 2026-08-26 — <b>위의 «형제 순서» 수정은 아무 일도 하지 않았다</b>
+        /// ══════════════════════════════════════════════════════════════════
+        /// 유저 리포트가 <b>그대로 다시</b> 들어왔다: *"느낌표가 있어도 다른 ui 가 뜨면 그 ui
+        /// 위에 계속 느낌표가 뜸"*.
+        ///
+        /// <b>진짜 원인</b> — <c>DigOverlay</c> 는 <b>자기 <see cref="Canvas"/></b> 를 갖고 있고
+        /// 그 캔버스가 <c>overrideSorting = true · sortingOrder = 5</c> 다(134-5절이 «표식이
+        /// 개체 클릭보다 위» 를 만들려고 붙인 것이다). 그런데 <b><c>overrideSorting</c> 이 켜진
+        /// 캔버스는 형제 순서를 통째로 무시한다</b> — <c>sortingOrder</c> 만 본다. 창들은 전부
+        /// 자기 캔버스가 없어 <c>UI_Root</c>(0) 에 얹혀 있으므로 <b>5 는 언제나 그 위</b>였다.
+        /// <c>SetAsFirstSibling()</c> 은 «같은 캔버스 안» 에서만 뜻이 있는 도구라 헛돌았다.
+        ///
+        /// ★ <b>그래서 이제 «순서» 가 아니라 «층» 을 맞춘다</b> — <c>sortingOrder</c> 를
+        ///   <see cref="OverlaySortingOrder"/>(−1) 로 <b>내린다</b>. 씬에서도 −1 로 고쳐 뒀고,
+        ///   이 줄은 사람이 인스펙터에서 되돌렸을 때를 위한 <b>안전망</b>이다(위 «왜 코드에서
+        ///   고치나» 의 이유가 그대로 산다).
+        /// ★ <b>−1 은 건설·집결지 오버레이와 같은 층이다</b>(둘 다 −1). 같은 층 안에서는 다시
+        ///   형제 순서가 정하고 <c>DigOverlay</c> 가 그 둘보다 <b>뒤 형제</b>라 위에 그려진다 —
+        ///   느낌표가 집결지 범위 원에 묻히지 않는다. 그래서 <c>SetAsFirstSibling()</c> 은
+        ///   <b>부른다면 오히려 해가 된다</b>(맨 앞으로 가면 그 둘 밑으로 들어간다). 뺐다.
+        /// ⚠ <b><c>HUD_Dig</c>(발굴 창)는 6 이라 여전히 위</b>다 — 그건 맞다. 표식을 눌러서 뜬
+        ///   창이 그 표식에 가리면 안 된다.
+        /// ⚠ 클릭 우선순위도 함께 내려간다(<c>GraphicRaycaster</c> 가 <c>sortingOrder</c> 를
+        ///   우선순위로 쓴다). «유닛보다 표식이 먼저 눌린다» 는 <b>깨지지 않는다</b> —
+        ///   그것을 지탱하는 것은 이 숫자가 아니라 <c>UnitSelector</c> 의
+        ///   <c>IsPointerOverGameObject()</c> 다(134-5절이 «두 겹» 이라 적어 둔 그 둘째 겹).
         /// </summary>
         void SinkOverlayBehindWindows()
         {
             if (overlayParent == null) return;
+
+            // ★ 캔버스가 있으면 «층» 이 정본이다 — 형제 순서는 그때 무시된다.
+            if (overlayParent.TryGetComponent(out Canvas canvas))
+            {
+                canvas.overrideSorting = true;
+                canvas.sortingOrder = OverlaySortingOrder;
+                return;
+            }
+
+            // 캔버스가 없는 씬(테스트 등)에서는 예전대로 형제 순서로 내린다.
             overlayParent.SetAsFirstSibling();
         }
+
+        /// <summary>
+        /// 느낌표 층. <b>창(0)보다 아래 · 건설·집결지 오버레이와 같은 −1</b>.
+        /// ⚠ 씬의 <c>DigOverlay ▸ Canvas ▸ Sorting Order</c> 와 <b>같은 값</b>이어야 한다.
+        /// </summary>
+        const int OverlaySortingOrder = -1;
 
         /// <summary>
         /// ★★ <b>느낌표를 글자에서 원화로 바꾼다</b> (2026-08-25 · 유저 지시:
@@ -853,6 +897,8 @@ namespace LastSanctuary.Relics
                 return;
             }
 
+            row = PromoteIfExhausted(row);
+
             string what = ApplyOutcome(row, digger);
             string who = digger != null ? digger.DisplayName : "누군가";
             HudLog.Add(string.IsNullOrEmpty(what)
@@ -879,6 +925,60 @@ namespace LastSanctuary.Relics
             _lastGrantedIcon = null;
 
             if (logChanges) Debug.Log($"[유물] 발굴 완료 {site.Cell} → {row.outcomeType}", this);
+        }
+
+        /// <summary>승급을 한 판에 <b>한 번만</b> 알리기 위한 표시.</summary>
+        bool _promotionAnnounced;
+
+        /// <summary>
+        /// ★★★ <b>일반을 다 모았으면 그 자리에서 에픽을 굴린다</b> (2026-08-26 · 유저 지시:
+        /// *"일반 등급 다 뽑으면 에픽 등급 굴리는걸로"*).
+        ///
+        /// ══════════════════════════════════════════════════════════════════
+        ///  왜 — <b>발굴 결과의 14%가 통째로 죽어 있었다</b>
+        /// ══════════════════════════════════════════════════════════════════
+        /// 160절이 중복 획득을 막으면서 «다 모으면 그 등급이 마른다» 가 생겼다. 그런데
+        /// <b>일반은 한 판에 반드시 마른다</b> — 웨이브 몬스터만 30웨이브에 1,792마리이고
+        /// 처치 드랍이 1.2%라 <b>기대 21.5회</b>, 여기에 발굴 6.3 · 중립 사냥 2~5 를 더하면
+        /// 30회를 넘는데 일반 풀은 <b>24종</b>뿐이다(대략 26~27웨이브에 마른다).
+        /// 그 뒤로는 <c>dig_relic_common</c>(14%)이 «이미 다 모았습니다» 한 줄로 끝났다.
+        ///
+        /// ★ <b>«다 모았다» 를 벌이 아니라 보상으로 바꾼다.</b> 마른 자리를 에픽(발굴 전용)이
+        ///   물려받으므로 일반 24종을 다 모은 판일수록 발굴이 <b>더</b> 값어치 있어진다.
+        /// ★ <b>유물 종수를 늘리지 않아도 되는 이유가 이것이다</b> — 풀을 넓히면 개별 유물이
+        ///   나올 확률만 옅어진다(특정 레어가 한 판에 나올 확률은 이미 27%다).
+        ///
+        /// ⚠ <b>레어를 건너뛴다.</b> 레어는 한 판에 5~6개밖에 안 들어와 마르지 않으므로
+        ///   «마른 등급을 물려받는» 자리가 아니다. 일반 → <b>에픽</b> 이 유저가 정한 규칙이다.
+        /// ⚠ <b>«발굴 전용» 에픽 풀에서만 굴린다</b> — 공용 풀(<c>_commonPool</c>)에는 에픽이
+        ///   아예 없다(에픽은 보스 전용 · 발굴 전용 · 사건 전용으로만 나뉜다). 그래서 이
+        ///   승급은 <b>발굴에서만</b> 일어나고, 처치 드랍은 이 문을 지나지 않는다 —
+        ///   처치로 «발굴 전용» 이 나오면 그 이름이 곧 거짓이 된다.
+        /// ⚠ <b>에픽마저 말랐으면 승급하지 않는다</b> — 그때는 원래대로 «일반 유물은 이미 다
+        ///   모았습니다» 가 뜬다(<see cref="GrantRelic"/>). 그것도 사실이다.
+        /// ★ <b>문자열이 아니라 «행» 을 갈아끼운다</b> — 결과 창은 <c>row.Script</c> 를 함께
+        ///   보여주므로, 행을 안 갈면 에픽을 주면서 일반의 대사가 남는다.
+        /// </summary>
+        DigOutcomeRow PromoteIfExhausted(DigOutcomeRow row)
+        {
+            if (row == null || row.outcomeType != "dig_relic_common") return row;
+            if (RelicRegistry.HasRemaining(RelicGrade.Common)) return row;
+            if (!RelicRegistry.HasRemaining(RelicGrade.Epic, true)) return row;
+
+            DigOutcomeRow epic = _table != null ? _table.Find("dig_relic_epic") : null;
+            if (epic == null) return row;
+
+            // ★ 한 번만 알린다 — 매 발굴마다 뜨면 로그가 묻힌다(등록기의 경고와 같은 규칙).
+            //   조용히 바꾸면 «에픽이 왜 이렇게 자주 나오지» 가 되어 규칙을 못 읽는다.
+            if (!_promotionAnnounced)
+            {
+                _promotionAnnounced = true;
+                HudLog.Add("일반 유물을 모두 모았습니다 — 이제 그 자리에서 에픽을 찾습니다",
+                           HudLogKind.Good);
+            }
+
+            if (logChanges) Debug.Log("[유물] 발굴 승급 — dig_relic_common → dig_relic_epic", this);
+            return epic;
         }
 
         /// <summary>
