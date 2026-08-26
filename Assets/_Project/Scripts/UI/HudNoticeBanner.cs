@@ -151,7 +151,8 @@ namespace LastSanctuary.UI
             // ★★ <b>등급 색으로 띄운다</b> (2026-08-26 · 유저 지시: 일반 하양 · 레어 파랑 ·
             //   에픽 보라). 색의 정본은 유물 표(<c>Grade</c> 시트)이고
             //   <see cref="RelicDefinitionSO.ColorOf"/> 가 그것을 그대로 들고 있다.
-            Enqueue(string.Format(relicFormat, relic.DisplayName), HudNoticeKind.Relic,
+            Enqueue(string.Format(Data.StringTable.Get("ui_notice_relic", relicFormat),
+                                  relic.DisplayName), HudNoticeKind.Relic,
                     relic.GradeColor);
         }
 
@@ -166,12 +167,14 @@ namespace LastSanctuary.UI
             if (noticeEpicSubjugated && unit is NeutralMonsterUnit neutral &&
                 neutral.Definition != null && neutral.Definition.epic)
             {
-                Enqueue(string.Format(epicFormat, unit.DisplayName), HudNoticeKind.Triumph);
+                Enqueue(string.Format(Data.StringTable.Get("ui_notice_epic", epicFormat),
+                                      unit.DisplayName), HudNoticeKind.Triumph);
                 return;
             }
 
             if (noticeBossDefeated && unit is MonsterUnit monster && monster.IsBoss)
-                Enqueue(string.Format(bossFormat, unit.DisplayName), HudNoticeKind.Triumph);
+                Enqueue(string.Format(Data.StringTable.Get("ui_notice_boss", bossFormat),
+                                      unit.DisplayName), HudNoticeKind.Triumph);
         }
 
         // ------------------------------------------------------------------

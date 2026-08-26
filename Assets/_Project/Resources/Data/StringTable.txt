@@ -355,9 +355,9 @@ help_tactics_body	<b>전방</b>은 앞에 서서 적을 직접 받아냅니다.\
 help_retreat_title	물러설 때	When to Retreat
 help_retreat_summary	체력이 얼마나 남았을 때 물러날지 정할 수 있습니다.\n전술 지침 창에서 동료마다 따로 정합니다.	You can set how much health should remain before an ally retreats.\nThis is set individually for each ally in the Tactics window.
 help_retreat_body	후퇴 기준을 60으로 두면 체력이 그만큼 남았을 때 스스로 물러납니다.\n너무 높이 잡으면 조금만 맞아도 물러나 전선이 자꾸 무너집니다. 너무 낮게 잡으면 물러나기 전에 죽습니다.\n앞줄은 낮게, 뒷줄은 높게. 그게 무난한 시작입니다.\n물러난 동료는 회복 역할이 가까이 있으면 치료를 받습니다.	Setting the Retreat Threshold to 60 means the ally retreats on their own once their health drops to that level.\nSet it too high and they'll retreat from even minor hits, constantly collapsing the front line. Set it too low and they'll die before they can retreat.\nA solid starting point: low thresholds for the front line, high thresholds for the back line.\nA retreated ally will be treated if a Healer is nearby.
-help_Corruption_title	잠식되는 정신	A Mind Under Corruption
-help_Corruption_summary	싸우는 동안 동료의 정신이 <b>침식</b>됩니다.\n침식이 100에 닿으면 정신이 무너집니다.	While fighting, an ally's mind builds up <b>Corruption</b>.\nWhen Corruption reaches 100, their mind breaks down.
-help_Corruption_body	싸우는 동안 침식이 오르고, 싸움이 끝나고 잠시 뒤부터 저절로 빠집니다.\n오르는 속도와 빠지는 속도는 <b>저항력</b>이 정합니다.\n침식은 로스터와 성장 창의 보라색 게이지로 확인합니다.\n정비 시간에 위험한 동료를 뒤로 빼 두면 그만큼 회복됩니다.	Corruption rises during combat and begins to fade on its own a short while after combat ends.\nThe rate at which it rises and fades is determined by <b>Resistance</b>.\nCheck Corruption via the purple gauge in the roster and growth window.\nPulling an at-risk ally to the back during Prep time lets them recover that much more.
+help_Corruption_title	잠식되는 정신	Mental Corruption
+help_Corruption_summary	싸우는 동안 동료의 정신이 <b>침식</b>됩니다.\n침식이 100에 닿으면 정신이 무너집니다.	While fighting, your allies' minds suffer <b>Corruption</b>.\nWhen Corruption reaches 100, their minds break.
+help_Corruption_body	싸우는 동안 침식 수치가 오르고, 싸움이 끝나고 잠시 뒤부터 자동으로 회복합니다.\n침식이 차오르는 속도와 회복하는 속도는 <b>저항력</b>이 정합니다.\n침식은 화면에서 보라색 게이지로 확인합니다.\n정비 시간에 위험한 동료를 뒤로 빼 두면 그만큼 회복됩니다.	Corruption rises during combat and automatically recovers after a short delay once the battle ends.\nThe rate at which Corruption builds and recovers is determined by <b>Resistance</b>.\nCorruption can be monitored as a purple gauge on the screen.\nDuring maintenance, moving an endangered ally to the rear allows them to recover by that amount.
 help_mental_error_title	무너진 정신	A Broken Mind
 help_mental_error_summary	침식이 100에 닿아 <b>정신 이상</b>이 나타났습니다.\n나쁜 것만 있는 것은 아닙니다.	Corruption has reached 100, triggering a <b>Mental Error</b>.\nIt isn't always a bad thing.
 help_mental_error_body	여러 종류 중 하나가 무작위로 걸립니다.\n능력치를 깎는 것도 있고, 행동을 바꿔 놓는 것도 있습니다. 드물게는 오히려 도움이 되는 것도 섞여 있습니다.\n걸리면 화면에 이름이 뜨고, 로스터에 상태로 표시됩니다.\n침식을 아예 안 쌓을 수는 없습니다. 누구에게 언제 쌓게 할지를 고르는 일입니다.	One of several types is applied at random.\nSome reduce stats, some alter behavior. Rarely, some are even beneficial.\nWhen it triggers, its name appears on screen and is shown as a status in the roster.\nYou can't avoid Corruption building up entirely. The real choice is deciding who builds it up, and when.
@@ -386,8 +386,8 @@ dig_choice_text_340007	덮인 것을 걷어낸다.	Clear away the covering.
 dig_choice_text_340008	덮여 있는 데는 이유가 있다. 덮어 둔다.	It's covered for a reason. Leave it covered.
 dig_outcome_desc_dig_energy	에너지를 {value_01} 얻습니다.	Gain {value_01} energy.
 dig_outcome_desc_dig_energy_big	에너지를 {value_01} 얻습니다.	Gain {value_01} energy.
-dig_outcome_desc_dig_Corruption_down	발굴한 캐릭터의 침식이 {value_01} 감소합니다.	The excavated character's Corruption decreases by {value_01}.
-dig_outcome_desc_dig_Corruption_up	발굴한 캐릭터의 침식이 {value_01} 증가합니다.	The excavated character's Corruption increases by {value_01}.
+dig_outcome_desc_dig_Corruption_down	발굴한 캐릭터의 침식이 {value_01} 감소합니다.	The digger's Corruption falls by {value_01}.
+dig_outcome_desc_dig_Corruption_up	발굴한 캐릭터의 침식이 {value_01} 증가합니다.	The digger's Corruption rises by {value_01}.
 dig_outcome_desc_dig_heal	발굴한 캐릭터가 최대 체력의 {value_01}% 를 회복합니다.	The excavated character recovers {value_01}% of max HP.
 dig_outcome_desc_dig_hurt	발굴한 캐릭터가 최대 체력의 {value_01}% 를 잃습니다(이 피해로 죽지 않습니다).	The excavated character loses {value_01}% of max HP (this damage cannot be fatal).
 dig_outcome_desc_dig_nothing	아무것도 나오지 않습니다.	Nothing comes out.
@@ -396,8 +396,8 @@ dig_outcome_desc_dig_relic_epic	에픽 등급 <b>발굴 전용</b> 유물 하나
 dig_outcome_desc_dig_relic_rare	레어 등급 유물 하나를 얻습니다.	Gain one Rare-grade relic.
 dig_outcome_script_dig_energy	묻혀 있던 양분 덩어리를 캐냈습니다.	You dug up a buried lump of nutrients.
 dig_outcome_script_dig_energy_big	두껍게 뭉친 양분층입니다. 한동안 성역이 배부릅니다.	A thick, densely packed layer of nutrients. The Sanctuary will be well-fed for a while.
-dig_outcome_script_dig_Corruption_down	서늘한 결이 닿아 끓던 것이 잠시 가라앉았습니다.	A cool current touched the roiling heat, and it settled for a moment.
-dig_outcome_script_dig_Corruption_up	아래에 고여 있던 변질된 것이 숨을 타고 올라왔습니다.	Something corrupted, pooled below, rose up on a breath.
+dig_outcome_script_dig_Corruption_down	서늘한 결이 닿아 끓던 것이 잠시 가라앉았습니다.	Something cool brushed against it, and what had been boiling settled for a while.
+dig_outcome_script_dig_Corruption_up	아래에 고여 있던 변질된 것이 숨을 타고 올라왔습니다.	Something spoiled had pooled below, and it rode the breath upward.
 dig_outcome_script_dig_heal	고여 있던 맑은 진물이 상처로 스몄습니다.	Clear fluid that had pooled seeped into the wound.
 dig_outcome_script_dig_hurt	파낸 자리에서 굳은 가시가 손을 갈랐습니다.	A hardened thorn from the dug-up ground split the hand open.
 dig_outcome_script_dig_nothing	흙만 두 번 뒤집었습니다.	Just turned over the dirt twice.
@@ -1024,19 +1024,19 @@ defeat_title	패배	Defeat
 defeat_reason_nexus	심장부의 박동이 멎었습니다.\n성역을 지탱하던 빛이 마지막으로 한 번 떨리고, 꺼졌습니다.	The beating at the heart has stopped.\nThe light that held the sanctuary trembled once, and went out.
 defeat_reason_party	문턱을 지키던 이들이 모두 쓰러졌습니다.\n다시 부를 이름도, 그 값을 치를 양분도 남지 않았습니다.	Every one who held the threshold has fallen.\nNo name is left to call, and nothing left to pay for the calling.
 defeat_reason_unknown	성역이 무너졌습니다.\n무엇이 마지막 한 걸음이었는지는 아무도 적어두지 못했습니다.	The sanctuary has fallen.\nNo one was left to write down what the last step was.
-help_erosion_title	잠식되는 정신	The Mind Gives Way
-help_erosion_summary	싸우는 동안 동료의 정신이 <b>침식</b>됩니다.\n침식이 100에 닿으면 정신이 무너집니다.	While they fight, your people's minds are <b>eroded</b>.\nWhen erosion reaches 100, the mind breaks.
-help_erosion_body	싸우는 동안 침식이 오르고, 싸움이 끝나고 잠시 뒤부터 저절로 빠집니다.\n오르는 속도와 빠지는 속도는 <b>저항력</b>이 정합니다.\n침식은 로스터와 성장 창의 보라색 게이지로 확인합니다.\n정비 시간에 위험한 동료를 뒤로 빼 두면 그만큼 회복됩니다.	Erosion climbs while they fight, and drains on its own a little after the fighting stops.\nHow fast it climbs and how fast it drains is set by <b>Resistance</b>.\nYou can read erosion on the purple gauge in the roster and the growth window.\nPull an endangered ally back during the lull and they recover by that much.
-help_stats_detail_title	능력치 낱낱	Every Stat, One by One
-help_stats_detail_summary	열두 칸이 각각 무엇을 정하는지 적어 두었습니다.\n어느 칸이 자랄지는 <b>성장 유형</b>이 정합니다.	What each of the twelve stats decides.\nWhich ones grow is decided by the <b>growth type</b>.
-help_stats_detail_body	능력치는 열두 칸입니다. 공격 계열은 넷이지만 전술 지침에서 고른 공격 유형에 해당하는 하나만 쓰입니다. 나머지 셋은 올려도 전투에 나오지 않습니다.\n<b>근거리 공격력</b>은 붙어서 때릴 때, <b>원거리 공격력</b>은 떨어져서 쏠 때, <b>마법</b>은 넓은 자리를 한꺼번에 칠 때, <b>회복력</b>은 동료를 되살릴 때 쓰입니다.\n<b>체력</b>이 0 이 되면 쓰러집니다. <b>방어력</b>은 한 대를 덜 아프게 하고, <b>체력 재생</b>은 싸움이 끝난 뒤 스스로 아무는 양입니다. <b>공격 속도</b>는 같은 시간에 몇 번 때리는지를, <b>이동 속도</b>는 다가갈 때와 물러설 때의 빠르기를 정합니다.\n<b>명중률</b>과 <b>크리티컬</b>은 원거리에만 붙습니다. 근거리와 마법, 회복은 언제나 맞고 급소도 나지 않습니다. 타고난 능력 몇 가지가 그 예외를 만듭니다. 급소가 나면 피해가 1.5배가 됩니다.\n<b>저항력</b>은 침식이 차고 빠지는 속도를 정하며, 강화로는 오르지 않습니다. 타고난 값이 그대로 갑니다.\n한 칸의 끝은 100 입니다. 그 위로 올리는 것은 영웅 각성과 유물뿐이고, 성장 창의 숫자에는 그 둘이 이미 더해져 있습니다.	There are twelve stats. Four of them are attack stats, but only the one that matches the attack type you chose in the tactical orders is used. The other three do nothing in battle, however high they are.\n<b>Melee attack</b> is used up close, <b>ranged attack</b> at a distance, <b>magic</b> when striking a wide area at once, and <b>healing</b> when mending an ally instead of striking.\nA character falls when <b>health</b> reaches 0. <b>Defense</b> makes each blow hurt less, and <b>health regeneration</b> is how much they mend on their own once the fighting stops. <b>Attack speed</b> decides how many times they strike in the same span, and <b>movement speed</b> how fast they close in and fall back.\n<b>Accuracy</b> and <b>critical</b> apply to ranged attacks only. Melee, magic and healing always land and never crit. A few innate abilities make exceptions to that. A critical hit deals 1.5 times the damage.\n<b>Resistance</b> decides how fast erosion rises and falls, and it does not go up with enhancement. The innate value is the one you keep.\nA stat stops at 100. Only hero awakening and relics go above it, and the numbers in the growth window already include both.
-help_mental_detail_title	정신 이상 낱낱	Every Derangement, One by One
-help_mental_detail_summary	침식이 100 에 닿으면 열한 가지 중 하나가 무작위로 옵니다.\n무엇이 올지는 고를 수 없습니다.	When erosion reaches 100, one of eleven conditions arrives at random.\nYou cannot choose which one.
-help_mental_detail_body	정신 이상이 한 번 오면 침식은 절반쯤으로 내려앉습니다. 0 이 되지는 않으므로 두 번째는 더 빨리 옵니다.\n스스로를 해치는 것으로는 <b>자해</b>(그 자리에서 최대 체력의 4분의 1을 잃습니다), <b>피학</b>(45초 동안 체력이 저절로 줄어듭니다), <b>이기심</b>(90초 동안 치유를 받지 못하고 스스로 아무는 것만 남습니다)이 있습니다.\n지침을 따르지 않게 되는 것으로는 <b>혼란</b>(30초 동안 동료를 때립니다), <b>공포</b>(45초 동안 싸우기를 그만두고 성역 쪽으로 물러납니다), <b>광분</b>(90초 동안 전술 지침을 버리고 앞으로 뛰쳐나갑니다)이 있습니다.\n곁으로 번지는 것으로는 <b>우울</b>(가까운 동료에게 침식이 옮습니다)과 <b>역겨움</b>(40초 동안 곁의 체력을 갉습니다)이 있습니다.\n드물게 도움이 되는 것도 섞여 있습니다. <b>진정</b>은 곁의 침식을 덜어 주고, <b>각성</b>은 120초 동안 모든 능력치를 올리고, <b>고조</b>는 에너지를 쓰지 않고 한 번 강화합니다. 다음 강화 비용은 그만큼 오릅니다.\n열한 가지 가운데 여덟은 나쁜 것이라 노려서 얻을 일은 아닙니다. 침식을 아예 안 쌓을 수는 없고, 누구에게 쌓게 둘지를 고르는 일입니다. 전방에 오래 세워 둔 쪽이 먼저 찹니다.	Once a condition arrives, erosion drops back to about half. It does not reach 0, so the second one comes sooner.\nSome of them turn on the character: <b>self-harm</b> (a quarter of maximum health is lost on the spot), <b>masochism</b> (health drains on its own for 45 seconds), and <b>selfishness</b> (no healing reaches them for 90 seconds, leaving only what they mend themselves).\nSome stop them from following orders: <b>confusion</b> (they strike allies for 30 seconds), <b>fear</b> (they stop fighting and fall back toward the sanctuary for 45 seconds), and <b>frenzy</b> (they abandon the tactical orders and charge forward for 90 seconds).\nSome spread to those nearby: <b>depression</b> (erosion carries over to nearby allies) and <b>disgust</b> (it gnaws at the health of those beside them for 40 seconds).\nA few of them help. <b>Calm</b> eases the erosion of those nearby, <b>awakening</b> raises every stat for 120 seconds, and <b>elation</b> grants one enhancement without energy. The next enhancement costs that much more.\nEight of the eleven are bad, so they are not worth aiming for. You cannot avoid erosion entirely; what you choose is who carries it. Whoever stands in front the longest fills up first.
-dig_outcome_desc_dig_erosion_down	발굴한 캐릭터의 침식이 {value_01} 감소합니다.	The digger's erosion falls by {value_01}.
-dig_outcome_desc_dig_erosion_up	발굴한 캐릭터의 침식이 {value_01} 증가합니다.	The digger's erosion rises by {value_01}.
-dig_outcome_script_dig_erosion_down	서늘한 결이 닿아 끓던 것이 잠시 가라앉았습니다.	Something cool brushed against it, and what had been boiling settled for a while.
-dig_outcome_script_dig_erosion_up	아래에 고여 있던 변질된 것이 숨을 타고 올라왔습니다.	Something spoiled had pooled below, and it rode the breath upward.
+help_Corruption_title	잠식되는 정신	Mental Corruption
+help_Corruption_summary	싸우는 동안 동료의 정신이 <b>침식</b>됩니다.\n침식이 100에 닿으면 정신이 무너집니다.	While fighting, your allies' minds suffer <b>Corruption</b>.\nWhen Corruption reaches 100, their minds break.
+help_Corruption_body	싸우는 동안 침식 수치가 오르고, 싸움이 끝나고 잠시 뒤부터 자동으로 회복합니다.\n침식이 차오르는 속도와 회복하는 속도는 <b>저항력</b>이 정합니다.\n침식은 화면에서 보라색 게이지로 확인합니다.\n정비 시간에 위험한 동료를 뒤로 빼 두면 그만큼 회복됩니다.	Corruption rises during combat and automatically recovers after a short delay once the battle ends.\nThe rate at which Corruption builds and recovers is determined by <b>Resistance</b>.\nCorruption can be monitored as a purple gauge on the screen.\nDuring maintenance, moving an endangered ally to the rear allows them to recover by that amount.
+help_stats_detail_title	능력치 상세 정보	Detailed Stats
+help_stats_detail_summary	각 능력치가 어떤 역할을 하는지 안내합니다.\n어떤 능력치가 성장할지는 <b>성장 유형</b>이 정합니다.	Explains the role of each stat.\nWhich stats grow is determined by your <b>Growth Type</b>.
+help_stats_detail_body	공격유형은 넷이지만 <b>쓰는 것은 하나</b>입니다. 전술 지침에서 공격 유형 하나를 정하고, 나머지 셋은 비활성화 됩니다.\n<b>근거리 공격력</b> 붙어서 전투할 때 작용합니다.\n<b>원거리 공격력</b> 떨어져서 쏠 때 작용합니다. 치명타가 발동할 수 있으나 공격이 빗나갈 수 있습니다.\n<b>마법</b> 가까이 붙은 적을 공격할 수 없는 대신, 여러 적을 공격합니다.\n<b>회복력</b> 적을 공격하는 대신 아군을 회복시킵니다.\n\n<b>체력</b> 체력이 0 이 되면 사망합니다.\n<b>방어력</b> 받는 데미지를 감소시킵니다.\n<b>체력 재생</b> 싸움이 끝나고 잠시 뒤부터 스스로 체력을 회복하는 수치입니다.\n<b>공격 속도</b> 캐릭터의 공격 속도입니다. 높을수록 더 자주 공격할 수 있습니다.\n<b>이동 속도</b> 캐릭터의 이동 속도입니다. 높을수록 더 먼 거리를 이동합니다.\n\n<b>명중률</b>과 <b>크리티컬</b>은 <b>원거리에만</b> 붙습니다. 근거리, 마법, 회복은 기본적으로 크리티컬이 발동하지 않으며 항상 명중합니다. 크리티컬 데미지는 항상 1.5배입니다.\n\n<b>저항력</b>은 침식 수치가 증가하고 회복되는 속도입니다. 그리고 <b>강화로는 오르지 않습니다</b> — 타고난 값 그대로 갑니다.\n\n능력치의 상한치는 100입니다. 그 이상 올릴 수 있는 방법은 영웅 각성과 유물뿐입니다.\n성장 창의 숫자에는 그 둘의 값이 이미 더해져 있습니다.	There are four attack types, but <b>only one can be used</b>. Choose one attack type in Tactical Directives, and the other three will be disabled.\n<b>Melee Attack</b> Applies when fighting at close range.\n<b>Ranged Attack</b> Applies when attacking from a distance. Critical hits can occur, but attacks may also miss.\n<b>Magic</b> Cannot attack enemies at close range, but can attack multiple enemies.\n<b>Recovery</b> Heals allies instead of attacking enemies.\n\n<b>Health</b> The character dies when Health reaches 0.\n<b>Defense</b> Reduces damage taken.\n<b>Health Regeneration</b> The amount of Health recovered automatically after a short delay once combat ends.\n<b>Attack Speed</b> Determines how quickly the character attacks. Higher values allow more frequent attacks.\n<b>Movement Speed</b> Determines how quickly the character moves. Higher values allow the character to travel farther.\n\n<b>Accuracy</b> and <b>Critical</b> apply <b>only to ranged attacks</b>. Melee, Magic, and Recovery attacks cannot critically hit by default and always hit their targets. Critical damage is always 1.5× normal damage.\n\n<b>Resistance</b> determines how quickly Corruption increases and recovers. It <b>cannot be increased through upgrades</b> — its innate value remains unchanged.\n\nThe maximum value for stats is 100. The only ways to raise them beyond that limit are Hero Awakening and Relics.\nThe numbers shown in the Growth window already include the values from both.
+help_mental_detail_title	정신 이상 상세	Mental Breakdown Details
+help_mental_detail_summary	침식이 100 에 닿으면 열한 가지 중 하나의 상태가 적용됩니다.	When Corruption reaches 100, one of eleven possible states is applied.
+help_mental_detail_body	하나가 오고 나면 침식은 절반쯤으로 내려앉습니다. 0 이 아닙니다. 그래서 두 번째는 더 빨리 옵니다.\n\n피해를 입는 유형\n<b>자해</b> 최대 체력의 1/4이 감소합니다.\n<b>피학</b> 45초 동안 체력이 점차 줄어듭니다.\n<b>이기심</b> 90초 동안 치유를 받지 않습니다. 체력 재생은 적용됩니다.\n\n명령을 무시하는 유형\n<b>혼란</b> 30초. <b>동료를 공격합니다.</b>\n<b>공포</b> 45초 동안 전투를 그만두고 성역 쪽으로 후퇴합니다.\n<b>광분</b> 90초. 전술 지침을 무시하고 적을 향해 돌진합니다.\n\n아군에게 전염되는 유형\n<b>우울</b> 주변 동료의 침식수치를 증가시킵니다.\n<b>역겨움</b> 40초 동안 주변 동료의 체력을 감소시킵니다.\n\n드물지만, 도움이 되는 유형\n<b>진정</b> 아군의 침식을 감소시킵니다.\n<b>각성</b> 120초 동안 모든 능력치가 오릅니다.\n<b>고조</b> 에너지 없이 능력치가 강화됩니다. 다음 강화 비용은 그만큼 오릅니다.\n\n좋은 효과가 셋이 있지만 대부분은 나쁩니다. 노려서 될 일이 아닙니다.\n침식을 쌓지 않는 방법은 없습니다. 있는 것은 <b>누가 쌓이게 둘지</b>뿐입니다. 전방에 오래 세워 둔 캐릭터가 먼저 침식됩니다.	After a breakdown, Corruption drops to roughly half its previous level. It does not reset to 0, causing the second breakdown to occur sooner.\n\nTypes that inflict damage\n<b>Self-Harm</b> Reduces Max Health by 1/4.\n<b>Masochism</b> Health gradually decreases for 45 seconds.\n<b>Selfishness</b> Cannot receive healing for 90 seconds. Health Regeneration still applies.\n\nTypes that ignore commands\n<b>Confusion</b> 30 seconds. <b>Attacks allies.</b>\n<b>Fear</b> Abandons combat and retreats toward the Sanctuary for 45 seconds.\n<b>Frenzy</b> 90 seconds. Ignores Tactical Directives and charges toward enemies.\n\nTypes that spread to allies\n<b>Depression</b> Increases the Corruption of nearby allies.\n<b>Disgust</b> Reduces the Health of nearby allies for 40 seconds.\n\nRare, but beneficial types\n<b>Calm</b> Reduces the Corruption of allies.\n<b>Awakening</b> Increases all stats for 120 seconds.\n<b>Exaltation</b> Enhances stats without consuming Energy. The cost of the next enhancement increases accordingly.\n\nThere are three beneficial effects, but most are harmful. They are not something you can deliberately aim for.\nThere is no way to prevent Corruption from building up. All you can choose is <b>who you allow to accumulate it</b>. Characters stationed at the front for long periods will suffer Corruption first.
+dig_outcome_desc_dig_Corruption_down	발굴한 캐릭터의 침식이 {value_01} 감소합니다.	The digger's Corruption falls by {value_01}.
+dig_outcome_desc_dig_Corruption_up	발굴한 캐릭터의 침식이 {value_01} 증가합니다.	The digger's Corruption rises by {value_01}.
+dig_outcome_script_dig_Corruption_down	서늘한 결이 닿아 끓던 것이 잠시 가라앉았습니다.	Something cool brushed against it, and what had been boiling settled for a while.
+dig_outcome_script_dig_Corruption_up	아래에 고여 있던 변질된 것이 숨을 타고 올라왔습니다.	Something spoiled had pooled below, and it rode the breath upward.
 ui_stat_hp	체력	Health
 ui_stat_melee_atk	근거리 공격력	Melee Attack
 ui_stat_def	방어력	Defense
@@ -1124,9 +1124,9 @@ ui_action_tactics_close	전술 지침 닫기	Close orders
 ui_action_squad	부대 설정	Squads
 ui_action_squad_close	부대 설정 닫기	Close squads
 ui_action_squad_picking	집결지 지정 중	Placing rally point
-ui_action_subjugate	토벌 지시	Subjugation
-ui_action_subjugate_found	토벌 지시 ({0})	Subjugation ({0})
-ui_action_subjugate_close	토벌 지시 닫기	Close subjugation
+ui_action_subjugate	토벌 지시	Order to slay
+ui_action_subjugate_found	토벌 지시 ({0})	Order to slay ({0})
+ui_action_subjugate_close	토벌 지시 닫기	Close slaying
 ui_action_relic	유물 관리	Relics
 ui_action_relic_found	유물 관리 (발굴 {0})	Relics (dug {0})
 ui_action_relic_close	유물 관리 닫기	Close relics
@@ -1145,12 +1145,12 @@ ui_squad_rally_move	집결지 이동	Move rally point
 ui_squad_rally_clear	집결지 해제	Clear rally point
 ui_squad_coop_on	협동 탐험 ON	Joint expedition ON
 ui_squad_coop_off	협동 탐험 OFF	Joint expedition OFF
-ui_subj_hint_squad	토벌을 맡길 부대를 고르세요.	Choose the squad to send.
+ui_subj_hint_squad	토벌을 맡길 부대를 고르세요.	Choose the squad to slay.
 ui_subj_hint_target	잡을 대상을 고르세요. 같은 대상을 다시 누르면 명령이 해제됩니다.	Choose the target. Press the same target again to cancel the order.
 ui_subj_hint_no_squad	부대가 없습니다. '부대 설정'에서 먼저 만드세요.	No squads yet. Make one in 'Squads' first.
 ui_subj_hint_no_target	아직 발견한 에픽 몬스터가 없습니다. 부대를 외곽까지 탐험 보내세요.	No epic monsters found yet. Send a squad exploring to the outer ring.
 ui_subj_order_none	명령 없음	No order
-ui_subj_order_busy	토벌 중	On the hunt
+ui_subj_order_busy	토벌 중	On the slay
 ui_subj_level	적정 Lv.{0}	Suggested Lv.{0}
 ui_subj_squad_count	부대 {0}/{1}	Squads {0}/{1}
 ui_subj_hint_full	이 대상에는 이미 {0}개 부대가 가 있습니다.	{0} squads are already on this target.
@@ -1171,3 +1171,185 @@ ui_phase_victory	승리	Victory
 ui_defeat_party	캐릭터가 전멸했습니다	Every character has fallen
 ui_defeat_nexus	성역이 파괴되었습니다	The sanctuary has been destroyed
 ui_relic_row_wearer	{0}	{0}
+dig_outcome_desc_dig_erosion_down	발굴한 캐릭터의 침식이 {value_01} 감소합니다.	
+dig_outcome_desc_dig_erosion_up	발굴한 캐릭터의 침식이 {value_01} 증가합니다.	
+dig_outcome_script_dig_erosion_down	서늘한 결이 닿아 끓던 것이 잠시 가라앉았습니다.	
+dig_outcome_script_dig_erosion_up	아래에 고여 있던 변질된 것이 숨을 타고 올라왔습니다.	
+help_erosion_title	잠식되는 정신	
+help_erosion_summary	싸우는 동안 동료의 정신이 <b>침식</b>됩니다.\n침식이 100에 닿으면 정신이 무너집니다.	
+help_erosion_body	싸우는 동안 침식이 오르고, 싸움이 끝나고 잠시 뒤부터 저절로 빠집니다.\n오르는 속도와 빠지는 속도는 <b>저항력</b>이 정합니다.\n침식은 로스터와 성장 창의 보라색 게이지로 확인합니다.\n정비 시간에 위험한 동료를 뒤로 빼 두면 그만큼 회복됩니다.	
+ui_log_title	로그	Log
+ui_minimap_title	미니맵	Minimap
+ui_head_relic	유물	Relic
+ui_head_skill	스킬	Skill
+ui_settings_save	저장하기	Save
+ui_settings_to_lobby	저장하고 로비로 돌아가기	Save and Return to Lobby
+ui_settings_quit	저장 없이 나가기	Quit Without Saving
+ui_settings_restart	게임 재시작	Restart Game
+ui_settings_hotkeys	단축키 설정	Key Bindings
+ui_settings_help_reset	도움말 다시 보기	Show Help Again
+ui_settings_volume	음량	Volume
+ui_squad_subtitle	부대를 고른 뒤 로스터에서 캐릭터를 클릭하면 배정됩니다.	Pick a squad, then click a character in the roster to assign them.
+ui_squad_add	부대 추가	Add Squad
+ui_head_squads	부대	Squads
+ui_subj_targets_head	발견한 에픽 몬스터	Epic Monsters Found
+ui_help_title	도움말	Help
+ui_help_see_also	함께 볼 것	See Also
+ui_helpcard_more	자세히 보기	Learn More
+ui_helpcard_ok	알겠습니다	Got It
+ui_tour_next	다음	Next
+ui_tour_prev	이전	Back
+ui_tour_quit	그만 보기	Stop Tour
+ui_skill_effect_head	적용 효과	Effects
+ui_btn_confirm	확인	Confirm
+ui_growth_title	캐릭터 성장	Character Growth
+ui_growth_subtitle	선택한 캐릭터의 능력치를 강화합니다. 로스터에서 다른 캐릭터를 고르면 즉시 전환됩니다.	Upgrades the selected character's stats. Picking another character in the roster switches instantly.
+ui_growth_cost_head	강화 비용	Upgrade Cost
+ui_head_hp_now	현재 체력	Current HP
+ui_growth_stats_head	능력치 (강화 전 1~100 값)	Stats (1-100 before upgrades)
+ui_growth_focus_head	성장 유형  —  고른 계열의 능력치가 더 잘 오릅니다	Growth Type  -  stats in the chosen line rise more easily
+ui_growth_passive_head	패시브 스킬	Passive Skills
+ui_growth_relic_head	장착한 유물	Equipped Relics
+ui_growth_relic_open	유물 관리 열기	Open Relics
+ui_tactics_title	전술 지침	Tactical Directives
+ui_tactics_subtitle	설정한 지침에 따라 캐릭터가 자동으로 움직입니다. 건설은 지침이 아니라 가장 가까운 캐릭터가 맡습니다.	Characters act on their own according to these directives. Construction is not a directive - the nearest character takes it.
+ui_tactics_col1_head	1  교전 설정	1  Engagement
+ui_tactics_pos_head	캐릭터 포지션	Position
+ui_tactics_pos_hint	집결지 기준 · 성역에서 먼 쪽이 전방	Measured from the rally point · the side away from the Sanctuary is the front
+ui_tactics_react_head	공격 반응	Attack Reaction
+ui_tactics_type_head	캐릭터 공격 유형	Attack Type
+ui_tactics_col2_head	2  전투 행동	2  Combat Behavior
+ui_tactics_target_head	공격 우선 대상	Target Priority
+ui_tactics_retreat_head	후퇴 판단 기준	Retreat Threshold
+ui_tactics_retreat_hint	체력이 기준치 이하로 떨어지면 성역으로 물러나 회복합니다. 0% 면 후퇴하지 않습니다.	Falls back to the Sanctuary to recover when HP drops below the threshold. At 0% they never retreat.
+ui_tactics_retreat_action_head	후퇴 시 행동	On Retreat
+ui_tactics_retreat_action_hint	앞에 선 동료가 물러날 때의 행동입니다. '동료와 함께 후퇴'는 최대 사거리를 유지하며 같이 물러납니다. 자기 체력이 기준 이하면 어느 쪽을 골라도 후퇴합니다. 공격 위치가 '전방'이면 '공격 유지'로 고정됩니다.	What this character does when the ally in front falls back. 'Retreat with ally' keeps maximum range and withdraws together. If their own HP is below the threshold they retreat either way. When the position is 'Front' this is fixed to 'Keep attacking'.
+ui_tactics_col3_head	3  탐험 · 웨이브	3  Exploration · Waves
+ui_tactics_scout_head	탐험 유형	Exploration Type
+ui_scout_patrol	정찰	Patrol
+ui_tactics_roam_head	탐험 배회 범위	Roaming Range
+ui_tactics_wave_head	웨이브 반응	Wave Response
+ui_tactics_note	설정한 지침에 따라 캐릭터가 자동으로 행동합니다. 창을 열어둔 채로 로스터에서 캐릭터를 바꿀 수 있습니다.	Characters act on their own according to these directives. You can switch characters in the roster while this window stays open.
+ui_btn_reset	초기화	Reset
+ui_action_build	건물 건설 {0}	Build {0}
+ui_action_build_picking	자리 지정 중 (Esc 취소)	Choosing a spot (Esc to cancel)
+ui_action_build_cap	건설 상한	Build limit
+ui_action_upgrade	캐릭터 성장	Character Growth
+ui_action_upgrade_close	캐릭터 성장 닫기	Close Character Growth
+ui_roster_title	캐릭터	Characters
+ui_erosion_value	침식 {0}	Corruption {0}
+ui_erosion_value_state	침식 {0} · {1}	Corruption {0} · {1}
+ui_erosion_none	침식 -	Corruption -
+ui_energy_format	에너지 {0:00}	Energy {0:00}
+ui_wave_unknown	웨이브 정보 없음	No wave data
+ui_wave_phase_format	웨이브 {0} · {1}	Wave {0} · {1}
+ui_timer_marching	진군 중	Marching
+ui_timer_enraged	광폭화!	Enraged!
+ui_portrait_rage_format	분노 {0:0.#} / {1:0}	Rage {0:0.#} / {1:0}
+ui_portrait_soul_format	획득한 영혼 수: {0:0}개	Souls collected: {0:0}
+ui_notice_relic	유물 획득 — 「{0}」	Relic found - "{0}"
+ui_notice_epic	토벌 완료 — {0}	Subjugation complete - {0}
+ui_notice_boss	{0} 격파!	{0} defeated!
+ui_sel_none_name	선택된 캐릭터 없음	No character selected
+ui_sel_none_hint	로스터에서 캐릭터를 선택하세요.	Pick a character in the roster.
+ui_sel_switch_hint	로스터에서 다른 캐릭터를 고르면 즉시 전환됩니다.	Picking another character in the roster switches instantly.
+ui_growth_enhance_format	강화하기 ({0})	Upgrade ({0})
+ui_growth_enhance	강화하기	Upgrade
+ui_growth_stat_capped	능력치 상한	Stats maxed
+ui_growth_note_no_energy	에너지가 부족합니다.	Not enough energy.
+ui_growth_note_summoned	소환수는 강화할 수 없습니다.	Summons cannot be upgraded.
+ui_growth_enhance_blocked	강화 불가	Cannot upgrade
+ui_growth_level_maxed	만렙	Max level
+ui_growth_note_level_max	Lv.{0} — 더는 강화할 수 없습니다.	Lv.{0} - no further upgrades.
+ui_growth_pick_focus	성장 유형 결정	Choose growth type
+ui_growth_note_pick_focus	성장 유형을 고르면 그 계열 능력치가 더 잘 오릅니다.	Choosing a growth type makes that line of stats rise more easily.
+ui_growth_note_focus_format	성장 유형 : {0} — 강조된 능력치가 더 잘 오릅니다.	Growth type: {0} - highlighted stats rise more easily.
+ui_growth_locked_format	Lv.{0} 에 해금	Unlocks at Lv.{0}
+ui_growth_unlocked	해금됨	Unlocked
+ui_passive_click_hint	클릭 → 상세	Click for details
+ui_passive_none	이 캐릭터에는 지정된 스킬이 없습니다.	This character has no skills assigned.
+ui_passive_no_selection	캐릭터를 선택하세요.	Select a character.
+ui_hero_kill_progress	· 처치 {0}/{1}	· Kills {0}/{1}
+ui_hero_heal_progress	· 회복 {0}/{1}	· Healing {0}/{1}
+ui_hero_ready	· 각성 가능	· Awakening ready
+ui_hero_level_lock	· Lv.{0} 부터 각성	· Awakens from Lv.{0}
+ui_hero_awakened	★영웅	★Hero
+ui_event_title_fallback	이름 없는 사건	Unnamed Event
+ui_event_body_fallback	(대사 준비 중)	(dialogue pending)
+ui_event_accept	수락	Accept
+ui_event_decline	거절	Decline
+ui_dig_title	발굴 가능한 자리	Excavation Site
+ui_dig_title_result	발굴 결과	Excavation Result
+ui_dig_title_boss	빼앗은 것	Spoils
+ui_dig_choice_accept	가까이 가서 살펴본다.	Go closer and take a look.
+ui_dig_choice_decline	방심은 금물이다. 그냥 두자.	Better not risk it. Leave it.
+ui_settings_language_format	언어 : {0}	Language: {0}
+ui_settings_saved_format	저장했습니다 ({0})	Saved ({0})
+ui_settings_save_failed	저장하지 못했습니다.	Could not save.
+ui_settings_help_reset_done	도움말을 처음 상태로 되돌렸습니다 — 각 버튼을 다시 누르면 설명이 나옵니다.	Help has been reset - press each button again to see its explanation.
+ui_settings_help_reset_failed	도움말 서비스를 찾지 못했습니다.	Could not find the help service.
+ui_settings_restart_confirm	정말 처음부터 다시 시작할까요? 한 번 더 누르면 실행됩니다 (저장이 지워집니다)	Really restart from the beginning? Press again to confirm (your save will be erased).
+ui_settings_quit_confirm	저장하지 않고 로비로 나갈까요? 한 번 더 누르면 실행됩니다 (마지막 저장 이후 진행이 사라집니다)	Leave to the lobby without saving? Press again to confirm (progress since the last save will be lost).
+ui_hotkey_hint	키 칸을 누르고 원하는 키를 누르세요.  Esc 취소 · Del 해제	Click a key slot, then press the key you want.  Esc to cancel · Del to clear
+ui_hotkey_capturing	키를 누르세요…	Press a key...
+ui_hotkey_reset	기본값으로	Restore defaults
+ui_help_hint_pick	왼쪽에서 항목을 고르면 설명이 나옵니다.	Pick an item on the left to see its explanation.
+ui_help_progress_format	읽은 조언 {0} / {1}	Advice read {0} / {1}
+ui_help_see_also_format	함께 볼 것 — {0}	See also - {0}
+ui_help_tour	화면에서 짚어 보기	Point it out on screen
+ui_helpcard_badge_format	도움말 · {0}	Help · {0}
+ui_tour_last	다 봤습니다	Done
+ui_skill_owner_format	{0} · 패시브 {1}	{0} · Passive {1}
+ui_skill_values_format	수치  {0}	Values  {0}
+ui_skill_no_effect	효과 정의문이 비어 있습니다. 캐릭터 테이블의 Skill_Type 시트를 확인하세요.	The effect definition is empty. Check the Skill_Type sheet in the character table.
+ui_lobby_saved_at	마지막 저장: {0}	Last save: {0}
+ui_lobby_no_save	저장된 게임이 없습니다	No saved game
+ui_lobby_help_reset_done	도움말을 처음 상태로 되돌렸습니다 — 판을 시작하면 설명이 다시 나옵니다.	Help has been reset - explanations will appear again when you start a run.
+ui_lobby_hotkey_missing	단축키 설정 창을 찾지 못했습니다.	Could not find the key bindings window.
+ui_fx_hero_awaken	영웅 각성!	Hero Awakening!
+ui_fx_hero_awaken_stage	영웅 각성! {0}단계	Hero Awakening! Stage {0}
+ui_ending_fallen_head	돌아오지 못한 이들	Those who did not return
+ui_ending_survivor_head	끝까지 남은 이들	Those who remained to the end
+ui_ending_roll_format	{0}  <size=80%>{1} · Lv.{2} · {3}웨이브</size>	{0}  <size=80%>{1} · Lv.{2} · Wave {3}</size>
+ui_btn_skip	건너뛰기	Skip
+ui_tour_missing_note	<b>(이 칸은 지금 화면에 없습니다. 해당 창을 열면 보입니다.)</b>	<b>(This part is not on screen right now. Open that window to see it.)</b>
+character_altname_1	아드리엘	Adriel
+character_altname_2	노아네	Noane
+character_altname_3	레이린	Reilin
+character_altname_4	미르카	Mirka
+character_altname_5	세이하	Seiha
+character_altname_6	오르넬	Ornel
+character_altname_7	유리안	Yurian
+character_altname_8	이레아	Irea
+character_altname_9	카일런	Kailen
+character_altname_10	타비아	Tavia
+character_altname_11	페릴	Peril
+character_altname_12	하르윈	Harwin
+character_altname_13	가리엘	Gariel
+character_altname_14	나비스	Navis
+character_altname_15	데인	Dane
+character_altname_16	라비니아	Lavinia
+character_altname_17	마르첼	Marcel
+character_altname_18	바이런	Byron
+character_altname_19	사비네	Sabine
+character_altname_20	아셀	Asel
+character_altname_21	에리온	Erion
+character_altname_22	오필리아	Ophelia
+character_altname_23	율리아	Julia
+character_altname_24	제피르	Zephyr
+character_altname_25	카린	Karin
+character_altname_26	테오도르	Theodor
+character_altname_27	파비안	Fabian
+character_altname_28	할리아	Halia
+character_altname_29	그웬	Gwen
+character_altname_30	니콜라	Nicola
+character_altname_31	도리안	Dorian
+character_altname_32	류시아	Lucia
+character_altname_33	메이런	Meiren
+character_altname_34	베르타	Berta
+character_altname_35	솔레인	Solein
+character_altname_36	아르덴	Arden
+character_altname_37	엘로이	Eloi
+character_altname_38	오데트	Odette
+character_altname_39	이자벨	Isabel
+character_altname_40	카시엘	Casiel

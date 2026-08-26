@@ -218,6 +218,15 @@ RULES = [
         ('result_script', 'event_result_script', 'kr'),
         ('result_effect', 'event_result_effect', 'kr'),
     ]),
+
+    # ── 대체 이름 (2026-08-26 신설) ────────────────────────────────────────
+    # 같은 인물이 이번 판에 <b>두 번째로</b> 등장할 때 받는 «다른 이름» 주머니.
+    # 표를 만들고 키를 처음 붙이는 것은 `Tools/gen_alt_name_table.py` 가 한다 —
+    # 여기 규칙은 그 뒤로 <b>한국어를 표와 같게 유지</b>하기 위한 것이다(영어는 이 표의 en 이 정본).
+    # ⚠ 키가 `character_altname_1` 부터 <b>구멍 없이</b> 이어져야 한다 — 코드가 빈 번호에서 멈춘다.
+    ('대체 이름 테이블.xlsx', 'AltName', 'alt_name_id', [
+        ('kr', 'character_altname', 'kr'),
+    ]),
 ]
 
 

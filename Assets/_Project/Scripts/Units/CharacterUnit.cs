@@ -84,11 +84,57 @@ namespace LastSanctuary.Units
         /// </summary>
         public override string Title => definition != null ? definition.Title : string.Empty;
 
-        /// <summary>표시 이름. 정의가 있으면 테이블의 한글 이름, 없으면 오브젝트 이름.</summary>
-        public override string DisplayName =>
-            definition != null && !string.IsNullOrWhiteSpace(definition.DisplayName)
-                ? definition.DisplayName
-                : name;
+        /// <summary>
+        /// ★★ <b>두 번째 등장부터 배정되는 «다른 이름» 의 스트링 키</b>
+        /// (2026-08-26 · <see cref="CharacterAltNames"/>). 비어 있으면 정의의 이름을 쓴다.
+        /// ⚠ 이름 <b>문자열</b>이 아니라 <b>키</b>를 들고 있다 — 언어를 바꾸면 대체 이름도
+        ///   그 언어로 나와야 한다.
+        /// </summary>
+        [SerializeField] string altNameKey;
+
+        /// <summary>배정된 대체 이름 키(없으면 빈 문자열). 세이브가 읽고 쓴다.</summary>
+        public string AltNameKey => altNameKey;
+
+        /// <summary>
+        /// 세이브 복원용 — 저장돼 있던 대체 이름 키를 그대로 되돌린다.
+        /// <b>새로 배정하지 않는다</b>(<see cref="CharacterAltNames.MarkRestored"/> 참조).
+        /// </summary>
+        public void RestoreAltNameKey(string key)
+        {
+            altNameKey = key;
+            ApplyObjectName();
+        }
+
+        /// <summary>
+        /// 표시 이름. <b>대체 이름이 배정돼 있으면 그것</b>, 아니면 정의의 이름,
+        /// 정의도 없으면 오브젝트 이름.
+        ///
+        /// ★ 화면·로그·엔딩 명단(<c>RunRecord.Describe</c>)이 전부 이 하나를 보므로
+        ///   여기만 덮으면 «다른 인물» 로 보인다.
+        /// </summary>
+        public override string DisplayName
+        {
+            get
+            {
+                if (!string.IsNullOrEmpty(altNameKey))
+                {
+                    string alt = Data.StringTable.Get(altNameKey, null);
+                    // 표에서 키가 사라졌으면 키 문자열이 그대로 돌아온다 — 그때는 원래 이름으로.
+                    if (!string.IsNullOrWhiteSpace(alt) && alt != altNameKey) return alt;
+                }
+
+                return definition != null && !string.IsNullOrWhiteSpace(definition.DisplayName)
+                    ? definition.DisplayName
+                    : name;
+            }
+        }
+
+        /// <summary>하이라키 이름을 지금 표시 이름으로 맞춘다(로그·인스펙터에서 누구인지 보이게).</summary>
+        void ApplyObjectName()
+        {
+            string shown = DisplayName;
+            if (!string.IsNullOrWhiteSpace(shown)) gameObject.name = shown;
+        }
 
         /// <summary>
         /// 슬롯의 패시브가 지금 해금돼 있는가. 정의가 없으면 항상 false.
@@ -358,9 +404,14 @@ namespace LastSanctuary.Units
             definition = def;
             Initialize(def.stats, balance, upgrades);
 
-            if (!string.IsNullOrWhiteSpace(def.DisplayName))
-                gameObject.name = def.DisplayName;
+            // ★★ 2026-08-26 — <b>이번 판에 두 번째로 등장하는 인물이면 다른 이름을 받는다</b>
+            //   (유저 지시: *"같은 캐릭터가 두번째로 등장할때는 랜덤한 다른 이름을 가지고
+            //   태어나게 해 다른 인물처럼 보이도록"*).
+            //   ⚠ 세이브 복원은 이 문을 지나지만 <c>RestoreAltNameKey</c> 가 <b>뒤에</b> 덮으므로
+            //     복원된 이름이 이긴다(그쪽은 세지 않는다 — CharacterAltNames.MarkRestored).
+            altNameKey = CharacterAltNames.RegisterAppearance(def.characterId);
 
+            ApplyObjectName();
             ApplyDefinitionSkin(def);
         }
 
@@ -431,6 +482,8 @@ namespace LastSanctuary.Units
             //       쓰러진 프레임에 <b>패배가 확정되어 부활이 오기 전에 게임이 끝난다</b>
             //     · <c>SquadService.HandleAnyDied</c>          — 안 고치면 부대에서 영구 제명된다
             //     · <c>CharacterCreationService.AliveCount</c> — 안 고치면 인원 상한을 넘겨 생성된다
+            //     · <c>RelicInventory.HandleAnyDied</c>       — 안 고치면 <b>부활할 캐릭터의
+            //       유물이 사라진다</b>(2026-08-26 · 사망 시 유물 소멸 규칙이 생겼다)
             //   ★ <b>죽음을 세는 코드를 새로 만들 때 이 목록에 넣을지 반드시 판단할 것.</b>
             //
             //   ⚠ 이 갈림길을 지나도 <c>OnDied</c>/<c>OnAnyDied</c> 는 <b>그대로 발생한다</b>

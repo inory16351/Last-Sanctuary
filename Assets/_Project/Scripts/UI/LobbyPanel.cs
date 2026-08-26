@@ -137,6 +137,7 @@ namespace LastSanctuary.UI
 
         void Start()
         {
+            LocalizeLabels();
             SaveService.ApplyVolume();     // 빌드를 새로 켰을 때 저장된 음량을 반영한다
 
             // 폰트는 씬에 이미 배선돼 있다 — 유저 지시 2026-08-18: <i>"폰트는 네오 둥근모
@@ -662,5 +663,15 @@ namespace LastSanctuary.UI
             Application.Quit();
 #endif
         }
-    }
+    
+        /// <summary>
+        /// ★ 이 창의 문구를 <b>스트링 표</b>에서 가져온다 (2026-08-26 · 178-5절).
+        /// 인스펙터 값은 <b>폴백</b>이다 — 표에 키가 없으면 화면은 지금과 같다.
+        /// </summary>
+        void LocalizeLabels()
+        {
+            savedAtFormat = HudTheme.T("ui_lobby_saved_at", savedAtFormat);
+            noSaveText = HudTheme.T("ui_lobby_no_save", noSaveText);
+        }
+}
 }

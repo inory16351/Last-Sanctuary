@@ -288,6 +288,7 @@ namespace LastSanctuary.Save
                 var save = new CharacterSave
                 {
                     characterId = unit.Definition != null ? unit.Definition.characterId : 0,
+                    altNameKey = unit.AltNameKey,      // ★ 두 번째 등장의 «다른 이름»
                     stats = unit.Stats,
                     upgradeCount = unit.UpgradeCount,
                     growthFocus = (int)unit.GrowthFocus,
@@ -634,6 +635,12 @@ namespace LastSanctuary.Save
                 CharacterUnit unit = _unitSpawner.SpawnRestored(def, save.stats,
                                                                 save.upgradeCount, save.position);
                 if (unit == null) continue;
+
+                // ★ 대체 이름은 <b>저장된 것을 그대로</b> 되돌린다 (2026-08-26).
+                //   ⚠ 여기서 새로 배정하면(InitializeFrom 이 이미 한 번 굴렸다)
+                //     이어하기마다 이름이 바뀌어 <b>엔딩 명단과 어긋난다</b>.
+                unit.RestoreAltNameKey(save.altNameKey);
+                Units.CharacterAltNames.MarkRestored(save.characterId, save.altNameKey);
 
                 unit.SetGrowthFocus((StatGrowthFocus)save.growthFocus);
 

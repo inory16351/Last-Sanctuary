@@ -33,6 +33,33 @@ namespace LastSanctuary.UI
                 : GameLanguage.Korean;
         }
 
+        /// <summary>
+        /// ★★★ <b>판이 시작될 때 스스로 되살린다</b> (2026-08-26 · 유저 리포트:
+        /// *"스트링 키 영어 번역이 반영이 안되고 있는데"*).
+        ///
+        /// <b>무엇이 빠져 있었나</b> — <see cref="Restore"/> 를 부르는 곳이
+        /// <c>SettingsPanel.Awake</c> 와 <c>LobbySettingsWindow</c> <b>둘뿐</b>이었다. 그런데
+        /// 설정 창은 씬에서 <b>닫힌 창(<c>active = 0</c>)</b> 이라 <c>Awake</c> 가 돌지 않는다.
+        /// <c>StringTable.ResetStatics</c> 는 판마다 언어를 한국어로 되돌리므로,
+        /// <b>PlayerPrefs 에 English 가 남아 있어도 게임은 늘 한국어로 시작</b>했다.
+        /// 설정 창을 «열어야» 영어가 되고, 그 상태에서 언어 버튼을 누르면 한국어로
+        /// 돌아가니 <b>«영어가 반영 안 된다»</b> 로 보였다.
+        ///
+        /// ★ <b>창이 아니라 여기서 부른다.</b> 언어는 «화면 하나의 상태» 가 아니라
+        ///   <b>판 전체의 상태</b> 다. 어떤 창이 열려 있든 같아야 하므로, 되살리는 책임도
+        ///   창이 아닌 <b>이 규칙 한 곳</b>에 둔다(<c>StringTable.ResetStatics</c> ·
+        ///   <c>SquadService.ResetStatics</c> 와 같은 자리).
+        /// ★ <b>순서가 맞는다</b> — <c>StringTable.ResetStatics</c> 는
+        ///   <c>SubsystemRegistration</c>(더 이르다)에서 언어를 초기화하고, 이 훅은
+        ///   <c>BeforeSceneLoad</c> 에서 되살린다. 즉 <b>첫 프레임이 그려지기 전</b>에
+        ///   언어가 정해지므로 창마다 «다시 그리기» 가 필요 없다.
+        /// ⚠ <c>SettingsPanel.Awake</c> 의 호출은 <b>남겨 둔다</b> — 같은 값을 다시 넣는
+        ///   것이라 무해하고(<c>Language</c> 의 setter 가 같은 값이면 이벤트도 안 쏜다),
+        ///   그 창은 그 김에 자기 라벨을 갱신한다.
+        /// </summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        static void RestoreOnBoot() => Restore();
+
         /// <summary>한국어 ↔ English 를 오간다. 바뀐 언어를 돌려준다.</summary>
         public static GameLanguage Toggle()
         {

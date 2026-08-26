@@ -51,12 +51,33 @@ namespace LastSanctuary.UI
                 Debug.LogWarning("[GrowthButton] CharacterGrowthPanel 을 찾지 못했습니다.", this);
 
             _button.onClick.AddListener(HandleClick);
+
+            // ★ 글자를 스트링 표에서 가져온다 (2026-08-26 · 씬에 구운 «캐릭터 성장» 이
+            //   영어로 안 바뀌던 자리다). 언어가 바뀌면 다시 부르고 <b>강제로 다시 그린다</b> —
+            //   이 버튼은 «상태가 바뀔 때만» 라벨을 쓰므로 그대로 두면 다음 열림까지 안 바뀐다.
+            LocalizeLabels();
+            Data.StringTable.OnLanguageChanged -= HandleLanguageChanged;
+            Data.StringTable.OnLanguageChanged += HandleLanguageChanged;
+
             RefreshNow();
         }
 
         void OnDestroy()
         {
             if (_button != null) _button.onClick.RemoveListener(HandleClick);
+            Data.StringTable.OnLanguageChanged -= HandleLanguageChanged;
+        }
+
+        void HandleLanguageChanged()
+        {
+            LocalizeLabels();
+            RefreshNow();
+        }
+
+        void LocalizeLabels()
+        {
+            idleText = HudTheme.T("ui_action_upgrade", idleText);
+            openText = HudTheme.T("ui_action_upgrade_close", openText);
         }
 
         void Update()

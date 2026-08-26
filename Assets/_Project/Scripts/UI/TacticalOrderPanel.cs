@@ -102,6 +102,7 @@ namespace LastSanctuary.UI
 
         void Awake()
         {
+            LocalizeLabels();
             Instance = this;
             BuildBindings();
         }
@@ -601,5 +602,16 @@ namespace LastSanctuary.UI
                 state == ButtonState.On ? optionSelected :
                 state == ButtonState.Off ? optionDisabled : optionNormal);
 
-    }
+    
+        /// <summary>
+        /// ★ 이 창의 문구를 <b>스트링 표</b>에서 가져온다 (2026-08-26 · 178-5절).
+        /// 인스펙터 값은 <b>폴백</b>이다 — 표에 키가 없으면 화면은 지금과 같다.
+        /// </summary>
+        void LocalizeLabels()
+        {
+            noSelectionName = HudTheme.T("ui_sel_none_name", noSelectionName);
+            noSelectionHint = HudTheme.T("ui_sel_none_hint", noSelectionHint);
+            selectionHint = HudTheme.T("ui_sel_switch_hint", selectionHint);
+        }
+}
 }

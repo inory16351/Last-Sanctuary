@@ -168,7 +168,11 @@ namespace LastSanctuary.UI
         ///   그때 <c>SetActive(false)</c> 를 하면 열자마자 닫힌다. 씬 값이 이미 비활성이라
         ///   닫아 둘 필요도 없고, 누가 켜 둔 채 저장했을 때만 <see cref="Start"/> 가 정리한다.
         /// </summary>
-        void Awake() => Bind();
+        void Awake()
+        {
+            Bind();
+            LocalizeLabels();
+        }
 
         void Start()
         {
@@ -537,5 +541,18 @@ namespace LastSanctuary.UI
             _service ??= EventService.Instance;
             _service?.CloseCurrent("창 닫기");
         }
-    }
+    
+        /// <summary>
+        /// ★ 이 창의 문구를 <b>스트링 표</b>에서 가져온다 (2026-08-26 · 178-5절).
+        /// 인스펙터 값은 <b>폴백</b>이다 — 표에 키가 없으면 화면은 지금과 같다.
+        /// </summary>
+        void LocalizeLabels()
+        {
+            fallbackTitle = HudTheme.T("ui_event_title_fallback", fallbackTitle);
+            fallbackBody = HudTheme.T("ui_event_body_fallback", fallbackBody);
+            choice0Label = HudTheme.T("ui_event_accept", choice0Label);
+            choice1Label = HudTheme.T("ui_event_decline", choice1Label);
+            finishLabel = HudTheme.T("ui_btn_confirm", finishLabel);
+        }
+}
 }

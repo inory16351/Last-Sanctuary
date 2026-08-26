@@ -124,6 +124,51 @@ namespace LastSanctuary.Units
         [SerializeField] bool spawnOnStart = false;
         [SerializeField] int seed = 777;
 
+        // ══════════════════════════════════════════════════════════════
+        //  ★★★ <b>판마다 다른 시드</b> (2026-08-26 · 유저 지시:
+        //  *"웨이브 보스 몬스터도 일반 몹처럼 나오는 포탈이 랜덤으로 되게 해줘"*)
+        // ══════════════════════════════════════════════════════════════
+        //  <b>보스 포탈은 «코드가 고정» 한 것이 아니었다</b> — 보스는 잡몹과 <b>같은 큐</b>에
+        //  섞여 <b>같은 방식</b>으로 포탈을 배정받는다(무리 단위 <see cref="PortalAt"/>).
+        //  진짜 원인은 <b>시드가 상수(777)</b> 였다는 것이다:
+        //      rng = new System.Random(RunSeed + waveNumber * 7919)
+        //  포탈 추첨과 큐 섞기가 모두 이 rng 라서, <b>웨이브 번호가 같으면 매 판 같은 결과</b>다.
+        //  잡몹은 수가 많아 사방에서 오는 것처럼 보였지만 <b>보스는 한 마리</b>라
+        //  «늘 같은 데서 나온다» 가 눈에 띄었다.
+        //
+        //  ★ 시드를 <b>판마다</b> 새로 뽑는다. <see cref="seed"/> 는 그대로 남겨
+        //    <b>재현용</b>으로 쓴다(아래 스위치를 끄면 예전처럼 완전히 결정적이다).
+        //  ★ 뽑은 시드를 <b>로그에 남긴다</b> — 이상한 웨이브를 봤을 때 그 판을 재현할 수 있어야 한다.
+        [Tooltip("★ 판을 시작할 때마다 소환 시드를 새로 뽑는다. 끄면 Seed 값으로 고정되어 " +
+                 "매 판 같은 포탈·같은 순서가 나온다(재현·디버그용). " +
+                 "⚠ 켜 두는 것이 정상 — 이것이 꺼져 있어서 «보스가 늘 같은 포탈에서» 나왔다")]
+        [SerializeField] bool randomizeSeedPerRun = true;
+
+        /// <summary>이번 판의 실제 시드. <see cref="randomizeSeedPerRun"/> 이 꺼져 있으면 <see cref="seed"/> 다.</summary>
+        int _runSeed;
+        bool _runSeedReady;
+
+        /// <summary>
+        /// 이번 판의 시드. 처음 불릴 때 한 번 정하고 그 뒤로는 같은 값을 돌려준다 —
+        /// <b>웨이브마다 다시 뽑으면 안 된다</b>(웨이브 번호로 갈라 쓰는 구조가 무의미해진다).
+        /// </summary>
+        int RunSeed
+        {
+            get
+            {
+                if (!_runSeedReady)
+                {
+                    _runSeedReady = true;
+                    _runSeed = randomizeSeedPerRun
+                        ? Random.Range(int.MinValue / 2, int.MaxValue / 2)
+                        : seed;
+                    Debug.Log($"[MonsterSpawner] 이번 판 소환 시드 = {_runSeed} " +
+                              (randomizeSeedPerRun ? "(판마다 새로 뽑음)" : "(Seed 고정)"), this);
+                }
+                return _runSeed;
+            }
+        }
+
         Transform _root;
         readonly List<MonsterUnit> _alive = new List<MonsterUnit>();
         bool _spawning;
@@ -253,7 +298,7 @@ namespace LastSanctuary.Units
         IEnumerator ReinforcementRoutine(int wave, WaveMonsterComposition comp, float battleDuration)
         {
             _hasPendingReinforcements = true;
-            var rng = new System.Random(seed + wave * 104729 + 13);
+            var rng = new System.Random(RunSeed + wave * 104729 + 13);
             float elapsed = 0f;
 
             // 다음 간격이 웨이브 타이머 안에 들어갈 때까지만 돈다 — 그래야 타이머가 끝나는
@@ -353,7 +398,7 @@ namespace LastSanctuary.Units
             AppendToQueue(queue, rangedSlot, rangedN);
             if (queue.Count == 0) return 0;
 
-            var rng = new System.Random(seed + waveNumber * 104729 + 977 + _alive.Count);
+            var rng = new System.Random(RunSeed + waveNumber * 104729 + 977 + _alive.Count);
             Vector3Int portal = PortalAt(_reinforceBatchIndex++);
             int spread = GroupSpread(queue.Count);
             int atkScale = comp.attackPercent > 0 ? comp.attackPercent : comp.statPercent;
@@ -384,7 +429,7 @@ namespace LastSanctuary.Units
 
         IEnumerator SpawnRoutine()
         {
-            var rng = new System.Random(seed + waveNumber * 7919);
+            var rng = new System.Random(RunSeed + waveNumber * 7919);
             BuildWavePortals(waveNumber, rng);
 
             int hpScale, atkScale;

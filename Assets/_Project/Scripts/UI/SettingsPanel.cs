@@ -151,6 +151,7 @@ namespace LastSanctuary.UI
 
         void Awake()
         {
+            LocalizeLabels();
             Instance = this;
             EnsureBound();
         }
@@ -218,24 +219,22 @@ namespace LastSanctuary.UI
                                  "단축키 설정 버튼이 씬에 없습니다.", this);
             }
 
+            // ══════════════════════════════════════════════════════════
+            //  ★★★ <b>언어 바꾸기는 «로비에서만»</b> (2026-08-26 · 유저 지시:
+            //  *"언어설정은 로비에서만 가능하게 하고"*)
+            // ══════════════════════════════════════════════════════════
+            //  <b>왜 «숨긴다» 인가</b> — 버튼을 씬에서 지우면 이 창의 세로 배치가
+            //  한 칸 비고, 나중에 되살릴 때 자리를 다시 재야 한다. 규칙은 «게임 중에는
+            //  안 보인다» 이므로 <b>코드가 끈다</b>(씬은 그대로 둔다).
+            //  <b>왜 코드에서 끄나</b> — 씬에서 비활성으로 만들면 «누가 왜 껐는지» 가
+            //  남지 않는다. 창을 배선하는 이 자리가 그 판단을 적어 둘 곳이다.
+            //  ★ 언어 자체는 <c>LanguageSetting.RestoreOnBoot</c>(177절)가 판이 시작될 때
+            //    되살린다 — 이 창이 <c>RestoreLanguage</c> 를 부르던 것이 유일한 통로가
+            //    아니므로 버튼을 껐다고 «판이 한국어로 시작» 하지 않는다.
+            //  ⚠ 로비의 <c>LobbySettingsWindow</c> 는 그대로다 — 그쪽이 정식 통로가 됐다.
             if (_languageButton != null)
             {
-                // ★★★ 2026-08-26 — <b>이 버튼만 그림이 없었다</b> (유저 보고: *"언어 변경
-                //   버튼이 없음 현재 언어만 나옴"*). 씬에 <c>Image</c> 자체가 없어서
-                //   ① 판이 안 보이고 ② <c>Graphic</c> 이 없으니 <b>눌리지도 않았다</b> —
-                //   글자만 떠 있었으니 «현재 언어만 나온다» 로 보인 것이다.
-                //   옆의 저장·로비·재시작·나가기와 <b>같은 계열</b>(Btn_Action)로 맞춘다.
-                HudTheme.EnsureButtonSkin(_languageButton);
-
-                _languageButton.onClick.RemoveAllListeners();
-                _languageButton.onClick.AddListener(HandleToggleLanguage);
-                RestoreLanguage();
-                RefreshLanguageLabel();
-            }
-            else
-            {
-                Debug.LogWarning($"[환경설정] '{languageButtonPath}' 을 찾지 못했습니다 — " +
-                                 "언어 바꾸기 버튼이 씬에 없습니다.", this);
+                _languageButton.gameObject.SetActive(false);
             }
 
             if (_helpResetButton != null)
@@ -527,5 +526,20 @@ namespace LastSanctuary.UI
             if (_status == null) return;
             _status.text = text ?? string.Empty;
         }
-    }
+    
+        /// <summary>
+        /// ★ 이 창의 문구를 <b>스트링 표</b>에서 가져온다 (2026-08-26 · 178-5절).
+        /// 인스펙터 값은 <b>폴백</b>이다 — 표에 키가 없으면 화면은 지금과 같다.
+        /// </summary>
+        void LocalizeLabels()
+        {
+            languageLabelFormat = HudTheme.T("ui_settings_language_format", languageLabelFormat);
+            savedFormat = HudTheme.T("ui_settings_saved_format", savedFormat);
+            saveFailed = HudTheme.T("ui_settings_save_failed", saveFailed);
+            helpResetDone = HudTheme.T("ui_settings_help_reset_done", helpResetDone);
+            helpResetFailed = HudTheme.T("ui_settings_help_reset_failed", helpResetFailed);
+            restartConfirm = HudTheme.T("ui_settings_restart_confirm", restartConfirm);
+            quitConfirm = HudTheme.T("ui_settings_quit_confirm", quitConfirm);
+        }
+}
 }

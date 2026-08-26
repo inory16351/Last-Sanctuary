@@ -438,7 +438,7 @@ namespace LastSanctuary.UI
             }
             if (_noArtLabel != null)
             {
-                _noArtLabel.text = noArtText;
+                _noArtLabel.text = Data.StringTable.Get("ui_portrait_no_art", noArtText);
                 _noArtLabel.gameObject.SetActive(art == null);
             }
 
@@ -557,7 +557,9 @@ namespace LastSanctuary.UI
                 }
                 if (_rageLabel != null)
                 {
-                    _rageLabel.text = string.Format(rageFormat, rage, CharacterPassives.RageMax);
+                    _rageLabel.text = string.Format(
+                        Data.StringTable.Get("ui_portrait_rage_format", rageFormat),
+                        rage, CharacterPassives.RageMax);
                     _rageLabel.color = ratio >= 1f ? rageFullColor : rageTextColor;
                 }
                 return;
@@ -567,7 +569,8 @@ namespace LastSanctuary.UI
             int souls = passives != null ? passives.SoulCount : 0;
             if (_rageLabel != null)
             {
-                _rageLabel.text = string.Format(soulFormat, souls);
+                _rageLabel.text = string.Format(
+                    Data.StringTable.Get("ui_portrait_soul_format", soulFormat), souls);
                 _rageLabel.color = soulTextColor;
             }
         }

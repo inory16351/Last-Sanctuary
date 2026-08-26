@@ -80,6 +80,11 @@ namespace LastSanctuary.Save
             //     다음 판 엔딩에 섞인다</b> — 이 클래스가 생긴 그 사고와 똑같은 종류다.
             RunRecord.Clear();
 
+            //   ★ 2026-08-26 — 「두 번째 등장은 다른 이름」의 <b>등장 기록·쓴 이름</b>
+            //     (<see cref="Units.CharacterAltNames"/>). 안 비우면 새 판의 첫 등장이
+            //     <b>두 번째로 세어져</b> 처음부터 대체 이름으로 태어난다.
+            Units.CharacterAltNames.ResetRun();
+
             // ③ ★ 유물 — 보유·장착·걸어둔 능력치 보정을 전부 되돌린다(2026-08-23).
             //   ⚠ <b>이어하기는 이 문을 지나지 않는다</b> — 그쪽은 GameSnapshot 이
             //     저장된 값으로 되살린다(RelicInventory.ResetRun 의 ⚠).

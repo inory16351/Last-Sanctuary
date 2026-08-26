@@ -457,6 +457,7 @@ namespace LastSanctuary.UI
 
         void Start()
         {
+            LocalizeLabels();
             SaveService.ApplyVolume();
 
             // 승리 화면이 timeScale 을 0 으로 만들어 두었을 수 있다 — 그대로면 연출이 멈춘다.
@@ -1084,5 +1085,17 @@ namespace LastSanctuary.UI
 
             return Sprite.Create(tex, new Rect(0f, 0f, 1f, height), new Vector2(0.5f, 0.5f));
         }
-    }
+    
+        /// <summary>
+        /// ★ 이 창의 문구를 <b>스트링 표</b>에서 가져온다 (2026-08-26 · 178-5절).
+        /// 인스펙터 값은 <b>폴백</b>이다 — 표에 키가 없으면 화면은 지금과 같다.
+        /// </summary>
+        void LocalizeLabels()
+        {
+            rollFallenHeader = HudTheme.T("ui_ending_fallen_head", rollFallenHeader);
+            rollSurvivorHeader = HudTheme.T("ui_ending_survivor_head", rollSurvivorHeader);
+            rollFallenFormat = HudTheme.T("ui_ending_roll_format", rollFallenFormat);
+            skipButtonText = HudTheme.T("ui_btn_skip", skipButtonText);
+        }
+}
 }

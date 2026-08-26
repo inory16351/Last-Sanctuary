@@ -56,7 +56,7 @@ namespace LastSanctuary.UI
 
             if (_wave == null)
             {
-                phaseLabel.text = "웨이브 정보 없음";
+                phaseLabel.text = Data.StringTable.Get("ui_wave_unknown", "웨이브 정보 없음");
                 timerLabel.text = "--:--";
                 Debug.LogWarning("[Wave HUD] WaveManager 를 찾지 못했습니다.", this);
                 enabled = false;
@@ -86,7 +86,9 @@ namespace LastSanctuary.UI
                 _shownPhase = phase;
                 _shownWave = wave;
                 _shownSeconds = -1;                       // 단계가 바뀌면 타이머도 다시 쓴다
-                phaseLabel.text = $"웨이브 {wave} · {PhaseName(phase)}";
+                phaseLabel.text = string.Format(
+                    Data.StringTable.Get("ui_wave_phase_format", "웨이브 {0} · {1}"),
+                    wave, PhaseName(phase));
             }
 
             // 진군 중에는 타이머가 멈춰 있는 게 정상이라 숫자를 보여주지 않는다.
@@ -95,7 +97,7 @@ namespace LastSanctuary.UI
                 if (_shownSeconds != -2)
                 {
                     _shownSeconds = -2;
-                    timerLabel.text = "진군 중";
+                    timerLabel.text = Data.StringTable.Get("ui_timer_marching", "진군 중");
                     timerLabel.color = battleColor;
                 }
                 return;
@@ -106,7 +108,7 @@ namespace LastSanctuary.UI
                 if (_shownSeconds != -3)
                 {
                     _shownSeconds = -3;
-                    timerLabel.text = "패배";
+                    timerLabel.text = Data.StringTable.Get("ui_phase_defeat", "패배");
                     timerLabel.color = defeatColor;
                 }
                 return;
@@ -117,7 +119,7 @@ namespace LastSanctuary.UI
                 if (_shownSeconds != -5)
                 {
                     _shownSeconds = -5;
-                    timerLabel.text = "승리";
+                    timerLabel.text = Data.StringTable.Get("ui_phase_victory", "승리");
                     timerLabel.color = victoryColor;
                 }
                 return;
@@ -130,7 +132,7 @@ namespace LastSanctuary.UI
                 if (_shownSeconds != -4)
                 {
                     _shownSeconds = -4;
-                    timerLabel.text = "광폭화!";
+                    timerLabel.text = Data.StringTable.Get("ui_timer_enraged", "광폭화!");
                     timerLabel.color = enrageColor;
                 }
                 return;

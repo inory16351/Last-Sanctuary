@@ -357,6 +357,7 @@ namespace LastSanctuary.UI
 
         void Awake()
         {
+            LocalizeLabels();
             _instance = this;
             _font = HudTheme.Font;
             _rng = new System.Random(12345);
@@ -690,5 +691,15 @@ namespace LastSanctuary.UI
             go.SetActive(false);
             return new Number { Root = go.transform, Text = tmp };
         }
-    }
+    
+        /// <summary>
+        /// ★ 이 창의 문구를 <b>스트링 표</b>에서 가져온다 (2026-08-26 · 178-5절).
+        /// 인스펙터 값은 <b>폴백</b>이다 — 표에 키가 없으면 화면은 지금과 같다.
+        /// </summary>
+        void LocalizeLabels()
+        {
+            heroAwakenText = HudTheme.T("ui_fx_hero_awaken", heroAwakenText);
+            heroAwakenStageFormat = HudTheme.T("ui_fx_hero_awaken_stage", heroAwakenStageFormat);
+        }
+}
 }

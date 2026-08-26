@@ -35,16 +35,27 @@ namespace LastSanctuary.UI
             }
 
             _resources.OnEnergyChanged += HandleEnergyChanged;
+            Data.StringTable.OnLanguageChanged -= HandleLanguageChanged;
+            Data.StringTable.OnLanguageChanged += HandleLanguageChanged;
             Refresh(_resources.Energy);
         }
 
         void OnDestroy()
         {
             if (_resources != null) _resources.OnEnergyChanged -= HandleEnergyChanged;
+            Data.StringTable.OnLanguageChanged -= HandleLanguageChanged;
         }
 
         void HandleEnergyChanged(int delta, int total) => Refresh(total);
 
-        void Refresh(int total) => _label.text = string.Format(format, total);
+        /// <summary>언어가 바뀌면 지금 수치를 그 언어로 다시 찍는다.</summary>
+        void HandleLanguageChanged() => Refresh(_resources != null ? _resources.Energy : 0);
+
+        // ★ 형식 문구도 스트링 표가 정본이다 (2026-08-26). 인스펙터의 값은 <b>폴백</b>이라
+        //   표에 키가 없으면 지금과 똑같이 나온다. {0:00} 같은 서식 지정자는 표에도 그대로 둔다.
+        void Refresh(int total) =>
+            _label.text = string.Format(Data.StringTable.Get(FormatKey, format), total);
+
+        const string FormatKey = "ui_energy_format";
     }
 }

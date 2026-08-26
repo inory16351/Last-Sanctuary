@@ -70,6 +70,7 @@ namespace LastSanctuary.UI
 
         void Awake()
         {
+            LocalizeLabels();
             Instance = this;
             EnsureBound();
 
@@ -197,5 +198,16 @@ namespace LastSanctuary.UI
             }
             return t.GetComponent<T>();
         }
-    }
+    
+        /// <summary>
+        /// ★ 이 창의 문구를 <b>스트링 표</b>에서 가져온다 (2026-08-26 · 178-5절).
+        /// 인스펙터 값은 <b>폴백</b>이다 — 표에 키가 없으면 화면은 지금과 같다.
+        /// </summary>
+        void LocalizeLabels()
+        {
+            ownerFormat = HudTheme.T("ui_skill_owner_format", ownerFormat);
+            valuesFormat = HudTheme.T("ui_skill_values_format", valuesFormat);
+            noEffectText = HudTheme.T("ui_skill_no_effect", noEffectText);
+        }
+}
 }

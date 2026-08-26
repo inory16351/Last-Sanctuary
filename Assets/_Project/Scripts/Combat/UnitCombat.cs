@@ -71,6 +71,11 @@ namespace LastSanctuary.Combat
         [Tooltip("마지막으로 맞은 뒤 이 시간(초) 동안 반격 대상을 유지한다. 지나면 원래대로 돌아간다")]
         [Min(0.5f)] [SerializeField] float retaliateMemorySeconds = 8f;
 
+        [Tooltip("★★ 비선공 유닛이 <b>대상을 바꾸는 데 필요한 «더 가까움» 여유</b>(타일). " +
+                 "새 공격자가 지금 대상보다 이만큼 더 가깝지 않으면 <b>대상을 그대로 유지</b>한다. " +
+                 "0 이면 언제나 최신·최근접 공격자로 바뀐다(대상이 계속 흔들리던 예전 동작)")]
+        [Min(0f)] [SerializeField] float neutralRetargetMargin = 2f;
+
         [Tooltip("반격 대상을 쫓아갈 수 있는 최대 거리(타일). 이 밖으로 도망가면 포기한다")]
         [Min(0.5f)] [SerializeField] float retaliateChaseRange = 8f;
 
@@ -182,6 +187,13 @@ namespace LastSanctuary.Combat
         GridPathfinder _pathfinder;
         FogOfWarService _fog;
         Vector3 _homePosition;
+
+        /// <summary>
+        /// ★ <b>추격 상한</b>(타일) — 목줄 관문의 <c>Max</c> 들을 <b>넘어서지 못하게</b> 누르는 값.
+        /// 음수면 상한 없음. <see cref="SetHome(Vector3,float,float)"/> 가 걸고, 목줄만 주는
+        /// 오버로드가 <b>지운다</b>(행동이 바뀌면 저절로 풀린다).
+        /// </summary>
+        float _chaseCeiling = -1f;
         DamageableUnit _target;
         float _nextAttackTime;
         float _nextRetargetTime;
@@ -458,11 +470,41 @@ namespace LastSanctuary.Combat
             ResetPathState();
         }
 
-        /// <summary>귀환 지점과 목줄 길이를 함께 지정한다.</summary>
+        /// <summary>
+        /// 귀환 지점과 목줄 길이를 함께 지정한다.
+        ///
+        /// ★★ <b>추격 상한을 «지운다»</b>(2026-08-26) — 아래 <see cref="SetHome(Vector3,float,float)"/>
+        ///   가 걸어 둔 상한은 <b>그 행동을 하는 동안만</b> 유효하다. 다른 행동으로 넘어가면
+        ///   이 오버로드가 불리므로 여기서 지우면 <b>새는 곳이 없다</b>
+        ///   (행동마다 «상한을 지워야 한다» 를 기억하게 만들면 반드시 한 곳을 빼먹는다).
+        /// </summary>
         public void SetHome(Vector3 worldPosition, float leash)
         {
             _homePosition = worldPosition;
             if (leash >= 0f) leashRange = leash;
+            _chaseCeiling = -1f;
+            ResetPathState();
+        }
+
+        /// <summary>
+        /// ★★★ <b>귀환 지점 · 목줄 · «추격 상한» 을 함께 지정한다</b> (2026-08-26 · 유저 리포트:
+        /// *"전방 캐릭터의 공격성을 줄여야 할 것 같다. 너무 앞으로 나가서 혼자서 싸우게 되는 일이
+        /// 빈번하게 발생함"*).
+        ///
+        /// <b>왜 «상한» 이 따로 필요한가</b> — 목줄 관문은 경로마다
+        /// <c>Mathf.Max(leashRange, retaliateChaseRange)</c> · <c>Mathf.Max(leashRange, allyCallRange)</c>
+        /// 로 <b>«최소 이만큼은 보장»</b> 한다. 그래서 <see cref="leashRange"/> 를 줄여도
+        /// <b>반격(8)·동료 구원(12)이 그 값을 되살린다</b> — 전방 캐릭터가 «동료를 도우러»
+        /// 12타일을 걸어 나가던 길이 그것이었다.
+        /// 상한은 그 max 들 <b>뒤에</b> 걸리는 <c>Min</c> 이라, «여기까지만» 을 실제로 지킨다.
+        ///
+        /// <paramref name="chaseCeiling"/> 이 음수면 상한이 없다(예전 동작).
+        /// </summary>
+        public void SetHome(Vector3 worldPosition, float leash, float chaseCeiling)
+        {
+            _homePosition = worldPosition;
+            if (leash >= 0f) leashRange = leash;
+            _chaseCeiling = chaseCeiling;
             ResetPathState();
         }
 
@@ -1422,10 +1464,48 @@ namespace LastSanctuary.Combat
             //   8타일" 같은 어긋남이 생긴다.
             if (!canAcquireTargets)
             {
+                // ══════════════════════════════════════════════════════════
+                //  ★★★ <b>대상을 «붙잡는다»</b> (2026-08-26 · 유저 리포트:
+                //  *"중립 보스 몬스터들 ai에 문제가 있음. 계속해서 공격 대상을 변경하게
+                //  되면서 공격을 제대로 안 함"*)
+                // ══════════════════════════════════════════════════════════
+                //  <b>무엇이 문제였나</b> — 이 경로(비선공 = 모든 중립·에픽)는
+                //  <b>매 프레임</b> `_target = LastAttacker` 였다. 선공 유닛 쪽에는
+                //  <see cref="RetargetInterval"/> 관문이 있는데 <b>여기에는 없었다.</b>
+                //  캐릭터 넷이 에픽을 때리면 «방금 나를 때린 상대» 가 초당 여러 번 바뀌고,
+                //  그때마다 목적지가 1.5타일 넘게 움직여 <b>경로를 다시 깐다</b>
+                //  (<see cref="GoalMoveTolerance"/>). 그래서 «돌아서기» 만 반복하며
+                //  사거리 안에 머무는 시간이 없어 <b>한 대도 못 때린다</b>.
+                //  공격 쿨다운(<see cref="_nextAttackTime"/>)은 대상과 무관하므로
+                //  «쿨다운이 초기화돼서» 가 아니다 — <b>이동이 수렴하지 않는 것</b>이다.
+                //
+                //  규칙 셋을 넣었다:
+                //    ① <b>때릴 수 있는 적은 놓지 않는다</b> (사거리 안이면 재평가 자체를 안 한다)
+                //    ② 재평가는 <b>0.2초마다</b> (선공 유닛과 같은 관문)
+                //    ③ 둘 다 후보면 <b>가까운 쪽</b>을 고른다 — «최신 공격자» 를 따라가면
+                //       대상이 계속 바뀐다. 여유(<see cref="neutralRetargetMargin"/>)를 둬서
+                //       비슷한 거리면 지금 대상을 유지한다(히스테리시스).
+                //  ⚠ «기억이 지워지면 놓는다» 는 그대로다 — 아래에서 새 후보가 없으면
+                //    <c>_target</c> 이 비워진다. 살아 있는 대상을 붙잡아 두면 중립이
+                //    맵을 가로질러 따라가게 된다(73-12절의 그 문제).
+                bool stale = _target == null || !_target.IsAlive;
+
+                if (!stale && InAttackRange(_target)) return;            // ①
+                if (!stale && Time.time < _nextRetargetTime) return;     // ②
+                _nextRetargetTime = Time.time + RetargetInterval;
+
                 DamageableUnit hit = FindRetaliationTarget();
 
                 if (hit == null && answerAllyCalls && !_retreatFiring)
                     hit = FindPackCallAttacker();
+
+                // ③ 가까운 쪽을 고른다 (여유 안이면 지금 대상 유지)
+                if (hit != null && !stale && !ReferenceEquals(hit, _target))
+                {
+                    float now = Vector2.Distance(transform.position, _target.transform.position);
+                    float alt = Vector2.Distance(transform.position, hit.transform.position);
+                    if (alt + neutralRetargetMargin >= now) hit = _target;
+                }
 
                 _target = hit;
                 return;
@@ -1527,6 +1607,11 @@ namespace LastSanctuary.Combat
             //    <c>leashRange</c> 를 더 크게 올리면 그쪽이 이긴다. 씬의 캐릭터 템플릿 기준
             //    실효값은 정상 탐색 7 · 반격 8 · 동료 구원 12타일이다(leashRange 가 7).
             // (사냥·치유는 위에서 각자 규칙으로 이미 return 했다.)
+            // ★★★ <b>상한은 max 들 «뒤» 에 걸린다</b>(2026-08-26) — 전방 캐릭터가 가로막는
+            //   동안 «반격 8 · 동료 구원 12» 가 목줄을 되살려 구역 밖으로 끌고 나가던 것을 막는다.
+            //   상한이 음수면(기본) 아무 영향이 없다.
+            if (_chaseCeiling >= 0f) leashAllowance = Mathf.Min(leashAllowance, _chaseCeiling);
+
             if (found != null && !advanceToObjective && leashAllowance > 0f &&
                 Vector2.Distance(found.transform.position, _homePosition) > leashAllowance)
                 found = null;

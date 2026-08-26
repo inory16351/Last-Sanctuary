@@ -7,8 +7,10 @@ namespace LastSanctuary.Relics
     /// <summary>
     /// <b>보유한 유물</b>과 <b>누가 무엇을 끼고 있는가</b>를 들고 있는 곳.
     ///
-    /// <b>왜 서비스 하나로 모으나</b> — 유물은 «캐릭터의 것» 처럼 보이지만 실제로는
-    /// <b>성역 전체의 소유물</b>이다(캐릭터가 죽어도 남고, 다른 캐릭터에게 옮겨 낀다).
+    /// <b>왜 서비스 하나로 모으나</b> — 유물은 «캐릭터의 것» 처럼 보이지만 <b>보관과 이전</b>은
+    /// 성역이 맡는다(다른 캐릭터에게 옮겨 낀다 · 누가 몇 개 가졌는지 센다).
+    /// ⚠ <b>2026-08-26 부터 «캐릭터가 죽어도 남는다» 는 규칙이 아니다</b> — 유저 지시로
+    ///   <b>지니고 있던 유물은 사망과 함께 사라진다</b>(<see cref="HandleAnyDied"/>).
     /// 캐릭터 컴포넌트에 들고 있으면 «죽으면 사라지는» 문제와 «누가 몇 개 가졌는지 세기»
     /// 문제가 동시에 생긴다. 그래서 <see cref="LastSanctuary.Buildings.BuildService"/> 처럼
     /// <c>GameSystems</c> 아래 서비스 하나로 둔다.
@@ -33,7 +35,7 @@ namespace LastSanctuary.Relics
     ///   · 같은 유물을 두 명이 나눠 낄 수 없다 — 보유 수량만큼만 동시에 장착된다
     ///   · 같은 유물을 한 명이 <b>두 칸에</b> 낄 수도 없다 (수량이 1 이므로 자연히 막힌다)
     ///   · 소환수(골렘)에게는 장착할 수 없다
-    ///   · 캐릭터가 죽어도 유물은 보관함으로 돌아온다
+    ///   · <b>캐릭터가 죽으면 지니고 있던 유물은 사라진다</b>  (2026-08-26 · 그전에는 보관함으로 돌아왔다)
     /// </code>
     ///
     /// ⚠ <b>«누가 끼고 있는가» 의 열쇠는 캐릭터 정의 ID</b>다(<see cref="CharacterUnit"/> 인스턴스가
@@ -87,9 +89,63 @@ namespace LastSanctuary.Relics
             Instance = this;
         }
 
+        void OnEnable() => Combat.DamageableUnit.OnAnyDied += HandleAnyDied;
+
+        void OnDisable() => Combat.DamageableUnit.OnAnyDied -= HandleAnyDied;
+
         void OnDestroy()
         {
             if (Instance == this) Instance = null;
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  ★★★ <b>죽으면 그 캐릭터의 유물은 «사라진다»</b> (2026-08-26 · 유저 지시:
+        //  *"캐릭터가 사망하면 획득한 유물 그냥 없어지게 하셈. 지금 사망한 캐릭터가 생성으로
+        //  다시 나오면 유물을 장착하고 등장함"*)
+        // ══════════════════════════════════════════════════════════════════
+        //  <b>왜 «물려받고» 있었나</b> — 장부의 열쇠가 <see cref="KeyOf"/> = <b>캐릭터 정의 ID</b>다.
+        //  즉 «아르세니아» 라는 <b>인물</b>이 아니라 <b>정의</b>에 유물이 매달려 있었다. 그래서
+        //  그가 죽고 <b>같은 정의로 새로 생성</b>되면 <c>_equipped</c> 의 그 열쇠가 그대로 남아
+        //  <b>낀 채로 태어났다</b>. 벗기기만 해서는 부족하다 — 유물이 장부에 남아 있으면
+        //  다른 캐릭터가 다시 낄 수 있으니 «없어진다» 는 지시와 다르다.
+        //
+        //  → 죽으면 ① 낀 것을 벗기고 ② <b>보유 장부에서도 지우고</b> ③ 그 열쇠를 <b>비운다</b>.
+        //  ⚠ <b>부활 대기는 죽음이 아니다</b> — `CharacterUnit.OnDeath` 의 ⚠⚠ 목록이 못박은 그것이다
+        //    (<c>IsRevivePending</c> 을 같이 봐야 하는 «없어졌나» 판정이 하나 더 늘었다).
+        void HandleAnyDied(Combat.DamageableUnit unit)
+        {
+            if (!(unit is CharacterUnit c)) return;
+            if (c.IsRevivePending) return;       // 「분노」 등으로 곧 되살아난다 — 아직 없어진 게 아니다
+
+            int key = KeyOf(c);
+            if (key <= 0) return;
+
+            int[] slots = SlotsOf(key);
+            int lost = 0;
+
+            if (slots != null)
+            {
+                for (int i = 0; i < slots.Length; i++)
+                {
+                    int relicId = slots[i];
+                    if (relicId <= 0) continue;
+
+                    RelicDefinitionSO relic = RelicRegistry.ById(relicId);
+                    slots[i] = 0;
+                    RelicEffectService.OnUnequipped(c, relic);
+                    _owned.Remove(relicId);      // ★ «그냥 없어진다» — 장부에서도 지운다
+                    lost++;
+                }
+            }
+
+            // ★ 열쇠 자체를 지운다 — 같은 정의로 다시 태어난 캐릭터가 빈 칸을 물려받지 않게.
+            _equipped.Remove(key);
+
+            if (lost > 0)
+            {
+                Debug.Log($"[유물] {c.name} 사망 — 지니고 있던 유물 {lost}개가 사라졌습니다.", this);
+                OnChanged?.Invoke();
+            }
         }
 
         /// <summary>캐릭터 한 명의 유물 칸 수. UI 가 칸을 그릴 때 읽는다.</summary>

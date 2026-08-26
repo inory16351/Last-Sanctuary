@@ -161,6 +161,15 @@ namespace LastSanctuary.Save
         /// </summary>
         public int characterId;
 
+        /// <summary>
+        /// ★ <b>대체 이름의 스트링 키</b> (2026-08-26 신설 · <c>CharacterAltNames</c>).
+        /// 두 번째로 등장한 인물에게 배정된 «다른 이름» 이다. 비어 있으면 정의의 이름.
+        /// ⚠ <b>이름 문자열이 아니라 키</b>다 — 언어를 바꾸면 그 언어로 나와야 한다.
+        /// ⚠ 옛 세이브에는 이 칸이 없어 <b>빈 문자열로 읽힌다</b>(= 원래 이름) —
+        ///   그래서 세이브 버전을 올리지 않았다(heals 칸과 같은 판단).
+        /// </summary>
+        public string altNameKey = string.Empty;
+
         /// <summary>정의가 없는 캐릭터를 되살리기 위한 원시 능력치. 정의가 있어도 그대로 쓴다 —
         /// 강화로 올라간 값이 정의의 기본값과 다르기 때문이다.</summary>
         public StatBlock stats;

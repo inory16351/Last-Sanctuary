@@ -72,12 +72,34 @@ namespace LastSanctuary.UI
                                  "GameSystems 오브젝트에 붙어 있는지 확인하세요.", this);
 
             _button.onClick.AddListener(HandleClick);
+
+            // ★ 글자를 스트링 표에서 가져온다 (2026-08-26 · 씬에 구운 «건물 건설» 이 영어로
+            //   안 바뀌던 자리다). 언어가 바뀌면 다시 부르고 <b>강제로 다시 그린다</b> —
+            //   Refresh 는 «값이 바뀔 때만» 라벨을 쓰므로 그대로 두면 비용이 바뀔 때까지 안 바뀐다.
+            LocalizeLabels();
+            Data.StringTable.OnLanguageChanged -= HandleLanguageChanged;
+            Data.StringTable.OnLanguageChanged += HandleLanguageChanged;
+
             Refresh(force: true);
         }
 
         void OnDestroy()
         {
             if (_button != null) _button.onClick.RemoveListener(HandleClick);
+            Data.StringTable.OnLanguageChanged -= HandleLanguageChanged;
+        }
+
+        void HandleLanguageChanged()
+        {
+            LocalizeLabels();
+            Refresh(force: true);
+        }
+
+        void LocalizeLabels()
+        {
+            idleFormat = HudTheme.T("ui_action_build", idleFormat);
+            pickingText = HudTheme.T("ui_action_build_picking", pickingText);
+            atLimitText = HudTheme.T("ui_action_build_cap", atLimitText);
         }
 
         void Update() => Refresh(force: false);

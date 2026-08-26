@@ -537,6 +537,7 @@ namespace LastSanctuary.UI
 
         void Start()
         {
+            LocalizeLabels();
             // 음량은 씬마다 한 번 불러야 한다 — SaveService.ApplyVolume 주석 그대로.
             SaveService.ApplyVolume();
 
@@ -1177,5 +1178,14 @@ namespace LastSanctuary.UI
 
             return Sprite.Create(tex, new Rect(0f, 0f, 1f, height), new Vector2(0.5f, 0.5f));
         }
-    }
+    
+        /// <summary>
+        /// ★ 이 창의 문구를 <b>스트링 표</b>에서 가져온다 (2026-08-26 · 178-5절).
+        /// 인스펙터 값은 <b>폴백</b>이다 — 표에 키가 없으면 화면은 지금과 같다.
+        /// </summary>
+        void LocalizeLabels()
+        {
+            skipButtonText = HudTheme.T("ui_btn_skip", skipButtonText);
+        }
+}
 }

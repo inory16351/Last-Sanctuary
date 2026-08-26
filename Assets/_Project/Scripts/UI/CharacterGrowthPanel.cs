@@ -95,24 +95,24 @@ namespace LastSanctuary.UI
         [Header("문구 — 각성 진행도 · 영웅 각성")]
         [Tooltip("★ <b>딜러</b>일 때의 각성 눈금. {0} = 지금 처치 수 · {1} = 필요한 처치 수.\n" +
                  "포지션이 회복이 아니면 이 줄이 보인다(2026-08-21)")]
-        [SerializeField] string killProgressFormat = " · 처치 {0}/{1}";
+        [SerializeField] string killProgressFormat = "· 처치 {0}/{1}";
 
         [Tooltip("★ <b>힐러</b>일 때의 각성 눈금. {0} = 지금 회복 수 · {1} = 필요한 회복 수.\n" +
                  "공격 유형이 회복이면 이 줄이 보인다. 두 눈금은 각자 남으므로 포지션을 " +
                  "되돌리면 쌓아둔 값이 그대로 다시 보인다")]
-        [SerializeField] string healProgressFormat = " · 회복 {0}/{1}";
+        [SerializeField] string healProgressFormat = "· 회복 {0}/{1}";
 
         [Tooltip("각성 가능 상태(처치 수 <b>또는</b> 회복 수를 채웠다)일 때 덧붙이는 말")]
-        [SerializeField] string heroReadyMark = " · 각성 가능";
+        [SerializeField] string heroReadyMark = "· 각성 가능";
 
         // ★★ 눈금은 찼는데 <b>레벨</b>이 모자란 상태 (2026-08-26 · 유저 리포트
         //   *"각성 15LV 부터 가능해야 하는데 적용 안됨"*). 예전에는 이 상태에도
         //   위 «각성 가능» 이 그대로 떴다 — 판정은 막고 있는데 화면만 열려 있었다.
         [Tooltip("{0} = 각성에 필요한 최소 레벨")]
-        [SerializeField] string heroLevelLockFormat = " · Lv.{0} 부터 각성";
+        [SerializeField] string heroLevelLockFormat = "· Lv.{0} 부터 각성";
 
         [Tooltip("이미 각성한 캐릭터 앞에 붙는 표식")]
-        [SerializeField] string heroAwakenedMark = "★영웅 ";
+        [SerializeField] string heroAwakenedMark = "★영웅";
 
         [Header("색 — 보정이 걸린 능력치 (유저 확정 2026-08-18)")]
         [Tooltip("원시 값보다 <b>올라</b> 있을 때의 값 색. " +
@@ -374,13 +374,72 @@ namespace LastSanctuary.UI
         {
             Instance = this;
             BuildBindings();
+
+            // ★ 문구를 스트링 표에서 (2026-08-26). 창이 꺼져 있어도 Awake 는 돌므로
+            //   여기서 한 번 읽어 두면 처음 열 때부터 그 언어로 나온다.
+            LocalizeLabels();
+            Data.StringTable.OnLanguageChanged -= HandleLanguageChanged;
+            Data.StringTable.OnLanguageChanged += HandleLanguageChanged;
         }
 
         void OnDestroy()
         {
             if (Instance == this) Instance = null;
+            Data.StringTable.OnLanguageChanged -= HandleLanguageChanged;
             Unsubscribe();
         }
+
+        /// <summary>
+        /// ★★ <b>이 창의 문구를 스트링 표에서 가져온다</b> (2026-08-26 · 178-5절의 남은 일).
+        /// 인스펙터 값은 <b>폴백</b>이라 표에 키가 없으면 화면은 지금과 똑같다
+        /// (<see cref="ActionPanel"/> 이 173절에 쓴 방식 그대로다).
+        ///
+        /// ⚠ <b>앞뒤 공백은 표에 담지 못한다</b> — 내보내기가 다듬는다. 그래서 «· 처치 3/5»
+        ///   처럼 이어 붙이는 조각은 <b>구분자(공백)를 붙이는 쪽</b>이 갖는다.
+        /// </summary>
+        void LocalizeLabels()
+        {
+            noSelectionName = HudTheme.T("ui_sel_none_name", noSelectionName);
+            noSelectionHint = HudTheme.T("ui_sel_none_hint", noSelectionHint);
+            selectionHint = HudTheme.T("ui_sel_switch_hint", selectionHint);
+
+            enhanceFormat = HudTheme.T("ui_growth_enhance_format", enhanceFormat);
+            enhanceNoSelection = HudTheme.T("ui_growth_enhance", enhanceNoSelection);
+            enhanceMaxed = HudTheme.T("ui_growth_stat_capped", enhanceMaxed);
+            enhanceSummoned = HudTheme.T("ui_growth_enhance_blocked", enhanceSummoned);
+            enhanceLevelMaxed = HudTheme.T("ui_growth_level_maxed", enhanceLevelMaxed);
+            enhancePickType = HudTheme.T("ui_growth_pick_focus", enhancePickType);
+
+            noteUnaffordable = HudTheme.T("ui_growth_note_no_energy", noteUnaffordable);
+            noteSummoned = HudTheme.T("ui_growth_note_summoned", noteSummoned);
+            noteLevelMaxedFormat = HudTheme.T("ui_growth_note_level_max", noteLevelMaxedFormat);
+            notePickType = HudTheme.T("ui_growth_note_pick_focus", notePickType);
+            noteFocusFormat = HudTheme.T("ui_growth_note_focus_format", noteFocusFormat);
+
+            lockedNoteFormat = HudTheme.T("ui_growth_locked_format", lockedNoteFormat);
+            unlockedNote = HudTheme.T("ui_growth_unlocked", unlockedNote);
+
+            passiveClickHint = HudTheme.T("ui_passive_click_hint", passiveClickHint);
+            passiveNoneText = HudTheme.T("ui_passive_none", passiveNoneText);
+            passiveNoSelectionText = HudTheme.T("ui_passive_no_selection", passiveNoSelectionText);
+
+            killProgressFormat = HudTheme.T("ui_hero_kill_progress", killProgressFormat);
+            healProgressFormat = HudTheme.T("ui_hero_heal_progress", healProgressFormat);
+            heroReadyMark = HudTheme.T("ui_hero_ready", heroReadyMark);
+            heroLevelLockFormat = HudTheme.T("ui_hero_level_lock", heroLevelLockFormat);
+            heroAwakenedMark = HudTheme.T("ui_hero_awakened", heroAwakenedMark);
+
+            // ★ 초상화 창과 <b>같은 키</b>를 쓴다 — 같은 문구를 두 곳에서 다듬지 않게.
+            rageFormat = HudTheme.T("ui_portrait_rage_format", rageFormat);
+            soulFormat = HudTheme.T("ui_portrait_soul_format", soulFormat);
+        }
+
+        void HandleLanguageChanged()
+        {
+            LocalizeLabels();
+            if (gameObject.activeSelf) RefreshAll();
+        }
+
 
         void OnEnable()
         {
@@ -775,23 +834,23 @@ namespace LastSanctuary.UI
             if (goal > 0)
             {
                 string fmt = healer ? healProgressFormat : killProgressFormat;
-                if (!string.IsNullOrEmpty(fmt)) line += string.Format(fmt, now, goal);
+                if (!string.IsNullOrEmpty(fmt)) line += " " + string.Format(fmt, now, goal);
             }
 
             switch (HeroAwakeningService.StateOf(unit))
             {
                 case HeroState.Awakened:
-                    line = Tint(heroAwakenedMark, heroAwakenedColor) + line;
+                    line = Tint(heroAwakenedMark, heroAwakenedColor) + " " + line;
                     break;
                 case HeroState.Ready:
-                    line += Tint(heroReadyMark, heroReadyColor);
+                    line += " " + Tint(heroReadyMark, heroReadyColor);
                     break;
 
                 // ★ 눈금은 찼지만 레벨이 남았다 — «무엇이 남았는지» 를 그대로 적는다.
                 case HeroState.LevelLocked:
                     int need = HeroAwakeningService.AwakenMinLevel;
                     if (need > 0 && !string.IsNullOrEmpty(heroLevelLockFormat))
-                        line += Tint(string.Format(heroLevelLockFormat, need), heroLockedColor);
+                        line += " " + Tint(string.Format(heroLevelLockFormat, need), heroLockedColor);
                     break;
             }
 

@@ -104,7 +104,8 @@ namespace LastSanctuary.UI
         [Tooltip("짚을 곳을 찾지 못했을 때 단계 글 뒤에 덧붙이는 한 줄. " +
                  "★ 조용히 넘기지 않는다 — 표의 경로가 틀린 것을 유저가 알아야 한다")]
         [SerializeField] string missingNote =
-            "\n<b>(이 칸은 지금 화면에 없습니다. 해당 창을 열면 보입니다.)</b>";
+            // ⚠ 앞의 줄바꿈은 코드가 붙인다 — 스트링 표는 앞뒤 공백·줄바꿈을 다듬는다
+            "<b>(이 칸은 지금 화면에 없습니다. 해당 창을 열면 보입니다.)</b>";
 
         readonly List<HelpStepRow> _steps = new List<HelpStepRow>();
         int _index;
@@ -139,6 +140,7 @@ namespace LastSanctuary.UI
 
         void Awake()
         {
+            LocalizeLabels();
             _instance = this;
             EnsureBound();
             // ⚠⚠ 여기서 자기를 끄지 않는다 — 이 판은 비활성으로 저장돼 있어 Awake 가
@@ -308,7 +310,7 @@ namespace LastSanctuary.UI
 
             SetText(_text, visible || string.IsNullOrEmpty(step.targetPath)
                          ? step.stepText
-                         : step.stepText + missingNote);
+                         : step.stepText + "\n" + missingNote);
 
             // 버튼 문구 — 마지막 단계에서는 「다음」이 「다 봤습니다」로 바뀐다.
             bool last = _index == _steps.Count - 1;
@@ -568,5 +570,18 @@ namespace LastSanctuary.UI
             Transform t = parent.Find(path);
             return t != null ? t.GetComponent<TMP_Text>() : null;
         }
-    }
+    
+        /// <summary>
+        /// ★ 이 창의 문구를 <b>스트링 표</b>에서 가져온다 (2026-08-26 · 178-5절).
+        /// 인스펙터 값은 <b>폴백</b>이다 — 표에 키가 없으면 화면은 지금과 같다.
+        /// </summary>
+        void LocalizeLabels()
+        {
+            nextLabel = HudTheme.T("ui_tour_next", nextLabel);
+            prevLabel = HudTheme.T("ui_tour_prev", prevLabel);
+            lastLabel = HudTheme.T("ui_tour_last", lastLabel);
+            quitLabel = HudTheme.T("ui_tour_quit", quitLabel);
+            missingNote = HudTheme.T("ui_tour_missing_note", missingNote);
+        }
+}
 }

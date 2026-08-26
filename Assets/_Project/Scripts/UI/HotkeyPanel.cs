@@ -78,6 +78,7 @@ namespace LastSanctuary.UI
 
         void Awake()
         {
+            LocalizeLabels();
             Instance = this;
             Build();
 
@@ -438,5 +439,18 @@ namespace LastSanctuary.UI
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;
         }
-    }
+    
+        /// <summary>
+        /// ★ 이 창의 문구를 <b>스트링 표</b>에서 가져온다 (2026-08-26 · 178-5절).
+        /// 인스펙터 값은 <b>폴백</b>이다 — 표에 키가 없으면 화면은 지금과 같다.
+        /// </summary>
+        void LocalizeLabels()
+        {
+            titleText = HudTheme.T("ui_settings_hotkeys", titleText);
+            hintText = HudTheme.T("ui_hotkey_hint", hintText);
+            capturingText = HudTheme.T("ui_hotkey_capturing", capturingText);
+            resetLabel = HudTheme.T("ui_hotkey_reset", resetLabel);
+            closeLabel = HudTheme.T("ui_btn_close", closeLabel);
+        }
+}
 }

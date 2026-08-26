@@ -74,6 +74,7 @@ namespace LastSanctuary.UI
 
         void Awake()
         {
+            LocalizeLabels();
             _instance = this;
             EnsureBound();
             // ⚠⚠ 여기서 자기를 끄지 않는다 — 이 카드는 비활성으로 저장돼 있어 Awake 가
@@ -366,5 +367,16 @@ namespace LastSanctuary.UI
             Transform t = parent.Find(path);
             return t != null ? t.GetComponent<TMP_Text>() : null;
         }
-    }
+    
+        /// <summary>
+        /// ★ 이 창의 문구를 <b>스트링 표</b>에서 가져온다 (2026-08-26 · 178-5절).
+        /// 인스펙터 값은 <b>폴백</b>이다 — 표에 키가 없으면 화면은 지금과 같다.
+        /// </summary>
+        void LocalizeLabels()
+        {
+            badgeFormat = HudTheme.T("ui_helpcard_badge_format", badgeFormat);
+            moreLabel = HudTheme.T("ui_helpcard_more", moreLabel);
+            okLabel = HudTheme.T("ui_helpcard_ok", okLabel);
+        }
+}
 }

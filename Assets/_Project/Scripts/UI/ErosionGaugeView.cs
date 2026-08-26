@@ -33,6 +33,13 @@ namespace LastSanctuary.UI
         /// <summary>침식이 이 비율을 넘으면 막대 색이 경고 쪽(자홍)으로 완전히 넘어간다.</summary>
         const float HighRatio = 0.75f;
 
+        // ★ 문구는 스트링 표가 정본이다 (2026-08-26 · 여기 박혀 있던 «침식 …» 은 영어로
+        //   바뀌지 않았다. 표의 en 은 유저가 쓰는 낱말 «Corruption» 을 따른다).
+        //   표에 키가 없으면 폴백(옛 한국어)이 그대로 나오므로 화면은 지금과 같다.
+        const string KeyValue = "ui_erosion_value";
+        const string KeyWithState = "ui_erosion_value_state";
+        const string KeyNone = "ui_erosion_none";
+
         /// <summary>이 게이지가 하이라키에 실제로 존재하는지. 없으면 모든 호출이 조용히 무시된다.</summary>
         public bool IsBound => _bound;
 
@@ -84,7 +91,7 @@ namespace LastSanctuary.UI
                 if (_fill != null) _fill.fillAmount = 0f;
                 if (_label != null)
                 {
-                    _label.text = "침식 -";
+                    _label.text = Data.StringTable.Get(KeyNone, "침식 -");
                     _label.color = HudTheme.TextDim;
                 }
                 return;
@@ -93,7 +100,10 @@ namespace LastSanctuary.UI
             if (unit == null || erosion == null)
             {
                 if (_fill != null) _fill.fillAmount = 0f;
-                if (_label != null) _label.text = unit == null ? "-" : "침식 0";
+                if (_label != null)
+                    _label.text = unit == null
+                        ? "-"
+                        : string.Format(Data.StringTable.Get(KeyValue, "침식 {0}"), 0);
                 return;
             }
 
@@ -109,9 +119,11 @@ namespace LastSanctuary.UI
             {
                 // 정신 이상이 발동 중이면 수치와 함께 그 이름도 보여준다 — 로스터의 "현재 상태"
                 // 칸과 중복되지만, 전술·성장 창에는 그 칸이 없어서 여기 붙여야 한다.
+                int shown = Mathf.RoundToInt(erosion.Erosion);
                 _label.text = erosion.HasActive
-                    ? $"침식 {Mathf.RoundToInt(erosion.Erosion)} · {erosion.ActiveName}"
-                    : $"침식 {Mathf.RoundToInt(erosion.Erosion)}";
+                    ? string.Format(Data.StringTable.Get(KeyWithState, "침식 {0} · {1}"),
+                                    shown, erosion.ActiveName)
+                    : string.Format(Data.StringTable.Get(KeyValue, "침식 {0}"), shown);
                 _label.color = erosion.HasActive ? HudTheme.TextErosion : HudTheme.TextDim;
             }
         }

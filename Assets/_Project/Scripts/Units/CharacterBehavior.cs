@@ -237,9 +237,36 @@ namespace LastSanctuary.Units
         [Tooltip("가로막을 때 구역 경계에서 적 쪽으로 더 나가는 거리(타일). 클수록 앞으로 나선다")]
         [Min(0f)] [SerializeField] float frontInterceptOvershoot = 1.5f;
 
-        [Tooltip("가로막는 동안 목줄에 더해주는 여유(타일). 구역 밖으로 나서는 만큼 " +
-                 "목줄도 늘려야 그 자리에서 실제로 교전할 수 있다")]
-        [Min(0f)] [SerializeField] float frontInterceptLeashBonus = 4f;
+        // ══════════════════════════════════════════════════════════════
+        //  ★★★ <b>«어디까지 나가 싸우나» 를 구역 기준으로 못박는다</b> (2026-08-26 · 유저:
+        //  *"전방 캐릭터의 공격성을 줄여야 할 것 같다. 너무 앞으로 나가서 혼자서 싸우게 되는
+        //  일이 빈번하게 발생함"*)
+        // ══════════════════════════════════════════════════════════════
+        //  <b>169절의 «혼자 나가지 않기» 는 반쪽만 걸려 있었다.</b> 서는 «자리» 는 구역 안으로
+        //  당겼는데 <b>목줄은 그대로</b>였다 — 옛 계산은 `guardLeash 7 + guardRadius 8 + bonus 4`
+        //  = <b>19타일</b>, 그것도 <b>이미 구역 경계에 나가 선 자리</b>를 기준으로 재므로
+        //  성역에서 <b>28타일</b>까지 적을 쫓아갔다(구역 반경은 8이다). 물러나 맞이할 때도
+        //  15타일이라 가드가 사실상 무력했다.
+        //  게다가 목줄 관문은 «반격 8 · 동료 구원 12» 를 <c>Max</c> 로 보장하므로,
+        //  목줄만 줄여도 <b>그 둘이 되살린다</b>.
+        //
+        //  → 이제 <b>«구역 중심에서 몇 타일까지»</b> 로 정하고(아래 두 값), 그것을 집 기준
+        //    거리로 환산해 <b>목줄과 «추격 상한»</b>(<see cref="UnitCombat.SetHome(Vector3,float,float)"/>)
+        //    에 같이 건다. 상한은 <c>Max</c> 들 뒤에 걸리는 <c>Min</c> 이라 실제로 지켜진다.
+        //  ⚠ «적극적으로 방어한다» 를 되돌리는 것이 아니다 — 전방은 <b>여전히 구역 경계로
+        //    나가 선다</b>. 달라지는 것은 <b>거기서 얼마나 더 쫓아가는가</b> 뿐이다.
+
+        [Tooltip("가로막으러 나가 섰을 때 <b>구역 경계에서 이 거리까지만</b> 적을 쫓는다(타일). " +
+                 "구역 중심 기준 상한 = 구역 반경 + 이 값. 반격·동료 구원도 이 상한을 넘지 못한다")]
+        [Min(0f)] [SerializeField] float frontChaseBeyondZone = 4f;
+
+        [Tooltip("혼자이거나 떼 앞이어서 <b>물러나 맞이할 때</b>의 값(타일). " +
+                 "0 이면 구역 경계 안에서만 싸운다")]
+        [Min(0f)] [SerializeField] float frontHoldChaseBeyondZone = 0f;
+
+        [Tooltip("최소 목줄(타일). 이보다 작아지면 <b>바로 앞에 붙은 적</b>도 못 때린다 — " +
+                 "구역 경계에 서 있을 때 상한이 0 에 가까워지는 것을 막는 바닥값")]
+        [Min(0.5f)] [SerializeField] float frontMinChase = 2.5f;
 
         [Tooltip("가로막는 위치를 다시 계산하는 주기(초). 적이 움직이므로 순찰보다 자주 갱신한다")]
         [Min(0.1f)] [SerializeField] float frontInterceptRepick = 0.5f;
@@ -249,7 +276,7 @@ namespace LastSanctuary.Units
         //  *"전방 포지션의 캐릭터가 지나치게 공격적이어서 앞으로 혼자 나가서 죽는 문제"*)
         // ══════════════════════════════════════════════════════════════
         //  <b>무엇이 부딪히고 있었나</b> — 가로막기는 <b>구역 밖</b>(경계 + 여유)에 서고
-        //  목줄까지 <see cref="frontInterceptLeashBonus"/> 만큼 늘린다. 그런데 지원
+        //  목줄까지 여유(당시 frontInterceptLeashBonus · 2026-08-26 에 폐기)만큼 늘린다. 그런데 지원
         //  (<see cref="TryPickSupportSpot"/>)은 «<b>구역 안</b>의 적» 만 봤다. 그래서
         //  <b>전방이 나가 서는 그 자리가 곧 지원이 닿지 않는 자리</b>였다 —
         //  두 규칙이 서로를 밀어내고 있었고, 그 사이가 벌어질수록 전방은 혼자가 됐다.
@@ -775,12 +802,18 @@ namespace LastSanctuary.Units
             //   ⚠ <b>«가로막기를 그만둔다» 가 아니다.</b> 나가는 거리(overshoot)와 목줄
             //     보너스만 거두고, 그 적을 향해 <b>구역 안에서</b> 맞이하러 서는 것은 그대로다.
             //     완전히 손을 떼면 전방이 순찰로 돌아가 뒤가 더 위험해진다.
-            bool alone = frontInterceptAllyRange > 0f && !HasAllyNear(frontInterceptAllyRange);
-            bool swarmed = frontInterceptSwarmCount > 0 && swarm >= frontInterceptSwarmCount;
-            bool holdBack = alone || swarmed;
-
             Vector2 toThreat = (Vector2)(threat.transform.position - center);
             Vector2 dir = toThreat.sqrMagnitude > 0.01f ? toThreat.normalized : Vector2.up;
+
+            // ★★ 아군이 있는지는 <b>«내가 지금 선 자리» 가 아니라 «나가 설 자리» 기준</b>으로 본다
+            //   (2026-08-26) — 싸움은 그 자리에서 벌어진다. 예전에는 구역 안쪽에 있는 동안
+            //   뒤쪽 동료가 12타일 안에 들어와 «혼자가 아니다» 로 판정됐고, 그러고 나서
+            //   경계 밖으로 걸어 나가면 그 동료는 이미 뒤에 남아 있었다.
+            Vector3 standAt = center + (Vector3)(dir * Mathf.Min(halfExtent + frontInterceptOvershoot,
+                                                                toThreat.magnitude));
+            bool alone = frontInterceptAllyRange > 0f && !HasAllyNear(frontInterceptAllyRange, standAt);
+            bool swarmed = frontInterceptSwarmCount > 0 && swarm >= frontInterceptSwarmCount;
+            bool holdBack = alone || swarmed;
 
             // 적이 이미 구역 안까지 들어왔으면 그 앞을 막는 게 의미가 없다 — 적 쪽으로 붙는다.
             // ★ 물러나 맞이할 때는 <b>구역 경계보다 안쪽</b>(0.8배)에 선다 — 지원 사거리 안이다.
@@ -794,13 +827,25 @@ namespace LastSanctuary.Units
 
             if (!IsWalkable(spot)) return false;
 
-            // ★ 목줄 보너스도 «나갔을 때만» 준다 — 그것이 없으면 물러나 선 자리에서
-            //   적을 쫓아 다시 그만큼 나가 버려서 위 판정이 무의미해진다.
-            float bonus = holdBack ? 0f : frontInterceptLeashBonus;
+            // ★★★ <b>추격 한계를 «구역 중심 기준» 으로 정하고 집 기준으로 환산한다</b>
+            //   (2026-08-26 · 위 «어디까지 나가 싸우나» 의 ★★★).
+            //
+            //   limit  : 구역 중심에서 이 거리 안의 적만 상대한다
+            //   chase  : 집(= 지금 서는 자리)에서 재는 거리 = limit − 서 있는 거리
+            //            («구역 경계에 나가 섰다면 그만큼 덜 쫓는다» 가 저절로 된다)
+            //
+            //   ⚠ <paramref name="leash"/>(guardLeash·rallyLeash)는 <b>더 이상 더하지 않는다</b> —
+            //     그것을 더하던 것이 28타일 추격의 원인이었다. 순찰 목줄과 «가로막기 중
+            //     추격 한계» 는 서로 다른 뜻이다.
+            float beyond = holdBack ? frontHoldChaseBeyondZone : frontChaseBeyondZone;
+            float limit = halfExtent + beyond;
+            float chase = Mathf.Max(frontMinChase, limit - outward);
 
             _destination = spot;
             _repickTime = Time.time + frontInterceptRepick;
-            _combat.SetHome(_destination, leash + halfExtent + bonus);
+
+            // 목줄과 상한을 같은 값으로 건다 — 상한은 «반격·동료 구원» 이 목줄을 되살리는 것까지 막는다.
+            _combat.SetHome(_destination, chase, chase);
             return true;
         }
 
@@ -809,7 +854,7 @@ namespace LastSanctuary.Units
         /// 성역은 세지 않는다 — 움직이지 않는 건물은 «따라와 주는 동료» 가 아니다
         /// (<see cref="FrontAllyDistanceTo"/> 가 같은 이유로 성역을 뺀다). 포탑은 센다.
         /// </summary>
-        bool HasAllyNear(float tiles)
+        bool HasAllyNear(float tiles, Vector3 from)
         {
             float limitSqr = tiles * tiles;
             var all = UnitRegistry.All;
@@ -819,7 +864,7 @@ namespace LastSanctuary.Units
                 if (u == null || !u.IsAlive || ReferenceEquals(u, _self)) continue;
                 if (u.Faction != Faction.Angel) continue;
                 if (u.Kind != UnitKind.Character && u.Kind != UnitKind.Tower) continue;
-                if (((Vector2)(u.transform.position - transform.position)).sqrMagnitude <= limitSqr)
+                if (((Vector2)(u.transform.position - from)).sqrMagnitude <= limitSqr)
                     return true;
             }
             return false;

@@ -288,6 +288,12 @@ namespace LastSanctuary.UI
         TMP_Text _titleLabel;
         string _titleBase;
 
+        /// <summary>씬에 박혀 있던 제목 문구 — 표에 키가 없을 때 되돌아갈 값.</summary>
+        string _titleSceneText;
+
+        /// <summary>제목 머리말의 스트링 키(«캐릭터» / «Characters»).</summary>
+        const string TitleKey = "ui_roster_title";
+
         /// <summary>상한을 아는 쪽. 없으면 숫자만(«n») 쓴다 — 지어낸 상한을 그리지 않는다.</summary>
         CharacterCreationService _creation;
 
@@ -315,8 +321,20 @@ namespace LastSanctuary.UI
             BindScrollRect();
 
             // 제목 — 첫 문구를 기억해 두고 뒤에 «인원/상한» 만 붙인다(위 _titleLabel 주석).
+            // ★★ 2026-08-26 — <b>씬의 문구는 «폴백» 으로만 쓴다.</b> 예전에는 씬의 «캐릭터» 를
+            //   그대로 머리말로 삼았기 때문에, 언어를 영어로 바꿔도 <b>제목만 한국어로 남았다</b>
+            //   (매 갱신에 이 머리말로 제목을 다시 지으므로 다른 곳에서 고쳐도 되돌아간다).
+            //   표에 키가 없으면 씬 문구가 그대로 쓰이니 화면은 지금과 같다.
             _titleLabel = transform.Find("Title")?.GetComponent<TMP_Text>();
-            _titleBase = _titleLabel != null ? _titleLabel.text : null;
+            _titleSceneText = _titleLabel != null ? _titleLabel.text : null;
+            _titleBase = _titleSceneText != null
+                ? Data.StringTable.Get(TitleKey, _titleSceneText)
+                : null;
+
+            // 언어가 바뀌면 머리말을 다시 읽는다 — 제목은 매 갱신에 다시 만들어지므로
+            // 여기서 머리말만 갈아 두면 다음 갱신에 저절로 따라온다.
+            Data.StringTable.OnLanguageChanged -= HandleLanguageChanged;
+            Data.StringTable.OnLanguageChanged += HandleLanguageChanged;
 
             if (_waveManager != null) _waveManager.OnWaveEnded += HandleWaveEnded;
 
@@ -382,7 +400,19 @@ namespace LastSanctuary.UI
         void OnDestroy()
         {
             if (_waveManager != null) _waveManager.OnWaveEnded -= HandleWaveEnded;
+            Data.StringTable.OnLanguageChanged -= HandleLanguageChanged;
             UnsubscribeAll();
+        }
+
+        /// <summary>
+        /// 언어가 바뀌면 <b>제목 머리말만</b> 다시 읽는다. 행의 글자(이름·역할·상태)는
+        /// 0.2초마다 도는 갱신이 표에서 다시 읽으므로 여기서 건드릴 것이 없다.
+        /// </summary>
+        void HandleLanguageChanged()
+        {
+            if (_titleSceneText != null)
+                _titleBase = Data.StringTable.Get(TitleKey, _titleSceneText);
+            RefreshTitle();
         }
 
         void UnsubscribeAll()

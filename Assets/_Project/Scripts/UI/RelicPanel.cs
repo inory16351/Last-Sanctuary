@@ -188,15 +188,38 @@ namespace LastSanctuary.UI
             RelicInventory inv = RelicInventory.Instance;
             if (inv == null || _list == null || _rowTemplate == null) return;
 
-            // ── 목록 : 등급 높은 것 먼저, 그다음 ID 순 ──
+            // ══════════════════════════════════════════════════════════════
+            //  ★★ <b>착용자 기준 정렬</b> (2026-08-26 · 유저 지시: *"유물 목록을 장착한 캐릭터
+            //  기준으로 정렬하게 해주고, 캐릭터가 장착하지 않은 유물은 그 아래에 등급 순으로 정렬"*)
+            // ══════════════════════════════════════════════════════════════
+            //  ① 낀 유물이 위 · 안 낀 유물이 아래
+            //  ② 낀 것들은 <b>착용자별로 뭉친다</b> — 순서는 <b>로스터와 같은 순서</b>다
+            //     (<see cref="BuildWearerOrder"/> 가 UnitRegistry 순서를 그대로 쓴다).
+            //     이름으로 정렬하지 않는다: 같은 캐릭터가 다른 이름으로 다시 태어날 수 있어
+            //     («두 번째 등장은 다른 이름» 규칙) 이름 정렬은 순서가 흔들린다.
+            //  ③ 같은 착용자 안에서도, 그리고 안 낀 것들끼리도 <b>등급 → ID</b> 순이다.
             _sorted.Clear();
             foreach (var kv in inv.Owned)
             {
                 RelicDefinitionSO r = RelicRegistry.ById(kv.Key);
                 if (r != null) _sorted.Add(r);
             }
+
+            BuildWearerOrder();
             _sorted.Sort((a, b) =>
-                a.grade != b.grade ? b.grade.CompareTo(a.grade) : a.relicId.CompareTo(b.relicId));
+            {
+                int aw = inv.WearerOf(a.relicId);
+                int bw = inv.WearerOf(b.relicId);
+                bool aOn = aw > 0, bOn = bw > 0;
+
+                if (aOn != bOn) return aOn ? -1 : 1;                     // ①
+                if (aOn && aw != bw)                                     // ②
+                    return OrderOfWearer(aw).CompareTo(OrderOfWearer(bw));
+
+                return a.grade != b.grade                                // ③
+                    ? b.grade.CompareTo(a.grade)
+                    : a.relicId.CompareTo(b.relicId);
+            });
 
             while (_rows.Count < _sorted.Count) _rows.Add(MakeRow());
 
@@ -241,6 +264,32 @@ namespace LastSanctuary.UI
         }
 
         readonly List<RelicDefinitionSO> _sorted = new List<RelicDefinitionSO>();
+
+        /// <summary>착용자 키 → 로스터에서의 순서. <see cref="BuildWearerOrder"/> 가 채운다.</summary>
+        readonly Dictionary<int, int> _wearerOrder = new Dictionary<int, int>(16);
+
+        /// <summary>
+        /// 살아 있는 캐릭터를 <b>로스터와 같은 순서</b>(=<c>UnitRegistry</c> 등록 순서)로 훑어
+        /// «착용자 키 → 순번» 을 만든다. 목록을 다시 그릴 때마다 한 번만 돈다.
+        /// ⚠ 죽은 캐릭터의 키는 여기 없다 — 그 유물은 «안 낀 것» 으로 아래에 내려간다
+        ///   (사망 시 유물은 사라지므로 정상적으로는 장부에도 남지 않는다).
+        /// </summary>
+        void BuildWearerOrder()
+        {
+            _wearerOrder.Clear();
+            var all = Combat.UnitRegistry.All;
+            int order = 0;
+            for (int i = 0; i < all.Count; i++)
+            {
+                if (!(all[i] is CharacterUnit c) || !c.IsAlive) continue;
+                int key = RelicInventory.KeyOf(c);
+                if (key > 0 && !_wearerOrder.ContainsKey(key)) _wearerOrder[key] = order++;
+            }
+        }
+
+        /// <summary>그 착용자의 순번. 모르는 키(죽은 캐릭터 등)는 맨 뒤로 보낸다.</summary>
+        int OrderOfWearer(int key) =>
+            _wearerOrder.TryGetValue(key, out int order) ? order : int.MaxValue;
 
         /// <summary>착용자 조회용 임시 목록 — 매 칸마다 새로 만들지 않는다(칸이 45개까지 간다).</summary>
         readonly List<int> _wearerKeys = new List<int>();

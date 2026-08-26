@@ -56,7 +56,11 @@ namespace LastSanctuary.UI
         TMP_Text _status;
         bool _bound;
 
-        void Awake() => EnsureBound();
+        void Awake()
+        {
+            EnsureBound();
+            LocalizeLabels();
+        }
 
         void EnsureBound()
         {
@@ -196,5 +200,16 @@ namespace LastSanctuary.UI
         {
             if (_status != null) _status.text = text;
         }
-    }
+    
+        /// <summary>
+        /// ★ 이 창의 문구를 <b>스트링 표</b>에서 가져온다 (2026-08-26 · 178-5절).
+        /// 인스펙터 값은 <b>폴백</b>이다 — 표에 키가 없으면 화면은 지금과 같다.
+        /// </summary>
+        void LocalizeLabels()
+        {
+            languageLabelFormat = HudTheme.T("ui_settings_language_format", languageLabelFormat);
+            helpResetDone = HudTheme.T("ui_lobby_help_reset_done", helpResetDone);
+            hotkeyMissing = HudTheme.T("ui_lobby_hotkey_missing", hotkeyMissing);
+        }
+}
 }
