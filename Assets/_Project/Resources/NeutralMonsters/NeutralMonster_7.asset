@@ -17,8 +17,8 @@ MonoBehaviour:
   displayName: NeutralMonster_7
   template: {fileID: 0}
   recommendLevel: 20
-  minEnergy: 600
-  maxEnergy: 900
+  minEnergy: 1800
+  maxEnergy: 2700
   attackStat: 39
   hpStat: 2715
   defenseStat: 35

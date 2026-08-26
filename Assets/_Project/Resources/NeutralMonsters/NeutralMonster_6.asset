@@ -16,8 +16,8 @@ MonoBehaviour:
   nameKey: mon_name_1004
   displayName: NeutralMonster_6
   template: {fileID: 0}
-  minEnergy: 26
-  maxEnergy: 44
+  minEnergy: 34
+  maxEnergy: 57
   attackStat: 0
   hpStat: 15
   defenseStat: 5

@@ -155,7 +155,7 @@ MonoBehaviour:
     triggerArg: 0
     priority: 3
     showOnce: 1
-    seeAlso: "help_upgrade"
+    seeAlso: "help_stats_detail"
     openPanelPath: "UI_Root/HUD_Growth"
   - helpId: "help_awaken"
     category: "성장"
@@ -263,7 +263,7 @@ MonoBehaviour:
     triggerArg: 0
     priority: 1
     showOnce: 1
-    seeAlso: "help_erosion"
+    seeAlso: "help_mental_detail"
     openPanelPath: "UI_Root/HUD_Growth"
   - helpId: "help_neutral"
     category: "위험"
@@ -324,6 +324,30 @@ MonoBehaviour:
     priority: 3
     showOnce: 1
     seeAlso: ""
+    openPanelPath: ""
+  - helpId: "help_stats_detail"
+    category: "성장"
+    order: 325
+    titleKey: "help_stats_detail_title"
+    summaryKey: "help_stats_detail_summary"
+    bodyKey: "help_stats_detail_body"
+    trigger: 0
+    triggerArg: 0
+    priority: 3
+    showOnce: 1
+    seeAlso: "help_upgrade"
+    openPanelPath: ""
+  - helpId: "help_mental_detail"
+    category: "위험"
+    order: 525
+    titleKey: "help_mental_detail_title"
+    summaryKey: "help_mental_detail_summary"
+    bodyKey: "help_mental_detail_body"
+    trigger: 0
+    triggerArg: 0
+    priority: 3
+    showOnce: 1
+    seeAlso: "help_erosion"
     openPanelPath: ""
   steps:
   - helpId: "help_awaken"
