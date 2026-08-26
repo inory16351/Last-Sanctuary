@@ -41,3 +41,5 @@ MonoBehaviour:
   resistanceStat: 50
   monsterId: 100002
   illustName: SoulArcher_illust
+  minEnergy: 7
+  maxEnergy: 11

@@ -45,3 +45,5 @@ MonoBehaviour:
   - 130003
   - 130004
   illustName: Malphas_illust
+  minEnergy: 0
+  maxEnergy: 0

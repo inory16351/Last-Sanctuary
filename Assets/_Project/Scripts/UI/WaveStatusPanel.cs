@@ -1,4 +1,4 @@
-using TMPro;
+﻿using TMPro;
 using UnityEngine;
 using LastSanctuary.Wave;
 
@@ -152,13 +152,13 @@ namespace LastSanctuary.UI
 
         static string PhaseName(WavePhase phase) => phase switch
         {
-            WavePhase.Idle        => "대기 전",
-            WavePhase.Preparation => "정비",
-            WavePhase.Marching    => "진군",
-            WavePhase.Battle      => "전투",
-            WavePhase.Enrage      => "광폭화",
-            WavePhase.Defeat      => "패배",
-            WavePhase.Victory     => "승리",
+            WavePhase.Idle        => Data.StringTable.Get("ui_phase_idle", "대기 전"),
+            WavePhase.Preparation => Data.StringTable.Get("ui_phase_prep", "정비"),
+            WavePhase.Marching    => Data.StringTable.Get("ui_phase_advance", "진군"),
+            WavePhase.Battle      => Data.StringTable.Get("ui_phase_combat", "전투"),
+            WavePhase.Enrage      => Data.StringTable.Get("ui_phase_enraged", "광폭화"),
+            WavePhase.Defeat      => Data.StringTable.Get("ui_phase_defeat", "패배"),
+            WavePhase.Victory     => Data.StringTable.Get("ui_phase_victory", "승리"),
             _                     => phase.ToString(),
         };
 
@@ -168,8 +168,8 @@ namespace LastSanctuary.UI
         /// <summary>패배 사유는 <see cref="WaveManager.Reason"/> 이 정본이다 — 문구를 여기서 짐작하지 않는다.</summary>
         void HandleDefeat() =>
             HudLog.Add(_wave != null && _wave.Reason == DefeatReason.AllCharactersLost
-                           ? "캐릭터가 전멸했습니다"
-                           : "성역이 파괴되었습니다",
+                           ? Data.StringTable.Get("ui_defeat_party", "캐릭터가 전멸했습니다")
+                           : Data.StringTable.Get("ui_defeat_nexus", "성역이 파괴되었습니다"),
                        HudLogKind.Danger);
 
         void HandleVictory(int wave) =>

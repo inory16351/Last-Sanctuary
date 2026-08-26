@@ -16,8 +16,8 @@ MonoBehaviour:
   nameKey: mon_name_1002
   displayName: 역겨운 덩어리 2
   template: {fileID: 0}
-  minEnergy: 62
-  maxEnergy: 98
+  minEnergy: 29
+  maxEnergy: 44
   attackStat: 0
   hpStat: 8
   defenseStat: 2

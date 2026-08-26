@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -294,8 +294,20 @@ namespace LastSanctuary.UI
         /// </summary>
         /// <param name="button">대상 버튼. null 이면 아무 일도 하지 않는다.</param>
         /// <param name="family">그림 계열의 앞부분. 밑줄까지 준다(<c>"Btn_Action_"</c>).</param>
+        /// <param name="swapOnHover">
+        /// ★★ <b>마우스를 올렸을 때 그림을 갈아끼울지</b> (2026-08-26 · 유저 지시:
+        /// *"로비 화면 버튼이 왜 마우스 가져가면 이미지가바뀌냐 로비화면 버튼은 그대로 냅둬"*).
+        ///
+        /// <b>왜 끌 수 있어야 하나</b> — 로비는 <b>제 원화</b>(<c>UI/Lobby/LobbyButton</c>)를 쓴다.
+        /// 거기에 허드 계열의 <c>Hover</c> 그림을 얹으면 마우스를 올린 순간 <b>다른 그림으로
+        /// 바뀐다</b> — 계열이 다르니 «판이 갈리는» 것으로 보인다. 그래서 로비는
+        /// <c>false</c> 로 부르고 <b>색만</b> 밝아지게 둔다(<c>ColorTint</c>).
+        /// ⚠ <c>false</c> 면 <see cref="SpriteState"/> 를 <b>쓰지 않는다</b> — 씬에 남아 있던
+        ///   갈아끼우기 설정도 이 호출로 <c>ColorTint</c> 로 덮인다.
+        /// </param>
         /// <returns>그림이 붙어 있게 됐으면 true.</returns>
-        public static bool EnsureButtonSkin(Button button, string family = "Btn_Action_")
+        public static bool EnsureButtonSkin(Button button, string family = "Btn_Action_",
+                                            bool swapOnHover = true)
         {
             if (button == null) return false;
 
@@ -316,6 +328,15 @@ namespace LastSanctuary.UI
             img.raycastTarget = true;
 
             if (button.targetGraphic == null) button.targetGraphic = img;
+
+            // ★ 로비처럼 «그림은 그대로» 여야 하는 곳은 색만 바꾼다 — 그림을 갈아끼우면
+            //   제 원화가 허드 그림으로 바뀌어 판이 갈린다.
+            if (!swapOnHover)
+            {
+                button.transition = Selectable.Transition.ColorTint;
+                return true;
+            }
+
             button.transition = Selectable.Transition.SpriteSwap;
             button.spriteState = new SpriteState
             {
@@ -327,6 +348,25 @@ namespace LastSanctuary.UI
 
             return true;
         }
+
+        // ── 문구를 표에서 가져오기 ──────────────────────────────────────
+
+        /// <summary>
+        /// ★★★ <b>문구 칸을 스트링 표의 값으로 바꿔 준다</b> (2026-08-26 · 유저 지시:
+        /// *"하드 코딩으로 들어가 있는 텍스트들 단위별로 전부 스트링 키 테이블에도 옮기고
+        /// 영어로도 번역해줘 지금 언어를 바꿔도 번역 안되는 한글들이 많음"*).
+        ///
+        /// <b>왜 이런 모양인가</b> — 창 여럿이 문구를 <c>[SerializeField] string</c> 칸에 두고
+        /// 여러 자리에서 쓴다. 쓰는 자리를 전부 고치면 편집이 수십 곳이 되고 반드시 하나를
+        /// 빠뜨린다. 그래서 창마다 <c>LocalizeLabels()</c> 한 함수를 두고 <b>칸을 통째로 갈아
+        /// 끼운다</b> — 쓰는 자리는 한 줄도 안 고친다.
+        ///
+        /// ★ <b>표에 키가 없으면 <paramref name="fallback"/> 이 그대로 돌아온다</b> — 이관이
+        ///   덜 됐거나 표가 안 실린 상태에서도 화면은 지금과 똑같다.
+        /// ⚠ 그러므로 <b>이 함수가 성공했는지</b>는 표를 봐야 안다(<c>StringTable.Has</c>).
+        /// </summary>
+        public static string T(string key, string fallback) =>
+            Data.StringTable.Get(key, fallback);
 
         // ── 글자가 칸을 넘지 않게 ────────────────────────────────────────
 

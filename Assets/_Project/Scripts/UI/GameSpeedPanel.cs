@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -91,6 +91,13 @@ namespace LastSanctuary.UI
         [Tooltip("멈춰 있는 동안 일시정지 버튼에 적히는 글자 (누르면 다시 흐른다)")]
         [SerializeField] string resumeLabel = "재개";
 
+        /// <summary>문구 칸을 표의 값으로 갈아 끼운다(2026-08-26 · 하드코딩 이관).</summary>
+        void LocalizeLabels()
+        {
+            pauseLabel = HudTheme.T("ui_speed_pause", pauseLabel);
+            resumeLabel = HudTheme.T("ui_speed_resume", resumeLabel);
+        }
+
         [Header("동작")]
         [Tooltip("키보드 1·2·3·4 로도 바꿀 수 있게 한다")]
         [SerializeField] bool keyboardShortcuts = true;
@@ -135,6 +142,10 @@ namespace LastSanctuary.UI
 
         void Start()
         {
+            // ★ 문구를 스트링 표에서 가져온다(2026-08-26 하드코딩 이관). 언어가 바뀌면 다시 부른다.
+            LocalizeLabels();
+            Data.StringTable.OnLanguageChanged -= LocalizeLabels;
+            Data.StringTable.OnLanguageChanged += LocalizeLabels;
             // MCP 로는 씬 오브젝트 참조를 인스펙터에 넣을 수 없어서(진행상황 8절 4번) 이름으로 찾는다.
             for (int i = 0; i < speeds.Length; i++)
             {
@@ -346,6 +357,12 @@ namespace LastSanctuary.UI
         /// </summary>
         void Paint(Image img, ButtonState state) =>
             HudTheme.PaintButton(img, state, state == ButtonState.On ? activeColor : idleColor);
+
+        /// <summary>정적 이벤트는 반드시 뗀다 — 씬을 다시 열면 파괴된 창이 구독자로 남는다.</summary>
+        void OnDestroy()
+        {
+            Data.StringTable.OnLanguageChanged -= LocalizeLabels;
+        }
 
     }
 }

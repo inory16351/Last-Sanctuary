@@ -578,8 +578,18 @@ def sync_monsters():
                   or str(noms.get(mid, {}).get('illust') or '').strip())
         changes['illustName'] = illust
 
+        # ★★★ 처치 보상 (2026-08-26 · 유저 지시: "왜 자원값이 확정이 됐음? 테이블 보고
+        #     랜덤값으로 해"). `wave_nom` 에 새로 붙인 두 칸이다 —
+        #     보스 시트에는 없으므로 <b>보스는 0~0</b> 이 되고, 코드가 그것을 «표에 없음» 으로
+        #     읽어 예전처럼 에너지를 주지 않는다(보스 보상은 유물이다).
+        #   ⚠ `.get` 이 None 을 돌려주면 0 이다 — 잡몹 두 종에만 값이 있다.
+        nom = noms.get(mid, {})
+        changes['minEnergy'] = int(num(nom.get('min_energy')))
+        changes['maxEnergy'] = int(num(nom.get('max_energy')))
+
         total += patch_fields(os.path.join(folder, asset + '.asset'), changes, asset,
-                              add_missing=('titleKey', 'monsterId', 'illustName') + NEW_STAT_FIELDS)
+                              add_missing=('titleKey', 'monsterId', 'illustName',
+                                           'minEnergy', 'maxEnergy') + NEW_STAT_FIELDS)
         report_collider_fit(mid, asset, box_w, box_h)
 
     # --- 중간보스 2종 신규 (2026-08-18 이후 MID_BOSS 는 비어 있어 돌지 않는다) ---

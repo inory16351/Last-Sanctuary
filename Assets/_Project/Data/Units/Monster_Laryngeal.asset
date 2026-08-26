@@ -45,3 +45,5 @@ MonoBehaviour:
   - 130007
   - 130008
   illustName: Laryngeal_illust
+  minEnergy: 0
+  maxEnergy: 0

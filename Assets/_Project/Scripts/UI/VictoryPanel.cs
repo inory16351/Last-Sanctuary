@@ -1,4 +1,4 @@
-using TMPro;
+﻿using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -41,6 +41,15 @@ namespace LastSanctuary.UI
 
         [SerializeField] string restartLabel = "다시 시작";
 
+        /// <summary>문구 칸을 표의 값으로 갈아 끼운다(2026-08-26 · 하드코딩 이관).</summary>
+        void LocalizeLabels()
+        {
+            titleText = HudTheme.T("ui_victory_title", titleText);
+            reasonFormat = HudTheme.T("ui_victory_reason", reasonFormat);
+            summaryFormat = HudTheme.T("ui_victory_summary", summaryFormat);
+            restartLabel = HudTheme.T("ui_restart", restartLabel);
+        }
+
         [Header("동작")]
         [Tooltip("승리 시 Time.timeScale 을 0 으로 만들어 게임을 멈춘다. " +
                  "끄면 승리 화면만 뜨고 전투는 계속 진행된다(연출·디버그 확인용)")]
@@ -81,6 +90,10 @@ namespace LastSanctuary.UI
 
         void Start()
         {
+            // ★ 문구를 스트링 표에서 가져온다(2026-08-26 하드코딩 이관). 언어가 바뀌면 다시 부른다.
+            LocalizeLabels();
+            Data.StringTable.OnLanguageChanged -= LocalizeLabels;
+            Data.StringTable.OnLanguageChanged += LocalizeLabels;
             _startedAt = Time.unscaledTime;
 
             _wave = FindAnyObjectByType<WaveManager>();
@@ -92,6 +105,8 @@ namespace LastSanctuary.UI
 
         void OnDestroy()
         {
+            Data.StringTable.OnLanguageChanged -= LocalizeLabels;
+
             if (_wave != null) _wave.OnVictory -= HandleVictory;
             if (_shown && pauseGameOnVictory) Time.timeScale = 1f;   // 위 doc 2번
         }

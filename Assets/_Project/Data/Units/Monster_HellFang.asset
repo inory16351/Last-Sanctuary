@@ -41,3 +41,5 @@ MonoBehaviour:
   resistanceStat: 50
   monsterId: 100001
   illustName: HellFang_illust
+  minEnergy: 9
+  maxEnergy: 13

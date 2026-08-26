@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using LastSanctuary.Combat;
 using LastSanctuary.Units;
 
@@ -63,7 +63,18 @@ namespace LastSanctuary.Resource
             if (unit.Faction != Faction.Cancer || unit.Kind != UnitKind.Monster) return;
             if (unit is MonsterUnit monster && monster.Tier != MonsterTier.Normal) return;
 
-            AddEnergy(energyPerMonsterKill);
+            // ★★★ <b>웨이브 잡몹도 표의 min~max 에서 굴린다</b> (2026-08-26 · 유저 지시:
+            //   *"왜 자원값이 확정이 됐음? 테이블 보고 랜덤값으로 해"*).
+            //
+            //   예전에는 종을 가리지 않고 <see cref="energyPerMonsterKill"/> <b>한 값</b>이었다 —
+            //   중립 몬스터는 처음부터 표에서 굴리는데(위 갈래) 웨이브 잡몹만 «언제나 정확히
+            //   10» 이었다. 표(`wave_nom` 의 min_energy·max_energy)에 칸을 만들고 여기서 읽는다.
+            //
+            // ⚠ <b>−1 은 «표에 값이 없다»</b> 다(<see cref="MonsterDefinitionSO.RollEnergyReward"/>) —
+            //   그때만 옛 고정값으로 떨어진다. 에셋 동기화가 아직 안 된 판에서 보상이 0 이
+            //   되지 않게 하는 안전판이고, 보스는 애초에 위에서 걸러진다.
+            int rolled = (unit as MonsterUnit)?.Definition?.RollEnergyReward() ?? -1;
+            AddEnergy(rolled >= 0 ? rolled : energyPerMonsterKill);
         }
 
         /// <summary>에너지를 더한다. 0 이하는 무시한다.</summary>

@@ -234,6 +234,7 @@ namespace LastSanctuary.UI
             //   구독자로 남아 «없어진 오브젝트» 를 건드린다(GameSnapshot 이 같은 이유로
             //   OnDestroy 에서 떼는 것과 같다).
             DamageableUnit.OnAnyDied -= HandleAnyDied;
+            Data.StringTable.OnLanguageChanged -= HandleLanguageChanged;
 
             Units.CharacterUpgradeService service = Units.CharacterUpgradeService.Instance;
             if (service != null) service.OnUpgraded -= HandleUpgraded;
@@ -263,7 +264,36 @@ namespace LastSanctuary.UI
             DamageableUnit.OnAnyDied -= HandleAnyDied;
             DamageableUnit.OnAnyDied += HandleAnyDied;
 
+            // ★★★ <b>언어를 바꾸면 그 자리에서 다시 그린다</b> (2026-08-26 · 유저 리포트:
+            //   *"프로필 UI가 열려있는 상태에서 언어 변경하면 바로 초상화 UI내에 있는 문자들이
+            //     영어로 바뀌지 않고 다른 곳 클릭했다가 클릭해야 바뀜"*).
+            //
+            //   <b>왜 안 바뀌었나</b> — 이 창은 «고른 유닛이 바뀔 때» 만 글을 다시 쓴다
+            //   (<see cref="Show"/>). 언어는 <see cref="Data.StringTable"/> 안에서만 바뀌므로
+            //   창은 그 사실을 <b>모른 채</b> 옛 글을 들고 있었다. 그래서 다른 데를 눌러
+            //   «선택 바뀜» 을 한 번 일으켜야 바뀌었다.
+            //   → 미결 133번(«언어를 바꿔도 상시 HUD 가 안 바뀐다»)의 <b>첫 구독자</b>다.
+            //
+            // ⚠ 정적 이벤트라 두 번 걸면 두 번 불린다 — 먼저 떼고 다시 건다(위와 같은 방식).
+            Data.StringTable.OnLanguageChanged -= HandleLanguageChanged;
+            Data.StringTable.OnLanguageChanged += HandleLanguageChanged;
+
             HookUpgrades();
+        }
+
+        /// <summary>
+        /// 언어가 바뀌었다 — <b>보고 있는 대상을 그대로 다시 그린다</b>.
+        ///
+        /// ★ <see cref="Show"/> 를 다시 부르는 것이 가장 안전하다 — 이름·칭호·역할·스킬 이름
+        ///   같은 «한 번만 쓰는 글» 이 전부 그 안에서 정해지기 때문이다. 매 프레임 도는
+        ///   <see cref="RefreshVolatile"/> 은 상태 글만 다시 쓴다.
+        /// ⚠ 창이 닫혀 있으면(<c>_shown == null</c>) 아무 일도 하지 않는다 — 여기서 <c>Show</c> 를
+        ///   부르면 <b>닫아 둔 창이 저절로 열린다</b>.
+        /// </summary>
+        void HandleLanguageChanged()
+        {
+            if (_shown == null || !gameObject.activeSelf) return;
+            Show(_shown);
         }
 
         /// <summary>

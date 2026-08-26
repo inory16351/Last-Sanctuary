@@ -45,3 +45,5 @@ MonoBehaviour:
   resistanceStat: 50
   monsterId: 120001
   illustName: Dantalian_illust
+  minEnergy: 0
+  maxEnergy: 0

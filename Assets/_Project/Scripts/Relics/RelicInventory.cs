@@ -263,6 +263,36 @@ namespace LastSanctuary.Relics
         }
 
         /// <summary>
+        /// ★★ 이 유물을 낀 <b>캐릭터 전부</b>의 정의 ID (2026-08-26 · 유저 지시:
+        /// *"유물 목록 버튼 오른쪽 끝에 장착하고 있는 캐릭터 나오게"*).
+        ///
+        /// <b>왜 <see cref="WearerOf"/> 로는 모자라나</b> — 같은 유물을 <b>둘 이상 가질 수</b> 있고
+        /// (발굴이 같은 것을 또 준다) 그러면 <b>두 캐릭터가 같이 낀다</b>. 그 경우
+        /// <c>WearerOf</c> 는 사전 순서상 <b>먼저 걸린 하나</b>만 돌려주므로, 목록 칸에 그것만
+        /// 적으면 «분명히 내가 다른 애한테도 끼웠는데» 가 된다.
+        ///
+        /// ⚠ <b>같은 캐릭터가 두 칸에 같은 유물을 낀 경우는 한 번만 담는다</b> — 칸이 셋이라
+        ///   막혀 있지 않다(<see cref="TryEquip"/> 는 «이미 꼈으면 true» 로 돌아 나가므로 실제로는
+        ///   생기지 않지만, 저장을 되살릴 때(<see cref="Restore"/>) 들어올 수 있다).
+        /// </summary>
+        /// <param name="relicId">유물 정의 ID.</param>
+        /// <param name="into">여기에 <b>덧붙인다</b>(먼저 비우지 않는다 — 부르는 쪽이 정한다).</param>
+        public void CollectWearers(int relicId, List<int> into)
+        {
+            if (into == null || relicId <= 0) return;
+            foreach (var kv in _equipped)
+            {
+                int[] slots = kv.Value;
+                for (int i = 0; i < slots.Length; i++)
+                {
+                    if (slots[i] != relicId) continue;
+                    if (!into.Contains(kv.Key)) into.Add(kv.Key);
+                    break;
+                }
+            }
+        }
+
+        /// <summary>
         /// 장착. <b>빈 칸에</b> 꽂는다 — 칸이 셋이므로 «먼저 벗고 낀다» 가 아니다
         /// (그것이 칸 하나 시절의 규칙이었다). 빈 칸이 없으면 이유를 돌려준다.
         /// 못 끼면 <c>false</c> 와 이유를 돌려준다.
@@ -418,14 +448,32 @@ namespace LastSanctuary.Relics
         {
             _owned.Clear();
             _equipped.Clear();
+
+            // ★★★ <b>되살릴 때도 «한 종류에 하나» 를 지킨다</b> (2026-08-26 · 유저 지시:
+            //   *"유물 중복 획득 안되고 중복 장착도 안 되게 해"*).
+            //
+            //   들어오는 문(<see cref="Grant"/>)과 장착(<see cref="TryEquip"/>)은 이미 막고 있었다.
+            //   남은 구멍이 <b>이 함수</b>다 — 저장은 «그때의 장부» 라서, 중복 금지가 없던
+            //   판(2026-08-25 이전)의 저장이나 손으로 고친 저장이 들어오면 <b>수량 2</b> 나
+            //   <b>두 캐릭터가 같은 유물</b>이 그대로 되살아난다. 규칙은 «장부에 들어오는 모든
+            //   길» 에서 같아야 하므로 여기서도 자른다.
             if (owned != null)
-                foreach (var p in owned) if (p.x > 0 && p.y > 0) _owned[p.x] = p.y;
+                foreach (var p in owned)
+                    if (p.x > 0 && p.y > 0) _owned[p.x] = 1;      // ⚠ 수량은 <b>항상 1</b>
 
             if (equipped != null)
             {
+                // 이미 누군가에게 꽂은 유물 — 두 번째부터는 버린다(장부에 하나뿐이므로).
+                var placed = new HashSet<int>();
                 foreach (var p in equipped)
                 {
                     if (p.x <= 0 || p.y <= 0) continue;
+                    if (!placed.Add(p.y))
+                    {
+                        Debug.LogWarning($"[유물] 저장에 중복 장착이 있었습니다 — 유물 {p.y} 를 " +
+                                         $"캐릭터 {p.x} 에서 뺐습니다(한 유물은 한 명만 낄 수 있습니다)");
+                        continue;
+                    }
                     int[] slots = EnsureSlots(p.x);
                     for (int i = 0; i < slots.Length; i++)
                     {

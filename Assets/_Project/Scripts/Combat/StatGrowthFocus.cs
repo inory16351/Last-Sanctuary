@@ -1,4 +1,4 @@
-namespace LastSanctuary.Combat
+﻿namespace LastSanctuary.Combat
 {
     /// <summary>
     /// <b>성장 유형</b> — 강화할 때 <b>어느 능력치 묶음이 더 잘 오르는지</b>
@@ -93,12 +93,12 @@ namespace LastSanctuary.Combat
         /// <summary>버튼·로그에 쓰는 이름.</summary>
         public static string Label(StatGrowthFocus focus) => focus switch
         {
-            StatGrowthFocus.Tank      => "탱커",
-            StatGrowthFocus.MeleeDps  => "근거리 딜러",
-            StatGrowthFocus.RangedDps => "원거리 딜러",
-            StatGrowthFocus.MagicDps  => "마법 딜러",
-            StatGrowthFocus.Support   => "지원가",
-            _                         => "미선택",
+            StatGrowthFocus.Tank      => Data.StringTable.Get("ui_focus_tank", "탱커"),
+            StatGrowthFocus.MeleeDps  => Data.StringTable.Get("ui_focus_melee_dps", "근거리 딜러"),
+            StatGrowthFocus.RangedDps => Data.StringTable.Get("ui_focus_ranged_dps", "원거리 딜러"),
+            StatGrowthFocus.MagicDps  => Data.StringTable.Get("ui_focus_magic_dps", "마법 딜러"),
+            StatGrowthFocus.Support   => Data.StringTable.Get("ui_focus_support", "지원가"),
+            _                         => Data.StringTable.Get("ui_focus_none", "미선택"),
         };
     }
 }

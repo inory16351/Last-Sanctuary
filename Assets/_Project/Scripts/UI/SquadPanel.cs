@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -37,6 +37,21 @@ namespace LastSanctuary.UI
         [SerializeField] string rallyClear = "집결지 해제";
         [SerializeField] string coopExpeditionOn = "협동 탐험 ON";
         [SerializeField] string coopExpeditionOff = "협동 탐험 OFF";
+
+        /// <summary>문구 칸을 표의 값으로 갈아 끼운다(2026-08-26 · 하드코딩 이관).</summary>
+        void LocalizeLabels()
+        {
+            title = HudTheme.T("ui_squad_title", title);
+            hint = HudTheme.T("ui_squad_hint", hint);
+            hintNoSquad = HudTheme.T("ui_squad_hint_none", hintNoSquad);
+            memberFormat = HudTheme.T("ui_squad_members", memberFormat);
+            rallySetIdle = HudTheme.T("ui_squad_rally_set", rallySetIdle);
+            rallySetPicking = HudTheme.T("ui_squad_rally_picking", rallySetPicking);
+            rallySetMove = HudTheme.T("ui_squad_rally_move", rallySetMove);
+            rallyClear = HudTheme.T("ui_squad_rally_clear", rallyClear);
+            coopExpeditionOn = HudTheme.T("ui_squad_coop_on", coopExpeditionOn);
+            coopExpeditionOff = HudTheme.T("ui_squad_coop_off", coopExpeditionOff);
+        }
 
         [Header("색")]
         [SerializeField] Color squadNormal = new Color(0.11f, 0.13f, 0.17f, 0.92f);
@@ -87,6 +102,10 @@ namespace LastSanctuary.UI
 
         void Awake()
         {
+            // ★ 문구를 스트링 표에서 가져온다(2026-08-26 하드코딩 이관). 언어가 바뀌면 다시 부른다.
+            LocalizeLabels();
+            Data.StringTable.OnLanguageChanged -= LocalizeLabels;
+            Data.StringTable.OnLanguageChanged += LocalizeLabels;
             Instance = this;
             BuildBindings();
             gameObject.SetActive(false);
@@ -94,6 +113,8 @@ namespace LastSanctuary.UI
 
         void OnDestroy()
         {
+            Data.StringTable.OnLanguageChanged -= LocalizeLabels;
+
             if (Instance == this) Instance = null;
         }
 

@@ -45,3 +45,5 @@ MonoBehaviour:
   - 130009
   - 130010
   illustName: Bale_illust
+  minEnergy: 0
+  maxEnergy: 0

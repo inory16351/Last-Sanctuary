@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace LastSanctuary.Combat
 {
@@ -102,18 +102,18 @@ namespace LastSanctuary.Combat
         /// <summary>표시 이름. UI 라벨과 로그가 같은 문자열을 쓰게 한 곳에 모아둔다.</summary>
         public static string DisplayName(StatType t) => t switch
         {
-            StatType.Hp => "체력",
-            StatType.Attack => "근거리 공격력",
-            StatType.Defense => "방어력",
-            StatType.Regen => "체력 재생",
-            StatType.RangedAttack => "원거리 공격력",
-            StatType.Magic => "마법",
-            StatType.Cure => "회복력",
-            StatType.Accuracy => "명중률",
-            StatType.Critical => "크리티컬 확률",
-            StatType.AttackSpeed => "공격 속도",
-            StatType.MoveSpeed => "이동속도",
-            StatType.Resistance => "저항력",
+            StatType.Hp => Data.StringTable.Get("ui_stat_hp", "체력"),
+            StatType.Attack => Data.StringTable.Get("ui_stat_melee_atk", "근거리 공격력"),
+            StatType.Defense => Data.StringTable.Get("ui_stat_def", "방어력"),
+            StatType.Regen => Data.StringTable.Get("ui_stat_regen", "체력 재생"),
+            StatType.RangedAttack => Data.StringTable.Get("ui_stat_ranged_atk", "원거리 공격력"),
+            StatType.Magic => Data.StringTable.Get("ui_stat_magic", "마법"),
+            StatType.Cure => Data.StringTable.Get("ui_stat_cure", "회복력"),
+            StatType.Accuracy => Data.StringTable.Get("ui_stat_accuracy", "명중률"),
+            StatType.Critical => Data.StringTable.Get("ui_stat_critical", "크리티컬 확률"),
+            StatType.AttackSpeed => Data.StringTable.Get("ui_stat_atk_speed", "공격 속도"),
+            StatType.MoveSpeed => Data.StringTable.Get("ui_stat_move_speed", "이동속도"),
+            StatType.Resistance => Data.StringTable.Get("ui_stat_resistance", "저항력"),
             _ => t.ToString(),
         };
 

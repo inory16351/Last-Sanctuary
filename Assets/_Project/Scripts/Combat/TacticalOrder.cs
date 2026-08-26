@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace LastSanctuary.Combat
 {
@@ -250,50 +250,61 @@ namespace LastSanctuary.Combat
         /// <summary>UI 하단 "현재 지침 요약" 한 문장.</summary>
         public string Summarize()
         {
-            string retreat = retreatHpPercent > 0 ? $"체력 {retreatHpPercent}% 이하에서 후퇴" : "후퇴하지 않음";
-            return $"{Label(position)} 에서 {Label(attackType)} 공격으로 {Label(targetPriority)}을(를) 노리고, " +
-                   $"{Label(attackReaction)}. 탐험 유형은 {Label(expeditionType)}({Label(roamRange)}), " +
-                   $"웨이브에는 {Label(waveReaction)}. {retreat}, 앞이 빠지면 {Label(retreatAction)}.";
+            string retreat = retreatHpPercent > 0
+                ? string.Format(Data.StringTable.Get("ui_order_retreat_at", "체력 {0}% 이하에서 후퇴"),
+                                retreatHpPercent)
+                : Data.StringTable.Get("ui_order_retreat_never", "후퇴하지 않음");
+
+            // ⚠ <b>자리표 순서를 바꾸지 말 것</b> — 영어 문장은 어순이 다르므로
+            //   표의 영어 칸이 같은 번호를 다른 자리에 놓는다.
+            return string.Format(Data.StringTable.Get("ui_order_summary",
+                    "{0} 에서 {1} 공격으로 {2}을(를) 노리고, {3}. "
+                    + "탐험 유형은 {4}({5}), 웨이브에는 {6}. {7}, 앞이 빠지면 {8}."),
+                Label(position), Label(attackType), Label(targetPriority),
+                Label(attackReaction), Label(expeditionType), Label(roamRange),
+                Label(waveReaction), retreat, Label(retreatAction));
         }
 
         // ── 표시용 라벨 (UI 와 요약문이 같은 문구를 쓰도록 여기 한 곳에 모아둔다) ──────
 
         public static string Label(TacticalAttackType v) => v switch
         {
-            TacticalAttackType.Ranged => "원거리",
-            TacticalAttackType.Magic  => "마법",
-            TacticalAttackType.Heal   => "치유",
-            _                         => "근거리",
+            TacticalAttackType.Ranged => Data.StringTable.Get("ui_atk_ranged", "원거리"),
+            TacticalAttackType.Magic  => Data.StringTable.Get("ui_atk_magic", "마법"),
+            TacticalAttackType.Heal   => Data.StringTable.Get("ui_atk_heal", "치유"),
+            _                         => Data.StringTable.Get("ui_atk_melee", "근거리"),
         };
 
         public static string Label(TacticalRetreatAction v) => v switch
         {
-            TacticalRetreatAction.FallBackWithAlly => "동료와 함께 후퇴",
-            _                                      => "공격 유지",
+            TacticalRetreatAction.FallBackWithAlly => Data.StringTable.Get("ui_retreat_with_ally", "동료와 함께 후퇴"),
+            _                                      => Data.StringTable.Get("ui_retreat_hold", "공격 유지"),
         };
 
         public static string Label(TacticalPosition v) => v switch
         {
-            TacticalPosition.Front => "전방",
-            TacticalPosition.Back  => "후방",
-            _                      => "중위",
+            TacticalPosition.Front => Data.StringTable.Get("ui_pos_front", "전방"),
+            TacticalPosition.Back  => Data.StringTable.Get("ui_pos_back", "후방"),
+            _                      => Data.StringTable.Get("ui_pos_mid", "중위"),
         };
 
         public static string Label(TacticalTargetPriority v) => v switch
         {
-            TacticalTargetPriority.Strongest => "가장 강력한 적",
-            TacticalTargetPriority.Farthest  => "가장 먼 적",
-            TacticalTargetPriority.Weakest   => "가장 체력이 적은 적",
-            _                                => "가장 가까운 적",
+            TacticalTargetPriority.Strongest => Data.StringTable.Get("ui_target_strongest", "가장 강력한 적"),
+            TacticalTargetPriority.Farthest  => Data.StringTable.Get("ui_target_farthest", "가장 먼 적"),
+            TacticalTargetPriority.Weakest   => Data.StringTable.Get("ui_target_weakest", "가장 체력이 적은 적"),
+            _                                => Data.StringTable.Get("ui_target_nearest", "가장 가까운 적"),
         };
 
         public static string Label(TacticalAttackReaction v) =>
-            v == TacticalAttackReaction.HoldGround ? "사거리에 들어올 때까지 대기" : "시야 내의 적을 쫓아가 공격";
+            v == TacticalAttackReaction.HoldGround
+                ? Data.StringTable.Get("ui_reaction_hold", "사거리에 들어올 때까지 대기")
+                : Data.StringTable.Get("ui_reaction_chase", "시야 내의 적을 쫓아가 공격");
 
         public static string Label(TacticalExpeditionType v) => v switch
         {
-            TacticalExpeditionType.Explore => "탐색",
-            _                              => "사냥",
+            TacticalExpeditionType.Explore => Data.StringTable.Get("ui_scout_explore", "탐색"),
+            _                              => Data.StringTable.Get("ui_scout_hunt", "사냥"),
         };
 
         /// <summary>
@@ -306,15 +317,17 @@ namespace LastSanctuary.Combat
         public static string Description(TacticalExpeditionType v) => v switch
         {
             TacticalExpeditionType.Explore =>
-                "탐색 — 탐험 중 중립 몬스터를 절대 공격하지 않고 안개만 밝히며 돌아다닙니다. " +
-                "중립 몬스터에게 공격당해도 반격 없이 그 자리를 벗어나 도망칩니다(웨이브 " +
-                "몬스터에게 맞을 때는 평소처럼 맞서 싸웁니다). 전투를 최대한 피해 안전하게 " +
-                "시야를 넓히고 싶을 때 적합합니다.",
+                Data.StringTable.Get("ui_scout_explore_desc",
+                    "탐색 — 탐험 중 중립 몬스터를 절대 공격하지 않고 안개만 밝히며 돌아다닙니다. " +
+                    "중립 몬스터에게 공격당해도 반격 없이 그 자리를 벗어나 도망칩니다(웨이브 " +
+                    "몬스터에게 맞을 때는 평소처럼 맞서 싸웁니다). 전투를 최대한 피해 안전하게 " +
+                    "시야를 넓히고 싶을 때 적합합니다."),
 
             _ =>
-                "사냥 — 탐험 중 중립 몬스터를 발견하면 먼저 다가가 공격해 사냥합니다. 처치하면 " +
-                "에너지를 얻지만, 사냥에 나서는 동안 부대에서 떨어지거나 강한 개체와 마주쳐 " +
-                "위험해질 수 있습니다.",
+                Data.StringTable.Get("ui_scout_hunt_desc",
+                    "사냥 — 탐험 중 중립 몬스터를 발견하면 먼저 다가가 공격해 사냥합니다. 처치하면 " +
+                    "에너지를 얻지만, 사냥에 나서는 동안 부대에서 떨어지거나 강한 개체와 마주쳐 " +
+                    "위험해질 수 있습니다."),
         };
 
         /// <summary>
@@ -325,9 +338,9 @@ namespace LastSanctuary.Combat
         /// </summary>
         public static string Label(TacticalRoamRange v) => v switch
         {
-            TacticalRoamRange.Mid => "외곽",
-            TacticalRoamRange.Far => "전역",
-            _                     => "근방",
+            TacticalRoamRange.Mid => Data.StringTable.Get("ui_roam_mid", "외곽"),
+            TacticalRoamRange.Far => Data.StringTable.Get("ui_roam_far", "전역"),
+            _                     => Data.StringTable.Get("ui_roam_near", "근방"),
         };
 
         /// <summary>
@@ -337,16 +350,21 @@ namespace LastSanctuary.Combat
         public static string Description(TacticalRoamRange v) => v switch
         {
             TacticalRoamRange.Mid =>
-                "성역 바깥 지대까지 나가 탐험합니다. 밝힐 곳이 더 많지만 그만큼 위험합니다.",
+                Data.StringTable.Get("ui_roam_mid_desc",
+                    "성역 바깥 지대까지 나가 탐험합니다. 밝힐 곳이 더 많지만 그만큼 위험합니다."),
 
             TacticalRoamRange.Far =>
-                "제한 없이 맵 끝까지 나갑니다. 미지의 존재와 마주칠 각오가 필요합니다.",
+                Data.StringTable.Get("ui_roam_far_desc",
+                    "제한 없이 맵 끝까지 나갑니다. 미지의 존재와 마주칠 각오가 필요합니다."),
 
             _ =>
-                "성역 가까운 곳만 돕니다. 위험은 적지만 넓은 지역을 밝히지 못합니다.",
+                Data.StringTable.Get("ui_roam_near_desc",
+                    "성역 가까운 곳만 돕니다. 위험은 적지만 넓은 지역을 밝히지 못합니다."),
         };
 
         public static string Label(TacticalWaveReaction v) =>
-            v == TacticalWaveReaction.KeepExploring ? "탐험 우선" : "즉시 방어";
+            v == TacticalWaveReaction.KeepExploring
+                ? Data.StringTable.Get("ui_wave_keep_exploring", "탐험 우선")
+                : Data.StringTable.Get("ui_wave_defend_now", "즉시 방어");
     }
 }

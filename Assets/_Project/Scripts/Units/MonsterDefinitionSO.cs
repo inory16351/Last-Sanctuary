@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using LastSanctuary.Combat;
 
 namespace LastSanctuary.Units
@@ -138,6 +138,41 @@ namespace LastSanctuary.Units
                  "필드를 지우지는 않는다(U-D3) — 옛 에셋이 남아 있어도 조용히 곱해지도록. " +
                  "새로 적을 일은 없다")]
         [Min(1)] public int hpPercent = 100;
+
+        // ------------------------------------------------------------------
+        // ★★★ 처치 보상 (2026-08-26 · 유저 지시: *"왜 자원값이 확정이 됐음?
+        //     테이블 보고 랜덤값으로 해"*)
+        //
+        // <b>무엇이 «확정» 이었나</b> — 웨이브 잡몹의 처치 보상은 <c>ResourceManager</c> 의
+        // <c>energyPerMonsterKill</c> <b>한 값(10)</b> 이었다. 중립 몬스터는 처음부터 표의
+        // min~max 에서 굴리는데(<see cref="NeutralMonsterDefinitionSO.minEnergy"/>),
+        // 웨이브 잡몹만 «모든 종이 언제나 정확히 10» 이었다 — 표에 칸조차 없었다.
+        //
+        // ★ 그래서 <b>표에 칸을 만들고</b>(`wave_nom` 의 min_energy·max_energy)
+        //   <b>중립과 같은 모양</b>으로 굴린다. 보스는 값을 비워 두므로(0~0) 예전처럼
+        //   에너지를 주지 않는다 — 보스의 보상은 유물이다.
+        // ⚠ <b>0~0 이면 «표에 없음» 이다</b> — 그때는 <c>ResourceManager</c> 의 옛 고정값으로
+        //   떨어진다(에셋이 아직 동기화되지 않은 판에서 보상이 0 이 되지 않게 하는 안전판).
+        // ------------------------------------------------------------------
+
+        [Header("처치 보상 (테이블 min/max_energy)")]
+        [Tooltip("처치 시 획득 에너지의 최소값. 0 이면 표에 없는 것으로 보고 ResourceManager 의 고정값을 쓴다")]
+        [Min(0)] public int minEnergy;
+
+        [Tooltip("처치 시 획득 에너지의 최대값(포함). 0 이면 최소값과 같게 본다")]
+        [Min(0)] public int maxEnergy;
+
+        /// <summary>
+        /// 표의 <c>min_energy ~ max_energy</c> 에서 <b>한 번 굴린다</b>.
+        /// 칸이 비어 있으면(둘 다 0) <c>-1</c> — 부르는 쪽이 «표에 없다» 로 읽는다.
+        /// </summary>
+        public int RollEnergyReward()
+        {
+            if (minEnergy <= 0 && maxEnergy <= 0) return -1;
+            int lo = Mathf.Max(0, minEnergy);
+            int hi = Mathf.Max(lo, maxEnergy);
+            return Random.Range(lo, hi + 1);
+        }
 
         [Header("전투 파라미터 (타일)")]
         [Tooltip("공격 방식. Ranged/Magic 이면 UnitCombat 이 사거리를 attackRange 로 맞추고, " +

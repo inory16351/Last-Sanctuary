@@ -1,4 +1,4 @@
-using TMPro;
+﻿using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -77,9 +77,13 @@ namespace LastSanctuary.UI
 
             // ★ 그림은 코드가 꽂는다 — MCP 로는 씬 오브젝트에 Sprite 참조를 넣을 수 없다
             //   (진행상황 8절 4번). 게임 쪽 환경 설정의 언어 버튼과 <b>같은 처리</b>다.
+            // ★★ <b>로비는 «그림 갈아끼우기» 를 끈다</b>(2026-08-26 · 유저 지시:
+            //   *"로비화면 버튼은 그대로 냅둬"*) — 마우스를 올려도 그림은 그대로고 색만 밝아진다.
+            //   ⚠ 이 세 줄을 빼면 씬에서 ColorTint 로 돌려놔도 <b>실행하는 순간 다시</b>
+            //     SpriteSwap 이 된다 — 씬만 고치면 안 되는 자리다.
             if (_languageButton != null)
             {
-                HudTheme.EnsureButtonSkin(_languageButton);
+                HudTheme.EnsureButtonSkin(_languageButton, swapOnHover: false);
                 _languageButton.onClick.RemoveAllListeners();
                 _languageButton.onClick.AddListener(HandleToggleLanguage);
                 LanguageSetting.Restore();
@@ -88,14 +92,14 @@ namespace LastSanctuary.UI
 
             if (_hotkeyButton != null)
             {
-                HudTheme.EnsureButtonSkin(_hotkeyButton);
+                HudTheme.EnsureButtonSkin(_hotkeyButton, swapOnHover: false);
                 _hotkeyButton.onClick.RemoveAllListeners();
                 _hotkeyButton.onClick.AddListener(HandleHotkeys);
             }
 
             if (_helpResetButton != null)
             {
-                HudTheme.EnsureButtonSkin(_helpResetButton);
+                HudTheme.EnsureButtonSkin(_helpResetButton, swapOnHover: false);
                 _helpResetButton.onClick.RemoveAllListeners();
                 _helpResetButton.onClick.AddListener(HandleForgetHelp);
             }

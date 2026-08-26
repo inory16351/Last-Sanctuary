@@ -1,4 +1,4 @@
-using TMPro;
+﻿using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -76,6 +76,16 @@ namespace LastSanctuary.UI
 
         [SerializeField] string restartLabel = "다시 시작";
 
+        /// <summary>
+        /// 문구 칸을 표의 값으로 갈아 끼운다(2026-08-26 · 하드코딩 이관).
+        /// ★ 제목·패배 사유는 이미 <c>…Key</c> 칸으로 표를 보고 있다 — 여기는 나머지다.
+        /// </summary>
+        void LocalizeLabels()
+        {
+            summaryFormat = HudTheme.T("ui_defeat_summary", summaryFormat);
+            restartLabel = HudTheme.T("ui_restart", restartLabel);
+        }
+
         [Header("동작")]
         [Tooltip("패배 시 Time.timeScale 을 0 으로 만들어 게임을 멈춘다. " +
                  "끄면 패배 화면만 뜨고 전투는 계속 진행된다(연출·디버그 확인용)")]
@@ -109,6 +119,10 @@ namespace LastSanctuary.UI
 
         void Start()
         {
+            // ★ 문구를 스트링 표에서 가져온다(2026-08-26 하드코딩 이관). 언어가 바뀌면 다시 부른다.
+            LocalizeLabels();
+            Data.StringTable.OnLanguageChanged -= LocalizeLabels;
+            Data.StringTable.OnLanguageChanged += LocalizeLabels;
             _startedAt = Time.unscaledTime;
 
             _wave = FindAnyObjectByType<WaveManager>();
@@ -120,6 +134,8 @@ namespace LastSanctuary.UI
 
         void OnDestroy()
         {
+            Data.StringTable.OnLanguageChanged -= LocalizeLabels;
+
             if (_wave != null) _wave.OnDefeat -= HandleDefeat;
 
             // ⚠️ 반드시 되돌린다 — 에디터의 Time.timeScale 은 <b>플레이 모드를 나가도 유지된다.</b>

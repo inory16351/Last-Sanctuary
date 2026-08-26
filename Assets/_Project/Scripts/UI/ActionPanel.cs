@@ -1,4 +1,4 @@
-using TMPro;
+﻿using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -78,6 +78,34 @@ namespace LastSanctuary.UI
         [SerializeField] string helpIdle = "도움말 (F1)";
         [SerializeField] string helpOpen = "도움말 닫기";
 
+        /// <summary>
+        /// ★★★ <b>문구 칸을 표의 값으로 갈아 끼운다</b> (2026-08-26 · 유저 지시:
+        /// *"하드 코딩으로 들어가 있는 텍스트들 … 스트링 키 테이블에도 옮기고 영어로도"*).
+        /// 표에 키가 없으면 칸의 값이 그대로 남는다 — 그래서 <b>실패해도 화면은 멀쩡하다</b>.
+        /// </summary>
+        void LocalizeLabels()
+        {
+            createFormat = HudTheme.T("ui_action_create", createFormat);
+            createAtLimit = HudTheme.T("ui_action_create_cap", createAtLimit);
+            createOutOfCandidates = HudTheme.T("ui_action_create_none", createOutOfCandidates);
+            tacticsIdle = HudTheme.T("ui_action_tactics", tacticsIdle);
+            tacticsOpen = HudTheme.T("ui_action_tactics_close", tacticsOpen);
+            squadIdle = HudTheme.T("ui_action_squad", squadIdle);
+            squadOpen = HudTheme.T("ui_action_squad_close", squadOpen);
+            squadPicking = HudTheme.T("ui_action_squad_picking", squadPicking);
+            subjugateOpen = HudTheme.T("ui_action_subjugate_close", subjugateOpen);
+            subjugateFound = HudTheme.T("ui_action_subjugate_found", subjugateFound);
+            subjugateNone = HudTheme.T("ui_action_subjugate", subjugateNone);
+            relicFound = HudTheme.T("ui_action_relic_found", relicFound);
+            relicIdle = HudTheme.T("ui_action_relic", relicIdle);
+            relicOpen = HudTheme.T("ui_action_relic_close", relicOpen);
+            settingsIdle = HudTheme.T("ui_action_settings", settingsIdle);
+            settingsOpen = HudTheme.T("ui_action_settings_close", settingsOpen);
+            helpUnread = HudTheme.T("ui_action_help_unread", helpUnread);
+            helpIdle = HudTheme.T("ui_action_help", helpIdle);
+            helpOpen = HudTheme.T("ui_action_help_close", helpOpen);
+        }
+
         [Header("칸 높이 (2026-08-24 — 하드코딩 제거)")]
         [Tooltip("켜면 <b>켜져 있는 버튼 수</b>에 맞춰 이 패널의 높이를 스스로 맞춘다.\n" +
                  "예전에는 씬에 박힌 값이라 버튼이 하나 늘 때마다 <b>칸 밖으로 넘쳤다</b> " +
@@ -122,6 +150,10 @@ namespace LastSanctuary.UI
 
         void Start()
         {
+            // ★ 문구를 스트링 표에서 가져온다(2026-08-26 하드코딩 이관). 언어가 바뀌면 다시 부른다.
+            LocalizeLabels();
+            Data.StringTable.OnLanguageChanged -= LocalizeLabels;
+            Data.StringTable.OnLanguageChanged += LocalizeLabels;
             _creation = CharacterCreationService.Instance;
 
             // 전술 지침·부대 설정 창은 버튼을 누르기 전까지 비활성이므로 Instance(=Awake 에서 설정)가
@@ -567,6 +599,12 @@ namespace LastSanctuary.UI
             HudTheme.PaintButton(img, state,
                 state == ButtonState.On ? buttonOn :
                 state == ButtonState.Off ? buttonOff : buttonNormal);
+
+        /// <summary>정적 이벤트는 반드시 뗀다 — 씬을 다시 열면 파괴된 창이 구독자로 남는다.</summary>
+        void OnDestroy()
+        {
+            Data.StringTable.OnLanguageChanged -= LocalizeLabels;
+        }
 
     }
 }

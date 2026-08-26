@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 
 namespace LastSanctuary.UI
@@ -56,8 +56,24 @@ namespace LastSanctuary.UI
         /// 인물은 0.85 정도(얼굴), 전신 몬스터는 0.5.
         /// </param>
         /// <param name="horizontalAnchor">가로로 잘릴 때 남길 위치. 보통 0.5(가운데).</param>
+        /// <param name="zoom">
+        /// ★★ <b>얼굴만 크게 보고 싶을 때 더 키우는 배수</b> (2026-08-26 · 유저 지시:
+        /// *"캐릭터 로스터에 초상화 얼굴이 잘리니까 좀더 얼굴에 집중해서 짤라서 만들어
+        /// 헤드룸이 좀 있어야 자연스럽게 들어갈듯"*).
+        ///
+        /// <b>왜 필요한가</b> — cover 는 «액자를 채우는 <b>최소</b> 배율» 이다. 420×568 인물화를
+        /// 84×84 정사각 액자에 넣으면 폭이 딱 맞아 <b>세로 420px 이 그대로 보인다</b> — 얼굴
+        /// (위쪽 200px 쯤)만 아니라 <b>가슴·허리까지</b> 들어와 작은 칸에서는 얼굴이 알아볼 수
+        /// 없이 작아진다. 로스터의 84px 칸이 정확히 그 경우였다.
+        ///
+        /// <b>무엇을 하나</b> — 계산된 cover 크기에 이 배수를 곱한다. <c>1.6</c> 이면 보이는
+        /// 영역이 420 → <b>262px</b> 로 좁아져 얼굴이 칸을 채운다.
+        /// ★ <b>1 이면 예전과 완전히 같다</b> — 다른 초상화 자리(상세 카드·몬스터)는 안 건드린다.
+        /// ⚠ 배수를 올릴수록 <paramref name="verticalAnchor"/> 를 <b>1 에 붙여야</b> 한다 —
+        ///   좁아진 창을 아래로 내리면 «머리 위 여백»(헤드룸)이 아니라 <b>머리가 잘린다</b>.
+        /// </param>
         public static void Cover(Image image, float verticalAnchor = 0.85f,
-                                 float horizontalAnchor = 0.5f)
+                                 float horizontalAnchor = 0.5f, float zoom = 1f)
         {
             if (image == null) return;
 
@@ -85,6 +101,10 @@ namespace LastSanctuary.UI
                 ? new Vector2(frameSize.y * spriteAspect, frameSize.y)
                 // 그림이 액자보다 길쭉하다 → 폭을 맞추고 위아래가 넘친다
                 : new Vector2(frameSize.x, frameSize.x / spriteAspect);
+
+            // ★ 얼굴만 크게 볼 때는 «채우는 최소 배율» 위로 한 번 더 키운다.
+            //   ⚠ 1 보다 작은 값은 받지 않는다 — 액자에 빈 곳이 생기면 cover 가 아니게 된다.
+            size *= Mathf.Max(1f, zoom);
 
             // 앵커·피벗을 액자 정중앙으로 고정한 뒤 크기와 오프셋을 직접 준다.
             // ⚠ 늘린 앵커(anchorMin != anchorMax)를 남겨두면 sizeDelta 의 뜻이

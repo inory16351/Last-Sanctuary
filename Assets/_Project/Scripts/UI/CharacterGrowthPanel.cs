@@ -583,6 +583,68 @@ namespace LastSanctuary.UI
         /// ★ 유물 칸 — 지금 선택된 캐릭터가 낀 유물을 보여준다(2026-08-23).
         /// 비어 있으면 회색 «없음». 누르면 유물 관리 창이 열린다.
         /// </summary>
+        /// <summary>유물 칸 셋 — 코드가 짓는다(<see cref="RelicCardStrip"/> 의 «왜 코드가» 참조).</summary>
+        readonly RelicCardStrip _relicCards = new RelicCardStrip();
+
+        /// <summary>
+        /// ★★★ <b>칸 셋을 하나하나 채운다</b> (2026-08-26 · 유저 지시:
+        /// *"장착하고 있는 유물 하나하나 정보를 볼 수 있게"* ·
+        /// *"아무것도 안 장착하고 있을땐 빈 슬롯으로 넣어주고"*).
+        ///
+        /// ★ 칸마다 <b>아이콘 · 이름(등급 색) · 효과</b> 를 적는다 — 스킬 칸과 같은 모양이다.
+        /// ★ <b>빈 칸도 «빈 칸» 으로 그린다</b> — 아무것도 없으면 칸 자체가 사라지는 것보다
+        ///   «세 칸 중 하나가 비었다» 가 한눈에 보이는 것이 낫다(유저 지시).
+        /// ⚠ 누를 수 있는 칸은 <b>전부</b>다 — 빈 칸을 누르면 무엇을 끼울지 고르러
+        ///   유물 관리 창이 열린다.
+        /// </summary>
+        void RefreshRelicCards(bool has)
+        {
+            var cards = _relicCards.Cards;
+            if (cards.Count == 0) return;
+
+            for (int i = 0; i < cards.Count; i++)
+            {
+                RelicCardStrip.Card card = cards[i];
+                Relics.RelicDefinitionSO relic = i < _wornScratch.Count ? _wornScratch[i] : null;
+                card.RelicId = relic != null ? relic.relicId : 0;
+
+                if (card.Icon != null)
+                {
+                    Sprite art = relic != null ? relic.icon : RelicCardStrip.EmptyIcon;
+                    card.Icon.sprite = art;
+                    card.Icon.enabled = art != null;
+                    // 빈 칸 아이콘은 <b>어둡게</b> — 낀 것과 한눈에 갈린다.
+                    card.Icon.color = relic != null ? Color.white : new Color(1f, 1f, 1f, 0.35f);
+                }
+
+                if (card.Name != null)
+                {
+                    if (relic != null)
+                    {
+                        card.Name.text = relic.DisplayName;
+                        card.Name.color = relic.GradeColor;
+                    }
+                    else
+                    {
+                        card.Name.text = has
+                            ? Data.StringTable.Get("ui_relic_empty_slot", "빈 칸")
+                            : Data.StringTable.Get("ui_relic_pick_character", "캐릭터를 선택하세요");
+                        card.Name.color = HudTheme.TextDim;
+                    }
+                }
+
+                if (card.Effect != null)
+                {
+                    card.Effect.text = relic != null ? relic.Desc
+                                     : has ? Data.StringTable.Get("ui_relic_empty_hint", "눌러서 유물을 끼웁니다.")
+                                     : "";
+                    card.Effect.color = relic != null ? HudTheme.TextMain : HudTheme.TextDim;
+                }
+
+                if (card.Button != null) card.Button.interactable = has && !_unit.IsSummoned;
+            }
+        }
+
         void RefreshRelicSlot(bool has)
         {
             if (_relicSlot == null) return;
@@ -595,6 +657,18 @@ namespace LastSanctuary.UI
             _wornScratch.Clear();
             if (has && inv != null) inv.CollectEquipped(_unit, _wornScratch);
             Relics.RelicDefinitionSO relic = _wornScratch.Count > 0 ? _wornScratch[0] : null;
+
+            // ★★★ 칸 셋이 지어져 있으면 <b>그쪽이 정본</b>이다 (2026-08-26).
+            //   아래 «한 줄에 전부 이어 붙이기» 는 칸이 하나였던 시절의 배치이고,
+            //   그 글자 칸들은 지금 <b>첫 칸의 자식</b>이 되어 있다 — 여기서 계속 쓰면
+            //   첫 칸에 세 유물이 이어 붙어 나온다. <b>옛 씬을 위한 폴백</b>으로만 남긴다.
+            if (_relicCards.Cards.Count > 0)
+            {
+                RefreshRelicCards(has);
+                if (_relicSlotButton != null)
+                    _relicSlotButton.interactable = has && !_unit.IsSummoned;
+                return;
+            }
 
             if (_relicSlotIcon != null)
             {
@@ -662,10 +736,19 @@ namespace LastSanctuary.UI
         readonly System.Text.StringBuilder _sb = new System.Text.StringBuilder(160);
 
         /// <summary>유물 관리 창을 연다 — 고르는 일은 그쪽이 한다(위 ★★).</summary>
-        void OpenRelicPanel()
+        void OpenRelicPanel() => OpenRelicPanel(0);
+
+        /// <summary>
+        /// 유물 관리 창을 연다. <paramref name="relicId"/> 가 0 보다 크면 <b>그 유물을 골라</b> 편다
+        /// (2026-08-26 · 유물 칸 셋의 «하나하나 정보를 본다» 는 이 경로다 —
+        /// 스킬 칸이 스킬 상세를 띄우는 것과 같은 짜임).
+        /// </summary>
+        void OpenRelicPanel(int relicId)
         {
             RelicPanel panel = RelicPanel.Instance;
-            if (panel != null) panel.SetOpen(true);
+            if (panel == null) return;
+            if (relicId > 0) panel.FocusRelic(relicId);
+            else panel.SetOpen(true);
         }
 
         /// <summary>
@@ -1236,6 +1319,38 @@ namespace LastSanctuary.UI
             {
                 _relicSlotButton.onClick.RemoveAllListeners();
                 _relicSlotButton.onClick.AddListener(OpenRelicPanel);
+            }
+
+            // ★★★ 유물 칸을 <b>가로로 셋</b>으로 자른다 (2026-08-26 · 유저 지시:
+            //   *"유물 장착 칸 슬롯을 … 가로 단위로 세 칸으로 자른 다음 장착하고 있는 유물
+            //   하나하나 정보를 볼 수 있게 해줘 스킬 칸 처럼"*).
+            //   ⚠ <b>배선의 끝</b>에서 짓는다 — 위에서 찾은 <c>Icon</c>·<c>Name</c>·<c>Effect</c> 를
+            //     첫 칸으로 «옮기기» 때문에, 먼저 지으면 그 경로 조회가 실패한다
+            //     (도움말 본문 스크롤이 «경로 조회가 끝난 뒤에 감싼다» 와 같은 순서 문제다).
+            var barRect = _relicSlot != null ? _relicSlot.transform as RectTransform : null;
+            if (barRect != null)
+            {
+                int slots = Relics.RelicInventory.Instance != null
+                    ? Relics.RelicInventory.Instance.EquipSlots : 3;
+
+                // 오른쪽 예약폭 — 「유물 관리 열기」 버튼과 그 여백. 버튼이 없으면 0.
+                float reserved = 0f;
+                if (_relicSlotButton != null &&
+                    _relicSlotButton.transform is RectTransform br &&
+                    br.parent == barRect)
+                    reserved = br.rect.width + 24f;
+
+                _relicCards.Build(barRect, _relicSlotIcon, _relicSlotName, _relicSlotEffect,
+                                  slots, reserved);
+
+                for (int i = 0; i < _relicCards.Cards.Count; i++)
+                {
+                    RelicCardStrip.Card card = _relicCards.Cards[i];
+                    if (card.Button == null) continue;
+                    RelicCardStrip.Card captured = card;
+                    card.Button.onClick.RemoveAllListeners();
+                    card.Button.onClick.AddListener(() => OpenRelicPanel(captured.RelicId));
+                }
             }
 
             _focusGroup = transform.Find("Stats/GrowthTypes")?.gameObject;

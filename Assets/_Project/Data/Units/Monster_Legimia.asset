@@ -45,3 +45,5 @@ MonoBehaviour:
   - 130011
   - 130012
   illustName: Legimia_illust
+  minEnergy: 0
+  maxEnergy: 0

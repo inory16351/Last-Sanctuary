@@ -84,8 +84,14 @@ namespace LastSanctuary.UI
         [SerializeField] Color rowDead = new Color(0.08f, 0.08f, 0.09f, 0.55f);
 
         [Tooltip("★ 얼굴이 세로로 잘릴 때 어디를 남길지 — 1 이면 맨 위, 0.5 면 가운데.\n" +
-                 "인물화는 위쪽에 얼굴이 있으므로 0.85 다(캐릭터 상세 카드와 같은 값)")]
-        [Range(0f, 1f)] [SerializeField] float portraitVerticalAnchor = 0.85f;
+                 "행의 칸은 84px 정사각이라 1(맨 위)이다 — 내리면 머리·후드·후광이 잘린다")]
+        [Range(0f, 1f)] [SerializeField] float portraitVerticalAnchor = 1f;
+
+        [Tooltip("★★ 얼굴을 얼마나 크게 볼지 — 1 이면 «액자를 채우는 최소 배율»(가슴까지 들어온다). " +
+                 "1.4 면 보이는 영역이 420 → 300px 로 좁아진다.\n" +
+                 "⚠ 15장을 실측해 고른 값이다 — 1.5 를 넘기면 왕관·모자가 높은 캐릭터" +
+                 "(불칸·아루 새벽)의 얼굴이 칸 아래로 밀려난다. 앵커는 1(맨 위) 고정")]
+        [Range(1f, 3f)] [SerializeField] float portraitZoom = 1.4f;
 
         [Tooltip("죽은 캐릭터의 얼굴을 얼마나 어둡게 할지 — 1 이면 그대로, 0 이면 검정")]
         [Range(0f, 1f)] [SerializeField] float deadPortraitDim = 0.35f;
@@ -896,7 +902,11 @@ namespace LastSanctuary.UI
             if (row.PortraitArt != null && row.PortraitArt.sprite != null)
                 row.PortraitArt.color = new Color(deadPortraitDim, deadPortraitDim, deadPortraitDim, 1f);
             if (row.Name != null) { row.Name.text = row.CachedName; row.Name.color = deadTextColor; }
-            if (row.Duty != null) { row.Duty.text = "사망"; row.Duty.color = deadTextColor; }
+            if (row.Duty != null)
+            {
+                row.Duty.text = Data.StringTable.Get("ui_duty_dead", "사망");
+                row.Duty.color = deadTextColor;
+            }
 
             // 비어서(투명) 안 보이는 것보다, 꽉 찬 회색 막대가 "사망"을 훨씬 눈에 띄게 알려준다.
             // 죽음은 연출로 서서히 보여줄 상태가 아니라 즉시 확정이라 여기서 바로 맞춘다
@@ -979,7 +989,9 @@ namespace LastSanctuary.UI
                 if (!ReferenceEquals(row.PortraitArt.sprite, art))
                 {
                     row.PortraitArt.sprite = art;
-                    if (art != null) PortraitFit.Cover(row.PortraitArt, portraitVerticalAnchor);
+                    if (art != null)
+                        PortraitFit.Cover(row.PortraitArt, portraitVerticalAnchor,
+                                          zoom: portraitZoom);
                 }
                 row.PortraitArt.color = art != null ? Color.white : Color.clear;
             }
@@ -1346,26 +1358,27 @@ namespace LastSanctuary.UI
 
             // 후퇴·도망은 전투보다 먼저 본다 — 그 중에는 타겟을 잡지 않으므로 아래 교전 판정에
             // 걸리지 않지만, 순서를 명시해 두는 편이 의도가 분명하다.
-            if (behavior != null && behavior.IsRetreating) return "후퇴";
-            if (behavior != null && behavior.IsFleeing) return "도망";
+            if (behavior != null && behavior.IsRetreating) return Data.StringTable.Get("ui_duty_retreat", "후퇴");
+            if (behavior != null && behavior.IsFleeing) return Data.StringTable.Get("ui_duty_flee", "도망");
 
             var combat = unit.GetComponent<UnitCombat>();
             if (combat != null && combat.Target != null && combat.Target.IsAlive)
             {
-                if (combat.AttackType == TacticalAttackType.Heal) return "치유";
-                return combat.IsHunting ? "사냥" : "교전";
+                if (combat.AttackType == TacticalAttackType.Heal) return Data.StringTable.Get("ui_duty_heal", "치유");
+                return combat.IsHunting ? Data.StringTable.Get("ui_duty_hunt", "사냥")
+                                        : Data.StringTable.Get("ui_duty_fight", "교전");
             }
 
             if (behavior == null) return "-";
 
             return behavior.Duty switch
             {
-                CharacterDuty.Expedition   => "탐험",
-                CharacterDuty.Rally   => "집결",
-                CharacterDuty.Retreat => "후퇴",
-                CharacterDuty.Flee    => "도망",
-                CharacterDuty.Build   => "건설",
-                _                     => "방어",
+                CharacterDuty.Expedition   => Data.StringTable.Get("ui_duty_expedition", "탐험"),
+                CharacterDuty.Rally   => Data.StringTable.Get("ui_duty_rally", "집결"),
+                CharacterDuty.Retreat => Data.StringTable.Get("ui_duty_retreat", "후퇴"),
+                CharacterDuty.Flee    => Data.StringTable.Get("ui_duty_flee", "도망"),
+                CharacterDuty.Build   => Data.StringTable.Get("ui_duty_build", "건설"),
+                _                     => Data.StringTable.Get("ui_duty_guard", "방어"),
             };
         }
     }

@@ -49,8 +49,11 @@ namespace LastSanctuary.UI
 
         [Header("문구")]
         [SerializeField] string hintEmpty = "아직 얻은 유물이 없습니다. 발굴하거나 사냥해 보세요.";
+        [SerializeField] string hintEmptyKey = "ui_relic_hint_empty";
         [SerializeField] string hintPick = "유물을 고르면 설명이 나옵니다.";
+        [SerializeField] string hintPickKey = "ui_relic_hint_pick";
         [SerializeField] string hintNoCharacter = "장착하려면 로스터에서 캐릭터를 먼저 고르세요.";
+        [SerializeField] string hintNoCharacterKey = "ui_relic_hint_no_character";
 
         // ★ 유물 칸 (2026-08-26 · 1칸 → 3칸)
         [Tooltip("{0} = 쓰고 있는 칸 · {1} = 전체 칸")]
@@ -59,6 +62,17 @@ namespace LastSanctuary.UI
         [SerializeField] string unequipLabel = "해제";
         [SerializeField] string countFormat = "x{0}";
         [SerializeField] string wearerFormat = "{0} 착용 중";
+
+        // ★★ 목록 칸 오른쪽 끝의 «누가 끼고 있나» (2026-08-26 · 유저 지시:
+        //   *"유물 목록 버튼 오른쪽 끝에 장착하고 있는 캐릭터 나오게"*).
+        [Tooltip("목록 칸에 적을 착용자. {0} = 이름")]
+        [SerializeField] string rowWearerFormat = "{0}";
+
+        [Tooltip("둘 이상이 끼고 있을 때. {0} = 첫 이름 · {1} = 나머지 수")]
+        [SerializeField] string rowWearerMoreFormat = "{0} 외 {1}";
+
+        [Tooltip("고른 캐릭터가 아닌 <b>다른</b> 캐릭터에게서 벗길 때의 버튼 문구")]
+        [SerializeField] string unequipOtherLabel = "해제";
 
         [Header("색")]
         [SerializeField] Color rowNormal = new Color(0.11f, 0.13f, 0.17f, 0.92f);
@@ -73,6 +87,10 @@ namespace LastSanctuary.UI
             public Image Icon;
             public TMP_Text Name;
             public TMP_Text Count;
+
+            /// <summary>★ 칸 오른쪽 끝의 착용자 이름 (2026-08-26). 아무도 안 끼면 빈 글자.</summary>
+            public TMP_Text Wearer;
+
             public int RelicId;
         }
 
@@ -84,6 +102,10 @@ namespace LastSanctuary.UI
         Image _detailIcon;
         Button _equipButton;
         TMP_Text _equipLabelText;
+
+        // ★ 해제 버튼 (2026-08-26) — 씬에 없으면 null 이고 장착 버튼이 예전처럼 토글로 돈다.
+        Button _unequipButton;
+        TMP_Text _unequipLabelText;
 
         int _selectedRelicId;
         float _nextRefresh;
@@ -130,6 +152,18 @@ namespace LastSanctuary.UI
         public bool IsOpen => gameObject.activeSelf;
 
         public void Toggle() => SetOpen(!IsOpen);
+
+        /// <summary>
+        /// ★ <b>그 유물을 골라서 창을 편다</b> (2026-08-26 — 성장 창의 유물 칸 셋이 쓰는 입구).
+        /// 스킬 칸이 스킬 상세를 띄우는 것과 같은 자리다.
+        /// ⚠ 여는 것이 먼저다 — <see cref="Select"/> 가 <see cref="Rebuild"/> 를 부르고,
+        ///   그 안에서 씬 배선(<see cref="EnsureBound"/>)이 돌아야 한다.
+        /// </summary>
+        public void FocusRelic(int relicId)
+        {
+            SetOpen(true);
+            if (relicId > 0) Select(relicId);
+        }
 
         public void Close() => gameObject.SetActive(false);
 
@@ -189,8 +223,11 @@ namespace LastSanctuary.UI
                 if (row.Count != null)
                 {
                     int n = inv.OwnedCount(r.relicId);
-                    row.Count.text = n > 1 ? string.Format(countFormat, n) : "";
+                    row.Count.text = n > 1
+                        ? string.Format(Data.StringTable.Get("ui_relic_count", countFormat), n) : "";
                 }
+                if (row.Wearer != null)
+                    row.Wearer.text = WearerTextOf(inv, r.relicId);
                 if (row.Background != null)
                     row.Background.color = r.relicId == _selectedRelicId ? rowSelected : rowNormal;
 
@@ -204,6 +241,39 @@ namespace LastSanctuary.UI
         }
 
         readonly List<RelicDefinitionSO> _sorted = new List<RelicDefinitionSO>();
+
+        /// <summary>착용자 조회용 임시 목록 — 매 칸마다 새로 만들지 않는다(칸이 45개까지 간다).</summary>
+        readonly List<int> _wearerKeys = new List<int>();
+
+        /// <summary>
+        /// ★★ 목록 칸 오른쪽 끝에 적을 «누가 끼고 있나» (2026-08-26).
+        ///
+        /// ★ <b>「착용 중」 같은 꼬리말을 붙이지 않는다</b> — 칸의 오른쪽 끝은 88px 뿐이라
+        ///   이름만으로도 긴데(「아르세니아」) 꼬리말을 붙이면 글자가 절반으로 줄어든다.
+        ///   상세 칸은 넓으므로 거기서는 <see cref="wearerFormat"/>(「엘린 착용 중」)을 쓴다.
+        /// ⚠⚠ <b>둘 이상은 «있을 수 없는 상태» 다</b>(2026-08-26 · 유저 지시 «중복 장착 금지»).
+        ///   같은 유물은 장부에 <b>하나만</b> 있고(<see cref="RelicInventory.Grant"/>),
+        ///   장착은 수량을 세어 막고(<see cref="RelicInventory.TryEquip"/>), 저장을 되살릴 때도
+        ///   자른다(<see cref="RelicInventory.Restore"/>). 그래도 여기서 둘이 나오면 <b>장부가
+        ///   깨진 것</b>이므로 «외 N» 으로 <b>감추지 않고 경고를 남긴다</b> — 조용히 예쁘게
+        ///   보여주면 그 고장을 아무도 모른다.
+        /// </summary>
+        string WearerTextOf(RelicInventory inv, int relicId)
+        {
+            if (inv == null) return "";
+            _wearerKeys.Clear();
+            inv.CollectWearers(relicId, _wearerKeys);
+            if (_wearerKeys.Count == 0) return "";
+
+            string first = NameOfCharacter(_wearerKeys[0]);
+            if (_wearerKeys.Count == 1)
+                return string.Format(Data.StringTable.Get("ui_relic_row_wearer", rowWearerFormat), first);
+
+            Debug.LogWarning($"[유물] {relicId} 를 {_wearerKeys.Count} 명이 끼고 있습니다 — " +
+                             "한 유물은 한 명만 낄 수 있습니다(장부가 깨졌습니다).", this);
+            return string.Format(Data.StringTable.Get("ui_relic_wearer_more", rowWearerMoreFormat),
+                                 first, _wearerKeys.Count - 1);
+        }
 
         void Select(int relicId)
         {
@@ -236,7 +306,9 @@ namespace LastSanctuary.UI
             if (r != null && inv != null)
             {
                 int key = inv.WearerOf(r.relicId);
-                if (key > 0) wearer = string.Format(wearerFormat, NameOfCharacter(key));
+                if (key > 0)
+                    wearer = string.Format(Data.StringTable.Get("ui_relic_wearer", wearerFormat),
+                                           NameOfCharacter(key));
             }
             SetText(_detailWearer, wearer, Color.white);
 
@@ -245,36 +317,83 @@ namespace LastSanctuary.UI
                 // ★ 칸이 셋이 되면서 «왜 못 끼는지» 가 «수량» 말고 «칸» 일 수도 있게 됐다.
                 //   그래서 고른 캐릭터의 칸 상태를 그대로 적는다 — 버튼이 회색인 이유가 보인다.
                 string slotNote = inv != null && target != null
-                    ? string.Format(slotFormat, inv.UsedSlots(target), inv.EquipSlots)
+                    ? string.Format(Data.StringTable.Get("ui_relic_slot_format", slotFormat),
+                                    inv.UsedSlots(target), inv.EquipSlots)
                     : string.Empty;
 
-                _hint.text = _sorted.Count == 0 ? hintEmpty
-                           : r == null ? hintPick
-                           : target == null ? hintNoCharacter
-                           : string.IsNullOrEmpty(slotNote) ? hintPick
-                           : $"{hintPick}  {slotNote}";
+                string pick = Data.StringTable.Get(hintPickKey, hintPick);
+                _hint.text =
+                      _sorted.Count == 0 ? Data.StringTable.Get(hintEmptyKey, hintEmpty)
+                    : r == null ? pick
+                    : target == null ? Data.StringTable.Get(hintNoCharacterKey, hintNoCharacter)
+                    : string.IsNullOrEmpty(slotNote) ? pick
+                    : $"{pick}  {slotNote}";
             }
 
-            // ── 장착 버튼 ──
-            if (_equipButton == null) return;
+            // ── 장착 · 해제 두 버튼 ──
+            //
+            // ★★★ 2026-08-26 — <b>토글 하나를 버튼 둘로 갈랐다</b> (유저 지시:
+            //   *"누가 장착하고 있든 바로 유물관리 칸에서 해제할 수 있게"*).
+            //
+            //   토글이었을 때는 «고른 캐릭터가 꼈나» 만 물어서, <b>다른 캐릭터가 낀 유물은
+            //   이 창에서 벗길 길이 없었다</b> — 그 캐릭터를 로스터에서 먼저 골라야 했다.
+            //   그렇다고 «남이 끼고 있으면 해제» 로 뜻을 바꾸면, 여분이 있는데도 장착을
+            //   못 누르게 된다(같은 유물을 둘 이상 가질 수 있다). 그래서 <b>둘로 나눴다</b>:
+            //     장착 = 고른 캐릭터에게 (빈 칸 + 여분이 있을 때)
+            //     해제 = <b>누가 끼고 있든</b> (고른 캐릭터가 꼈으면 그 캐릭터부터)
+            //
+            // ⚠ 씬에 <c>Detail/UnequipButton</c> 이 없어도 죽지 않는다 — 옛 씬에서는
+            //   장착 버튼만 예전처럼 «토글» 로 돈다(아래 <c>_unequipButton == null</c> 갈래).
 
-            // ★★★ 2026-08-26 — 칸이 셋이다. «그 캐릭터가 이 유물을 꼈나» 를 물어야 하고
-            //   (예전엔 «그 캐릭터의 유일한 유물이 이것인가» 였다), 빈 칸이 있어야 낄 수 있다.
             bool alreadyOn = r != null && inv != null && target != null &&
                              inv.IsEquippedOn(target, r);
             bool hasFreeSlot = inv != null && target != null &&
                                inv.UsedSlots(target) < inv.EquipSlots;
             bool canEquip = r != null && inv != null && target != null &&
-                            !target.IsSummoned &&
-                            (alreadyOn || (hasFreeSlot && inv.FreeCount(r.relicId) > 0));
+                            !target.IsSummoned && hasFreeSlot &&
+                            inv.FreeCount(r.relicId) > 0;
 
-            _equipButton.interactable = canEquip;
+            // «누가 끼고 있나» — 고른 캐릭터를 먼저 본다(같은 유물을 둘이 낄 수 있다).
+            CharacterUnit wearerUnit = alreadyOn ? target : null;
+            if (wearerUnit == null && r != null && inv != null)
+            {
+                _wearerKeys.Clear();
+                inv.CollectWearers(r.relicId, _wearerKeys);
+                for (int i = 0; i < _wearerKeys.Count && wearerUnit == null; i++)
+                    wearerUnit = CharacterOfKey(_wearerKeys[i]);
+            }
+
+            if (_unequipButton != null)
+            {
+                _unequipButton.interactable = wearerUnit != null;
+                if (_unequipLabelText != null)
+                    _unequipLabelText.text = Data.StringTable.Get("ui_relic_unequip",
+                                                 alreadyOn ? unequipLabel : unequipOtherLabel);
+
+                RelicDefinitionSO offRelic = r;
+                CharacterUnit offUnit = wearerUnit;
+                _unequipButton.onClick.RemoveAllListeners();
+                _unequipButton.onClick.AddListener(() =>
+                {
+                    if (offUnit == null || offRelic == null || RelicInventory.Instance == null) return;
+                    RelicInventory.Instance.Unequip(offUnit, offRelic);
+                    _nextRefresh = 0f;
+                });
+            }
+
+            if (_equipButton == null) return;
+
+            // 해제 버튼이 없는 옛 씬에서는 예전처럼 토글로 둔다.
+            bool toggleMode = _unequipButton == null;
+            _equipButton.interactable = toggleMode ? (canEquip || alreadyOn) : canEquip;
             if (_equipLabelText != null)
-                _equipLabelText.text = alreadyOn ? unequipLabel : equipLabel;
+                _equipLabelText.text = toggleMode && alreadyOn
+                    ? Data.StringTable.Get("ui_relic_unequip", unequipLabel)
+                    : Data.StringTable.Get("ui_relic_equip", equipLabel);
 
             _equipButton.onClick.RemoveAllListeners();
             RelicDefinitionSO captured = r;
-            bool off = alreadyOn;
+            bool off = toggleMode && alreadyOn;
             _equipButton.onClick.AddListener(() =>
             {
                 CharacterUnit unit = SelectedCharacter();
@@ -288,20 +407,36 @@ namespace LastSanctuary.UI
 
         static string SourceTextOf(RelicDefinitionSO r) => r.source switch
         {
-            RelicSource.Boss => "보스 처치로만 얻습니다.",
-            RelicSource.DigOnly => "발굴로만 얻습니다.",
-            RelicSource.Event => "사건에서만 얻습니다.",
-            _ => "발굴하거나 일반 몬스터를 사냥해 얻습니다.",
+            RelicSource.Boss => Data.StringTable.Get("ui_relic_src_boss", "보스 처치로만 얻습니다."),
+            RelicSource.DigOnly => Data.StringTable.Get("ui_relic_src_dig", "발굴로만 얻습니다."),
+            RelicSource.Event => Data.StringTable.Get("ui_relic_src_event", "사건에서만 얻습니다."),
+            _ => Data.StringTable.Get("ui_relic_src_common", "발굴하거나 일반 몬스터를 사냥해 얻습니다."),
         };
 
         /// <summary>정의 ID 로 이름을 찾는다 — 죽어서 인스턴스가 없어도 이름은 보여야 한다.</summary>
         static string NameOfCharacter(int definitionId)
         {
+            CharacterUnit c = CharacterOfKey(definitionId);
+            return c != null ? c.DisplayName : Data.StringTable.Get("ui_relic_other_wearer", "다른 캐릭터");
+        }
+
+        /// <summary>
+        /// ★ 정의 ID 로 <b>살아 있는 인스턴스</b>를 찾는다 (2026-08-26).
+        ///
+        /// <see cref="RelicInventory.Unequip"/> 는 <b>캐릭터를 받는다</b> — 보정을 되돌리려면
+        /// 그 인스턴스가 있어야 하기 때문이다(<c>RelicEffectService.OnUnequipped</c>).
+        /// 그래서 «다른 캐릭터에게서 벗기기» 는 그 인스턴스를 찾아야 성립한다.
+        /// ⚠ <b>못 찾으면 null</b>이다 — 판이 끝나 인스턴스가 사라진 경우다. 그때는 해제 버튼이
+        ///   꺼진다(장부만 고치면 보정이 남아 «벗겼는데 능력치가 그대로» 가 된다).
+        /// </summary>
+        static CharacterUnit CharacterOfKey(int definitionId)
+        {
+            if (definitionId <= 0) return null;
             var all = Combat.UnitRegistry.All;
             for (int i = 0; i < all.Count; i++)
                 if (all[i] is CharacterUnit c && RelicInventory.KeyOf(c) == definitionId)
-                    return c.DisplayName;
-            return "다른 캐릭터";
+                    return c;
+            return null;
         }
 
         static CharacterUnit SelectedCharacter()
@@ -330,12 +465,23 @@ namespace LastSanctuary.UI
                 Icon = clone.Find("Icon")?.GetComponent<Image>(),
                 Name = clone.Find("Name")?.GetComponent<TMP_Text>(),
                 Count = clone.Find("Count")?.GetComponent<TMP_Text>(),
+                Wearer = clone.Find("Wearer")?.GetComponent<TMP_Text>(),
             };
+
+            // ★ 착용자는 <b>오른쪽 끝에 붙여</b> 오른쪽 정렬로 적는다 — 이름 길이가 제각각이라
+            //   가운데 정렬로 두면 칸마다 시작점이 달라 «들쭉날쭉» 해 보인다.
+            // ⚠ 정렬·색은 <b>코드가 정한다</b> — MCP 로 TMP 의 정렬 칸을 넣지 못한다(8절 4번).
+            if (row.Wearer != null)
+            {
+                row.Wearer.alignment = TextAlignmentOptions.MidlineRight;
+                row.Wearer.color = HudTheme.TextDim;
+            }
 
             // ★ 이름 칸은 <b>한 줄</b>로 둔다(칸 높이가 42px 뿐이다) — 「각성한 수지상세포」
             //   처럼 긴 이름은 줄바꿈 대신 글자가 줄어들어 들어간다.
             HudTheme.FitText(row.Name, 11f, wrap: false);
             HudTheme.FitText(row.Count, 10f, wrap: false);
+            HudTheme.FitText(row.Wearer, 9f, wrap: false);
             return row;
         }
 
@@ -364,6 +510,9 @@ namespace LastSanctuary.UI
 
             _equipButton = transform.Find("Detail/EquipButton")?.GetComponent<Button>();
             _equipLabelText = FindText(transform, "Detail/EquipButton/Label");
+
+            _unequipButton = transform.Find("Detail/UnequipButton")?.GetComponent<Button>();
+            _unequipLabelText = FindText(transform, "Detail/UnequipButton/Label");
 
             FitDetailTexts();
 
@@ -403,6 +552,7 @@ namespace LastSanctuary.UI
             HudTheme.FitText(_hint, 10f);
             // 버튼 문구는 <b>한 줄</b>이다 — 「장착」/「해제」 두 글자라 줄바꿈이 필요 없다.
             HudTheme.FitText(_equipLabelText, 12f, wrap: false);
+            HudTheme.FitText(_unequipLabelText, 12f, wrap: false);
         }
 
         /// <summary>

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -85,6 +85,21 @@ namespace LastSanctuary.UI
         [Tooltip("정원이 찬 대상을 눌렀을 때의 안내. {0} = 정원")]
         [SerializeField] string hintTargetFull = "이 대상에는 이미 {0}개 부대가 가 있습니다.";
 
+        /// <summary>문구 칸을 표의 값으로 갈아 끼운다(2026-08-26 · 하드코딩 이관).</summary>
+        void LocalizeLabels()
+        {
+            hintPickSquad = HudTheme.T("ui_subj_hint_squad", hintPickSquad);
+            hintPickTarget = HudTheme.T("ui_subj_hint_target", hintPickTarget);
+            hintNoSquad = HudTheme.T("ui_subj_hint_no_squad", hintNoSquad);
+            hintNoTarget = HudTheme.T("ui_subj_hint_no_target", hintNoTarget);
+            memberFormat = HudTheme.T("ui_squad_members", memberFormat);
+            orderNone = HudTheme.T("ui_subj_order_none", orderNone);
+            orderBusy = HudTheme.T("ui_subj_order_busy", orderBusy);
+            levelFormat = HudTheme.T("ui_subj_level", levelFormat);
+            squadCountFormat = HudTheme.T("ui_subj_squad_count", squadCountFormat);
+            hintTargetFull = HudTheme.T("ui_subj_hint_full", hintTargetFull);
+        }
+
         [Tooltip("안내 문구가 이 시간(초)만큼 남아 있다가 원래 안내로 돌아간다")]
         [Min(0.5f)] [SerializeField] float noticeSeconds = 2.5f;
 
@@ -140,6 +155,10 @@ namespace LastSanctuary.UI
 
         void Awake()
         {
+            // ★ 문구를 스트링 표에서 가져온다(2026-08-26 하드코딩 이관). 언어가 바뀌면 다시 부른다.
+            LocalizeLabels();
+            Data.StringTable.OnLanguageChanged -= LocalizeLabels;
+            Data.StringTable.OnLanguageChanged += LocalizeLabels;
             Instance = this;
             EnsureBound();
 
@@ -153,6 +172,8 @@ namespace LastSanctuary.UI
 
         void OnDestroy()
         {
+            Data.StringTable.OnLanguageChanged -= LocalizeLabels;
+
             if (_instance == this) _instance = null;
         }
 
