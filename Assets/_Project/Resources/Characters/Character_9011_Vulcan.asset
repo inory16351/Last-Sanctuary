@@ -17,7 +17,7 @@ MonoBehaviour:
   characterName: '불칸'
   characterNameEn: 'Vulcan'
   titleKey: 'character_title_9011'
-  title: '대마법사'
+  title: '화염의 마수'
   illustName: 'illust_Vulcan'
   skinAssetName: 'Skin_Vulcan'
   stats:

@@ -101,9 +101,9 @@ namespace LastSanctuary.UI
                  "그 선은 카드 장식에 묻혀 잘 안 보인다")]
         [SerializeField] bool squadUsesRowTint = true;
 
-        [Tooltip("행이 부대 색으로 얼마나 물들지 — 0 이면 그대로(흰색), 1 이면 부대 색을 그대로 곱한다.\n" +
-                 "카드 속색이 어두워서 1 로 두면 탁해진다")]
-        [Range(0f, 1f)] [SerializeField] float squadTintStrength = 0.55f;
+        [Tooltip("★ 행 위에 얹는 부대 색 층의 진하기(알파).\n" +
+                 "0.22 쯤이 «물들었다» 가 보이는 최소치다 — 진하면 이름·수치까지 물든다")]
+        [Range(0f, 0.6f)] [SerializeField] float squadTintAlpha = 0.22f;
 
         [Tooltip("사망한 캐릭터의 체력바 색. 비어서(투명) 안 보이는 것보다 " +
                  "꽉 찬 회색 막대가 '사망'을 훨씬 눈에 띄게 알려준다")]
@@ -153,6 +153,13 @@ namespace LastSanctuary.UI
             /// ⚠ 부대가 없으면 <b>알파 0</b> 이다(끄지 않는다) — 껐다 켜면 레이아웃이 흔들린다.
             /// </summary>
             public Image SquadTab;
+
+            /// <summary>
+            /// ★★ <b>부대 색 층</b>(2026-08-26). 카드 <b>위에</b> 한 겹 얹는 반투명 판이다 —
+            /// 곱셈으로는 어두운 카드를 밝게 할 수 없어서 생겼다(<see cref="ApplySquadOutline"/> 의 ★★★).
+            /// ⚠ 부대가 없으면 <b>알파 0</b> 이다(끄지 않는다 — 껐다 켜면 레이아웃이 흔들린다).
+            /// </summary>
+            public Image SquadTint;
 
             /// <summary>
             /// ★★ <b>얼굴</b>(2026-08-26). <c>Portrait</c>(60×60 · <see cref="RectMask2D"/>) 안의
@@ -565,6 +572,7 @@ namespace LastSanctuary.UI
                 Name = FindText(clone, "Name"),
                 Duty = FindText(clone, "Duty"),
                 SquadTab = FindImage(clone, "SquadTab"),
+                SquadTint = FindImage(clone, "SquadTint"),
                 PortraitFrame = FindImage(clone, "PortraitFrame"),
                 RelicIcon = FindImage(clone, "RelicIcon"),
             };
@@ -868,6 +876,7 @@ namespace LastSanctuary.UI
             //   «죽었는데 아직 부대원» 으로 읽힌다.
             if (row.SquadOutline != null) row.SquadOutline.effectColor = Color.clear;
             if (row.SquadTab != null) row.SquadTab.color = Color.clear;
+            if (row.SquadTint != null) row.SquadTint.color = Color.clear;
 
             // ★ 얼굴은 <b>지우지 않고 어둡게</b> 한다 — 누가 죽었는지는 얼굴로 알아보는 것이
             //   가장 빠르다. 액자는 그대로 두어 «칸이 비었다» 로 보이지 않게 한다.
@@ -1197,10 +1206,40 @@ namespace LastSanctuary.UI
                 //   부대 색 쪽으로 옮겨 «물든» 정도로 둔다.
                 // ⚠ <see cref="HudTheme.PaintButton"/> 이 매번 색을 흰색으로 되돌리므로
                 //   <b>반드시 그 뒤에</b> 불려야 한다(RefreshValues 의 호출 순서가 그렇다).
-                if (row.Background != null)
+                // ★★★ 2026-08-26 — <b>곱셈이 아니라 «한 겹 얹기» 다</b> (유저: *"아까 너무 어둡던데"*).
+                //
+                //   처음에는 <c>Background.color</c> 에 부대 색을 <b>곱했다</b>. 그런데 곱셈은
+                //   <b>원본보다 밝아질 수 없다</b> — 카드 속색이 <c>#212B38</c>(33,43,56) 이라
+                //   1부대 청록을 곱해도 <c>#152838</c>(21,40,54) 로 <b>되레 어두워진다</b>.
+                //   채도도 못 올린다. «반영은 되는데 안 보인다» 의 정체다.
+                //
+                // ★ 그래서 <b>반투명 층</b>(<see cref="Row.SquadTint"/>)을 카드 위에 한 겹 얹는다.
+                //   알파 블렌딩이라 어두운 바탕에도 색이 <b>더해진다</b>.
+                // ⚠ 알파는 낮게 둔다(<see cref="squadTintAlpha"/> 0.22) — 이 층은 글자 위에도
+                //   깔리므로 진하면 이름·수치가 물든다. «물들었다» 가 보이는 최소치가 맞다.
+                // ⚠ 배경은 <b>흰색으로 되돌린다</b> — 곱셈을 걷어내지 않으면 두 겹이 겹쳐
+                //   여전히 어둡다(<see cref="HudTheme.PaintButton"/> 이 흰색으로 두는 그대로).
+                if (row.SquadTint != null)
                 {
-                    Color tint = has ? Color.Lerp(Color.white, squad, squadTintStrength) : Color.white;
-                    if (row.Background.color != tint) row.Background.color = tint;
+                    // ★★★ <b>층이 카드와 «같은 그림» 을 쓴다</b> (2026-08-26 · 유저:
+                    //   *"이미지에 딱 맞게 만들어줘"*).
+                    //
+                    //   처음에는 그림 없는 <b>흰 사각형</b>이었다. 그래서 카드의 모서리 컷·
+                    //   레일 실루엣과 어긋나 <b>네모난 색판이 삐져나와</b> 보였다 —
+                    //   그것이 «어색하다» 의 정체다.
+                    // ★ 카드가 지금 쓰는 스프라이트를 그대로 물려받으면 <b>실루엣이 1px도
+                    //   안 어긋난다</b>. 상태(Normal/On/Off)가 바뀌어도 같이 따라간다.
+                    if (row.Background != null &&
+                        !ReferenceEquals(row.SquadTint.sprite, row.Background.sprite))
+                    {
+                        row.SquadTint.sprite = row.Background.sprite;
+                        row.SquadTint.type = row.Background.type;
+                    }
+
+                    Color layer = has
+                        ? new Color(squad.r, squad.g, squad.b, squadTintAlpha)
+                        : Color.clear;
+                    if (row.SquadTint.color != layer) row.SquadTint.color = layer;
                 }
 
                 // 면으로 말하기로 했으면 선은 <b>지운다</b> — 둘 다 켜면 시끄럽다.

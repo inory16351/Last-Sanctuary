@@ -58,6 +58,9 @@ namespace LastSanctuary.UI
         [Tooltip("빨간 테두리로 실제 화면을 짚어 주는 안내를 여는 버튼의 문구")]
         [SerializeField] string tourLabel = "화면에서 짚어 보기";
 
+        [Tooltip("★ 본문 스크롤의 휠 감도. 본문이 길어 기본값(1)이면 한참 굴려야 한다")]
+        [Min(1f)] [SerializeField] float bodyScrollSensitivity = 28f;
+
         [Header("읽음 표시")]
         [Tooltip("이미 조언으로 뜬 적이 있는 항목 앞에 붙는 글자")]
         [SerializeField] string dotSeen = "•";
@@ -103,6 +106,73 @@ namespace LastSanctuary.UI
         RectTransform _rowTemplate, _tabTemplate;
         Transform _list, _tabBox;
         TMP_Text _hint, _detailTitle, _detailCategory, _detailSummary, _detailBody, _seeAlsoLabel;
+
+        /// <summary>본문을 감싼 스크롤. <see cref="EnsureBodyScroll"/> 이 <b>코드로</b> 짓는다.</summary>
+        ScrollRect _bodyScroll;
+
+        /// <summary>
+        /// ★★★ <b>본문에 스크롤을 단다</b> (2026-08-26 · 유저 지시: *"도움말 정신이상 설명
+        /// 같은거 너무 길어서 폰트 깨지니까 그냥 스크롤 기능 넣어서 해줘"*).
+        ///
+        /// <b>왜 깨졌나</b> — 예전에는 <see cref="HudTheme.FitText"/> 로 «칸에 맞게 줄여서»
+        /// 넣었다. 그 방법은 241자짜리 본문까지는 버텼지만, 「정신 이상 낱낱」처럼
+        /// <b>스무 줄이 넘는</b> 글이 들어오자 11pt 하한까지 줄어들어 <b>글자가 뭉갰다</b>.
+        /// 칸은 그대로인데 글이 길어졌으면 <b>줄일 것이 아니라 넘겨 보게</b> 해야 한다.
+        ///
+        /// <b>왜 코드가 짓나</b> — <see cref="ScrollRect"/> 의 <c>content</c>·<c>viewport</c> 는
+        /// <b>오브젝트 참조</b>라 MCP 로 넣을 수 없다(8절 1번). 씬에는 <c>Detail/Body</c> 하나만
+        /// 두고 여기서 감싼다 — <c>RelicIconStrip</c> 이 아이콘 하나를 셋으로 늘리는 것과 같은 방식이다.
+        ///
+        /// ★ <b>Body 를 «있던 자리 그대로» 감싼다</b> — 뷰포트가 Body 의 앵커·크기·형제 순서를
+        ///   물려받으므로 화면에서 자리가 <b>1px도 안 움직인다</b>.
+        /// ⚠ <b>자동 크기를 끈다</b> — 스크롤이 있으면 줄일 이유가 없고, 켜 두면 «줄이기» 와
+        ///   «늘려서 스크롤» 이 서로 싸워 높이가 진동한다.
+        /// ⚠ 경로 조회(<c>Detail/Body</c>)가 <b>끝난 뒤에</b> 불러야 한다 — 먼저 감싸면
+        ///   그 경로가 <c>Detail/BodyScroll/Body</c> 로 바뀌어 못 찾는다.
+        /// </summary>
+        void EnsureBodyScroll()
+        {
+            if (_bodyScroll != null || _detailBody == null) return;
+
+            RectTransform body = _detailBody.rectTransform;
+            var parent = body.parent as RectTransform;
+            if (parent == null) return;
+
+            var go = new GameObject("BodyScroll",
+                                    typeof(RectTransform), typeof(RectMask2D), typeof(ScrollRect));
+            var view = (RectTransform)go.transform;
+            view.SetParent(parent, false);
+            view.anchorMin = body.anchorMin;
+            view.anchorMax = body.anchorMax;
+            view.pivot = body.pivot;
+            view.sizeDelta = body.sizeDelta;
+            view.anchoredPosition = body.anchoredPosition;
+            view.SetSiblingIndex(body.GetSiblingIndex());   // 그리는 순서도 그대로
+
+            body.SetParent(view, false);
+            body.anchorMin = new Vector2(0f, 1f);
+            body.anchorMax = new Vector2(1f, 1f);
+            body.pivot = new Vector2(0.5f, 1f);
+            body.anchoredPosition = Vector2.zero;
+            body.sizeDelta = new Vector2(0f, body.sizeDelta.y);
+
+            // 글 길이에 따라 높이가 자란다 — 그 높이가 곧 스크롤 범위다.
+            var fitter = body.GetComponent<ContentSizeFitter>();
+            if (fitter == null) fitter = body.gameObject.AddComponent<ContentSizeFitter>();
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            _detailBody.enableAutoSizing = false;
+            _detailBody.textWrappingMode = TextWrappingModes.Normal;
+            _detailBody.overflowMode = TextOverflowModes.Overflow;
+
+            _bodyScroll = go.GetComponent<ScrollRect>();
+            _bodyScroll.content = body;
+            _bodyScroll.viewport = view;
+            _bodyScroll.horizontal = false;
+            _bodyScroll.vertical = true;
+            _bodyScroll.movementType = ScrollRect.MovementType.Clamped;
+            _bodyScroll.scrollSensitivity = bodyScrollSensitivity;
+        }
         Button _seeAlsoButton;
 
         /// <summary>「화면에서 짚어 보기」 — 표에 단계가 있는 항목에서만 켠다.</summary>
@@ -295,6 +365,10 @@ namespace LastSanctuary.UI
             SetText(_detailSummary, e != null ? e.Summary : "");
             SetText(_detailBody, e != null ? e.Body : "");
 
+            // ★ 항목을 바꾸면 <b>맨 위부터</b> 보여준다 — 앞 항목을 내려 읽던 자리에
+            //   그대로 서 있으면 «글이 중간부터 시작하는» 것으로 보인다.
+            if (_bodyScroll != null) _bodyScroll.verticalNormalizedPosition = 1f;
+
             HelpService service = HelpService.Instance;
             if (_hint != null)
                 _hint.text = e == null ? hintPick
@@ -428,10 +502,13 @@ namespace LastSanctuary.UI
             HudTheme.FitText(_detailTitle, 16f, wrap: false);
             HudTheme.FitText(_detailCategory, 10f, wrap: false);
             HudTheme.FitText(_detailSummary, 12f);
-            HudTheme.FitText(_detailBody, 11f);
+            // ⚠ 본문에는 <b>FitText 를 걸지 않는다</b> — 아래 EnsureBodyScroll 이 스크롤을
+            //   달아 «줄이는» 대신 «넘겨 보게» 한다(그 함수의 ★★★).
             HudTheme.FitText(_hint, 10f);
             HudTheme.FitText(_seeAlsoLabel, 11f, wrap: false);
             HudTheme.FitText(_tourLabelText, 11f, wrap: false);
+
+            EnsureBodyScroll();
 
             var close = transform.Find("CloseButton")?.GetComponent<Button>();
             if (close != null)

@@ -69,6 +69,24 @@ namespace LastSanctuary.UI
         [SerializeField] string hotkeyButtonPath = "Body/HotkeyButton";
 
         // ══════════════════════════════════════════════════════════════
+        //  ★★★ <b>언어 바꾸기</b> (2026-08-26 신설 · 유저 지시: *"환경설정에 언어 변경 넣어줘"*)
+        // ══════════════════════════════════════════════════════════════
+        //  ★ <b>기반은 이미 있었다</b> — <see cref="Data.StringTable"/> 가 키마다 <c>[kr, en]</c>
+        //    두 칸을 들고 있고 <c>Language</c> 를 바꾸면 <c>OnLanguageChanged</c> 가 발생한다.
+        //    없던 것은 <b>그것을 누를 자리</b>뿐이었다.
+        //  ⚠ <b>이미 그려진 글자는 저절로 안 바뀐다.</b> 대부분의 패널은 열 때마다 다시
+        //    칠하므로 창을 닫았다 열면 바뀌지만, <b>상시 HUD</b>(로스터·로그·액션)는
+        //    갱신 시점이 따로다. 그래서 이 창이 <c>OnLanguageChanged</c> 를 받아
+        //    <b>씬 전체의 «다시 그려라»</b> 를 한 번 돌린다(<see cref="HandleLanguageChanged"/>).
+        [SerializeField] string languageButtonPath = "Body/LanguageButton";
+
+        [Tooltip("언어 버튼에 찍는 글 — {0} 에 지금 언어 이름이 들어간다")]
+        [SerializeField] string languageLabelFormat = "언어 : {0}";
+
+        [Tooltip("언어 선택을 다음에도 기억할 PlayerPrefs 열쇠")]
+        [SerializeField] string languagePrefKey = "ls_language";
+
+        // ══════════════════════════════════════════════════════════════
         //  ★★★ <b>「도움말 다시 보기」</b> (2026-08-26 신설)
         // ══════════════════════════════════════════════════════════════
         //  <b>왜 생겼나</b> — 유저 리포트: *"도움말이 허드 액션에 있는 버튼 최초로 클릭했을때
@@ -116,6 +134,7 @@ namespace LastSanctuary.UI
         Button _lobbyButton;
         Button _restartButton;
         Button _hotkeyButton;
+        Button _languageButton;
         Button _helpResetButton;
         Button _quitButton;
         Button _closeButton;
@@ -156,6 +175,7 @@ namespace LastSanctuary.UI
             _lobbyButton = FindComponent<Button>(lobbyButtonPath);
             _restartButton = FindComponent<Button>(restartButtonPath);
             _hotkeyButton = FindComponent<Button>(hotkeyButtonPath);
+            _languageButton = FindComponent<Button>(languageButtonPath);
             _helpResetButton = FindComponent<Button>(helpResetButtonPath);
             _quitButton = FindComponent<Button>(quitButtonPath);
             _closeButton = FindComponent<Button>(closeButtonPath);
@@ -193,6 +213,19 @@ namespace LastSanctuary.UI
             {
                 Debug.LogWarning($"[환경설정] '{hotkeyButtonPath}' 을 찾지 못했습니다 — " +
                                  "단축키 설정 버튼이 씬에 없습니다.", this);
+            }
+
+            if (_languageButton != null)
+            {
+                _languageButton.onClick.RemoveAllListeners();
+                _languageButton.onClick.AddListener(HandleToggleLanguage);
+                RestoreLanguage();
+                RefreshLanguageLabel();
+            }
+            else
+            {
+                Debug.LogWarning($"[환경설정] '{languageButtonPath}' 을 찾지 못했습니다 — " +
+                                 "언어 바꾸기 버튼이 씬에 없습니다.", this);
             }
 
             if (_helpResetButton != null)
@@ -309,6 +342,59 @@ namespace LastSanctuary.UI
             Close();
             panel.SetOpen(true);
         }
+
+        // ══════════════════════════════════════════════════════════════
+        //  언어 바꾸기
+        // ══════════════════════════════════════════════════════════════
+
+        /// <summary>지난번에 고른 언어를 되살린다. 없으면 한국어.</summary>
+        void RestoreLanguage()
+        {
+            int saved = PlayerPrefs.GetInt(languagePrefKey, (int)Data.GameLanguage.Korean);
+            Data.StringTable.Language = saved == (int)Data.GameLanguage.English
+                ? Data.GameLanguage.English
+                : Data.GameLanguage.Korean;
+        }
+
+        /// <summary>
+        /// ★★ 한국어 ↔ English 를 오간다.
+        ///
+        /// ★ <b>고르는 창을 따로 두지 않았다</b> — 언어가 <b>둘뿐</b>이라 목록을 띄우면
+        ///   누르는 횟수만 늘어난다. 배속 버튼과 같은 «누르면 다음» 이다.
+        /// ⚠ <b>고른 것을 <see cref="PlayerPrefs"/> 에 남긴다</b> — 언어는 판마다 다시 고를
+        ///   값이 아니다(도움말의 «읽었다» 기억과 같은 자리에 둔다).
+        /// </summary>
+        void HandleToggleLanguage()
+        {
+            Data.GameLanguage next = Data.StringTable.Language == Data.GameLanguage.Korean
+                ? Data.GameLanguage.English
+                : Data.GameLanguage.Korean;
+
+            Data.StringTable.Language = next;
+            PlayerPrefs.SetInt(languagePrefKey, (int)next);
+            PlayerPrefs.Save();
+
+            RefreshLanguageLabel();
+            SetStatus(string.Format(languageLabelFormat, LanguageName(next)));
+        }
+
+        /// <summary>버튼에 지금 언어를 적는다.</summary>
+        void RefreshLanguageLabel()
+        {
+            if (_languageButton == null) return;
+            TMP_Text label = _languageButton.GetComponentInChildren<TMP_Text>(true);
+            if (label != null)
+                label.text = string.Format(languageLabelFormat,
+                                           LanguageName(Data.StringTable.Language));
+        }
+
+        /// <summary>
+        /// 화면에 보일 언어 이름.
+        /// ⚠ <b>제 나라 말로 적는다</b>(한국어 / English) — «Korean» 이라고 쓰면 한국어를
+        ///   못 읽는 사람이 지금 무엇이 켜져 있는지 알 수 없다. 언어 이름은 번역하지 않는 것이 관례다.
+        /// </summary>
+        static string LanguageName(Data.GameLanguage lang) =>
+            lang == Data.GameLanguage.English ? "English" : "한국어";
 
         /// <summary>
         /// ★★★ <b>읽은 조언을 전부 잊는다</b> — 위 helpResetButtonPath 의 ★★★ 참조.
