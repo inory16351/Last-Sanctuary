@@ -93,6 +93,10 @@ namespace LastSanctuary.UI
                  "(불칸·아루 새벽)의 얼굴이 칸 아래로 밀려난다. 앵커는 1(맨 위) 고정")]
         [Range(1f, 3f)] [SerializeField] float portraitZoom = 1.4f;
 
+        [Tooltip("★ 얼굴을 액자의 어디에 놓을지 — 0.35 면 위에서 35% 지점. " +
+                 "작을수록 얼굴이 위로 올라가고 어깨가 더 보인다(0.5 면 얼굴이 칸 정중앙)")]
+        [Range(0.15f, 0.6f)] [SerializeField] float portraitFacePlacement = 0.35f;
+
         [Tooltip("죽은 캐릭터의 얼굴을 얼마나 어둡게 할지 — 1 이면 그대로, 0 이면 검정")]
         [Range(0f, 1f)] [SerializeField] float deadPortraitDim = 0.35f;
 
@@ -949,6 +953,13 @@ namespace LastSanctuary.UI
             if (row.SelectButton != null) row.SelectButton.interactable = true;
         }
 
+        /// <summary>
+        /// 그 캐릭터의 정의(표에서 온 값). 얼굴 초점을 읽는 데 쓴다 — 2026-08-26.
+        /// ⚠ 소환수·몬스터는 정의가 없거나 종류가 달라 <c>null</c> 이다.
+        /// </summary>
+        static Units.CharacterDefinitionSO DefinitionOf(CharacterUnit unit) =>
+            unit != null ? unit.Definition : null;
+
         static TMP_Text FindText(Transform parent, string childName)
         {
             Transform child = parent.Find(childName);
@@ -990,8 +1001,25 @@ namespace LastSanctuary.UI
                 {
                     row.PortraitArt.sprite = art;
                     if (art != null)
+                    {
+                        // ★★★ <b>얼굴 좌표를 표에서 받아 자른다</b> (2026-08-26 · 유저 지시:
+                        //   *"다시 측정해서 자연스럽게 … 얼굴이 보이는 상체 일러스트 부분만"*).
+                        //
+                        //   인물화 15장의 얼굴 중심이 세로 0.19~0.38 로 흩어져 있어서
+                        //   «맨 위를 남긴다» 같은 한 규칙으로는 못 맞춘다
+                        //   (<see cref="Units.CharacterDefinitionSO.faceY"/> 의 설명).
+                        // ⚠ 표에 값이 없으면(0) <b>예전처럼 앵커로</b> 자른다 — 몬스터를 로스터에
+                        //   띄우는 일은 없지만, 표를 아직 안 채운 캐릭터도 안 깨져야 한다.
+                        Units.CharacterDefinitionSO def = DefinitionOf(unit);
+                        float fx = def != null ? def.faceX : 0f;
+                        float fy = def != null ? def.faceY : 0f;
+
                         PortraitFit.Cover(row.PortraitArt, portraitVerticalAnchor,
-                                          zoom: portraitZoom);
+                                          zoom: portraitZoom,
+                                          focusX: fx > 0f ? fx : -1f,
+                                          focusY: fy > 0f ? fy : -1f,
+                                          focusPlacement: portraitFacePlacement);
+                    }
                 }
                 row.PortraitArt.color = art != null ? Color.white : Color.clear;
             }

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -127,9 +127,12 @@ namespace LastSanctuary.UI
                 card.Name = Adopt(name, rt, i == 0, "Name");
                 card.Effect = Adopt(effect, rt, i == 0, "Effect");
 
-                Place(card.Icon, new Vector2(12f, -12f), new Vector2(48f, 48f));
-                Place(card.Name, new Vector2(70f, -10f), new Vector2(width - 82f, 24f));
-                Place(card.Effect, new Vector2(70f, -36f), new Vector2(width - 82f, barH - 46f));
+                // ⚠ <b>판때기 테두리(위 10 · 아래 8 · 좌 10 · 우 8)를 피한다</b>
+                //   (2026-08-26 · 유저 리포트: *"유물관리 칸 뒤에 텍스트 가려짐"*).
+                //   테두리에 <b>닿기만 해도</b> 글자가 그림에 먹힌 것으로 보이므로 4px 숨통을 더 준다.
+                Place(card.Icon, new Vector2(14f, -14f), new Vector2(46f, 46f));
+                Place(card.Name, new Vector2(70f, -14f), new Vector2(width - 84f, 24f));
+                Place(card.Effect, new Vector2(70f, -40f), new Vector2(width - 84f, barH - 52f));
 
                 // 이름은 한 줄, 효과는 두 줄까지 — 칸이 좁으니 글자가 줄어들어 들어간다.
                 HudTheme.FitText(card.Name, 11f, wrap: false);

@@ -1122,7 +1122,13 @@ namespace LastSanctuary.Relics
 
             RelicInventory.Instance?.Grant(relic);
             _lastGrantedIcon = relic.icon;
-            return $"유물 「{relic.DisplayName}」 ({RelicDefinitionSO.NameOf(grade)})";
+
+            // ★★ <b>등급 색으로 적는다</b> (2026-08-26 · 유저 지시: 일반 하양 · 레어 파랑 ·
+            //   에픽 보라). 로그 한 줄 안에서 색이 갈려야 하므로 리치 텍스트 태그를 쓴다 —
+            //   색의 정본은 유물 표(<c>Grade</c> 시트)이고 <see cref="RelicDefinitionSO.ColorOf"/>
+            //   가 그것을 그대로 들고 있다.
+            return $"유물 <color=#{relic.GradeHex}>「{relic.DisplayName}」 " +
+                   $"({RelicDefinitionSO.NameOf(grade)})</color>";
         }
 
         // ==================================================================

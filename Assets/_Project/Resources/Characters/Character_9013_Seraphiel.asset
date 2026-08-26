@@ -19,6 +19,8 @@ MonoBehaviour:
   titleKey: 'character_title_9013'
   title: '침묵의 총성'
   illustName: 'illust_Seraphiel'
+  faceX: 0.47
+  faceY: 0.23
   skinAssetName: 'Skin_Seraphiel'
   stats:
     hp: 5

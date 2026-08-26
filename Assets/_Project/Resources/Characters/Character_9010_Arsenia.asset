@@ -19,6 +19,8 @@ MonoBehaviour:
   titleKey: 'character_title_9010'
   title: '부서진 날개의 연금술사'
   illustName: 'illust_Arsenia'
+  faceX: 0.43
+  faceY: 0.21
   skinAssetName: 'Skin_Arsenia'
   stats:
     hp: 2

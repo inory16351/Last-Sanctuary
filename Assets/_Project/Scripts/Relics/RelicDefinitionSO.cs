@@ -278,13 +278,34 @@ namespace LastSanctuary.Relics
         /// <summary>등급 색. UI 가 이름·테두리에 쓴다(표 <c>Grade</c> 시트의 값과 같다).</summary>
         public Color GradeColor => ColorOf(grade);
 
-        /// <summary>표 <c>Grade</c> 시트의 <c>grade_color</c> 와 <b>같은 값</b>이어야 한다.</summary>
+        /// <summary>
+        /// 표 <c>Grade</c> 시트의 <c>grade_color</c> 와 <b>같은 값</b>이어야 한다.
+        ///
+        /// ★★ 2026-08-26 — <b>유저가 색을 못박았다</b>: *"일반 하얀색 / 레어 파란색 / 에픽 보라색"*.
+        /// <code>
+        ///   전                        후
+        ///   일반 B8C4CF (회백)   →   FFFFFF  하양
+        ///   레어 6FC3E8 (하늘)   →   5B9BFF  파랑
+        ///   에픽 D89BFF (연보라) →   B36BFF  보라
+        /// </code>
+        /// ⚠ 하늘색·연보라는 어두운 배경에서 <b>서로 구별이 잘 안 됐다</b> — 이제 색상환에서
+        ///   확실히 갈린다(파랑 220°·보라 275°). 밝기는 셋 다 0.6 이상으로 두어 작은 글자에서도 읽힌다.
+        /// </summary>
         public static Color ColorOf(RelicGrade g) => g switch
         {
-            RelicGrade.Rare => new Color(0.435f, 0.765f, 0.910f),   // 6FC3E8
-            RelicGrade.Epic => new Color(0.847f, 0.608f, 1.000f),   // D89BFF
-            _               => new Color(0.722f, 0.769f, 0.812f),   // B8C4CF
+            RelicGrade.Rare => new Color(0.357f, 0.608f, 1.000f),   // 5B9BFF
+            RelicGrade.Epic => new Color(0.702f, 0.420f, 1.000f),   // B36BFF
+            _               => new Color(1.000f, 1.000f, 1.000f),   // FFFFFF
         };
+
+        /// <summary>
+        /// ★ 리치 텍스트에 쓰는 등급 색 (<c>&lt;color=#RRGGBB&gt;</c>) — 2026-08-26.
+        /// 로그·배너처럼 <b>한 줄 안에서 색이 갈려야</b> 하는 자리가 쓴다.
+        /// </summary>
+        public static string HexOf(RelicGrade g) => ColorUtility.ToHtmlStringRGB(ColorOf(g));
+
+        /// <summary>이 유물의 등급 색 HEX.</summary>
+        public string GradeHex => HexOf(grade);
 
         /// <summary>
         /// 표 <c>Grade</c> 시트의 <c>grade_name</c>.

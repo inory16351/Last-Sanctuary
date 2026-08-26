@@ -19,6 +19,8 @@ MonoBehaviour:
   titleKey: 'character_title_9001'
   title: '눈먼 파수꾼'
   illustName: 'illust_Elin'
+  faceX: 0.5
+  faceY: 0.3
   skinAssetName: 'Skin_Elin'
   stats:
     hp: 4

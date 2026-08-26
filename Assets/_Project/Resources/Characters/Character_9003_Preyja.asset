@@ -19,6 +19,8 @@ MonoBehaviour:
   titleKey: 'character_title_9003'
   title: '굶주린 사냥꾼'
   illustName: 'illust_Preyja'
+  faceX: 0.47
+  faceY: 0.28
   skinAssetName: 'Skin_Preyja'
   stats:
     hp: 6

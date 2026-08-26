@@ -19,6 +19,8 @@ MonoBehaviour:
   titleKey: 'character_title_9014'
   title: '여명의 수확자'
   illustName: 'illust_Cyan'
+  faceX: 0.55
+  faceY: 0.3
   skinAssetName: 'Skin_Cyan'
   stats:
     hp: 8

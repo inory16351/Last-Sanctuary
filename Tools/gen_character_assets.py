@@ -371,6 +371,15 @@ for c in range(1, wc.max_column + 1):
         _CHAR_COL[str(v).strip()] = c
 
 
+def fmt_float(v):
+    """YAML 실수 — 비었거나 숫자가 아니면 0(«측정 안 됨»)."""
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        f = 0.0
+    return '%g' % f
+
+
 def char_cell(row, field):
     c = _CHAR_COL.get(field)
     return wc.cell(row, c).value if c else None
@@ -417,6 +426,10 @@ for r in range(4, wc.max_row + 1):
     body += "  titleKey: %s\n" % yaml_str('character_title_%d' % cid if ctitle else '')
     body += "  title: %s\n" % yaml_str(ctitle)
     body += "  illustName: %s\n" % yaml_str(illust)
+    # ★★ 얼굴 초점 (2026-08-26) — 표의 face_x / face_y. 0 이면 «측정 안 됨» 이고
+    #   PortraitFit 이 예전처럼 앵커로 자른다. 로스터의 84x84 정사각 칸이 이 값을 쓴다.
+    body += "  faceX: %s\n" % fmt_float(char_cell(r, 'face_x'))
+    body += "  faceY: %s\n" % fmt_float(char_cell(r, 'face_y'))
     body += "  skinAssetName: %s\n" % yaml_str(skin_asset_name(cid, cname_en))
     body += "  stats:\n"
     body += "    hp: %d\n" % st.get('hp', 5)

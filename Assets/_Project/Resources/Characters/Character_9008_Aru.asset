@@ -19,6 +19,8 @@ MonoBehaviour:
   titleKey: 'character_title_9008'
   title: '종언을 밝히는 사신'
   illustName: 'illust_Aru'
+  faceX: 0.48
+  faceY: 0.25
   skinAssetName: 'Skin_Aru'
   stats:
     hp: 3

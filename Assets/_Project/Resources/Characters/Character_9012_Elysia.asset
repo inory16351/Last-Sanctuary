@@ -19,6 +19,8 @@ MonoBehaviour:
   titleKey: 'character_title_9012'
   title: '무너지지 않는 방패'
   illustName: 'illust_Elysia'
+  faceX: 0.52
+  faceY: 0.27
   skinAssetName: 'Skin_Elysia'
   stats:
     hp: 8

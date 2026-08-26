@@ -19,6 +19,8 @@ MonoBehaviour:
   titleKey: 'character_title_9005'
   title: '죽음을 딛는 복수자'
   illustName: 'illust_Histon'
+  faceX: 0.44
+  faceY: 0.27
   skinAssetName: 'Skin_Histon'
   stats:
     hp: 8

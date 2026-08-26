@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using LastSanctuary.Combat;
 
 namespace LastSanctuary.Units
@@ -74,6 +74,22 @@ namespace LastSanctuary.Units
         [Tooltip("illust — Resources/Illust/ 아래의 파일 이름 (확장자 없이). " +
                  "전술 지침 · 캐릭터 성장 창의 초상화에 쓰인다")]
         public string illustName = "";
+
+        // ★★★ <b>얼굴 초점</b> (2026-08-26 · 유저 지시: *"캐릭터 로스터 초상화 일러스트
+        //     다시 측정해서 자연스럽게 바꾸기 … 캐릭터의 얼굴이 보이는 상체 일러스트 부분만 남기기"*).
+        //
+        // <b>왜 캐릭터마다 값이 필요한가</b> — 인물화 15장을 실측해 보니 얼굴 중심이
+        // 세로 <b>0.19~0.38</b> · 가로 <b>0.43~0.57</b> 로 흩어져 있다(투구·왕관·후드 때문이다).
+        // 그래서 «위를 남긴다» 같은 한 가지 규칙으로는 어떤 캐릭터는 얼굴이 잘리고 어떤
+        // 캐릭터는 얼굴이 칸 밖으로 나간다. <see cref="UI.PortraitFit"/> 이 이 두 값을 받아
+        // <b>얼굴을 액자의 정해진 자리</b>에 놓는다.
+        // ⚠ 0 이면 «측정 안 됨» 이라 예전처럼 앵커로 자른다 — 표에 값이 없는 캐릭터도 안 깨진다.
+
+        [Tooltip("face_x — 일러스트에서 얼굴 중심의 가로 위치(0~1). 0 이면 측정 안 됨")]
+        [Range(0f, 1f)] public float faceX;
+
+        [Tooltip("face_y — 일러스트에서 얼굴 중심의 세로 위치(0~1, 0 이 맨 위). 0 이면 측정 안 됨")]
+        [Range(0f, 1f)] public float faceY;
 
         [Tooltip("ingame_asset — Resources/Skins/ 아래의 CharacterSkinSO 에셋 이름. " +
                  "비우면 CharacterAnimator 가 기존처럼 무작위 스킨을 고른다")]

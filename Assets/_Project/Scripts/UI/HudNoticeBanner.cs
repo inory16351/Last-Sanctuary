@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using LastSanctuary.Combat;
@@ -88,7 +88,16 @@ namespace LastSanctuary.UI
         {
             public readonly string Text;
             public readonly HudNoticeKind Kind;
-            public Item(string text, HudNoticeKind kind) { Text = text; Kind = kind; }
+
+            /// <summary>★ 이 알림만 쓸 색. 비었으면 성격의 색(2026-08-26 · 유물 등급 색).</summary>
+            public readonly Color? Color;
+
+            public Item(string text, HudNoticeKind kind, Color? color = null)
+            {
+                Text = text;
+                Kind = kind;
+                Color = color;
+            }
         }
 
         readonly List<Item> _queue = new List<Item>();
@@ -119,14 +128,14 @@ namespace LastSanctuary.UI
 
         void OnEnable()
         {
-            HudNotice.OnNotice += Enqueue;
+            HudNotice.OnNoticeColored += Enqueue;
             RelicInventory.OnGranted += HandleRelicGranted;
             DamageableUnit.OnAnyDied += HandleDied;
         }
 
         void OnDisable()
         {
-            HudNotice.OnNotice -= Enqueue;
+            HudNotice.OnNoticeColored -= Enqueue;
             RelicInventory.OnGranted -= HandleRelicGranted;
             DamageableUnit.OnAnyDied -= HandleDied;
         }
@@ -138,7 +147,12 @@ namespace LastSanctuary.UI
         void HandleRelicGranted(RelicDefinitionSO relic)
         {
             if (!noticeRelicGained || relic == null) return;
-            Enqueue(string.Format(relicFormat, relic.DisplayName), HudNoticeKind.Relic);
+
+            // ★★ <b>등급 색으로 띄운다</b> (2026-08-26 · 유저 지시: 일반 하양 · 레어 파랑 ·
+            //   에픽 보라). 색의 정본은 유물 표(<c>Grade</c> 시트)이고
+            //   <see cref="RelicDefinitionSO.ColorOf"/> 가 그것을 그대로 들고 있다.
+            Enqueue(string.Format(relicFormat, relic.DisplayName), HudNoticeKind.Relic,
+                    relic.GradeColor);
         }
 
         /// <summary>
@@ -164,11 +178,13 @@ namespace LastSanctuary.UI
         // 줄 세우기 · 재생
         // ------------------------------------------------------------------
 
-        void Enqueue(string message, HudNoticeKind kind)
+        void Enqueue(string message, HudNoticeKind kind) => Enqueue(message, kind, null);
+
+        void Enqueue(string message, HudNoticeKind kind, Color? color)
         {
             if (string.IsNullOrWhiteSpace(message)) return;
 
-            _queue.Add(new Item(message, kind));
+            _queue.Add(new Item(message, kind, color));
             // 넘치면 <b>앞쪽</b>을 버린다 — 위 maxQueue 주석 참조.
             while (_queue.Count > maxQueue) _queue.RemoveAt(0);
         }
@@ -214,7 +230,7 @@ namespace LastSanctuary.UI
             if (label != null)
             {
                 label.text = item.Text;
-                label.color = HudNotice.ColorOf(item.Kind);
+                label.color = item.Color ?? HudNotice.ColorOf(item.Kind);
             }
 
             if (_group != null) _group.alpha = 0f;

@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using LastSanctuary.Combat;
 using LastSanctuary.UI;
 using LastSanctuary.Units;
@@ -141,8 +141,11 @@ namespace LastSanctuary.Relics
             //   뜨는데 보관함에는 안 늘어나는 것이 가장 나쁘다(2026-08-25).
             if (!RelicInventory.Instance.Grant(relic)) return;
 
-            HudLog.Add($"{victimName} 이(가) 「{relic.DisplayName}」 을(를) 남겼습니다 " +
-                       $"({RelicDefinitionSO.NameOf(relic.grade)})",
+            // ★★ <b>유물 이름과 등급을 등급 색으로</b> (2026-08-26 · 유저 지시:
+            //   일반 하양 · 레어 파랑 · 에픽 보라). 로그 한 줄 안에서 색이 갈려야 하므로
+            //   <b>리치 텍스트 태그</b>를 쓴다 — TMP 는 태그 색이 라벨 색을 이긴다.
+            HudLog.Add($"{victimName} 이(가) <color=#{relic.GradeHex}>「{relic.DisplayName}」" +
+                       $" ({RelicDefinitionSO.NameOf(relic.grade)})</color> 을(를) 남겼습니다",
                        relic.grade == RelicGrade.Epic ? HudLogKind.Good : HudLogKind.Info);
 
             // ★★ <b>보스가 남긴 것만 창을 띄운다</b> (2026-08-24 · 유저 지시:

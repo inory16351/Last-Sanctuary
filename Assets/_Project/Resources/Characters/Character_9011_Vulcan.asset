@@ -19,6 +19,8 @@ MonoBehaviour:
   titleKey: 'character_title_9011'
   title: '화염의 마수'
   illustName: 'illust_Vulcan'
+  faceX: 0.55
+  faceY: 0.32
   skinAssetName: 'Skin_Vulcan'
   stats:
     hp: 5

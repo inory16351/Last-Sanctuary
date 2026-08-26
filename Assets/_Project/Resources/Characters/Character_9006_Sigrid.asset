@@ -19,6 +19,8 @@ MonoBehaviour:
   titleKey: 'character_title_9006'
   title: '환희에 젖은 순교자'
   illustName: 'illust_Sigrid'
+  faceX: 0.53
+  faceY: 0.3
   skinAssetName: 'Skin_Sigrid'
   stats:
     hp: 6

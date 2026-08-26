@@ -19,6 +19,8 @@ MonoBehaviour:
   titleKey: 'character_title_9002'
   title: '무너지지 않는 방벽'
   illustName: 'illust_Bigior'
+  faceX: 0.57
+  faceY: 0.19
   skinAssetName: 'Skin_Bigior'
   stats:
     hp: 12

@@ -19,6 +19,8 @@ MonoBehaviour:
   titleKey: 'character_title_9004'
   title: '역병을 걷는 의사'
   illustName: 'illust_Piolo'
+  faceX: 0.5
+  faceY: 0.29
   skinAssetName: 'Skin_Piolo'
   stats:
     hp: 7

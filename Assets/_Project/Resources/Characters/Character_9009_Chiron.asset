@@ -19,6 +19,8 @@ MonoBehaviour:
   titleKey: 'character_title_9009'
   title: '타락한 투사'
   illustName: 'illust_Chiron'
+  faceX: 0.55
+  faceY: 0.23
   skinAssetName: 'Skin_Chiron'
   stats:
     hp: 9

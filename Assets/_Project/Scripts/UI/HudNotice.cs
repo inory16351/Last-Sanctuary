@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace LastSanctuary.UI
 {
@@ -39,12 +39,28 @@ namespace LastSanctuary.UI
     {
         public static event System.Action<string, HudNoticeKind> OnNotice;
 
+        /// <summary>
+        /// ★★ <b>이 알림만 쓸 색</b> (2026-08-26 · 유저 지시: *"유물 획득 텍스트 등장
+        /// 등급에 따라 색 바뀌게 — 일반 하얀색 / 레어 파란색 / 에픽 보라색"*).
+        ///
+        /// <b>왜 <see cref="HudNoticeKind"/> 를 늘리지 않았나</b> — 등급은 셋이지만
+        /// «성격»(유물·승전·위험)은 그대로다. 종류를 등급마다 만들면 다음에 등급이
+        /// 넷이 되는 날 <see cref="ColorOf"/> 와 enum 을 <b>두 곳</b> 고쳐야 한다.
+        /// 색을 그냥 실어 보내면 <b>부르는 쪽이 정본</b>(유물 표)을 그대로 쓴다.
+        /// ⚠ 비워 두면(<c>null</c>) 예전처럼 성격의 색을 쓴다.
+        /// </summary>
+        public static event System.Action<string, HudNoticeKind, Color?> OnNoticeColored;
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetOnLoad() => OnNotice = null;
 
         /// <summary>알림 한 줄. 배너가 없으면 아무 일도 일어나지 않는다.</summary>
-        public static void Show(string message, HudNoticeKind kind = HudNoticeKind.Info) =>
+        public static void Show(string message, HudNoticeKind kind = HudNoticeKind.Info,
+                                Color? color = null)
+        {
             OnNotice?.Invoke(message, kind);
+            OnNoticeColored?.Invoke(message, kind, color);
+        }
 
         /// <summary>
         /// 성격별 글자색. <see cref="HudTheme"/> 의 색을 그대로 쓴다 —

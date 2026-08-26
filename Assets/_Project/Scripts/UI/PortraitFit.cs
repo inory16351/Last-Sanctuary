@@ -73,7 +73,9 @@ namespace LastSanctuary.UI
         ///   좁아진 창을 아래로 내리면 «머리 위 여백»(헤드룸)이 아니라 <b>머리가 잘린다</b>.
         /// </param>
         public static void Cover(Image image, float verticalAnchor = 0.85f,
-                                 float horizontalAnchor = 0.5f, float zoom = 1f)
+                                 float horizontalAnchor = 0.5f, float zoom = 1f,
+                                 float focusX = -1f, float focusY = -1f,
+                                 float focusPlacement = 0.35f)
         {
             if (image == null) return;
 
@@ -117,9 +119,44 @@ namespace LastSanctuary.UI
             float overflowX = Mathf.Max(0f, size.x - frameSize.x);
             float overflowY = Mathf.Max(0f, size.y - frameSize.y);
 
-            rect.anchoredPosition = new Vector2(
-                (0.5f - Mathf.Clamp01(horizontalAnchor)) * overflowX,
-                (Mathf.Clamp01(verticalAnchor) - 0.5f) * overflowY);
+            // ══════════════════════════════════════════════════════════════
+            //  ★★★ 2026-08-26 — <b>세로 앵커의 부호가 뒤집혀 있었다</b>
+            // ══════════════════════════════════════════════════════════════
+            // 유니티 UI 는 <b>+y 가 위</b>다. 그림을 위로 밀면 액자에는 그림의 <b>아래쪽</b>이
+            // 남는다 — 가로가 그래서 <c>(0.5 − h)</c> 인 것이다(h=0 «왼쪽을 남긴다» → 그림을
+            // 오른쪽으로 민다). 그런데 세로만 <c>(v − 0.5)</c> 였다:
+            //
+            //     v = 1(«맨 위를 남긴다»)  →  +overflowY/2  →  그림이 위로  →  <b>아래쪽이 남는다</b>
+            //
+            // 즉 <b>뜻과 정반대로</b> 돌고 있었다. 84x84 정사각 액자(로스터 행)에서는
+            // 넘침이 75px 이라 <b>허리·다리만 보였다</b> — 유저가 «얼굴이 잘린다» →
+            // «엄청 이상하다» 고 세 번 말한 것이 이것이다.
+            // ⚠ 다른 호출부(상세 카드 236x302 · 성장 창 226x300)는 세로 넘침이 2px 미만이라
+            //   같은 버그를 안고도 <b>눈에 안 띄었다</b>. 그래서 오래 살아남았다.
+            // ⚠⚠ <b>검산은 «코드» 로 해야 한다</b> — 이 값을 파이썬으로 미리 그려 확인했는데,
+            //   그 모의는 «뜻» 대로(1 = 위) 계산해서 <b>버그를 그대로 통과시켰다</b>.
+            float offsetX = (0.5f - Mathf.Clamp01(horizontalAnchor)) * overflowX;
+            float offsetY = (0.5f - Mathf.Clamp01(verticalAnchor)) * overflowY;
+
+            // ★★ <b>초점(focus)</b> — 그림의 어느 점을 액자의 어디에 놓을지 (2026-08-26 · 유저
+            //   지시: *"캐릭터의 얼굴이 보이는 상체 일러스트 부분만 남기기"*).
+            //
+            //   앵커는 «위/가운데/아래» 셋 중 하나를 고르는 것뿐이라, <b>캐릭터마다 얼굴 높이가
+            //   다른</b> 일러스트에는 맞지 않는다(15장 실측 — 세로 0.19~0.38 · 가로 0.42~0.58).
+            //   초점은 «그 캐릭터의 얼굴 좌표» 를 받아 <b>액자의 정해진 자리</b>에 놓는다.
+            //   <paramref name="focusPlacement"/> 가 그 자리다(0.35 = 액자 위에서 35% 지점 —
+            //   얼굴 위에 머리, 아래에 어깨가 남아 «상체» 가 된다).
+            if (focusY >= 0f)
+            {
+                float want = frameSize.y * 0.5f - frameSize.y * Mathf.Clamp01(focusPlacement)
+                             - size.y * 0.5f + Mathf.Clamp01(focusY) * size.y;
+                offsetY = Mathf.Clamp(want, -overflowY * 0.5f, overflowY * 0.5f);
+            }
+            if (focusX >= 0f)
+                offsetX = Mathf.Clamp(size.x * (0.5f - Mathf.Clamp01(focusX)),
+                                      -overflowX * 0.5f, overflowX * 0.5f);
+
+            rect.anchoredPosition = new Vector2(offsetX, offsetY);
 
             WarnIfUnmasked(frame, image);
         }
