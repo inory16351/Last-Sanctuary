@@ -6,8 +6,11 @@
 ■ 무엇을 하나
   ① `Assets/_Project/Scripts/UI/UiLocalizer.cs` 의 <b>지도</b>(경로 → 스트링 키)를 읽는다.
      — 지도가 정본이다. 이 스크립트는 <b>키 목록을 손으로 다시 적지 않는다</b>.
-  ② 씬(`Proto_01.unity`)에서 그 경로의 <b>지금 한국어 문구</b>를 읽어 kr 로 쓴다.
-     — 사람이 옮겨 적으면 반드시 어긋난다. 화면에 있는 그 글자가 그대로 표에 들어간다.
+  ② 씬(`SCENES` — `Proto_01.unity` · `Lobby.unity`)에서 그 경로의 <b>지금 한국어 문구</b>를
+     읽어 kr 로 쓴다. — 사람이 옮겨 적으면 반드시 어긋난다. 화면에 있는 그 글자가 그대로
+     표에 들어간다. ★ 2026-08-26 에 <b>로비 씬</b>이 붙었다(로비 버튼이 영어로 안 바뀌던 건) —
+     지도 하나를 두 씬이 나눠 쓴다. 그래서 «이 씬에서 경로를 못 찾은 칸» 은 <b>다른 씬의
+     칸일 수 있다</b>: 아래 경고는 두 씬을 <b>합친 뒤</b>에 남은 것만 나온다.
   ③ 표에 없는 키만 <b>덧붙인다</b>(en 은 아래 `EN` 표에서). 이미 있는 키는 <b>손대지 않는다</b>
      — 유저가 다듬은 번역을 덮지 않는 gen_string_table.py 의 규칙과 같다.
   ④ 지도의 <b>모든</b> 키가 표에 있는지 검산하고, 없으면 <b>실패</b>로 끝낸다.
@@ -43,7 +46,12 @@ except Exception:
 _PROJECT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STRING_XLSX = os.path.join(TABLE_DIR, '스트링 키 테이블.xlsx')
 MAP_CS = os.path.join(_PROJECT, 'Assets', '_Project', 'Scripts', 'UI', 'UiLocalizer.cs')
-SCENE = os.path.join(_PROJECT, 'Assets', 'Scenes', 'Proto_01.unity')
+#: 지도가 걸치는 씬들 — 2026-08-26 에 <b>로비 씬</b>이 붙었다(로비 버튼이 영어로 안 바뀌던 건).
+#  ⚠ 경로는 두 씬 모두 «UI_Root 아래» 로 적히므로(chain[1:]) 그대로 합쳐도 겹치지 않는다.
+SCENES = [
+    os.path.join(_PROJECT, 'Assets', 'Scenes', 'Proto_01.unity'),
+    os.path.join(_PROJECT, 'Assets', 'Scenes', 'Lobby.unity'),
+]
 
 SHEET = 'string'
 DATA_ROW0 = 4          # 3행 헤더 + 4행부터 데이터 (gen_string_table.py 와 같은 규약)
@@ -121,6 +129,11 @@ EN = {
     'ui_tactics_wave_head': 'Wave Response',
     'ui_tactics_note': ('Characters act on their own according to these directives. '
                         'You can switch characters in the roster while this window stays open.'),
+
+    # ── 로비 씬 (2026-08-26) ─────────────────────────────────────────────
+    'ui_lobby_continue': 'Continue',
+    'ui_lobby_new_game': 'New Game',
+    'ui_lobby_quit': 'Quit Game',
 }
 
 #: 씬 문구를 그대로 쓰지 않는 칸 — 156절의 「넥서스 → 성역」이 안 닿은 자리다.
@@ -144,8 +157,17 @@ _u = re.compile(BS + BS + 'u([0-9A-Fa-f]{4})')
 _x = re.compile(BS + BS + 'x([0-9A-Fa-f]{2})')
 
 
-def read_scene_text():
-    t = io.open(SCENE, encoding='utf-8', errors='replace').read()
+def read_all_scenes():
+    """모든 대상 씬의 «경로 → 문구» 를 합친다 (앞 씬이 이긴다)."""
+    out = {}
+    for path in SCENES:
+        for k, v in read_scene_text(path).items():
+            out.setdefault(k, v)
+    return out
+
+
+def read_scene_text(scene_path):
+    t = io.open(scene_path, encoding='utf-8', errors='replace').read()
     blocks = {}
     for m in re.finditer(r'--- !u!(\d+) &(\d+)\n(.*?)(?=--- !u!|\Z)', t, re.S):
         blocks[m.group(2)] = (m.group(1), m.group(3))
@@ -205,7 +227,7 @@ def read_scene_text():
 
 def main():
     pairs = read_map()
-    scene = read_scene_text()
+    scene = read_all_scenes()
 
     wb = openpyxl.load_workbook(STRING_XLSX)
     ws = wb[SHEET]

@@ -113,6 +113,40 @@ namespace LastSanctuary.UI
             [Tooltip("이 문장이 <b>말을 시작하는 브금의 시각(초)</b>. 음성과 자막이 함께 시작한다.\n" +
                      "0 이면 앞 문장을 다 친 뒤 captionGapSeconds 만큼 쉬고 이어 친다")]
             [Min(0f)] public float atMusicTime;
+
+            /// <summary>
+            /// ★★ <b>화면에 칠 글자</b> — 스트링 표를 거친다 (2026-08-26 · 유저 리포트
+            /// «영어로 번역 안된 것들»). <see cref="text"/> 는 <b>폴백</b>이다.
+            ///
+            /// ⚠ <b>이 자막은 씬에 저장돼 있다</b>(위 ⚠⚠ 를 볼 것) — 그래서 «키» 를 새 칸으로
+            ///   넣어 두면 씬의 옛 값에는 그 칸이 <b>비어</b> 있어 영원히 한국어로 남는다.
+            ///   그래서 키를 <b>들고 있지 않고 <see cref="voice"/> 에서 만든다</b>:
+            ///   <c>Opening/VO_01_1 → ui_opening_vo_01_1</c>. 음성 경로는 문장마다 <b>고유</b>하고
+            ///   (열여섯 조각 · 141절) 이미 씬에 저장돼 있어 <b>씬을 고칠 일이 없다</b>.
+            /// ★ 순서를 바꿔도 키가 흔들리지 않는다 — 번호가 아니라 <b>그 문장의 음성</b>이
+            ///   이름이기 때문이다.
+            /// ⚠ 음성이 없는 문장은 키를 만들 수 없어 <b>한국어 그대로</b>다(지금은 없다).
+            /// </summary>
+            public string Text
+            {
+                get
+                {
+                    string key = StringKey;
+                    return key == null ? text : Data.StringTable.Get(key, text);
+                }
+            }
+
+            /// <summary>«Opening/VO_01_1» → «ui_opening_vo_01_1». 음성이 없으면 null.</summary>
+            public string StringKey
+            {
+                get
+                {
+                    if (string.IsNullOrEmpty(voice)) return null;
+                    int slash = voice.LastIndexOf('/');
+                    string leaf = slash < 0 ? voice : voice.Substring(slash + 1);
+                    return leaf.Length == 0 ? null : "ui_opening_" + leaf.ToLowerInvariant();
+                }
+            }
         }
 
         /// <summary>배경 한 장 + 그 위에 차례로 지나가는 문장들.</summary>
@@ -705,7 +739,7 @@ namespace LastSanctuary.UI
                 if (_cutRequested) yield break;
 
                 Caption caption = captions[i];
-                if (caption == null || string.IsNullOrEmpty(caption.text)) continue;
+                if (caption == null || string.IsNullOrEmpty(caption.Text)) continue;
 
                 if (caption.atMusicTime > 0f)
                 {
@@ -721,7 +755,7 @@ namespace LastSanctuary.UI
                 if (_cutRequested) yield break;
 
                 float voiceLength = PlayVoice(caption.voice);
-                yield return Type(caption.text, SpeedFor(slide, caption, voiceLength));
+                yield return Type(caption.Text, SpeedFor(slide, caption, voiceLength));
             }
         }
 
@@ -745,13 +779,13 @@ namespace LastSanctuary.UI
         float SpeedFor(Slide slide, Caption caption, float voiceLength)
         {
             if (!slide.fitCaptionsToVoice || voiceLength <= 0f
-                || caption == null || string.IsNullOrEmpty(caption.text))
+                || caption == null || string.IsNullOrEmpty(caption.Text))
                 return charsPerSecond;
 
             float budget = voiceLength - captionTailSeconds;
             if (budget <= 0.25f) return charsPerSecond;
 
-            return Mathf.Clamp(caption.text.Length / budget, 6f, 90f);
+            return Mathf.Clamp(caption.Text.Length / budget, 6f, 90f);
         }
 
         /// <summary>

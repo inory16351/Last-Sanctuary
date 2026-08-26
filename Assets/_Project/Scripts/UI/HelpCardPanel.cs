@@ -69,6 +69,10 @@ namespace LastSanctuary.UI
         Coroutine _intro;
         bool _bound;
 
+        /// <summary>인스펙터에 적혀 있던 <b>원래</b> 문구 — 번역의 폴백은 늘 이 값이다.</summary>
+        (string badge, string more, string ok) _defaults;
+        bool _defaultsKept;
+
         /// <summary>읽는 동안의 일시정지. 규칙은 <see cref="ReadingPause"/> 에 있다.</summary>
         readonly ReadingPause _pause = new ReadingPause();
 
@@ -99,6 +103,12 @@ namespace LastSanctuary.UI
             if (entry == null) return;
 
             EnsureBound();
+
+            // ★ <b>글자를 쓰기 직전에</b> 번역한다 — 아래 ⚠⚠ 를 볼 것(꺼진 채로 집어 온
+            //   카드는 여기까지 와도 Awake 가 아직 돌지 않았다). 판 중간에 언어를 바꿔도
+            //   다음 카드부터 따라오는 것은 그 덕이다.
+            LocalizeLabels();
+
             _entry = entry;
 
             SetText(_badge, string.Format(badgeFormat, entry.category ?? ""));
@@ -371,12 +381,30 @@ namespace LastSanctuary.UI
         /// <summary>
         /// ★ 이 창의 문구를 <b>스트링 표</b>에서 가져온다 (2026-08-26 · 178-5절).
         /// 인스펙터 값은 <b>폴백</b>이다 — 표에 키가 없으면 화면은 지금과 같다.
+        ///
+        /// ⚠⚠ <b>«Awake 에서 한 번» 으로는 부족하다</b> (2026-08-26 · 유저 리포트
+        /// «「알겠습니다」가 영어로 안 바뀐다»). 이 카드는 씬에 <b>꺼진 채로</b> 저장돼 있고,
+        /// <see cref="Instance"/> 는 <c>FindObjectsInactive.Include</c> 로 꺼진 것을 집어 온다 —
+        /// 그래서 <see cref="Show"/> 가 <b>글자를 먼저 쓰고 그 다음에</b> 켠다. 즉 켤 때
+        /// 비로소 도는 <c>Awake</c> 는 <b>첫 카드에 한 발 늦는다</b>(두 번째 카드부터 영어라
+        /// «될 때도 있고 안 될 때도 있다» 로 보였다). 그래서 <see cref="Show"/> 가
+        /// <b>글자를 쓰기 바로 전에</b> 한 번 더 부른다.
+        ///
+        /// ★ <b>여러 번 불러도 안전하다</b> — 처음 붙잡아 둔 <see cref="_defaults"/> 에서
+        ///   번역하므로, 이미 영어가 된 값을 «폴백» 으로 삼아 한국어로 되돌아갈 길이 막히는
+        ///   일이 없다(<see cref="UiLocalizer"/> 가 씬 라벨에 쓰는 것과 같은 규칙이다).
         /// </summary>
         void LocalizeLabels()
         {
-            badgeFormat = HudTheme.T("ui_helpcard_badge_format", badgeFormat);
-            moreLabel = HudTheme.T("ui_helpcard_more", moreLabel);
-            okLabel = HudTheme.T("ui_helpcard_ok", okLabel);
+            if (!_defaultsKept)
+            {
+                _defaultsKept = true;
+                _defaults = (badgeFormat, moreLabel, okLabel);
+            }
+
+            badgeFormat = HudTheme.T("ui_helpcard_badge_format", _defaults.badge);
+            moreLabel = HudTheme.T("ui_helpcard_more", _defaults.more);
+            okLabel = HudTheme.T("ui_helpcard_ok", _defaults.ok);
         }
 }
 }

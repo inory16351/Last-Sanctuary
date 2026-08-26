@@ -165,7 +165,12 @@ namespace LastSanctuary.UI
         string BuildValuesLine(PassiveSkillSO skill)
         {
             if (skill.coolTime <= 0f) return "";
-            return string.Format(valuesFormat, $"재사용 대기시간 {Num(skill.coolTime)}초");
+            // ★ 「재사용 대기시간 N초」 는 <b>어순이 언어마다 다르다</b> — 그래서 문장을
+            //   조각으로 이어 붙이지 않고 <b>자리표 하나짜리 형식</b>을 표에서 가져온다.
+            string cool = string.Format(
+                HudTheme.T("ui_skill_cooltime_format", "재사용 대기시간 {0}초"),
+                Num(skill.coolTime));
+            return string.Format(valuesFormat, cool);
         }
 
         static string Num(float v) =>

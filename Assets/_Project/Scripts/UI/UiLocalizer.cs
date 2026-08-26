@@ -22,6 +22,12 @@ namespace LastSanctuary.UI
     /// 같은 이치로, <b>«경로 → 스트링 키» 지도 한 곳</b>만 둔다.
     ///
     /// ★ <b>UI_Root 에 붙인다.</b> 경로는 그 아래의 상대 경로다.
+    /// ★★ <b>씬 하나가 아니다</b> (2026-08-26) — 게임 씬(`Proto_01`)과 <b>로비 씬</b>(`Lobby`)
+    ///   양쪽의 `UI_Root` 에 붙고, <b>지도는 하나</b>를 나눠 쓴다. 그 씬에 없는 창의 칸은
+    ///   조용히 넘어간다(<see cref="Apply"/>). 문구를 한 곳에서 다듬기 위해서다 —
+    ///   «환경 설정»·«음량»·«단축키 설정» 은 두 씬이 <b>같은 키</b>를 본다.
+    /// ★★ <b>자기 자식 밖도 찾는다</b> — 도움말 세 창은 `Help_Root` 아래에 산다
+    ///   (<see cref="FindWindow"/> 의 세 단계).
     /// ★ <b><see cref="Transform.Find"/> 는 «닫힌 창» 안도 찾는다</b> — 그래서 `HUD_Growth`
     ///   처럼 꺼져 있는 창의 라벨도 부팅 때 한 번에 갈아 끼울 수 있다(창을 열 때
     ///   다시 그릴 필요가 없다).
@@ -160,10 +166,34 @@ namespace LastSanctuary.UI
             E("HUD_Tactics/Footer/Note",              "ui_tactics_note"),
             E("HUD_Tactics/Footer/ResetButton/Label", "ui_btn_reset"),
             E("HUD_Tactics/Footer/CloseButton/Label", "ui_btn_close"),
+
+            // ── 로비 씬 (Lobby.unity) ─────────────────────────────────────
+            // ★★ 2026-08-26 · 유저 리포트 «로비 버튼들이 영어로 안 바뀐다».
+            //   로비는 <b>별개의 씬</b>이라 178절이 게임 씬에만 이 컴포넌트를 붙였고,
+            //   로비의 버튼 글자는 <b>아무도 손대지 않는</b> 씬의 정적 라벨이었다.
+            //   ⚠ 게임 씬에는 `Lobby` 라는 창이 없다 — 그 경우는 조용히 넘긴다
+            //     (<see cref="Apply"/> 의 ★ 를 볼 것).
+            //   ⚠ `SettingsWindow/Body/LanguageButton/Label` 은 <b>여기 적지 않는다</b> —
+            //     `LobbySettingsWindow` 가 «언어 : {0}» 으로 채우는 자리표다.
+            E("Lobby/Menu/ContinueButton/Label",      "ui_lobby_continue"),
+            E("Lobby/Menu/NewGameButton/Label",       "ui_lobby_new_game"),
+            E("Lobby/Menu/SettingsButton/Label",      "ui_action_settings"),
+            E("Lobby/Menu/QuitButton/Label",          "ui_lobby_quit"),
+            E("Lobby/SettingsWindow/Header/Title",    "ui_action_settings"),
+            E("Lobby/SettingsWindow/Body/Volume/Label",         "ui_settings_volume"),
+            E("Lobby/SettingsWindow/Body/HotkeyButton/Label",   "ui_settings_hotkeys"),
+            E("Lobby/SettingsWindow/Body/HelpResetButton/Label", "ui_settings_help_reset"),
         };
 
         /// <summary>이 자리의 «원래 문구» — 표에 키가 없을 때 되돌아갈 값(씬의 첫 문구).</summary>
         readonly Dictionary<string, string> _fallback = new Dictionary<string, string>(128);
+
+        /// <summary>
+        /// 이 씬의 최상위 오브젝트 — <see cref="Apply"/> 가 <b>한 번 돌 때만</b> 들고 있는다
+        /// (<see cref="FindWindow"/> 의 ②③단계가 쓴다). 계속 들고 있으면 씬이 바뀌었을 때
+        /// <b>죽은 오브젝트를 가리킨다</b>.
+        /// </summary>
+        GameObject[] _roots;
 
         bool _reported;
 
@@ -182,12 +212,29 @@ namespace LastSanctuary.UI
         /// <summary>지도의 모든 칸을 지금 언어로 채운다. 언어가 바뀔 때마다 다시 돈다.</summary>
         void Apply()
         {
-            int done = 0;
+            int done = 0, elsewhere = 0;
             StringBuilder missing = null;
+            HashSet<string> absentWindows = _reported ? null : new HashSet<string>();
+
+            // ★ 최상위 목록을 <b>한 번만</b> 뜬다 — `GetRootGameObjects` 는 부를 때마다 배열을
+            //   새로 만든다. 지도가 백 칸이라 칸마다 부르면 부팅에 쓸데없는 쓰레기가 쌓인다.
+            _roots = gameObject.scene.IsValid() ? gameObject.scene.GetRootGameObjects() : null;
 
             for (int i = 0; i < Map.Length; i++)
             {
-                TMP_Text label = Resolve(Map[i].Path);
+                // ★ 지도 하나를 <b>씬 여럿이 나눠 쓴다</b> — 로비 씬에는 `HUD_*` 창이 없고
+                //   게임 씬에는 `Lobby` 가 없다. «이 씬에 없는 창» 은 잘못이 아니므로
+                //   조용히 넘긴다. 반대로 <b>창은 있는데 그 안의 경로가 없는 것</b>은
+                //   이름이 바뀌었다는 뜻이라 반드시 알린다 — 그것이 이 검산의 값이다.
+                Transform window = FindWindow(Head(Map[i].Path));
+                if (window == null)
+                {
+                    elsewhere++;
+                    absentWindows?.Add(Head(Map[i].Path));
+                    continue;
+                }
+
+                TMP_Text label = ResolveIn(window, Map[i].Path);
                 if (label == null)
                 {
                     if (!_reported)
@@ -213,36 +260,97 @@ namespace LastSanctuary.UI
             if (!_reported)
             {
                 _reported = true;
+                string other = absentWindows != null && absentWindows.Count > 0
+                    ? $" · 이 씬에 없는 창 {absentWindows.Count}개({string.Join(", ", absentWindows)})의 " +
+                      $"{elsewhere}칸은 넘겼습니다"
+                    : "";
+
                 if (missing != null)
-                    Debug.LogWarning($"[Localize] 씬에서 못 찾은 라벨 {Map.Length - done}칸 " +
-                                     $"(경로가 바뀌었는지 볼 것):{missing}", this);
+                    Debug.LogWarning($"[Localize] 창은 있는데 못 찾은 라벨 " +
+                                     $"{Map.Length - done - elsewhere}칸 " +
+                                     $"(경로가 바뀌었는지 볼 것){other}:{missing}", this);
                 else
                     Debug.Log($"[Localize] 정적 라벨 {done}칸을 표에 이었습니다 " +
-                              $"(언어: {StringTable.Language}).", this);
+                              $"(언어: {StringTable.Language}){other}.", this);
             }
+
+            _roots = null;      // ★ 들고 있지 않는다 — 위 <see cref="_roots"/> 의 이유
         }
 
         /// <summary>
-        /// 첫 칸(창 이름)은 <b>켜져 있는 것을 먼저</b> 고르고, 나머지는
-        /// <see cref="Transform.Find"/> 로 내려간다(꺼진 창 안도 찾는다).
+        /// 창을 <see cref="FindWindow"/> 로 잡고 나머지는 <see cref="Transform.Find"/> 로
+        /// 내려간다(꺼진 창 «안» 도 찾는다 — 그래서 부팅 때 한 번에 갈아 끼울 수 있다).
         /// </summary>
-        TMP_Text Resolve(string path)
+        TMP_Text ResolveIn(Transform window, string path)
         {
-            int slash = path.IndexOf('/');
-            string head = slash < 0 ? path : path.Substring(0, slash);
-
-            Transform window = null;
-            for (int i = 0; i < transform.childCount; i++)
-            {
-                Transform child = transform.GetChild(i);
-                if (child.name != head) continue;
-                if (window == null || (!window.gameObject.activeSelf && child.gameObject.activeSelf))
-                    window = child;
-            }
             if (window == null) return null;
 
+            int slash = path.IndexOf('/');
             Transform target = slash < 0 ? window : window.Find(path.Substring(slash + 1));
             return target != null ? target.GetComponent<TMP_Text>() : null;
+        }
+
+        /// <summary>경로의 첫 칸 — «창» 의 이름.</summary>
+        static string Head(string path)
+        {
+            int slash = path.IndexOf('/');
+            return slash < 0 ? path : path.Substring(0, slash);
+        }
+
+        /// <summary>
+        /// ★★ <b>창을 세 단계로 찾는다</b> (2026-08-26 · 유저 리포트 «「알겠습니다」가 영어로
+        /// 안 바뀐다»). 예전에는 <b>자기 자식만</b> 훑었다 — 그런데 도움말 세 창은
+        /// <c>UI_Root</c> 가 아니라 <b>씬 최상위의 `Help_Root`</b> 아래에 산다. 그래서 지도의
+        /// 일곱 칸(<c>HUD_Help</c>·<c>HUD_HelpCard</c>·<c>HUD_HelpTour</c>)이 <b>한 번도
+        /// 적용된 적이 없었다</b>(178절의 검산 도구는 씬 파일을 «전체 검색» 해서 통과시켰다 —
+        /// 런타임의 «자기 자식만» 규칙과 어긋났다).
+        ///
+        /// <code>
+        ///   ① 자기 자식           ← 대부분. 이 순서가 <b>먼저</b>인 것이 중요하다
+        ///   ② 씬 최상위 오브젝트
+        ///   ③ 씬 최상위의 자식     ← Help_Root/HUD_Help …
+        /// </code>
+        /// ⚠ <b>①을 먼저 보는 것이 규약이다</b> — 씬에 <c>HUD_Portrait</c> 가 둘인데
+        ///   (<c>UI_Root</c> 아래의 <b>진짜</b>와 최상위의 <b>꺼진 잔존물</b>) 진짜 쪽은
+        ///   창이 닫혀 있어 <c>activeSelf</c> 가 거짓이다. «켜진 쪽 우선» 을 단계 밖으로
+        ///   끌어올리면 <b>잔존물이 이긴다</b>. 켜진 쪽 우선은 <b>한 단계 안에서만</b> 쓴다.
+        /// </summary>
+        Transform FindWindow(string head)
+        {
+            Transform hit = Pick(transform, head);
+            if (hit != null) return hit;
+
+            GameObject[] roots = _roots;
+            if (roots == null) return null;
+
+            for (int i = 0; i < roots.Length; i++)
+                if (roots[i].name == head &&
+                    (hit == null || (!hit.gameObject.activeSelf && roots[i].activeSelf)))
+                    hit = roots[i].transform;
+            if (hit != null) return hit;
+
+            for (int i = 0; i < roots.Length; i++)
+            {
+                Transform found = Pick(roots[i].transform, head);
+                if (found != null &&
+                    (hit == null || (!hit.gameObject.activeSelf && found.gameObject.activeSelf)))
+                    hit = found;
+            }
+            return hit;
+        }
+
+        /// <summary><paramref name="parent"/> 의 <b>직계 자식</b> 중 그 이름 — 켜진 쪽 우선.</summary>
+        static Transform Pick(Transform parent, string name)
+        {
+            Transform hit = null;
+            for (int i = 0; i < parent.childCount; i++)
+            {
+                Transform child = parent.GetChild(i);
+                if (child.name != name) continue;
+                if (hit == null || (!hit.gameObject.activeSelf && child.gameObject.activeSelf))
+                    hit = child;
+            }
+            return hit;
         }
     }
 }

@@ -41,7 +41,8 @@ namespace LastSanctuary.Units
         [Tooltip("부대 하나에 넣을 수 있는 최대 인원. 0 이면 제한 없음")]
         [Min(0)] [SerializeField] int maxMembersPerSquad = 0;
 
-        [Tooltip("새 부대 이름 형식. {0} 에 번호가 들어간다")]
+        [Tooltip("새 부대 이름 형식. {0} 에 번호가 들어간다. " +
+                 "스트링 키 ui_squad_name_format 이 있으면 그쪽이 이긴다")]
         [SerializeField] string squadNameFormat = "{0}부대";
 
         [Tooltip("유저가 직접 지을 수 있는 부대 이름의 최대 글자 수. 깃발 위 이름표가 " +
@@ -109,6 +110,61 @@ namespace LastSanctuary.Units
         // ------------------------------------------------------------------
 
         /// <summary>새 부대를 만든다. 상한에 걸리면 null.</summary>
+        /// <summary>
+        /// 새 부대에 붙일 <b>기본 이름</b>. 인스펙터 값은 폴백이고 스트링 표가 정본이다
+        /// (2026-08-26 · 유저 리포트 «언어를 바꿔도 안 바뀌는 한글»).
+        ///
+        /// ⚠ <b>이름은 «데이터» 라 한 번 지어지면 굳는다</b> — 유저가 고칠 수 있는 값이고
+        ///   세이브에 <b>문자열로</b> 담긴다(98절). 그러니 언어를 바꿔도 <b>이미 만든 부대의
+        ///   이름은 그대로다</b> — 그 뒤에 만드는 부대부터 그 언어로 지어진다. 이것은 버그가
+        ///   아니라 «유저가 지은 이름을 뺏지 않는다» 는 뜻이다.
+        /// </summary>
+        string NextSquadName() =>
+            string.Format(Data.StringTable.Get("ui_squad_name_format", squadNameFormat),
+                          NextSquadNumber());
+
+        /// <summary>
+        /// ★★ 새 부대에 붙일 <b>번호</b> — <b>«지금 쓰이는 가장 큰 번호 + 1»</b>
+        /// (2026-08-26 · 유저 리포트: *"1부대, 2부대 있는데 1부대 해제하고 새로 만들면
+        /// 2부대가 2개가 됨"*).
+        ///
+        /// 예전에는 <c>_squads.Count + 1</c> 이었다 — <b>개수</b>는 부대를 해제하면 줄어들므로
+        /// «비어 있는 번호» 가 아니라 <b>이미 쓰고 있는 번호</b>를 다시 내놓았다.
+        ///
+        /// ★ <b>번호를 따로 세어 들고 있지 않는다</b> — 그러면 세이브에 칸이 하나 더 필요하고
+        ///   («다음 번호» 를 저장하지 않으면 이어하기 때 같은 버그로 돌아간다), 옛 세이브에는
+        ///   그 칸이 없어 또 갈라진다. <b>이름에서 읽어 내면</b> 저장할 것이 없다.
+        /// ★ 이름의 <b>첫 숫자 덩이</b>를 본다 — 언어와 무관하게 «1부대» 도 «Squad 1» 도 잡힌다
+        ///   (형식이 «{0}부대» 든 «Squad {0}» 든 자리표 하나뿐이다).
+        /// ★ <b>개수도 함께 본다</b> — 유저가 부대 이름을 전부 «선봉대» 처럼 바꿔 두면 읽어낼
+        ///   숫자가 없다. 그때 1 부터 다시 매기면 <b>이름이 겹칠 수 있다</b>.
+        /// ⚠ 전부 해제하면 <b>다시 1번부터</b>다 — 번호가 영원히 커지지는 않는다.
+        /// </summary>
+        int NextSquadNumber()
+        {
+            int highest = _squads.Count;
+            for (int i = 0; i < _squads.Count; i++)
+            {
+                int n = LeadingNumber(_squads[i].Name);
+                if (n > highest) highest = n;
+            }
+            return highest + 1;
+        }
+
+        /// <summary>이름 안의 <b>첫 숫자 덩이</b>. 없으면 0.</summary>
+        static int LeadingNumber(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return 0;
+            for (int i = 0; i < name.Length; i++)
+            {
+                if (!char.IsDigit(name[i])) continue;
+                int end = i;
+                while (end < name.Length && char.IsDigit(name[end])) end++;
+                return int.TryParse(name.Substring(i, end - i), out int v) ? v : 0;
+            }
+            return 0;
+        }
+
         public Squad CreateSquad()
         {
             if (!CanCreate) return null;
@@ -116,7 +172,7 @@ namespace LastSanctuary.Units
             var squad = new Squad
             {
                 Id = _nextId++,
-                Name = string.Format(squadNameFormat, _squads.Count + 1),
+                Name = NextSquadName(),
                 CoopExpedition = coopExpeditionDefault,
             };
             _squads.Add(squad);
@@ -149,9 +205,7 @@ namespace LastSanctuary.Units
             var squad = new Squad
             {
                 Id = id,
-                Name = string.IsNullOrWhiteSpace(name)
-                    ? string.Format(squadNameFormat, _squads.Count + 1)
-                    : name,
+                Name = string.IsNullOrWhiteSpace(name) ? NextSquadName() : name,
                 CoopExpedition = coopExpeditionDefault,
             };
             _squads.Add(squad);

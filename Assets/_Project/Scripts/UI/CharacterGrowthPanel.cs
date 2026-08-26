@@ -216,11 +216,18 @@ namespace LastSanctuary.UI
         /// <summary>다른 UI(액션 버튼)가 열고 닫을 수 있게 하나만 둔다.</summary>
         public static CharacterGrowthPanel Instance { get; private set; }
 
-        /// <summary>능력치 한 칸. <see cref="Type"/> 이 null 이면 아직 구현되지 않은 능력치라 빈 칸으로 둔다.</summary>
+        /// <summary>
+        /// 능력치 한 칸. <see cref="Type"/> 이 null 이면 아직 구현되지 않은 능력치라 빈 칸으로 둔다.
+        ///
+        /// ★★ <b>표시 이름을 여기 들지 않는다</b> (2026-08-26 · 유저 리포트 «성장 창 능력치가
+        /// 영어로 안 바뀐다»). 예전에는 칸마다 한국어 문자열을 박아 두고 그것을 그대로
+        /// 라벨에 썼다 — 스트링 표를 거치지 않으니 <b>언어를 바꿔도 영원히 한국어</b>였다.
+        /// 이름은 <see cref="StatBlock.DisplayName"/> 한 곳에서만 정한다(그쪽이 이미
+        /// <c>ui_stat_*</c> 키를 읽는다) — 그래서 로그·상세 창과 <b>같은 글자</b>가 된다.
+        /// </summary>
         struct StatSlot
         {
             public StatType? Type;
-            public string DisplayName;
         }
 
         /// <summary>
@@ -236,22 +243,29 @@ namespace LastSanctuary.UI
         /// </summary>
         static readonly StatSlot[] Slots =
         {
-            new StatSlot { Type = StatType.Hp,           DisplayName = "체력" },
-            new StatSlot { Type = StatType.Attack,       DisplayName = "근거리 공격력" },
-            new StatSlot { Type = StatType.RangedAttack, DisplayName = "원거리 공격력" },
+            new StatSlot { Type = StatType.Hp },
+            new StatSlot { Type = StatType.Attack },
+            new StatSlot { Type = StatType.RangedAttack },
 
-            new StatSlot { Type = StatType.Magic,        DisplayName = "마법" },
-            new StatSlot { Type = StatType.Cure,         DisplayName = "회복력" },
-            new StatSlot { Type = StatType.Defense,      DisplayName = "방어력" },
+            new StatSlot { Type = StatType.Magic },
+            new StatSlot { Type = StatType.Cure },
+            new StatSlot { Type = StatType.Defense },
 
-            new StatSlot { Type = StatType.Regen,        DisplayName = "체력 재생" },
-            new StatSlot { Type = StatType.Accuracy,     DisplayName = "명중률" },
-            new StatSlot { Type = StatType.Critical,     DisplayName = "크리티컬 확률" },
+            new StatSlot { Type = StatType.Regen },
+            new StatSlot { Type = StatType.Accuracy },
+            new StatSlot { Type = StatType.Critical },
 
-            new StatSlot { Type = StatType.AttackSpeed,  DisplayName = "공격 속도" },
-            new StatSlot { Type = StatType.MoveSpeed,    DisplayName = "이동속도" },
-            new StatSlot { Type = StatType.Resistance,   DisplayName = "저항력" },
+            new StatSlot { Type = StatType.AttackSpeed },
+            new StatSlot { Type = StatType.MoveSpeed },
+            new StatSlot { Type = StatType.Resistance },
         };
+
+        /// <summary>
+        /// 한 칸의 표시 이름. <see cref="StatBlock.DisplayName"/> 이 정본이고
+        /// (<c>ui_stat_*</c> 키), 아직 구현되지 않은 칸은 빈 글자다.
+        /// </summary>
+        static string LabelOf(StatSlot slot) =>
+            slot.Type.HasValue ? StatBlock.DisplayName(slot.Type.Value) : "";
 
         /// <summary>패시브 스킬 칸 하나. 카드 전체가 버튼이고, 누르면 상세 창이 열린다.</summary>
         class PassiveCard
@@ -434,9 +448,24 @@ namespace LastSanctuary.UI
             soulFormat = HudTheme.T("ui_portrait_soul_format", soulFormat);
         }
 
+        /// <summary>
+        /// 능력치 열두 칸의 <b>이름</b>을 지금 언어로 다시 쓴다.
+        ///
+        /// ★ <b>값이 아니라 «머리글» 이라 따로 있다</b> — 나머지 칸은 캐릭터가 바뀔 때마다
+        ///   다시 그려지지만(<see cref="RefreshStats"/>), 이름은 배선할 때 한 번 쓰고 끝이다.
+        ///   언어를 판 중간에 바꾸면 그 한 번이 옛 언어로 남으므로 여기서 다시 쓴다.
+        /// </summary>
+        void RelabelStats()
+        {
+            for (int i = 0; i < _rows.Length; i++)
+                if (_rows[i] != null && _rows[i].Label != null)
+                    _rows[i].Label.text = LabelOf(Slots[i]);
+        }
+
         void HandleLanguageChanged()
         {
             LocalizeLabels();
+            RelabelStats();
             if (gameObject.activeSelf) RefreshAll();
         }
 
@@ -1293,9 +1322,9 @@ namespace LastSanctuary.UI
                     Value = FindText($"{path}/Value"),
                     Delta = FindText($"{path}/Delta"),
                 };
-
-                if (_rows[i].Label != null) _rows[i].Label.text = Slots[i].DisplayName;
             }
+
+            RelabelStats();
 
             // 패시브 카드 3장. 클로저가 슬롯 번호를 잡도록 지역 변수에 복사해서 넘긴다 —
             // 반복 변수를 그대로 캡처하면 세 버튼이 전부 마지막 값을 쓴다(고전적 실수).

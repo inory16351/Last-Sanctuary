@@ -286,7 +286,8 @@ namespace LastSanctuary.UI
 
             if (_retreatValueText != null)
                 _retreatValueText.text = _tactics != null
-                    ? (percent > 0 ? $"{percent}%" : "사용 안 함")
+                    ? (percent > 0 ? $"{percent}%"
+                                   : HudTheme.T("ui_tactics_retreat_off", "사용 안 함"))
                     : "-";
 
             if (_retreatSlider == null) return;
