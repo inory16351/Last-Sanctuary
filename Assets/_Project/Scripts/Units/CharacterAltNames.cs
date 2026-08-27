@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using LastSanctuary.Data;
 
@@ -24,6 +24,17 @@ namespace LastSanctuary.Units
     /// 나올 때까지</b> 훑어 목록을 만든다(<see cref="Keys"/>). 표에 이름을 더하면 코드를
     /// 고치지 않아도 늘어난다.
     ///
+    /// ★★ <b>성별을 가린다</b> (2026-08-27 · 유저 지시: *"남캐는 남자 이름 여캐는 여자이름으로
+    ///   들어가는 시스템으로"*) — 이름 주머니의 성별은 <c>대체 이름 테이블.xlsx</c> 가 정본이고,
+    ///   <c>Tools/gen_alt_name_table.py</c> 가 <c>Resources/Data/AltNameGender.txt</c>(TSV)로
+    ///   내보낸다. <b>스트링 표에 넣지 않은 이유</b> — 성별은 화면에 나가는 «문구» 가 아니다.
+    ///   번역할 것이 없는 값을 스트링 표에 넣으면 «영어 빈칸» 검사가 매번 걸리고,
+    ///   죽은 키인지 산 키인지도 구분이 안 된다(182-5절에서 겪은 종류의 함정이다).
+    ///
+    /// ⚠ <b>성별을 모르면 안 가린다</b> — 인물의 성별이 <see cref="CharacterGender.Unknown"/>
+    ///   이거나 성별 파일이 아예 없으면 <b>예전처럼</b> 아무 이름이나 뽑는다. 이름이 없어서
+    ///   원래 이름으로 태어나는 것보다, 성별만 못 맞추는 편이 눈에 덜 띈다.
+    ///
     /// ⚠ <b>같은 판에서 이름이 겹치지 않는다</b> — 한 번 쓴 키는 <see cref="_used"/> 에 남는다.
     ///   이름이 다 떨어지면 «정의의 원래 이름» 으로 돌아간다(억지로 겹치게 하지 않는다).
     /// ⚠ <b>세이브를 건넌다</b> — 배정된 키는 <c>CharacterSave.altNameKey</c> 로 저장되고
@@ -35,6 +46,12 @@ namespace LastSanctuary.Units
         /// <summary>스트링 키의 앞머리. 뒤에 1부터의 번호가 붙는다.</summary>
         public const string KeyPrefix = "character_altname_";
 
+        /// <summary>
+        /// 이름별 성별표의 <c>Resources.Load</c> 경로(확장자 없음).
+        /// <c>Tools/gen_alt_name_table.py</c> 가 <b>대체 이름 테이블에서</b> 내보낸다.
+        /// </summary>
+        public const string GenderResourcePath = "Data/AltNameGender";
+
         /// <summary>표를 훑을 때의 상한 — 빈 번호가 나오면 거기서 멈추므로 사실상 안전판이다.</summary>
         const int MaxProbe = 500;
 
@@ -45,6 +62,9 @@ namespace LastSanctuary.Units
 
         /// <summary>이번 판에 이미 쓴 대체 이름 키.</summary>
         static readonly HashSet<string> _used = new HashSet<string>();
+
+        /// <summary>대체 이름 키 → 그 이름의 성별. 파일이 없으면 <b>비어 있고</b>, 그때는 안 가린다.</summary>
+        static Dictionary<string, CharacterGender> _genderByKey;
 
         /// <summary>
         /// 표에 있는 대체 이름 키 전부. 처음 불릴 때 한 번 훑고 캐시한다.
@@ -77,7 +97,12 @@ namespace LastSanctuary.Units
         /// 아직 안 쓴 대체 이름 키를 무작위로 하나 준다. 첫 등장이거나 이름이 다 떨어지면
         /// <c>null</c>(= 정의의 원래 이름).
         /// </summary>
-        public static string RegisterAppearance(int definitionId)
+        /// <param name="gender">
+        /// 인물의 성별. <b>같은 성별의 이름만</b> 뽑는다(2026-08-27 유저 지시).
+        /// <see cref="CharacterGender.Unknown"/> 이면 안 가린다 — 표에 칸이 비었을 때의 안전판이다.
+        /// </param>
+        public static string RegisterAppearance(int definitionId,
+                                                CharacterGender gender = CharacterGender.Unknown)
         {
             if (definitionId <= 0) return null;
 
@@ -87,16 +112,32 @@ namespace LastSanctuary.Units
 
             if (count <= 1) return null;                   // 첫 등장은 본래 이름
 
-            string key = PickUnused();
+            string key = PickUnused(gender);
             if (key == null)
             {
+                // ★ 성별 때문에 못 뽑은 것인지 이름이 동난 것인지를 갈라 적는다 —
+                //   전자는 «표에 그 성별 이름을 더하세요» 이고 후자는 «판이 길었다» 라서
+                //   할 일이 다르다.
+                bool anyLeft = PickUnused(CharacterGender.Unknown) != null;
                 Debug.Log($"[이름] 인물 {definitionId} 의 {count}번째 등장인데 " +
-                          "쓸 수 있는 대체 이름이 남지 않아 원래 이름으로 태어납니다.");
+                          (anyLeft && gender != CharacterGender.Unknown
+                              ? $"{gender} 이름이 남지 않아 원래 이름으로 태어납니다 " +
+                                "(대체 이름 테이블에 그 성별 이름을 더하세요)."
+                              : "쓸 수 있는 대체 이름이 남지 않아 원래 이름으로 태어납니다."));
                 return null;
             }
 
             _used.Add(key);
             return key;
+        }
+
+        /// <summary>이 대체 이름 키의 성별. 성별표에 없으면 <see cref="CharacterGender.Unknown"/>.</summary>
+        public static CharacterGender GenderOf(string altNameKey)
+        {
+            EnsureGenders();
+            if (string.IsNullOrEmpty(altNameKey)) return CharacterGender.Unknown;
+            return _genderByKey.TryGetValue(altNameKey, out CharacterGender g)
+                ? g : CharacterGender.Unknown;
         }
 
         /// <summary>
@@ -121,25 +162,82 @@ namespace LastSanctuary.Units
             _used.Clear();
         }
 
-        static string PickUnused()
+        static string PickUnused(CharacterGender want)
         {
             IReadOnlyList<string> keys = Keys;
             if (keys.Count == 0) return null;
+
+            EnsureGenders();
+
+            // ★ 성별표가 통째로 없으면 «가리지 않는다» — 예전(2026-08-26) 동작 그대로다.
+            //   여기서 엄격하게 굴면 파일 하나가 빠졌을 때 <b>모든 인물이 원래 이름</b>이 되어
+            //   기능이 통째로 죽는데, 그게 화면에서는 «두 번째 등장이 안 되네» 로 보인다.
+            bool filter = want != CharacterGender.Unknown && _genderByKey.Count > 0;
 
             // 안 쓴 것 중에서 고른다. 후보를 새 목록에 담지 않으려고 «몇 개 남았는지» 를
             // 먼저 세고 그중 n 번째를 집는다 — 매 생성마다 할당하지 않기 위한 것이다.
             int free = 0;
             for (int i = 0; i < keys.Count; i++)
-                if (!_used.Contains(keys[i])) free++;
+                if (Eligible(keys[i], want, filter)) free++;
             if (free == 0) return null;
 
             int pick = Random.Range(0, free);
             for (int i = 0; i < keys.Count; i++)
             {
-                if (_used.Contains(keys[i])) continue;
+                if (!Eligible(keys[i], want, filter)) continue;
                 if (pick-- == 0) return keys[i];
             }
             return null;
+        }
+
+        static bool Eligible(string key, CharacterGender want, bool filter)
+        {
+            if (_used.Contains(key)) return false;
+            if (!filter) return true;
+            return _genderByKey.TryGetValue(key, out CharacterGender g) && g == want;
+        }
+
+        /// <summary>
+        /// 이름별 성별표를 한 번 읽는다. TSV 두 칸(<c>alt_name_key · gender</c>)이고
+        /// 형식·이유는 <see cref="Data.StringTable"/> 과 같다(<c>#</c> 주석 · 헤더 한 줄).
+        /// 파일이 없으면 <b>빈 표</b>로 두고 경고만 남긴다 — 그때는 성별을 안 가린다.
+        /// </summary>
+        static void EnsureGenders()
+        {
+            if (_genderByKey != null) return;
+            _genderByKey = new Dictionary<string, CharacterGender>(64);
+
+            var asset = Resources.Load<TextAsset>(GenderResourcePath);
+            if (asset == null)
+            {
+                Debug.LogWarning($"[이름] Resources/{GenderResourcePath} 를 찾지 못했습니다 — " +
+                                 "두 번째 등장 이름의 성별을 가리지 않습니다. " +
+                                 "python Tools/gen_alt_name_table.py 를 돌려 내보내세요.");
+                return;
+            }
+
+            string[] lines = asset.text.Split('\n');
+            for (int i = 0; i < lines.Length; i++)
+            {
+                string line = lines[i].TrimEnd('\r');
+                if (line.Length == 0 || line[0] == '#') continue;
+
+                string[] cells = line.Split('\t');
+                string key = cells[0].Trim();
+                if (key.Length == 0 || key == "alt_name_key") continue;
+
+                CharacterGender g = CharacterGenderText.Parse(cells.Length > 1 ? cells[1] : null);
+                if (g == CharacterGender.Unknown)
+                {
+                    // 뽑기에서 «성별 없는 이름» 은 아무에게도 안 간다 — 조용히 사라지면
+                    // «이 이름은 왜 한 번도 안 나오지» 가 되므로 여기서 이름을 찍는다.
+                    Debug.LogWarning($"[이름] '{key}' 의 성별 칸이 비었거나 모르는 값입니다 " +
+                                     $"('{(cells.Length > 1 ? cells[1] : string.Empty)}') — " +
+                                     "이 이름은 뽑히지 않습니다.");
+                    continue;
+                }
+                _genderByKey[key] = g;
+            }
         }
 
         /// <summary>
@@ -151,6 +249,7 @@ namespace LastSanctuary.Units
         static void ResetStatics()
         {
             _keys = null;
+            _genderByKey = null;
             _appeared.Clear();
             _used.Clear();
         }

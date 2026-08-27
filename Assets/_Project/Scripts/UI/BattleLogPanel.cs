@@ -92,6 +92,19 @@ namespace LastSanctuary.UI
 
             lineTemplate.gameObject.SetActive(false);
 
+            // ★★ <b>틀을 먼저 고쳐 둔다</b> — 줄은 이 틀에서 <b>복제되어</b> 태어나므로
+            //   여기서 한 번 고치면 앞으로 생길 모든 줄이 고쳐진 채로 나온다
+            //   (2026-08-27 · 184절 · 유저 리포트 *"텍스트들 짤리는거 … 전체적으로"*).
+            //
+            //   ⚠ 씬의 이 틀은 <c>Truncate</c> 였다 — <b>뒤를 잘라 버린다</b>. 로그는 대개
+            //     «누가 무엇을 했다» 라 <b>뒤쪽에 결과가 있다</b>(「웨이브 5 클리어 — 승리!」).
+            //     영어는 한국어보다 길어 그 뒤쪽이 먼저 사라진다.
+            //   ⚠ <b>줄바꿈은 켜지 않는다</b> — 줄 칸의 높이는 19px 로 고정이고
+            //     그것을 감싼 <c>VerticalLayoutGroup</c> 이 <c>ChildControlHeight = 0</c>
+            //     이라 <b>칸이 글자를 따라 커지지 않는다</b>. 둘째 줄은 아래 줄과 겹친다.
+            if (lineTemplate.TryGetComponent(out TMP_Text templateText))
+                HudTheme.FitText(templateText, 10f, wrap: false);
+
             BindScrollRect();
 
             HudLog.OnLine += Append;

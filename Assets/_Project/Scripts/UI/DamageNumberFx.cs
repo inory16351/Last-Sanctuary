@@ -228,6 +228,10 @@ namespace LastSanctuary.UI
                  "이만큼 아래에서 시작해 제자리까지 올라온다")]
         [Min(0f)] [SerializeField] float mentalRiseFromTiles = 0.9f;
 
+        [Tooltip("공격이 빗나갔을 때 피한 쪽 머리 위에 뜨는 글자. " +
+                 "★ 표에 <c>ui_fx_miss</c> 가 있으면 그쪽을 쓴다 — 이 값은 폴백이다")]
+        [SerializeField] string missText = "빗나감";
+
         [Header("영웅 각성 문구 (유저 지시 2026-08-18)")]
         [Tooltip("영웅으로 각성한 순간 캐릭터 머리 위에 뜨는 문구. " +
                  "{0} = 몇 번째 각성인지 (최대 각성 횟수가 1 이면 안 쓰인다)")]
@@ -461,7 +465,10 @@ namespace LastSanctuary.UI
         void HandleMissed(DamageableUnit attacker, DamageableUnit target)
         {
             if (!enableNumbers || target == null) return;
-            Show(target, "빗나감", missColor, missTiles, PopupStyle.Float, lifeSeconds);
+            // ⚠ 이 글자는 <b>오랫동안 표를 안 거치고 있었다</b>(2026-08-27 · 184절) —
+            //   같은 파일의 각성 문구 둘과 달리 인스펙터 칸이 아니라
+            //   <b>호출문에 박힌 리터럴</b>이라 LocalizeLabels 에서 빠졌다.
+            Show(target, missText, missColor, missTiles, PopupStyle.Float, lifeSeconds);
         }
 
         /// <summary>
@@ -703,6 +710,7 @@ namespace LastSanctuary.UI
         /// </summary>
         void LocalizeLabels()
         {
+            missText = HudTheme.T("ui_fx_miss", missText);
             heroAwakenText = HudTheme.T("ui_fx_hero_awaken", heroAwakenText);
             heroAwakenStageFormat = HudTheme.T("ui_fx_hero_awaken_stage", heroAwakenStageFormat);
         }

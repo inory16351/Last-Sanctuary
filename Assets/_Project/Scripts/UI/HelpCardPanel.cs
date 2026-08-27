@@ -118,7 +118,9 @@ namespace LastSanctuary.UI
 
             _entry = entry;
 
-            SetText(_badge, string.Format(badgeFormat, entry.category ?? ""));
+            // ★ 머리표의 분류 이름도 표를 거친다 (2026-08-27 · 184절) — 예전에는
+            //   <c>entry.category</c>(식별자 그대로)를 끼워 «Help · 기본» 이 됐다.
+            SetText(_badge, string.Format(badgeFormat, entry.CategoryName ?? ""));
             SetText(_title, entry.Title);
             SetText(_summary, entry.Summary);
             SetText(_moreLabelText, moreLabel);

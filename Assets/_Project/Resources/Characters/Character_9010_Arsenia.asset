@@ -16,6 +16,7 @@ MonoBehaviour:
   nameKey: 'character_name_9010'
   characterName: '아르세니아'
   characterNameEn: 'Arsenia'
+  gender: 2
   titleKey: 'character_title_9010'
   title: '부서진 날개의 연금술사'
   illustName: 'illust_Arsenia'

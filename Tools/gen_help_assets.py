@@ -227,6 +227,7 @@ def main():
     known = string_keys()
 
     bad_trigger, missing_key, bad_see_also = [], [], []
+    no_category_key, no_step_key = [], []
     by_category = {}
 
     #: help_id → 「자세히 보기」가 열어야 하는 창. 단계 검산이 이 값을 쓴다.
@@ -246,15 +247,21 @@ def main():
         if see and see not in ids:
             bad_see_also.append((hid, see))
 
-        for field in ("title_key", "summary_key", "body_key"):
+        # ⚠ category_key 도 함께 본다 (2026-08-27 · 184절) — 이 키가 비거나 표에 없으면
+        #   백과의 <b>탭 여섯</b>이 영어로 안 바뀐다. 폴백이 한글 분류명이라 «조용히
+        #   한국어로 남는» 실패라서, 세지 않으면 아무도 모른다.
+        for field in ("title_key", "summary_key", "body_key", "category_key"):
             key = norm(r.get(field))
             if key and known is not None and key not in known:
                 missing_key.append((hid, key))
+        if not norm(r.get("category_key")):
+            no_category_key.append(hid)
 
         by_category[cat] = by_category.get(cat, 0) + 1
 
         body += "  - helpId: %s\n" % yaml_str(hid)
         body += "    category: %s\n" % yaml_str(cat)
+        body += "    categoryKey: %s\n" % yaml_str(norm(r.get("category_key")))
         body += "    order: %d\n" % num(r.get("order"))
         body += "    titleKey: %s\n" % yaml_str(norm(r.get("title_key")))
         body += "    summaryKey: %s\n" % yaml_str(norm(r.get("summary_key")))
@@ -282,10 +289,19 @@ def main():
             targeted += 1
             by_entry.setdefault(hid, []).append(target)
 
+        # ⚠ 단계 글의 스트링 키 (2026-08-27 · 184절). 비거나 표에 없으면 그 단계는
+        #   <b>영어에서도 한글로</b> 뜬다 — 폴백이 stepText 라 조용히 실패한다.
+        step_key = norm(st.get("step_text_key"))
+        if not step_key:
+            no_step_key.append("%s %s" % (hid, num(st.get("step_order"))))
+        elif known is not None and step_key not in known:
+            missing_key.append((hid, step_key))
+
         body += "  - helpId: %s\n" % yaml_str(hid)
         body += "    stepOrder: %d\n" % num(st.get("step_order"))
         body += "    targetPath: %s\n" % yaml_str(target)
         body += "    stepText: %s\n" % yaml_str(norm(st.get("step_text")))
+        body += "    stepTextKey: %s\n" % yaml_str(step_key)
 
     # ★★ <b>한 항목의 단계는 «한 UI 안» 에서만 머문다</b> (2026-08-24 유저 지시로 세운 규칙).
     #   창을 여는 항목은 그 창 안만, 창이 없는 항목은 늘 보이는 HUD 하나 안만 짚어야 한다.
@@ -357,10 +373,22 @@ def main():
               % len(missing_key))
         for hid, k in missing_key:
             print("      %-20s %s" % (hid, k))
+    # ⚠⚠ 아래 둘은 «키 이름이 뜬다» 가 아니라 <b>한글이 그대로 뜬다</b> — 한국어로 보면
+    #   멀쩡해 보여서 <b>영어로 켜 보기 전에는 아무도 모른다</b>. 그래서 따로 센다(184절).
+    if no_category_key:
+        print("  ⚠ category_key 가 빈 항목 %d개 — 백과 탭이 <b>영어에서도 한글</b>입니다:"
+              % len(no_category_key))
+        print("      " + " · ".join(no_category_key))
+    if no_step_key:
+        print("  ⚠ step_text_key 가 빈 단계 %d개 — 짚어 주기 글이 <b>영어에서도 한글</b>입니다:"
+              % len(no_step_key))
+        print("      " + " · ".join(no_step_key))
+
     if known is None:
         print("  · StringTable.txt 가 없어 키 검사를 못 했습니다 "
               "(py -3 Tools/gen_string_table.py 를 먼저 돌리세요)")
-    if not (bad_trigger or bad_see_also or missing_key or bad_step or scattered):
+    if not (bad_trigger or bad_see_also or missing_key or bad_step or scattered
+            or no_category_key or no_step_key):
         print("  ✓ 검산 통과 — 계기 · see_also · 스트링 키 · 짚어 주기 단계 · «한 UI 안» 규칙 모두 맞습니다")
     print("  다음: 유니티에서 Assets/Refresh")
     return 0

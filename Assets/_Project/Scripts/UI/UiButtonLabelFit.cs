@@ -41,6 +41,16 @@ namespace LastSanctuary.UI
     /// ⚠ <b>스스로 칸 크기를 정하는 라벨은 건드리지 않는다</b> — <see cref="ContentSizeFitter"/>
     ///   가 붙어 있으면 «칸이 글자를 따라가는» 쪽이라, 여기서 글자를 줄이면 칸이 같이 줄어
     ///   레이아웃이 흔들린다.
+    /// ══════════════════════════════════════════════════════════════════
+    ///  ★★★ 2026-08-27 — <b>버튼이 아닌 라벨의 «잘림» 도 여기서 쓸어 담는다</b>
+    /// ══════════════════════════════════════════════════════════════════
+    /// 유저 리포트: *"이거 텍스트들 짤리는거 수정 좀 해줘 <b>전체적으로</b>"*.
+    /// 이름이 <c>ButtonLabel</c> 이지만 <b>자리는 여기가 맞다</b> — «부르는 곳을 없앤다» 는
+    /// 이 컴포넌트의 존재 이유가 그대로 적용되는 같은 종류의 문제이고, 이미 <c>UI_Root</c> 에
+    /// 붙어 <b>모든 창을 훑고 있는</b> 유일한 자리이기 때문이다(따로 만들면 씬에 컴포넌트를
+    /// 하나 더 붙여야 하고, 그것을 잊으면 «가끔» 이 다시 시작된다).
+    /// → <see cref="FixClippedAll"/> 참조.
+    ///
     /// ⚠ <b>Start 에서 돈다</b> — <c>Awake</c> 면 창들이 아직 자기 라벨을 만들기 전일 수 있다
     ///   (런타임에 UI 를 짓는 패널이 여럿이다). 88-1절의 «창이 열리는 순간 스스로 닫혔다» 와
     ///   같은 «누가 먼저 깨어나는가» 문제라 <b>한 박자 늦게</b> 잡는다.
@@ -63,6 +73,31 @@ namespace LastSanctuary.UI
         [Tooltip("이 크기 밑으로는 안 줄인다(픽셀). 너무 줄면 읽을 수 없다")]
         [Min(6f)] [SerializeField] float minSizeFloor = 10f;
 
+        // ══════════════════════════════════════════════════════════════════
+        //  ★★★ <b>버튼이 아닌 라벨도 훑는다</b> (2026-08-27 · 184절 · 유저 리포트:
+        //      *"이거 텍스트들 짤리는거 수정 좀 해줘 <b>전체적으로</b>"*)
+        // ══════════════════════════════════════════════════════════════════
+        //  위의 버튼 쓸어 담기와 <b>같은 이유로 같은 자리</b>에 둔다 — 고치는 도구
+        //  (<see cref="HudTheme.FitText"/>)는 있는데 <b>부르는 곳</b>이 창마다 제각각이라,
+        //  «어떤 칸은 멀쩡하고 어떤 칸은 잘린다» 가 됐다.
+        //
+        //  ★ <b>«잘라서 맞추는» 칸만 골라</b> «줄여서 맞추는» 칸으로 바꾼다.
+        //    <c>Overflow</c> 인 칸(대다수)은 <b>건드리지 않는다</b> — 그쪽은 이미 아무것도
+        //    잃지 않고, 자동 크기를 함부로 켜면 숫자·제목의 크기가 화면마다 달라진다.
+        //    실측(2026-08-27 · Proto_01) — 275칸 중 잘리는 칸은 <b>여섯</b>뿐이었다:
+        //      HUD_Portrait/Name · HUD_Log/LineTemplate · HUD_Roster/RowTemplate/Name ·
+        //      HUD_Growth/…/PassiveCard_*/Desc ×3
+        //
+        //  ⚠ <b>모체(꺼져 있는 틀)까지 훑는다</b> — 로그 줄·로스터 줄은 <b>복제되어</b>
+        //    태어난다. 틀을 고쳐 두면 복제본이 고쳐진 채로 나온다(위 버튼 쓸어 담기의 ⚠).
+        [Header("잘리는 라벨 쓸어 담기 (2026-08-27)")]
+        [Tooltip("Ellipsis·Truncate 로 «잘라서» 맞추던 칸을 자동 크기로 «줄여서» 맞추게 바꾼다")]
+        [SerializeField] bool fixClippedLabels = true;
+
+        [Tooltip("칸 높이가 글자 크기의 이 배수보다 낮으면 <b>한 줄짜리</b>로 보고 줄바꿈을 끈다.\n" +
+                 "⚠ 한 줄 칸에서 줄바꿈을 켜면 둘째 줄이 칸 아래로 흘러 다음 줄과 겹친다")]
+        [Min(1f)] [SerializeField] float singleLineRatio = 1.8f;
+
         [Header("진단")]
         [Tooltip("몇 개를 손봤는지 로그로 알린다")]
         [SerializeField] bool logChanges = true;
@@ -72,6 +107,59 @@ namespace LastSanctuary.UI
             int n = FitAll(transform);
             if (logChanges && n > 0)
                 Debug.Log($"[UI] 버튼 라벨 {n}개의 넘침 규칙을 맞췄습니다.", this);
+
+            if (!fixClippedLabels) return;
+            int c = FixClippedAll(transform);
+            if (logChanges && c > 0)
+                Debug.Log($"[UI] 잘리던 라벨 {c}개를 «줄여서 맞추기» 로 바꿨습니다.", this);
+        }
+
+        /// <summary>
+        /// <paramref name="root"/> 아래에서 <b>글자를 잘라 버리는</b> 라벨을 찾아
+        /// <see cref="HudTheme.FitText"/> 로 바꾼다. 바꾼 개수를 돌려준다.
+        ///
+        /// ★ 런타임에 <b>새로 지은</b> 창이 있으면 그 창의 루트를 주고 다시 부르면 된다.
+        /// </summary>
+        public int FixClippedAll(Transform root)
+        {
+            if (root == null) return 0;
+
+            TMP_Text[] all = root.GetComponentsInChildren<TMP_Text>(true);
+            int changed = 0;
+            for (int i = 0; i < all.Length; i++)
+                if (FixClipped(all[i])) changed++;
+
+            return changed;
+        }
+
+        /// <summary>라벨 하나. 원래 안 잘리던 칸이면 <c>false</c>(아무것도 안 한다).</summary>
+        public bool FixClipped(TMP_Text label)
+        {
+            if (label == null) return false;
+
+            // ★ <b>잘리는 칸만</b> 고른다 — Overflow 는 넘칠지언정 잃지 않는다.
+            if (label.overflowMode != TextOverflowModes.Ellipsis &&
+                label.overflowMode != TextOverflowModes.Truncate) return false;
+
+            // ⚠ 칸이 글자를 따라가는 라벨은 건드리지 않는다(위 Fit 의 ⚠ 와 같은 이유).
+            if (label.GetComponent<ContentSizeFitter>() != null) return false;
+
+            // ⚠⚠ <b>이미 자동 크기가 켜진 칸은 fontSize 가 «계산된 값»</b>이다
+            //   (HudTheme.FitText 머리글의 그 ⚠). 그대로 최대값으로 삼으면 한 번 줄어든
+            //   크기가 <b>새 상한</b>이 되어 영영 못 돌아온다 — 최대값 칸을 봐야 한다.
+            float size = label.enableAutoSizing && label.fontSizeMax > 0f
+                       ? label.fontSizeMax
+                       : label.fontSize;
+            if (size <= 0f) size = HudTheme.FontBody;
+
+            // ★ 한 줄짜리 칸인지 <b>칸 높이가 말해 준다</b> — 창마다 목록을 적어 두면
+            //   새 창이 생길 때마다 여기도 고쳐야 한다.
+            float height = label.rectTransform != null ? label.rectTransform.rect.height : 0f;
+            bool oneLine = height > 0f && height < size * singleLineRatio;
+
+            float min = Mathf.Max(minSizeFloor, size * minScale);
+            HudTheme.FitText(label, Mathf.Min(min, size), wrap: !oneLine);
+            return true;
         }
 
         /// <summary>

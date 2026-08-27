@@ -16,6 +16,7 @@ MonoBehaviour:
   nameKey: 'character_name_9007'
   characterName: '시카리아'
   characterNameEn: 'Sicaria'
+  gender: 2
   titleKey: 'character_title_9007'
   title: '빛의 궁수'
   illustName: 'illust_Sicaria'

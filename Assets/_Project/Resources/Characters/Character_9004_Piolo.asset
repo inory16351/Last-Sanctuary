@@ -16,6 +16,7 @@ MonoBehaviour:
   nameKey: 'character_name_9004'
   characterName: '피올로'
   characterNameEn: 'Piolo'
+  gender: 1
   titleKey: 'character_title_9004'
   title: '역병을 걷는 의사'
   illustName: 'illust_Piolo'

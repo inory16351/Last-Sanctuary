@@ -428,7 +428,18 @@ namespace LastSanctuary.UI
 
             // ⚠ 자동 크기를 켜기 <b>전에</b> 지금 크기를 최대값으로 잡아 둔다 —
             //   켜고 나면 fontSize 가 «계산된 값» 으로 덮여서 원래 크기를 잃는다.
-            float max = text.fontSize;
+            //
+            // ⚠⚠ <b>그래서 «두 번 부르면 상한이 내려간다»</b> 는 함정이 있었다
+            //   (2026-08-27 · 184절). 이미 자동 크기가 켜진 칸의 <c>fontSize</c> 는
+            //   <b>줄어든 값</b>이라, 그것을 다시 최대값으로 삼으면 부를 때마다 상한이
+            //   한 단씩 내려가 <b>영영 못 돌아온다</b>.
+            //   → 켜져 있으면 <b>그때 잡아 둔 상한</b>(<c>fontSizeMax</c>)을 그대로 쓴다.
+            //   ★ 이 방어를 <b>여기</b>에 두는 이유 — 부르는 곳이 마흔 곳이 넘고, 이제는
+            //     <see cref="UiButtonLabelFit"/> · <see cref="UiLocalizer"/> 가 <b>같은 칸을
+            //     한 번 더</b> 훑는다. 부르는 쪽마다 조심하게 하면 반드시 한 곳을 빠뜨린다.
+            float max = text.enableAutoSizing && text.fontSizeMax > 0f
+                      ? text.fontSizeMax
+                      : text.fontSize;
             if (max <= 0f) max = FontBody;
 
             text.fontSizeMax = max;

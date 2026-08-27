@@ -16,6 +16,7 @@ MonoBehaviour:
   nameKey: 'character_name_9012'
   characterName: '엘리시아'
   characterNameEn: 'Elysia'
+  gender: 2
   titleKey: 'character_title_9012'
   title: '무너지지 않는 방패'
   illustName: 'illust_Elysia'

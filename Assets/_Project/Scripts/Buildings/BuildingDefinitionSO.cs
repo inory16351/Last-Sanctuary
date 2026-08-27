@@ -28,7 +28,7 @@ namespace LastSanctuary.Buildings
     public class BuildingDefinitionSO : ScriptableObject
     {
         [Header("식별 (Construction 시트)")]
-        [Tooltip("Const_id — 10001 중앙건물 / 10002 포탑")]
+        [Tooltip("Const_id — 10001 성역의 심장부(중앙 건물) / 10002 포탑")]
         public int constId = 10002;
 
         [Tooltip("스트링 키 (스트링 키 테이블.xlsx). 예: const_name_10002\n" +

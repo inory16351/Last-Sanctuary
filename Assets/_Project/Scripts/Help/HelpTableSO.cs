@@ -144,8 +144,20 @@ namespace LastSanctuary.Help
         [Tooltip("표의 help_id. 백과의 항목 키이고 see_also 가 가리키는 이름이다")]
         public string helpId;
 
-        [Tooltip("분류 이름 그대로 (기본 · 전투 · 성장 · 지휘 · 위험 · 운영). 백과의 탭이 된다")]
+        /// <summary>
+        /// 분류의 <b>식별자</b> — 표의 <c>category</c> 그대로다(기본 · 전투 · 성장 · 지휘 · 위험 · 운영).
+        ///
+        /// ⚠⚠ <b>이 값은 화면에 쓰지 말 것.</b> 화면에 쓸 이름은 <see cref="CategoryName"/> 이다
+        ///   (2026-08-27 · 184절). 여기 한글을 번역해 버리면 <see cref="HelpTableSO.CollectByCategory"/>
+        ///   가 <b>언어를 바꾼 순간</b> 아무 항목도 못 찾는다 — 묶는 열쇠와 보여 주는 이름은
+        ///   같은 칸일 수 없다.
+        /// </summary>
+        [Tooltip("분류 이름 그대로 (기본 · 전투 · 성장 · 지휘 · 위험 · 운영). 항목을 묶는 열쇠다 — " +
+                 "화면에 쓰는 이름은 categoryKey 쪽이다")]
         public string category;
+
+        [Tooltip("탭에 보여 줄 분류 이름의 스트링 키. 비면 category 를 그대로 보여준다")]
+        public string categoryKey;
 
         [Tooltip("같은 분류 안에서의 순서. 표의 order 그대로")]
         public int order;
@@ -183,6 +195,12 @@ namespace LastSanctuary.Help
         /// </summary>
         [Tooltip("「자세히 보기」가 열어야 하는 창의 씬 경로. 비우면 창을 열지 않고 화면의 HUD 를 짚는다")]
         public string openPanelPath;
+
+        /// <summary>
+        /// ★ <b>화면에 쓰는 분류 이름</b> — 백과의 탭 · 상세의 분류 칸 · 조언 카드의 머리표.
+        /// 키가 없으면 <see cref="category"/> 를 그대로 보여준다(지금까지의 화면 그대로다).
+        /// </summary>
+        public string CategoryName => StringTable.Get(categoryKey, category);
 
         /// <summary>이름표. 표에 키가 없으면 <c>helpId</c> 를 그대로 보여준다(어느 줄인지 알 수 있게).</summary>
         public string Title => StringTable.Get(titleKey, helpId);
@@ -234,8 +252,20 @@ namespace LastSanctuary.Help
         [Tooltip("짚을 곳의 씬 경로. 비우면 짚지 않고 글만 보여준다")]
         public string targetPath;
 
-        [Tooltip("그 칸이 무엇이고 무엇을 하는지 — 한두 문장")]
+        [Tooltip("그 칸이 무엇이고 무엇을 하는지 — 한두 문장. ⚠ 폴백이다. 화면에는 Text 를 쓴다")]
         [TextArea(2, 4)] public string stepText;
+
+        [Tooltip("단계 글의 스트링 키. 비면 stepText 를 그대로 보여준다")]
+        public string stepTextKey;
+
+        /// <summary>
+        /// ★ <b>화면에 쓰는 단계 글</b> (2026-08-27 · 184절).
+        ///
+        /// ⚠ 제목·요약·본문은 <see cref="HelpEntry"/> 가 진작 키를 거치는데 <b>이 44줄만</b>
+        ///   표에 한글로 박혀 있었다. 코드에는 한글이 없어 «리터럴을 세는» 183절의 전수
+        ///   조사에 안 잡혔고, 한국어로 보면 멀쩡해 <b>영어로 켜 보기 전에는</b> 티가 안 났다.
+        /// </summary>
+        public string Text => StringTable.Get(stepTextKey, stepText);
     }
 
     /// <summary>

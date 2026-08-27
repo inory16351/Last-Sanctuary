@@ -333,7 +333,11 @@ namespace LastSanctuary.UI
 
                 string name = categories[i];
                 tab.Category = name;
-                if (tab.Label != null) tab.Label.text = name;
+                // ★ 탭에 <b>보여 주는 이름</b>은 표를 거친다 (2026-08-27 · 184절).
+                //   ⚠ <see cref="Tab.Category"/> 는 <b>번역하지 않는다</b> — 그것은 항목을 묶는
+                //     열쇠라(<see cref="HelpTableSO.CollectByCategory"/>) 번역하면 언어를 바꾼
+                //     순간 «그 분류에 항목이 하나도 없다» 가 된다.
+                if (tab.Label != null) tab.Label.text = CategoryLabel(name);
 
                 // ★★ <b>탭은 «색» 이 아니라 «그림» 으로 갈린다</b> (2026-08-26 · 유저 지시:
                 //   *"도움말 ui 위 쪽 메뉴 이미지들 밝은 색 이미지로 변경 가시성이 너무 안 좋음"*).
@@ -355,6 +359,25 @@ namespace LastSanctuary.UI
             }
         }
 
+        /// <summary>
+        /// 분류 <b>식별자</b>를 화면에 쓸 글자로 바꿔 준다 (2026-08-27 · 184절).
+        ///
+        /// ★ <see cref="HelpTableSO.Categories"/> 가 돌려주는 것은 <b>식별자</b>라 그 자리에는
+        ///   스트링 키가 없다. 그 분류의 항목 <b>하나</b>를 찾아 그것이 들고 있는 키를 쓴다 —
+        ///   같은 분류의 줄은 전부 같은 키를 들고 있다(표가 그렇게 굽힌다).
+        /// ⚠ 못 찾으면 식별자를 그대로 보여준다 — 지금까지의 화면 그대로다.
+        /// </summary>
+        string CategoryLabel(string category)
+        {
+            if (_table == null || string.IsNullOrEmpty(category)) return category;
+            for (int i = 0; i < _table.entries.Count; i++)
+            {
+                HelpEntry e = _table.entries[i];
+                if (e != null && e.category == category) return e.CategoryName;
+            }
+            return category;
+        }
+
         void SelectCategory(string category)
         {
             if (_category == category) return;
@@ -374,7 +397,7 @@ namespace LastSanctuary.UI
             HelpEntry e = _table != null ? _table.ById(_selectedId) : null;
 
             SetText(_detailTitle, e != null ? e.Title : "-");
-            SetText(_detailCategory, e != null ? e.category : "");
+            SetText(_detailCategory, e != null ? e.CategoryName : "");
             SetText(_detailSummary, e != null ? e.Summary : "");
             SetText(_detailBody, e != null ? e.Body : "");
 
@@ -395,6 +418,15 @@ namespace LastSanctuary.UI
             //   이 된다(이 프로젝트가 건설 버튼에서 이미 겪은 일이다).
             if (_tourButton != null)
             {
+                // ⚠⚠ <b>글자를 여기서 다시 쓴다</b> (2026-08-27 · 184절). 예전에는
+                //   <see cref="EnsureBound"/> 에서 <b>한 번만</b> 썼는데, 그 함수는 <c>_bound</c>
+                //   가 막아 <b>두 번 돌지 않는다</b> — 창을 한 번 연 뒤 언어를 바꾸면
+                //   <see cref="LocalizeLabels"/> 가 <c>tourLabel</c> 을 영어로 바꿔도
+                //   <b>화면의 칸은 한국어 그대로</b>였다. 이 창의 다른 칸들은
+                //   <see cref="UiLocalizer"/> 지도가 맡는데 이 버튼만 지도에도 없어
+                //   <b>영영 한국어</b>인 유일한 자리였다.
+                if (_tourLabelText != null) _tourLabelText.text = tourLabel;
+
                 // ★ 판단은 <see cref="HelpTourPanel.HasTour"/> <b>한 곳</b>에서 한다 —
                 //   조언 카드의 「자세히 보기」도 같은 함수를 쓴다. 두 곳에서 각자 따지면
                 //   한쪽에만 버튼이 남아 «눌러도 아무 일이 없는 버튼» 이 된다.

@@ -16,6 +16,7 @@ MonoBehaviour:
   nameKey: 'character_name_9013'
   characterName: '세라피엘'
   characterNameEn: 'Seraphiel'
+  gender: 2
   titleKey: 'character_title_9013'
   title: '침묵의 총성'
   illustName: 'illust_Seraphiel'

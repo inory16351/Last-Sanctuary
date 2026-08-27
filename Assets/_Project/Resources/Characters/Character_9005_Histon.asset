@@ -16,6 +16,7 @@ MonoBehaviour:
   nameKey: 'character_name_9005'
   characterName: '히스톤'
   characterNameEn: 'Histon'
+  gender: 1
   titleKey: 'character_title_9005'
   title: '죽음을 딛는 복수자'
   illustName: 'illust_Histon'

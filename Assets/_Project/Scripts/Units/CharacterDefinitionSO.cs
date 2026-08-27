@@ -38,6 +38,20 @@ namespace LastSanctuary.Units
                  "화면 표시용 영어는 스트링 테이블의 en 컬럼이 정본이다")]
         public string characterNameEn = "";
 
+        // ★★ 성별 (2026-08-27 · 유저 지시: *"캐릭터 시트에 남녀 표기 칼럼 하나 추가하고
+        //     일러스트 바탕으로 파악해서 남녀 기입"*).
+        //
+        // <b>지금 이 값을 보는 곳은 한 곳뿐</b>이다 — <see cref="CharacterAltNames"/> 가
+        // «두 번째 등장» 의 다른 이름을 <b>같은 성별의 이름 주머니</b>에서 뽑는다.
+        // 능력치·전투·초상화는 성별을 보지 않는다(볼 이유가 생기면 그때 여기를 읽으면 된다).
+        //
+        // ⚠ 값이 <c>Unknown</c>(=0) 이면 <b>성별을 안 가리고</b> 뽑는다 — 표의 칸이 비어도
+        //   이 기능이 생기기 전과 같이 동작한다. 자세한 판단은 CharacterGender.cs 참조.
+
+        [Tooltip("gender — 표의 male / female. 두 번째 등장 때 받는 «다른 이름» 을 이 값으로 고른다.\n" +
+                 "Unknown 이면 성별을 안 가리고 뽑는다(표에 칸이 비었을 때의 안전판)")]
+        public CharacterGender gender = CharacterGender.Unknown;
+
         /// <summary>
         /// 화면에 보여줄 이름. <b>스트링 테이블이 먼저다</b>(유저 지시 2026-08-12 —
         /// 모든 테이블 문자열을 스트링 키로 관리한다).

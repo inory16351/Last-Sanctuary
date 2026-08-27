@@ -16,6 +16,7 @@ MonoBehaviour:
   nameKey: 'character_name_9014'
   characterName: '시안'
   characterNameEn: 'Cyan'
+  gender: 2
   titleKey: 'character_title_9014'
   title: '여명의 수확자'
   illustName: 'illust_Cyan'

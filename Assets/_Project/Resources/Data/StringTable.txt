@@ -13,7 +13,7 @@ character_name_9001	엘린	Elin
 character_name_9002	비기오르	Bigior
 character_name_9003	프레이야	Preyja
 character_name_9005	히스톤	Histon
-const_name_10001	중앙건물	Nexus
+const_name_10001	성역의 심장부	Heart Of Sanctuary
 const_name_10002	포탑	Turret
 mental_error_name_40001	혼란	Confusion
 mental_error_name_40002	진정	Calm
@@ -1524,3 +1524,55 @@ ui_status_burn	화상	Burning
 ui_status_exhausted	탈진	Exhausted
 ui_status_poison	중독	Poisoned
 ui_unit_generic	캐릭터	Character
+help_cat_basic	기본	Basics
+help_cat_combat	전투	Combat
+help_cat_growth	성장	Growth
+help_cat_command	지휘	Command
+help_cat_danger	위험	Danger
+help_cat_system	운영	System
+help_awaken_step1	각성한 동료는 이름이 금빛으로 바뀝니다. 로스터에서도 같은 색으로 보입니다.	An awakened ally's name turns gold. They show in the same color in the roster.
+help_awaken_step2	각성했는지, 남은 조건이 무엇인지 여기에 적힙니다.	Whether they have awakened, and what conditions are left, is written here.
+help_awaken_step3	각성하면 이 칸들에 보너스가 붙고, 100을 넘어설 수 있습니다.	Awakening adds a bonus to these fields, and they can rise above 100.
+help_create_step1	이 버튼을 누르면 새 동료가 한 명 옵니다. 옆의 숫자가 지금 드는 에너지입니다.	Press this button and one new ally arrives. The number beside it is the Energy it costs right now.
+help_energy_step1	지금 가진 에너지입니다. 동료를 부르거나 강화할 때 이 숫자에서 빠져나갑니다.	This is the Energy you have. Summoning or upgrading allies is paid out of this number.
+help_epic_step1	발견한 에픽이 여기 올라옵니다. 감당하는 데 필요한 수준도 함께 나옵니다.	Epics you have found are listed here, along with the level needed to handle them.
+help_epic_step2	어느 부대를 보낼지 여기서 고릅니다. 지시를 내린 부대만 잡으러 갑니다.\n중립 에픽 몬스터는 최대 두 개의 부대까지 토벌을 보낼 수 있습니다	Choose which squad to send here. Only the squads you give the order to will go.\nYou can send up to two squads to slay a neutral epic monster.
+help_epic_step3	지금 무엇을 골라야 하는지 여기에 안내가 나옵니다.	Guidance on what you should choose right now appears here.
+help_erosion_step1	보라색 게이지가 침식입니다. 싸우는 동안 차오르고, 싸움이 끝나면 저절로 줄어듭니다.	The purple gauge is Corruption. It fills while they fight and falls on its own once the fighting ends.
+help_erosion_step2	능력치 중 저항력이 침식이 차는 속도와 빠지는 속도를 정합니다.	Among the stats, Resistance decides how fast Corruption fills and how fast it drains.
+help_mental_error_step1	이 게이지가 끝까지 차면 정신 이상이 하나 나타납니다.	When this gauge fills to the end, one Mental Breakdown appears.
+help_mental_error_step2	지금 걸린 정신 이상의 이름이 여기에 적힙니다. 로스터에도 같이 표시됩니다.	The name of the Mental Breakdown they are under is written here. It is shown in the roster as well.
+help_rally_step1	부대 칸마다 집결지를 만드는 버튼과 거두는 버튼이 있습니다.	Every squad slot has a button to set a rally point and one to clear it.
+help_rally_step2	만들기를 누른 뒤 땅에서 자리를 찍으세요. 깃발을 1초쯤 누른 채 끌면 옮길 수 있습니다.	After pressing Set, click a spot on the ground. Hold the flag for about a second and drag to move it.
+help_relic_equip_step1	지금까지 얻은 유물이 여기 쌓입니다. 등급이 높은 것이 위로 옵니다.	Every relic you have found collects here. Higher grades come to the top.
+help_relic_equip_step2	고른 유물이 무엇을 해 주는지 여기에 적힙니다.	What the relic you picked does for you is written here.
+help_relic_equip_step3	이 버튼으로 끼웁니다. 끼울 동료는 왼쪽 로스터에서 고른 사람입니다.	This button equips it. It goes to the ally you picked in the roster on the left.
+help_relic_equip_step4	그 유물을 이미 누가 끼고 있으면 여기에 이름이 나옵니다.	If someone is already wearing that relic, their name appears here.
+help_retreat_step1	이 막대를 끌어 후퇴 기준을 정합니다. 체력이 그만큼 남으면 스스로 물러납니다.	Drag this slider to set the retreat threshold. They pull back on their own when that much Health is left.
+help_retreat_step2	지금 정한 기준입니다. 앞줄은 낮게, 뒷줄은 높게 잡는 것이 무난합니다.	This is the threshold you set. Low for the front line and high for the back line works well.
+help_retreat_step3	물러난 뒤 무엇을 할지 고릅니다.	Choose what they do after pulling back.
+help_save_step1	이 버튼으로 지금 상태를 기록합니다. 기록 칸은 하나뿐입니다.	This button records where you are now. There is only one save slot.
+help_save_step2	기록하고 로비로 나갑니다. 로비의 이어하기로 이 판을 다시 잇습니다.	Saves and leaves for the lobby. Use Continue in the lobby to pick this run back up.
+help_save_step3	마지막으로 기록한 때가 여기에 적힙니다.	The time of the last save is written here.
+help_speed_step1	게임 속도를 고르는 버튼입니다. 지금 걸린 속도는 밝게 표시됩니다.	These buttons pick the game speed. The speed in effect is shown brightly.
+help_speed_step2	가장 빠른 8배입니다. 적이 없는 정비 시간을 넘길 때 쓰면 편합니다.	This is the fastest, 8x. It is handy for skipping through Preparation, when there are no enemies.
+help_speed_step3	이 버튼이나 P 로 시간을 멈춥니다. 멈춘 동안에도 창을 열어 지침을 바꿀 수 있습니다.	This button, or P, stops time. Even while stopped you can open windows and change directives.
+help_squad_step1	이 버튼으로 새 부대를 만듭니다. 부대는 여섯 개까지 만들 수 있습니다.	This button makes a new squad. You can have up to six squads.
+help_squad_step2	만든 부대가 여기 칸으로 늘어섭니다. 왼쪽 로스터에서 동료를 눌러 배정합니다.	The squads you make line up here as slots. Click an ally in the roster on the left to assign them.
+help_stats_step1	능력치 열두 칸입니다. 여기 숫자에는 유물과 각성 보너스가 이미 더해져 있습니다.	These are the twelve stats. The numbers here already include relic and Awakening bonuses.
+help_stats_step2	이 동료가 주로 쓰는 능력치입니다. 강화할 때 이쪽이 더 자주, 더 많이 오릅니다.	These are the stats this ally mainly uses. They rise more often, and by more, when you upgrade.
+help_stats_step3	타고난 특별한 능력입니다. 강화로는 바뀌지 않습니다.	These are innate special abilities. Upgrading does not change them.
+help_stats_step4	지금 낀 유물입니다. 유물이 주는 능력치는 100을 넘어서 붙습니다.	These are the relics equipped right now. Stats from relics are added past the 100 cap.
+help_tactics_step1	전방, 중위, 후방 중 어디에 설지 고릅니다. 앞줄은 적을 직접 받아내고, 뒷줄은 사거리 끝에서 싸웁니다.	Choose whether they stand at the front, middle, or rear. The front line takes the enemy head-on, and the rear fights from the edge of its range.
+help_tactics_step2	어떤 방식으로 공격할지 고릅니다.	Choose how they attack.
+help_tactics_step3	적이 여럿일 때 누구를 먼저 칠지 고릅니다.	Choose who they strike first when there are several enemies.
+help_tactics_step4	적이 몰려올 때 어떻게 움직일지 고릅니다.	Choose how they move when the enemy comes in a wave.
+help_tactics_step5	고른 지침을 한눈에 모아 보여 줍니다. 여기만 봐도 지금 설정이 확인됩니다.	Gathers the directives you chose into one view. This alone tells you the current setup.
+help_upgrade_step1	이 버튼이 강화입니다. 한 번 누를 때마다 고른 동료의 레벨이 1 오릅니다.	This button is Upgrade. Every press raises the level of the ally you picked by 1.
+help_upgrade_step2	한 번 강화하는 데 드는 에너지입니다. 레벨이 오를수록 이 값도 커집니다.	This is the Energy one upgrade costs. The value grows as the level rises.
+help_upgrade_step3	지금 레벨입니다. 강화할 때마다 여기가 올라갑니다.	This is the level right now. It goes up every time you upgrade.
+help_upgrade_step4	레벨이 오르면 이 능력치 칸들 중 몇 개가 함께 오릅니다. 어느 칸일지는 그때 정해집니다.	When the level rises, some of these stat fields rise with it. Which ones is decided at that moment.
+help_wave_step1	지금이 어느 단계인지 알려 주는 칸입니다. 정비, 진군, 전투, 광폭화 중 하나가 적힙니다.	This field tells you which phase you are in. It reads Preparation, Advance, Battle, or Enraged.
+help_wave_step2	남은 시간입니다. 정비 단계에서 이 시간이 0이 되면 적이 몰려옵니다.	This is the time left. When it reaches 0 during Preparation, the enemy comes.
+ui_fx_miss	빗나감	Miss
+ui_nexus_title	마지막 성역	The Last Sanctuary

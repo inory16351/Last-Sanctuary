@@ -16,6 +16,7 @@ MonoBehaviour:
   nameKey: 'character_name_9009'
   characterName: '카이론'
   characterNameEn: 'Chiron'
+  gender: 1
   titleKey: 'character_title_9009'
   title: '타락한 투사'
   illustName: 'illust_Chiron'

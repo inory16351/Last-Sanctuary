@@ -16,6 +16,7 @@ MonoBehaviour:
   nameKey: 'character_name_9003'
   characterName: '프레이야'
   characterNameEn: 'Preyja'
+  gender: 2
   titleKey: 'character_title_9003'
   title: '굶주린 사냥꾼'
   illustName: 'illust_Preyja'

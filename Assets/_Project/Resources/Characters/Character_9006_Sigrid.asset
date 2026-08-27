@@ -16,6 +16,7 @@ MonoBehaviour:
   nameKey: 'character_name_9006'
   characterName: '시그리드'
   characterNameEn: 'Sigrid'
+  gender: 2
   titleKey: 'character_title_9006'
   title: '환희에 젖은 순교자'
   illustName: 'illust_Sigrid'

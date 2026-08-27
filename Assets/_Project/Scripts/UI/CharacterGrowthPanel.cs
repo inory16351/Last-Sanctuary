@@ -1365,6 +1365,17 @@ namespace LastSanctuary.UI
                 // 스프라이트가 비어 있으면 fillAmount 가 무시된다 — UiFillBar 문서 참조.
                 UiFillBar.Prepare(card.RageFill);
 
+                // ★★ 패시브 카드의 글자 (2026-08-27 · 184절 · 유저 리포트
+                //   *"텍스트들 짤리는거 … 전체적으로"*).
+                //   ⚠ 씬의 <c>Desc</c> 는 <c>Truncate</c> 였다 — 스킬 설명은 <b>뒤에 조건이
+                //     붙는</b> 문장이라(「…할 때 발동합니다」) 뒤를 자르면 뜻이 뒤집힌다.
+                //   ★ 설명 칸만 <b>줄바꿈을 켠다</b> — 그 칸은 높이가 58px(네 줄쯤)이다.
+                //     이름·잠금 표시는 한 줄 칸이라 끈다.
+                HudTheme.FitText(card.Name, 11f, wrap: false);
+                HudTheme.FitText(card.Lock, 9f, wrap: false);
+                HudTheme.FitText(card.Desc, 9f);
+                HudTheme.FitText(card.Hint, 9f, wrap: false);
+
                 if (card.Button != null)
                 {
                     int slot = i;

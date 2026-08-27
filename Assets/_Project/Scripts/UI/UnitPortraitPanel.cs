@@ -721,6 +721,10 @@ namespace LastSanctuary.UI
 
             if (_stateText != null) _stateText.text = StateTextOf(_shown);
 
+            // ★ 상태 칸은 <b>판 도중에 생겼다 사라진다</b>(구속·중독·정신 이상). 그때마다
+            //   이름 칸이 자리를 넘겨받거나 돌려준다(2026-08-27 · ResizeNameColumn 의 ★★★).
+            ResizeNameColumn();
+
             // ★ 분노는 <b>체력 칸보다 먼저</b> 갱신한다 — 아래 체력 칸은 캐릭터일 때
             //   비활성이라 그 자리에서 return 하고, 그러면 분노가 영영 안 갱신된다.
             RefreshSkillCounter();
@@ -843,6 +847,114 @@ namespace LastSanctuary.UI
             _rageBack = transform.Find("Rage/RageBack");
             _rageFill = FindOptional<Image>("Rage/RageBack/RageFill");
             UiFillBar.Prepare(_rageFill);
+
+            MeasureNameRow();
+            FitLabels();
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        //  ★★★ 글자가 칸을 넘지 않게 (2026-08-27 · 184절)
+        // ══════════════════════════════════════════════════════════════════
+        //  유저 리포트: *"이거 텍스트들 짤리는거 수정 좀 해줘 전체적으로"*.
+        //
+        //  ⚠ <b>이 창은 <see cref="HudTheme.FitText"/> 를 한 번도 부르지 않고 있었다</b> —
+        //    유물 창·도움말 창·로스터는 진작 거치는데 여기만 빠져 있었다. 그래서 씬에 구운
+        //    <c>Ellipsis</c> 가 그대로 살아 <b>이름이 «…» 로 잘렸다</b>.
+        //
+        //  ★ 영어는 한국어보다 길다 — 「중앙건물」(4자) → 「Heart Of Sanctuary」(18자).
+        //    <b>한국어로 맞춰 둔 칸은 영어에서 반드시 넘친다</b>. 그래서 이 창의 글자 칸은
+        //    전부 «줄여서 맞추기» 로 둔다(자르지 않는다 — <c>FitText</c> 의 ★ 참조).
+
+        /// <summary>한 줄짜리 칸의 최소 크기(픽셀). 이보다 작아지면 읽을 수 없다.</summary>
+        const float MinName = 11f;
+
+        void FitLabels()
+        {
+            // ⚠ 이름·칭호·레벨·상태는 <b>한 줄</b> 칸이다 — 줄바꿈을 켜면 둘째 줄이
+            //   칸 아래로 흘러 아래의 구분선과 겹친다(FitText 의 wrap 설명 그대로).
+            HudTheme.FitText(_nameText, MinName, wrap: false);
+            HudTheme.FitText(_titleText, 10f, wrap: false);
+            HudTheme.FitText(_levelText, 10f, wrap: false);
+            HudTheme.FitText(_stateText, 9f, wrap: false);
+            HudTheme.FitText(_hpText, 10f, wrap: false);
+            HudTheme.FitText(_relicLabel, 9f, wrap: false);
+            HudTheme.FitText(_rageLabel, 9f, wrap: false);
+            for (int slot = 0; slot < SkillSlots; slot++)
+                HudTheme.FitText(_skillLabels[slot], 9f, wrap: false);
+        }
+
+        // ── 이름 칸이 <b>빈 옆칸의 자리를 넘겨받는다</b> ──────────────────────
+        //
+        //  ★★★ 이름 줄은 세 칸이 나란히 선다: <c>[이름][레벨][상태]</c>.
+        //    이름 칸은 셋으로 나눈 <b>왼쪽 조각 하나</b>(실측 100px)뿐이라, 긴 이름은
+        //    아무리 줄여도 못 읽는 크기가 된다.
+        //
+        //  ⚠ 그런데 <b>레벨과 상태는 자주 비어 있다</b>:
+        //      · 레벨 — 캐릭터에게만 있다(성역·몬스터는 빈칸)
+        //      · 상태 — 구속·중독·정신 이상일 때<b>만</b> 채운다(<see cref="StateTextOf"/>)
+        //    즉 성역을 눌렀을 때는 <b>오른쪽 두 칸이 모두 비어 있는데</b> 이름만 100px 에
+        //    갇혀 잘리고 있었다.
+        //
+        //  → <b>비어 있는 옆칸의 자리를 이름이 넘겨받는다.</b> 성역이면 이름 칸이 208px 이
+        //    되어 「Heart Of Sanctuary」가 <b>줄어들지 않고</b> 들어간다.
+        //  ★ 좌표는 <b>씬에서 읽는다</b> — 숫자를 코드에 박으면 칸을 옮길 때마다 어긋난다.
+        //  ⚠ 셋 다 <c>pivot=(0,1)</c> 이라 <c>anchoredPosition.x</c> 가 곧 <b>왼쪽 끝</b>이다.
+
+        RectTransform _nameRect;
+        /// <summary>이름 칸의 왼쪽 끝 · 옆칸 둘의 왼쪽 끝 · 줄의 오른쪽 끝(씬에서 잰 값).</summary>
+        float _nameLeft, _levelLeft, _stateLeft, _rowRight, _colGap;
+        bool _nameRowMeasured;
+
+        void MeasureNameRow()
+        {
+            _nameRect = _nameText != null ? _nameText.rectTransform : null;
+            if (_nameRect == null) return;
+
+            _nameLeft = _nameRect.anchoredPosition.x;
+            float nameWidth = _nameRect.sizeDelta.x;
+
+            RectTransform level = _levelText != null ? _levelText.rectTransform : null;
+            RectTransform state = _stateText != null ? _stateText.rectTransform : null;
+
+            _levelLeft = level != null ? level.anchoredPosition.x : float.MaxValue;
+            _stateLeft = state != null ? state.anchoredPosition.x : float.MaxValue;
+
+            // 줄의 오른쪽 끝 = 가장 오른쪽 칸의 오른쪽 끝. 옆칸이 없으면 지금 이름 칸 그대로.
+            _rowRight = _nameLeft + nameWidth;
+            if (level != null) _rowRight = Mathf.Max(_rowRight, _levelLeft + level.sizeDelta.x);
+            if (state != null) _rowRight = Mathf.Max(_rowRight, _stateLeft + state.sizeDelta.x);
+
+            // 칸 사이 간격도 씬에서 잰다(이름 오른쪽 끝 ~ 첫 옆칸 왼쪽 끝).
+            float firstRight = Mathf.Min(_levelLeft, _stateLeft);
+            _colGap = firstRight < float.MaxValue
+                    ? Mathf.Max(0f, firstRight - (_nameLeft + nameWidth))
+                    : 0f;
+
+            _nameRowMeasured = true;
+        }
+
+        /// <summary>
+        /// 옆칸이 비었는지 보고 이름 칸의 너비를 다시 잡는다.
+        /// ⚠ <see cref="Show"/> 가 이름·레벨을 쓴 <b>뒤</b>, 상태를 쓰는
+        /// <see cref="RefreshVolatile"/> 에서도 부른다 — 상태는 판 도중에 생겼다 사라진다.
+        /// </summary>
+        void ResizeNameColumn()
+        {
+            if (!_nameRowMeasured || _nameRect == null) return;
+
+            bool hasLevel = _levelText != null && !string.IsNullOrEmpty(_levelText.text);
+            bool hasState = _stateText != null && !string.IsNullOrEmpty(_stateText.text);
+
+            float limit = _rowRight;
+            if (hasState) limit = Mathf.Min(limit, _stateLeft - _colGap);
+            if (hasLevel) limit = Mathf.Min(limit, _levelLeft - _colGap);
+
+            float width = Mathf.Max(1f, limit - _nameLeft);
+            Vector2 size = _nameRect.sizeDelta;
+            if (Mathf.Approximately(size.x, width)) return;
+
+            size.x = width;
+            _nameRect.sizeDelta = size;
         }
 
         T Find<T>(string path) where T : Component

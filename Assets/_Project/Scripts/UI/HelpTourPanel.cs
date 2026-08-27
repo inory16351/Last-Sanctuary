@@ -141,9 +141,9 @@ namespace LastSanctuary.UI
         void Awake()
         {
             LocalizeLabels();
-            // ★★★ 2026-08-27 — 언어가 바뀌면 문구를 다시 받아 온다(다음 단계부터 따라온다).
-            Data.StringTable.OnLanguageChanged -= LocalizeLabels;
-            Data.StringTable.OnLanguageChanged += LocalizeLabels;
+            // ★★★ 2026-08-27 — 언어가 바뀌면 문구를 다시 받아 오고, 떠 있는 단계도 다시 그린다.
+            Data.StringTable.OnLanguageChanged -= HandleLanguageChanged;
+            Data.StringTable.OnLanguageChanged += HandleLanguageChanged;
             _instance = this;
             EnsureBound();
             // ⚠⚠ 여기서 자기를 끄지 않는다 — 이 판은 비활성으로 저장돼 있어 Awake 가
@@ -153,8 +153,19 @@ namespace LastSanctuary.UI
         void OnDestroy()
         {
             // ⚠ 정적 이벤트라 끊지 않으면 죽은 오브젝트가 구독에 남는다(SettingsPanel 의 그 ⚠).
-            Data.StringTable.OnLanguageChanged -= LocalizeLabels;
+            Data.StringTable.OnLanguageChanged -= HandleLanguageChanged;
             if (_instance == this) _instance = null;
+        }
+
+        /// <summary>
+        /// 언어가 바뀌면 버튼 문구를 다시 받아 오고, <b>떠 있는 단계</b>를 그 자리에서 다시 쓴다.
+        /// ★ 단계 글이 이제 표에서 오므로(184절) «다음 단계부터» 를 기다릴 이유가 없다.
+        /// ⚠ <see cref="ShowStep"/> 은 범위 밖이면 창을 닫는다 — 그래서 범위를 먼저 본다.
+        /// </summary>
+        void HandleLanguageChanged()
+        {
+            LocalizeLabels();
+            if (IsOpen && _index >= 0 && _index < _steps.Count) ShowStep();
         }
 
         public bool IsOpen => gameObject.activeSelf;
@@ -313,9 +324,12 @@ namespace LastSanctuary.UI
             _target = Resolve(step.targetPath);
             bool visible = _target != null && _target.gameObject.activeInHierarchy;
 
+            // ★ 단계 글도 <b>스트링 표</b>를 거친다 (2026-08-27 · 184절) — 표의 stepText 는
+            //   이제 폴백이다(<see cref="HelpStepRow.Text"/>).
+            string text = step.Text;
             SetText(_text, visible || string.IsNullOrEmpty(step.targetPath)
-                         ? step.stepText
-                         : step.stepText + "\n" + missingNote);
+                         ? text
+                         : text + "\n" + missingNote);
 
             // 버튼 문구 — 마지막 단계에서는 「다음」이 「다 봤습니다」로 바뀐다.
             bool last = _index == _steps.Count - 1;

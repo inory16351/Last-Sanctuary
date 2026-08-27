@@ -203,6 +203,48 @@ namespace LastSanctuary.UI
         /// <summary>이 자리의 «원래 문구» — 표에 키가 없을 때 되돌아갈 값(씬의 첫 문구).</summary>
         readonly Dictionary<string, string> _fallback = new Dictionary<string, string>(128);
 
+        // ── 넘침 규칙 (2026-08-27 · 184절) ──────────────────────────────────
+
+        [Header("넘침 (2026-08-27)")]
+        [Tooltip("지도의 칸에 <b>자동 크기</b>를 켠다 — 영어가 길어 넘치는 칸만 저절로 줄어든다.\n" +
+                 "⚠ 끄면 긴 번역이 칸 밖으로 삐져나온다")]
+        [SerializeField] bool fitLabels = true;
+
+        [Tooltip("여기까지만 줄인다 — 지금 글자 크기의 몇 배")]
+        [Range(0.4f, 1f)] [SerializeField] float minScale = 0.62f;
+
+        [Tooltip("이 크기 밑으로는 안 줄인다(픽셀)")]
+        [Min(6f)] [SerializeField] float minSizeFloor = 9f;
+
+        /// <summary>
+        /// 그 칸에 <b>딱 한 번</b> 자동 크기를 건다.
+        ///
+        /// ⚠⚠ <b>두 번 걸면 안 된다.</b> 자동 크기가 켜진 뒤의 <c>fontSize</c> 는 «계산된
+        ///   값»(줄어든 크기)이라, 그것을 다시 <b>최대값</b>으로 삼으면 상한이 한 번 줄 때마다
+        ///   같이 내려가 <b>영영 못 돌아온다</b>(<see cref="HudTheme.FitText"/> 머리글의 그 ⚠).
+        ///   → 그래서 <b>첫 방문에만</b> 부른다(폴백을 적어 두는 그 자리다).
+        ///   ★ 한 번 켜 두면 그 뒤로는 TMP 가 <b>글자가 바뀔 때마다</b> 알아서 다시 잰다.
+        ///
+        /// ⚠ <b>줄바꿈은 씬이 정한 대로 둔다</b> — 한 줄짜리 칸인지 여러 줄 칸인지는 씬을
+        ///   지은 사람이 이미 정해 뒀다(<c>m_TextWrappingMode</c>). 여기서 뒤집으면
+        ///   한 줄 칸의 둘째 줄이 아래 칸과 겹친다.
+        /// ⚠ <see cref="ContentSizeFitter"/> 가 붙은 칸은 건드리지 않는다 — 그쪽은 «칸이
+        ///   글자를 따라가는» 자리라, 글자를 줄이면 칸이 같이 줄어 배치가 흔들린다.
+        /// </summary>
+        void FitOnce(TMP_Text label, string path)
+        {
+            if (!fitLabels || label == null) return;
+            if (label.GetComponent<UnityEngine.UI.ContentSizeFitter>() != null) return;
+
+            float size = label.enableAutoSizing && label.fontSizeMax > 0f
+                       ? label.fontSizeMax
+                       : label.fontSize;
+            if (size <= 0f) size = HudTheme.FontBody;
+
+            bool wrap = label.textWrappingMode == TextWrappingModes.Normal;
+            HudTheme.FitText(label, Mathf.Min(Mathf.Max(minSizeFloor, size * minScale), size), wrap);
+        }
+
         /// <summary>
         /// 이 씬의 최상위 오브젝트 — <see cref="Apply"/> 가 <b>한 번 돌 때만</b> 들고 있는다
         /// (<see cref="FindWindow"/> 의 ②③단계가 쓴다). 계속 들고 있으면 씬이 바뀌었을 때
@@ -266,6 +308,17 @@ namespace LastSanctuary.UI
                 {
                     fallback = label.text;
                     _fallback[Map[i].Path] = fallback;
+
+                    // ★★★ <b>지도가 아는 칸은 «줄여서 맞추게» 해 둔다</b>
+                    //   (2026-08-27 · 184절 · 유저 리포트 *"텍스트들 짤리는거 … 전체적으로"*).
+                    //
+                    //   ⚠ <b>영어는 한국어보다 길다.</b> 실측(Proto_01) — 이 지도의 칸 중
+                    //     셋이 영어에서 칸을 넘친다(전술 지침의 안내 둘 · 부제 하나).
+                    //     한국어로 맞춰 둔 칸은 <b>번역이 들어오는 순간</b> 넘친다.
+                    //   ★ 그러니 «언어에 따라 길이가 변하는 칸» = <b>정확히 이 지도의 칸</b>이다.
+                    //     그 자리에서 한 번 자동 크기를 켜 두면, 앞으로 어떤 번역이 들어와도
+                    //     <b>넘치는 것만</b> 저절로 줄어든다(들어가는 글자는 그대로다).
+                    FitOnce(label, Map[i].Path);
                 }
 
                 label.text = StringTable.Get(Map[i].Key, fallback);

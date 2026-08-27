@@ -48,15 +48,20 @@ namespace LastSanctuary.Units
         /// <summary>초상화. 정의 에셋의 <c>illustName</c> 을 Resources/Illust 에서 읽는다.</summary>
         public override Sprite Portrait => definition != null ? definition.Illust : null;
 
-        /// <summary>화면에 뜨는 이름 — 정의 에셋이 정한다(성역만 표가 없다).</summary>
+        /// <summary>
+        /// 화면에 뜨는 이름 — 정의 에셋이 정한다.
+        /// ★ 2026-08-27(184절) — <b>스트링 표를 거친다</b>(<see cref="NexusDefinitionSO.DisplayName"/>).
+        ///   예전에는 <c>definition.displayName</c> 리터럴을 그대로 써서 초상화의 이 한 줄만
+        ///   <b>영어로 안 바뀌었다</b>(유저 리포트).
+        /// </summary>
         public override string DisplayName =>
-            definition != null && !string.IsNullOrWhiteSpace(definition.displayName)
-                ? definition.displayName
+            definition != null && !string.IsNullOrWhiteSpace(definition.DisplayName)
+                ? definition.DisplayName
                 : base.DisplayName;
 
         /// <summary>칭호 — 비어 있으면 초상화에 칭호 줄이 안 뜬다.</summary>
         public override string Title =>
-            definition != null && definition.title != null ? definition.title : string.Empty;
+            definition != null && definition.Title != null ? definition.Title : string.Empty;
 
         /// <summary>스포너가 복제 직후 호출한다.</summary>
         public void Initialize(NexusDefinitionSO def, BalanceConfigSO balance)

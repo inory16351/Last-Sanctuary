@@ -385,6 +385,25 @@ def char_cell(row, field):
     return wc.cell(row, c).value if c else None
 
 
+# ★★ 성별 (2026-08-27) — 표는 글자(male/female), 에셋은 CharacterGender enum 의 정수다.
+#   0(Unknown)은 «표에 값이 없다» 이고, 런타임은 그때 «다른 이름» 을 성별로 안 가린다.
+#   ⚠ 0 을 «남자» 로 쓰면 안 된다 — 값이 없는 것과 남자가 같은 숫자가 되면
+#     칸이 빈 인물이 조용히 남자 이름을 받는다(183-2절의 «C# 기본값» 함정과 같은 자리).
+GENDER_ENUM = {'male': 1, 'female': 2}
+
+
+def gender_enum(row, cid):
+    raw = char_cell(row, 'gender')
+    text = str(raw or '').strip().lower()
+    if not text:
+        return 0
+    if text not in GENDER_ENUM:
+        raise SystemExit(
+            '캐릭터 %d 의 gender 칸이 male/female 이 아닙니다: %r\n'
+            '  캐릭터 테이블.xlsx 의 gender 칸을 고치세요.' % (cid, raw))
+    return GENDER_ENUM[text]
+
+
 made = 0
 skipped = []
 for r in range(4, wc.max_row + 1):
@@ -419,6 +438,8 @@ for r in range(4, wc.max_row + 1):
     body += "  nameKey: %s\n" % yaml_str('character_name_%d' % cid)
     body += "  characterName: %s\n" % yaml_str(cname)
     body += "  characterNameEn: %s\n" % yaml_str(cname_en)
+    # ★ 성별 — «두 번째 등장» 의 다른 이름을 같은 성별 주머니에서 뽑는 데만 쓰인다.
+    body += "  gender: %d\n" % gender_enum(r, cid)
     # ★ 칭호 (2026-08-19) — 이름과 같은 규칙이다: 키가 정본, 리터럴은 폴백.
     #   표에 칭호가 비어 있으면 키도 비워 둔다 → 상세 카드의 칭호 칸이 빈칸으로 남는다
     #   (유저 확정: "칭호 해금이 되지 않았을 때는 칭호칸 비워놔").

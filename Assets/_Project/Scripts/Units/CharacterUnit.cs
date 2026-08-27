@@ -409,7 +409,10 @@ namespace LastSanctuary.Units
             //   태어나게 해 다른 인물처럼 보이도록"*).
             //   ⚠ 세이브 복원은 이 문을 지나지만 <c>RestoreAltNameKey</c> 가 <b>뒤에</b> 덮으므로
             //     복원된 이름이 이긴다(그쪽은 세지 않는다 — CharacterAltNames.MarkRestored).
-            altNameKey = CharacterAltNames.RegisterAppearance(def.characterId);
+            //   ★★ 2026-08-27 — 이름은 <b>같은 성별의 주머니</b>에서 나온다(유저 지시:
+            //     *"남캐는 남자 이름 여캐는 여자이름으로"*). 성별의 정본은 캐릭터 테이블의
+            //     `gender` 칸이고, 비어 있으면 예전처럼 안 가리고 뽑는다.
+            altNameKey = CharacterAltNames.RegisterAppearance(def.characterId, def.gender);
 
             ApplyObjectName();
             ApplyDefinitionSkin(def);

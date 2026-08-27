@@ -1,0 +1,44 @@
+# Last Sanctuary 대체 이름 성별 — Tools/gen_alt_name_table.py 가 생성한다. 직접 고치지 말 것.
+# 원본: 데이터 테이블/대체 이름 테이블.xlsx (AltName 시트의 gender 칸)
+# 문구(한국어·영어)는 여기 없다 — 스트링 표의 character_altname_<id> 가 정본이다.
+alt_name_key	gender
+character_altname_1	male
+character_altname_2	female
+character_altname_3	female
+character_altname_4	female
+character_altname_5	female
+character_altname_6	male
+character_altname_7	male
+character_altname_8	female
+character_altname_9	male
+character_altname_10	female
+character_altname_11	male
+character_altname_12	male
+character_altname_13	male
+character_altname_14	male
+character_altname_15	male
+character_altname_16	female
+character_altname_17	male
+character_altname_18	male
+character_altname_19	female
+character_altname_20	female
+character_altname_21	male
+character_altname_22	female
+character_altname_23	female
+character_altname_24	male
+character_altname_25	female
+character_altname_26	male
+character_altname_27	male
+character_altname_28	female
+character_altname_29	female
+character_altname_30	female
+character_altname_31	male
+character_altname_32	female
+character_altname_33	female
+character_altname_34	female
+character_altname_35	female
+character_altname_36	male
+character_altname_37	male
+character_altname_38	female
+character_altname_39	female
+character_altname_40	male

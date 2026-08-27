@@ -16,6 +16,7 @@ MonoBehaviour:
   nameKey: 'character_name_9008'
   characterName: '아루'
   characterNameEn: 'Aru'
+  gender: 1
   titleKey: 'character_title_9008'
   title: '종언을 밝히는 사신'
   illustName: 'illust_Aru'
