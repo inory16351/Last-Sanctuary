@@ -92,25 +92,53 @@ namespace LastSanctuary.Map
         }
 
         /// <summary>
-        /// 두 점을 잇는 직선이 벽을 통과하지 않는지. 경로 없이 바로 갈 수 있는지
+        /// 두 점을 잇는 직선을 <b>걸어서</b> 통과할 수 있는지. 경로 없이 바로 갈 수 있는지
         /// 판단하거나(대부분의 경우 A* 자체가 불필요하다), 경로를 매끄럽게 다듬을 때 쓴다.
+        ///
+        /// ⚠ <b>이동용이다.</b> 성역·포탑의 발판도 «막힌 것» 으로 본다 — 그래야 유닛이
+        ///   구조물을 뚫고 걸어가려 하지 않는다. <b>사격 판정에는 쓰지 말 것</b>:
+        ///   <see cref="HasAttackLineOfSight"/> 를 쓴다(그 요약의 ⚠⚠ 참조).
         /// </summary>
-        public bool HasLineOfSight(Vector3 fromWorld, Vector3 toWorld)
+        public bool HasLineOfSight(Vector3 fromWorld, Vector3 toWorld) =>
+            TraceLine(fromWorld, toWorld, sightOnly: false);
+
+        /// <summary>
+        /// 두 점을 잇는 직선이 <b>벽</b>에 막히지 않는지 — 원거리·마법의 「벽 너머는 못 때린다」
+        /// 판정 전용이다 (2026-08-27 신설).
+        ///
+        /// ⚠⚠ <see cref="HasLineOfSight"/> 와 <b>딱 한 곳만 다르다</b>: 구조물 발판
+        ///   (성역·포탑)을 시야 차단으로 보지 않는다(<see cref="MapGenerator.BlocksSight"/>).
+        ///   예전에는 사격 판정도 이동용을 그대로 썼고, 그래서 <b>성역을 겨냥한 선은
+        ///   끝점이 언제나 성역 발판 안</b>이라 무조건 막힌 것으로 나왔다 — 원거리 웨이브
+        ///   몬스터가 성역·포탑을 영영 못 때린 원인이다(그 함수의 긴 주석에 전말이 있다).
+        /// </summary>
+        public bool HasAttackLineOfSight(Vector3 fromWorld, Vector3 toWorld) =>
+            TraceLine(fromWorld, toWorld, sightOnly: true);
+
+        /// <summary>
+        /// 위 두 판정의 <b>공용 본체</b>. 선을 훑는 방식은 같고, 한 칸을 「통과」로 볼지의
+        /// 기준만 <paramref name="sightOnly"/> 로 갈린다 — 두 벌로 적으면 보간 간격이나
+        /// 끝점 처리가 조용히 어긋난다(준수사항 §10 H-3).
+        /// </summary>
+        bool TraceLine(Vector3 fromWorld, Vector3 toWorld, bool sightOnly)
         {
             if (_map == null) return false;
 
             Vector2 d = toWorld - fromWorld;
             float dist = d.magnitude;
-            if (dist < 1e-4f) return _map.IsCellPlaceable(_map.WorldToCell(fromWorld));
+            if (dist < 1e-4f) return CellPasses(_map.WorldToCell(fromWorld), sightOnly);
 
             int steps = Mathf.CeilToInt(dist / Mathf.Max(0.05f, lineOfSightStepTiles));
             for (int i = 0; i <= steps; i++)
             {
                 Vector3 p = fromWorld + (Vector3)(d * (i / (float)steps));
-                if (!_map.IsCellPlaceable(_map.WorldToCell(p))) return false;
+                if (!CellPasses(_map.WorldToCell(p), sightOnly)) return false;
             }
             return true;
         }
+
+        bool CellPasses(Vector3Int cell, bool sightOnly) =>
+            sightOnly ? !_map.BlocksSight(cell) : _map.IsCellPlaceable(cell);
 
         // ------------------------------------------------------------------
         // A* 본체

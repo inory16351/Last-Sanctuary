@@ -356,6 +356,37 @@ namespace LastSanctuary.Map
             obstacleTilemap.HasTile(cell + Vector3Int.up);
 
         /// <summary>
+        /// ★★ 이 칸이 <b>시야선을 막는가</b> — 원거리·마법의 「벽 너머는 못 때린다」 판정에만 쓴다
+        /// (2026-08-27 신설).
+        ///
+        /// <b><see cref="IsCellBlocked"/> 에서 구조물 발판(③)을 뺀 것</b>이다. 그 함수의 위
+        /// 주석이 셋을 구분해 놓았는데(① 벽 타일 · ② 벽 앞면(치마) · ③ 성역·포탑 발판),
+        /// <b>시야를 막는 것은 ①·②뿐</b>이다. ③은 벽이 아니라 <b>유닛 자신</b>이고,
+        /// 이 프로젝트의 유닛에는 애초에 콜라이더가 없다(준수사항 U-D9) — 즉 유닛은
+        /// 서로의 시야를 막지 않는다는 것이 이미 규칙이다.
+        ///
+        /// ⚠⚠ <b>이 구분이 없어서 원거리 웨이브 몬스터가 성역을 영영 못 때렸다</b>
+        /// (유저 리포트 2026-08-27: *"원거리 웨이브 몬스터가 성역 심장부를 공격하지 않는다"*).
+        /// <see cref="LastSanctuary.Units.Nexus"/> 가 자기 발판 3x3 을 ③으로 등록하는데,
+        /// <c>UnitCombat.BuildTargetFilter</c> 의 시야선 검사가
+        /// <c>IsCellPlaceable</c>(= ①②③ 전부)로 <b>성역 중심까지 선을 훑었다</b>.
+        /// 선의 끝점이 정의상 성역 발판 안이므로 <b>어디서 쏘든 무조건 false</b> —
+        /// 성역이 후보에서 통째로 탈락하고, 타겟이 없으니 몬스터는
+        /// <c>CombatState.Advance</c> 로 성역에 몸만 부비고 서 있었다.
+        /// 근거리는 <c>needLos</c> 가 false 라 이 함정을 안 밟아서 «원거리만» 안 때린 것이다.
+        /// 같은 이유로 <b>포탑</b>(발판 2x2)도 원거리 몬스터의 후보가 아니었다.
+        ///
+        /// ⚠ <b>이동 판정에는 쓰지 말 것.</b> 이동은 발판을 반드시 막힌 것으로 봐야 한다 —
+        /// 안 그러면 유닛이 성역·포탑을 뚫고 걸어가려 한다. 그래서
+        /// <see cref="GridPathfinder.HasLineOfSight"/>(이동·경로 평활화)는 그대로 두고
+        /// <see cref="GridPathfinder.HasAttackLineOfSight"/> 만 이 판정을 쓴다.
+        /// </summary>
+        public bool BlocksSight(Vector3Int cell) =>
+            !IsCellInsideMap(cell) ||
+            (obstacleTilemap != null &&
+             (obstacleTilemap.HasTile(cell) || obstacleTilemap.HasTile(cell + Vector3Int.up)));
+
+        /// <summary>
         /// 성역 등 구조물이 자기 발판 칸을 등록한다. 등록된 칸은 벽과 똑같이
         /// <see cref="IsCellBlocked"/> / 이동 충돌 / 배치 판정에서 막힌 것으로 취급된다.
         /// </summary>

@@ -1919,7 +1919,16 @@ namespace LastSanctuary.Combat
                     if (d < MinAttackDistance) return false;
                 }
 
-                if (needLos && !_pathfinder.HasLineOfSight(transform.position, enemy.transform.position))
+                // ★★ <b>사격용 시야선</b>이다 — 이동용(<c>HasLineOfSight</c>)이 아니다
+                //   (2026-08-27 · 유저 리포트: *"원거리 웨이브 몬스터가 성역 심장부를
+                //   공격하지 않는다"*). 이동용은 성역·포탑의 <b>발판</b>도 막힌 칸으로 보므로,
+                //   성역을 겨냥한 선은 <b>끝점이 언제나 그 발판 안</b>이라 어디서 쏘든 false 가
+                //   나왔다 → 성역·포탑이 후보에서 통째로 탈락 → 타겟이 없어 원거리 몬스터가
+                //   <c>CombatState.Advance</c> 로 성역에 몸만 부비고 서 있었다.
+                //   근거리는 <c>needLos</c> 가 false 라 이 함정을 안 밟는다 — 그래서 «원거리만»
+                //   안 때리는 모습으로 보였다. 자세한 전말은 <see cref="Map.MapGenerator.BlocksSight"/>.
+                if (needLos &&
+                    !_pathfinder.HasAttackLineOfSight(transform.position, enemy.transform.position))
                     return false;
 
                 return true;
