@@ -561,8 +561,15 @@ namespace LastSanctuary.Combat
 
             if (logAwakening)
             {
-                string suffix = maxAwakenings > 1 ? $" ({record.Awakenings}단계)" : string.Empty;
-                HudLog.Add($"{unit.DisplayName} 영웅 각성!{suffix}", HudLogKind.Good);
+                // ★ 조각(꼬리말)을 이어 붙이지 않는다 — 단계 표기가 있는 문장과 없는 문장을
+                //   각각 «형식 하나»로 둔다. 영어는 어순·괄호 규칙이 달라서 꼬리말을 따로
+                //   번역해 붙이면 문장이 어그러진다.
+                string line = maxAwakenings > 1
+                    ? string.Format(HudTheme.T("log_hero_awaken_stage", "{0} 영웅 각성! ({1}단계)"),
+                                    unit.DisplayName, record.Awakenings)
+                    : string.Format(HudTheme.T("log_hero_awaken", "{0} 영웅 각성!"),
+                                    unit.DisplayName);
+                HudLog.Add(line, HudLogKind.Good);
                 Debug.Log($"[영웅] {unit.DisplayName} 각성 {record.Awakenings}회 · " +
                           $"처치 {record.Kills} · 회복 {record.Heals} · Lv.{unit.UpgradeCount} · " +
                           $"능력치 +{awakenStatBonus}(성장 유형 +{awakenStatBonus + awakenFocusBonus})", unit);

@@ -138,6 +138,11 @@ namespace LastSanctuary.UI
         void Start()
         {
             LocalizeLabels();
+            // ★★★ 2026-08-27 — 언어가 바뀌면 다시 그린다. 로비의 <b>버튼 글자 여덟 칸</b>은
+            //   <see cref="UiLocalizer"/> 가 맡지만(182-1절), 「이어하기 · 마지막 저장」줄은
+            //   이 창이 자기 형식(<see cref="savedAtFormat"/>)으로 찍으므로 여기서 다시 쓴다.
+            Data.StringTable.OnLanguageChanged -= HandleLanguageChanged;
+            Data.StringTable.OnLanguageChanged += HandleLanguageChanged;
             SaveService.ApplyVolume();     // 빌드를 새로 켰을 때 저장된 음량을 반영한다
 
             // 폰트는 씬에 이미 배선돼 있다 — 유저 지시 2026-08-18: <i>"폰트는 네오 둥근모
@@ -335,6 +340,24 @@ namespace LastSanctuary.UI
                                  "Tools/import_lobby_art.py 를 돌렸는지, .meta 의 textureType 이 " +
                                  "8(Sprite)인지 확인해주세요.");
             return sprite;
+        }
+
+        /// <summary>
+        /// ⚠⚠ <b>로비는 씬을 갈아탄다</b> — 「새로하기」를 누르면 이 창이 통째로 사라진다.
+        /// <c>OnLanguageChanged</c> 는 <b>정적</b> 이벤트라 끊지 않으면 구독이 남고, 게임 안에서
+        /// 언어를 바꾸는 순간 <b>죽은 오브젝트</b>의 메서드를 부르게 된다
+        /// (<c>StringTable.ResetStatics</c> 는 판마다 한 번이라 씬 전환으로는 안 돈다).
+        /// </summary>
+        void OnDestroy()
+        {
+            Data.StringTable.OnLanguageChanged -= HandleLanguageChanged;
+        }
+
+        /// <summary>언어가 바뀌면 문구를 다시 받아 와 저장 정보 줄을 새로 적는다.</summary>
+        void HandleLanguageChanged()
+        {
+            LocalizeLabels();
+            RefreshSaveInfo();
         }
 
         void RefreshSaveInfo()

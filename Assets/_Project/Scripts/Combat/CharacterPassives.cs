@@ -656,7 +656,9 @@ namespace LastSanctuary.Combat
             PlayReviveFx(stun);
 
             UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName,
-                                              $"{stun:0.#}초 뒤 부활"), UI.HudLogKind.Good);
+                                              string.Format(UI.HudTheme.T("log_detail_revive_in",
+                                                                          "{0:0.#}초 뒤 부활"), stun)),
+                          UI.HudLogKind.Good);
             return true;
         }
 
@@ -688,7 +690,8 @@ namespace LastSanctuary.Combat
             //   ⚠ 여기에 위치 대입을 추가하지 말 것(위 주석).
             _unit.ReviveWithHp(_unit.MaxHp);
 
-            UI.HudLog.Add($"{_unit.DisplayName} 부활", UI.HudLogKind.Good);
+            UI.HudLog.Add(string.Format(UI.HudTheme.T("log_revived", "{0} 부활"), _unit.DisplayName),
+                          UI.HudLogKind.Good);
 
             PerformReaverBurst();
         }
@@ -756,7 +759,9 @@ namespace LastSanctuary.Combat
             _reaverScratch.Clear();
 
             UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName,
-                                              $"반경 {radius:0.#}타일"), UI.HudLogKind.Good);
+                                              string.Format(UI.HudTheme.T("log_detail_radius",
+                                                                          "반경 {0:0.#}타일"), radius)),
+                          UI.HudLogKind.Good);
         }
 
         /// <summary>
@@ -820,7 +825,10 @@ namespace LastSanctuary.Combat
             // 스킬 이름을 코드에 적지 않는다 — 표(so.DisplayName)에서 온다.
             // 형식은 보스 스킬과 같은 UI.HudLog.SkillLine 한 곳이 정한다.
             UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName,
-                                              $"{DisplayNameOf(target)} 회복"), UI.HudLogKind.Good);
+                                              string.Format(UI.HudTheme.T("log_detail_healed",
+                                                                          "{0} 회복"),
+                                                            DisplayNameOf(target))),
+                          UI.HudLogKind.Good);
             return true;
         }
 
@@ -894,7 +902,10 @@ namespace LastSanctuary.Combat
                 ero?.AddErosion(-so.value01);
 
                 UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName,
-                                                  $"{ally.DisplayName} 회복"), UI.HudLogKind.Good);
+                                                  string.Format(UI.HudTheme.T("log_detail_healed",
+                                                                              "{0} 회복"),
+                                                                ally.DisplayName)),
+                              UI.HudLogKind.Good);
                 return true;   // 쿨타임당 한 명
             }
             return false;
@@ -1035,7 +1046,9 @@ namespace LastSanctuary.Combat
 
             // 형식은 다른 패시브와 같은 UI.HudLog.SkillLine 한 곳이 정한다.
             UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName,
-                                              $"{seconds:0.#}초 무적"), UI.HudLogKind.Good);
+                                              string.Format(UI.HudTheme.T("log_detail_invincible",
+                                                                          "{0:0.#}초 무적"), seconds)),
+                          UI.HudLogKind.Good);
         }
 
         /// <summary>
@@ -1093,7 +1106,9 @@ namespace LastSanctuary.Combat
                 _combat.ApplyHaste(joy.value01, joy.value02);
 
             UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName,
-                                              $"아군 {healed}명 +{amount} · 자신 −{amount}"),
+                                              string.Format(UI.HudTheme.T("log_detail_share_hp",
+                                                                          "아군 {0}명 +{1} · 자신 −{1}"),
+                                                            healed, amount)),
                           UI.HudLogKind.Good);
         }
 

@@ -29,9 +29,16 @@ namespace LastSanctuary.Combat
     /// </summary>
     public class ErosionService : MonoBehaviour
     {
+        // ⚠⚠ <b>이 아래 기본값은 「능력치 및 공식 정리.xlsx」의 「계수」 시트와 같아야 한다</b>
+        //   (2026-08-27 정리 · <c>BalanceConfigSO</c> 머리글의 그 규약과 같다). 예전에는
+        //   기본값이 옛 값(1.5 · 1.0)이고 씬에만 개정값(1.3 · 0.35)이 들어 있었다 — 씬이
+        //   덮으므로 판은 정상이었지만, <b>이 컴포넌트를 새로 붙이면 조용히 옛 밸런스로 돌아간다</b>.
+        //   씬 값은 한 톨도 안 바뀐다(직렬화된 값이 기본값을 이긴다).
+
         [Header("침식 획득 — 웨이브 몬스터와 전투 중 (초당)")]
-        [Tooltip("웨이브 몬스터와 교전 중일 때 1초에 쌓이는 침식량. 기본 1.5 = 상한 100 까지 약 67초")]
-        [Min(0f)] [SerializeField] float erosionPerSecondInCombat = 1.5f;
+        [Tooltip("웨이브 몬스터와 교전 중일 때 1초에 쌓이는 침식량. 기본 1.3 = 상한 100 까지 약 77초. " +
+                 "옛 값 1.9 는 전투 120초에 228 이 쌓여 정비시간 회복으로 못 따라갔다(2026-08-24 개정)")]
+        [Min(0f)] [SerializeField] float erosionPerSecondInCombat = 1.3f;
 
         [Tooltip("마지막으로 웨이브 몬스터에게 맞은 뒤 이 시간(초)까지는 계속 '전투 중'으로 본다. " +
                  "타겟을 놓친 순간마다 침식이 끊기지 않게 하는 여유값")]
@@ -39,11 +46,14 @@ namespace LastSanctuary.Combat
 
         [Header("침식 회복 — 전투에서 벗어난 뒤 (초당)")]
         [Tooltip("전투에서 벗어난 뒤 회복이 시작되기까지의 대기 시간(초). " +
-                 "체력 재생의 outOfCombatRegenDelay 와 같은 결로 5초를 기본값으로 뒀다")]
-        [Min(0f)] [SerializeField] float recoverDelaySeconds = 5f;
+                 "체력 재생의 outOfCombatRegenDelay 와 같은 결이지만 그보다 조금 길다")]
+        // ⚠ 이 칸만은 「계수」 시트에 없다 — 씬(Proto_01)의 실측값 7 을 기본값으로 삼는다.
+        //   표에 자리가 생기면 그쪽이 정본이 된다.
+        [Min(0f)] [SerializeField] float recoverDelaySeconds = 7f;
 
-        [Tooltip("회복이 시작된 뒤 1초에 줄어드는 침식량. 기본 1.0 = 정비 100초에 100 회복")]
-        [Min(0f)] [SerializeField] float erosionRecoverPerSecond = 1f;
+        [Tooltip("회복이 시작된 뒤 1초에 줄어드는 침식량. 기본 0.35 — 웨이브 하나를 온전히 " +
+                 "싸우면 정신 이상이 한 번쯤 오는 수준으로 잡은 값(2026-08-24 개정 · 옛 값 0.2)")]
+        [Min(0f)] [SerializeField] float erosionRecoverPerSecond = 0.35f;
 
         [Header("발동")]
         [Tooltip("침식 상한. 이 값에 닿으면 정신 이상이 발동한다")]
@@ -237,7 +247,16 @@ namespace LastSanctuary.Combat
             if (unit == null || def == null) return;
 
             // 유저 확정 문구: "[캐릭터 이름]이/가 [한글 설명] 상태에 빠집니다."
-            string line = $"{KoreanParticle.WithIGa(unit.name)} {def.DisplayName} 상태에 빠집니다.";
+            //
+            // ★ 문장을 조각으로 잇지 않는다 — 자리표 둘짜리 «형식 하나»를 표에서 가져온다.
+            //   영어는 어순이 달라서(«X falls into Y») 조각을 이어 붙이면 못 만든다.
+            // ⚠ 조사(이/가)는 <b>한국어일 때만</b> 붙인다. 영어에는 주격 조사가 없어서
+            //   그대로 붙이면 "Elin이 …" 가 된다.
+            bool korean = Data.StringTable.Language == Data.GameLanguage.Korean;
+            string who = korean ? KoreanParticle.WithIGa(unit.name) : unit.name;
+            string line = string.Format(
+                UI.HudTheme.T("log_mental_error_onset", "{0} {1} 상태에 빠집니다."),
+                who, def.DisplayName);
 
             UI.HudLog.Add(line, UI.HudLogKind.Danger);
             if (logMentalErrors) Debug.Log($"[침식] {line} ({def})", unit);

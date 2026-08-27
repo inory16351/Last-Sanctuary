@@ -272,7 +272,12 @@ namespace LastSanctuary.UI
             Paint();
 
             if (!silent && logChanges)
-                HudLog.Add(value ? "일시정지" : $"재개 ({ButtonName(CurrentSpeed)})", HudLogKind.Info);
+                // ⚠ 재개 쪽의 {0} 은 배속 표기("x2")다 — 숫자 기호라 번역하지 않는다.
+                HudLog.Add(value
+                               ? HudTheme.T("log_paused", "일시정지")
+                               : string.Format(HudTheme.T("log_resumed", "재개 ({0})"),
+                                               ButtonName(CurrentSpeed)),
+                           HudLogKind.Info);
         }
 
         /// <summary>배속 단계를 고른다. 범위 밖이면 조용히 무시한다(키보드 단축키가 부를 수 있다).</summary>
@@ -291,7 +296,10 @@ namespace LastSanctuary.UI
             Paint();
 
             if (!silent && logChanges)
-                HudLog.Add($"게임 속도 {ButtonName(speeds[index])}", HudLogKind.Info);
+                // ⚠ {0} = 배속 표기("x2"). 지우지 말 것.
+                HudLog.Add(string.Format(HudTheme.T("log_game_speed", "게임 속도 {0}"),
+                                         ButtonName(speeds[index])),
+                           HudLogKind.Info);
         }
 
         /// <summary>

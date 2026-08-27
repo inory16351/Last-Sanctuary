@@ -164,8 +164,10 @@ namespace LastSanctuary.UI
             _                     => phase.ToString(),
         };
 
+        // ⚠ {0} = 웨이브 번호. 지우지 말 것.
         void HandleWaveSpawned(int wave) =>
-            HudLog.Add($"웨이브 {wave} 몬스터 소환", HudLogKind.Warn);
+            HudLog.Add(string.Format(HudTheme.T("log_wave_spawned", "웨이브 {0} 몬스터 소환"), wave),
+                       HudLogKind.Warn);
 
         /// <summary>패배 사유는 <see cref="WaveManager.Reason"/> 이 정본이다 — 문구를 여기서 짐작하지 않는다.</summary>
         void HandleDefeat() =>
@@ -174,7 +176,11 @@ namespace LastSanctuary.UI
                            : Data.StringTable.Get("ui_defeat_nexus", "성역이 파괴되었습니다"),
                        HudLogKind.Danger);
 
+        // ⚠ {0} = 웨이브 번호. 지우지 말 것.
+        //   VictoryPanel 의 log_victory 와 <b>문구가 다르다</b> — 두 줄이 나란히 뜨므로
+        //   같은 키로 묶으면 로그에 같은 문장이 두 번 찍힌다.
         void HandleVictory(int wave) =>
-            HudLog.Add($"웨이브 {wave} 클리어 — 승리!", HudLogKind.Good);
+            HudLog.Add(string.Format(HudTheme.T("log_wave_cleared", "웨이브 {0} 클리어 — 승리!"), wave),
+                       HudLogKind.Good);
     }
 }

@@ -390,7 +390,11 @@ namespace LastSanctuary.UI
                 _spawnPoints.Add(_map.CellCenterWorld(portals[i]));
 
             if (_spawnPoints.Count > 0)
-                HudLog.Add($"웨이브 {wave} 소환 — 미니맵 {_spawnPoints.Count}곳 경보", HudLogKind.Danger);
+                // ⚠ {0} = 웨이브 번호 · {1} = 경보 지점 수. 순서를 바꾸지 말 것.
+                HudLog.Add(string.Format(
+                               HudTheme.T("log_minimap_alert", "웨이브 {0} 소환 — 미니맵 {1}곳 경보"),
+                               wave, _spawnPoints.Count),
+                           HudLogKind.Danger);
         }
 
         /// <summary>웨이브 타이머가 돌기 시작하면(전투 진입) 경보를 끈다.</summary>

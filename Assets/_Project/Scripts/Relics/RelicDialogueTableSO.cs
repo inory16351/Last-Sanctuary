@@ -212,13 +212,21 @@ namespace LastSanctuary.Relics
         /// 표가 없거나 비었을 때 화면이 <b>텅 비지 않게</b> 하는 최소 문구.
         /// ⚠ 여기 값을 늘리지 말 것 — 문구의 정본은 표다. 이것은 «표가 없다» 는 신호다.
         /// </summary>
+        /// ★ 2026-08-27 — <b>읽는 자리에서</b> 스트링 표를 거친다. 이 값들을 필드 기본값으로
+        ///   두면 에셋에 이미 직렬화된 한글이 이겨서 언어를 바꿔도 안 바뀐다. 여기 한글은
+        ///   표가 없을 때의 <b>폴백</b>이다.
         public static string Fallback(RelicDialogueSituation s) => s switch
         {
-            RelicDialogueSituation.Discover => "무언가 묻혀 있는 것 같습니다.",
-            RelicDialogueSituation.Accept   => "천사 하나가 그 자리로 향합니다.",
-            RelicDialogueSituation.Decline  => "그 자리를 그대로 둡니다.",
-            RelicDialogueSituation.Result   => "파낸 자리를 확인합니다.",
-            RelicDialogueSituation.BossDrop => "쓰러진 것에게서 무언가를 얻었습니다.",
+            RelicDialogueSituation.Discover =>
+                UI.HudTheme.T("ui_dig_dialogue_discover", "무언가 묻혀 있는 것 같습니다."),
+            RelicDialogueSituation.Accept   =>
+                UI.HudTheme.T("ui_dig_dialogue_accept", "천사 하나가 그 자리로 향합니다."),
+            RelicDialogueSituation.Decline  =>
+                UI.HudTheme.T("ui_dig_dialogue_decline", "그 자리를 그대로 둡니다."),
+            RelicDialogueSituation.Result   =>
+                UI.HudTheme.T("ui_dig_dialogue_result", "파낸 자리를 확인합니다."),
+            RelicDialogueSituation.BossDrop =>
+                UI.HudTheme.T("ui_dig_dialogue_boss_drop", "쓰러진 것에게서 무언가를 얻었습니다."),
             _ => "",
         };
     }

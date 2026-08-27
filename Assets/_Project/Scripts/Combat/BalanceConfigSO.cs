@@ -89,12 +89,14 @@ namespace LastSanctuary.Combat
                  "잡몹 한 대가 더 아프다")]
         [Min(0)] public int monsterAttackStatMax = 40;
 
-        [Tooltip("<b>보스</b>(MonsterTier.MainBoss)의 공격 계열 능력치 상한. 기본 <b>120</b> — " +
-                 "일반의 두 배다.\n" +
+        [Tooltip("<b>보스</b>(MonsterTier.MainBoss)의 공격 계열 능력치 상한. 기본 <b>190</b>.\n" +
                  "<b>왜 따로 두나</b> — 한 값으로 묶으면 후반에 보스와 잡몹의 한 대가 " +
                  "같아져서 «보스가 세다» 는 느낌이 사라진다. 보스 원본 공격력 7~10 이라 " +
                  "배율 1200~1700%(대략 13~18웨이브)에서 닿는다")]
-        [Min(0)] public int bossAttackStatMax = 150;
+        // ⚠ 기본값이 옛 150 이었다(2026-08-27 정리). 표(「계수」 시트)는 2026-08-24 에
+        //   190 으로 개정됐고 에셋도 190 이다 — 20·25·30 웨이브 보스의 «한 대» 가 전부
+        //   같아지던 것을 푼 값이다. 위 ⚠⚠ 규약대로 기본값을 표에 맞춘다.
+        [Min(0)] public int bossAttackStatMax = 190;
 
         // ══════════════════════════════════════════════════════════════
         // ★ <b>중립 몬스터 사냥 성장 수치는 여기 없다</b> (2026-08-21).
@@ -201,9 +203,17 @@ namespace LastSanctuary.Combat
         //        적중 확률(%)   <b>40 + (명중률 × 0.6)</b>   (100 을 넘으면 100)
         //        치명타 확률(%) 크리티컬 × 0.8              <b>"그냥 상한 없이"</b>
         //
-        //    ⚠ <b>「계수」 시트는 아직 옛 값(85 · 0.3 · 상한 60)이 적혀 있다.</b>
-        //      두 시트가 어긋나 있고, 손으로 쓴 「공식」 시트가 <b>나중에 고쳐진 쪽</b>이라
-        //      그쪽을 정본으로 봤다. 다음에 표를 손볼 때 「계수」 시트도 같이 맞출 것.
+        //    ✔ <b>「계수」 시트도 그 뒤에 맞춰졌다</b>(2026-08-27 실측 — 명중 40 · 0.6 ·
+        //      치명 0.8 · 상한 100 이 «2026-08-20 개정» 이라는 비고와 함께 들어 있다).
+        //      두 시트가 어긋나 있던 상태는 <b>해소됐다</b>.
+        //
+        //    ⚠⚠ <b>그런데 아래 필드의 C# 기본값이 옛 값 그대로였다</b>(2026-08-27 발견).
+        //      지금은 <c>BalanceConfig.asset</c> 이 덮어써서 판이 정상이지만, 누군가
+        //      <c>Create ▸ LastSanctuary/Combat/Balance Config</c> 로 <b>새 에셋을 만드는 순간</b>
+        //      명중이 «80 + 능력치 × 1.0» 으로 <b>조용히 되돌아간다</b> — 표와 주석은 맞는데
+        //      화면만 틀린, 가장 찾기 어려운 종류의 사고다. 그래서 기본값을 표에 맞췄다.
+        //      ★ <b>규약</b> — 이 파일의 기본값은 «표의 지금 값» 이어야 한다. 에셋이 덮으므로
+        //        기존 판의 밸런스는 한 톨도 바뀌지 않는다.
         //
         //    <b>무엇이 달라지나</b> — 명중률이 «거의 안 빗나감」에서 «능력치가 실제로 중요한 값»
         //    이 된다:
@@ -219,12 +229,12 @@ namespace LastSanctuary.Combat
         // ══════════════════════════════════════════════════════════════
 
         [Header("적중 확률(%)  =  기본 + 명중률 × 계수      (실수 유지 — 확률)")]
-        [Range(0f, 100f)] public float accuracyBasePercent = 80f;
-        [Min(0f)] public float accuracyPerStat = 1f;
+        [Range(0f, 100f)] public float accuracyBasePercent = 40f;
+        [Min(0f)] public float accuracyPerStat = 0.6f;
         [Range(1f, 100f)] public float accuracyMaxPercent = 100f;
 
         [Header("치명타 확률(%)  =  크리티컬 × 계수      (실수 유지 — 확률)")]
-        [Min(0f)] public float criticalPerStat = 1f;
+        [Min(0f)] public float criticalPerStat = 0.8f;
         [Range(1f, 100f)] public float criticalMaxPercent = 100f;
 
         [Tooltip("치명타 시 피해 배율. 1.5 = 1.5배. 캐릭터별 능력치가 아니라 전역 상수 — " +

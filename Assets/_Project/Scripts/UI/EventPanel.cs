@@ -172,6 +172,18 @@ namespace LastSanctuary.UI
         {
             Bind();
             LocalizeLabels();
+            // ★★★ 2026-08-27 — 언어가 바뀌면 문구를 다시 받아 온다(다음 사건 창부터 따라온다).
+            //   ★ 떠 있는 창을 다시 칠하지는 않는다 — 이 창은 <see cref="Present"/> 로만
+            //     그려지고 그 인자(사건·선택지)를 들고 있지 않아, 다시 칠하려면 상태를
+            //     한 벌 더 들어야 한다. 사건 창은 뜬 채로 오래 두는 창이 아니다.
+            Data.StringTable.OnLanguageChanged -= LocalizeLabels;
+            Data.StringTable.OnLanguageChanged += LocalizeLabels;
+        }
+
+        void OnDestroy()
+        {
+            // ⚠ 정적 이벤트라 끊지 않으면 죽은 오브젝트가 구독에 남는다(SettingsPanel 의 그 ⚠).
+            Data.StringTable.OnLanguageChanged -= LocalizeLabels;
         }
 
         void Start()
@@ -480,7 +492,9 @@ namespace LastSanctuary.UI
 
             // ★ 결과 단계에서만 «확인» — 본문 단계에서 닫기를 누르면 선택 없이 이벤트가
             //   날아가므로, 그때는 라벨을 «닫기» 로 두어 «고르지 않고 물러난다» 를 분명히 한다.
-            if (_closeLabel != null) _closeLabel.text = resultStage ? finishLabel : "닫기";
+            // 「닫기」는 다른 창들이 이미 쓰는 ui_btn_close 를 그대로 쓴다(키를 새로 만들지 않는다).
+            if (_closeLabel != null)
+                _closeLabel.text = resultStage ? finishLabel : HudTheme.T("ui_btn_close", "닫기");
         }
 
         static EventChoice At(System.Collections.Generic.List<EventChoice> list, int i) =>

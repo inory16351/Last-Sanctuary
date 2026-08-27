@@ -107,7 +107,7 @@ namespace LastSanctuary.UI
             _spawner = FindAnyObjectByType<UnitSpawner>();
             if (_spawner != null) _spawner.OnCharacterSpawned += HandleCharacterSpawned;
 
-            Append("전투 로그 준비 완료", HudLogKind.Info);
+            Append(HudTheme.T("log_battlelog_ready", "전투 로그 준비 완료"), HudLogKind.Info);
         }
 
         void OnDestroy()
@@ -179,15 +179,24 @@ namespace LastSanctuary.UI
             if (unit.Faction == Faction.Angel)
             {
                 if (!logAllyDeaths) return;
-                Append(unit.Kind == UnitKind.Nexus ? "성역 파괴" : $"{NameOf(unit)} 사망",
+                // ⚠ {0} = 죽은 아군 이름. 자리표를 지우면 누가 죽었는지가 사라진다.
+                Append(unit.Kind == UnitKind.Nexus
+                           ? HudTheme.T("log_nexus_destroyed", "성역 파괴")
+                           : string.Format(HudTheme.T("log_ally_died", "{0} 사망"), NameOf(unit)),
                        HudLogKind.Danger);
                 return;
             }
 
             if (!logKills) return;
 
-            string what = unit is NeutralMonsterUnit ? "중립 몬스터" : "몬스터";
-            Append($"{what} 처치 — {NameOf(unit)}", HudLogKind.Good);
+            // ⚠ 「중립 몬스터/몬스터」를 문장에 이어 붙이지 않는다 — 어순이 다른 언어에서
+            //   옮길 수 없다. 종류마다 «형식 하나»를 따로 둔다({0} = 처치된 몬스터 이름).
+            Append(string.Format(
+                       unit is NeutralMonsterUnit
+                           ? HudTheme.T("log_kill_neutral", "중립 몬스터 처치 — {0}")
+                           : HudTheme.T("log_kill_monster", "몬스터 처치 — {0}"),
+                       NameOf(unit)),
+                   HudLogKind.Good);
         }
 
         /// <summary>
@@ -211,7 +220,9 @@ namespace LastSanctuary.UI
         {
             // 소비는 각 기능(생성·강화)이 이미 자기 문장으로 남기므로 획득만 적는다.
             if (delta <= 0) return;
-            Append($"에너지 +{delta} (총 {total})", HudLogKind.Good);
+            // ⚠ {0} = 이번에 들어온 양 · {1} = 보유 총량. 순서를 바꾸지 말 것.
+            Append(string.Format(HudTheme.T("log_energy_gain", "에너지 +{0} (총 {1})"), delta, total),
+                   HudLogKind.Good);
         }
 
         void HandleUpgraded(CharacterUnit unit, int cost)
@@ -219,13 +230,18 @@ namespace LastSanctuary.UI
             if (unit == null) return;
             // ★ 2026-08-15 — "강화 N회" 표기를 <b>Lv.N</b> 으로 통일했다(유저 지시).
             //   값 자체는 그대로 UpgradeCount 다 — 화면에 쓰는 이름만 바뀌었다.
-            Append($"{NameOf(unit)} Lv.{unit.UpgradeCount} (−{cost})", HudLogKind.Good);
+            // ⚠ {0} = 캐릭터 이름 · {1} = 오른 레벨 · {2} = 쓴 에너지. 셋 다 지우지 말 것.
+            Append(string.Format(HudTheme.T("log_upgraded", "{0} Lv.{1} (−{2})"),
+                                 NameOf(unit), unit.UpgradeCount, cost),
+                   HudLogKind.Good);
         }
 
         void HandleCharacterSpawned(CharacterUnit unit)
         {
             if (unit == null) return;
-            Append($"{NameOf(unit)} 합류", HudLogKind.Good);
+            // ⚠ {0} = 합류한 캐릭터 이름. 지우지 말 것.
+            Append(string.Format(HudTheme.T("log_char_joined", "{0} 합류"), NameOf(unit)),
+                   HudLogKind.Good);
         }
 
         // ------------------------------------------------------------------

@@ -219,7 +219,11 @@ namespace LastSanctuary.Events
                         touched++;
                     }
                     if (touched == 0) return "";
-                    return heal ? $"체력 +{value}% ({touched}명)" : $"체력 −{value}% ({touched}명)";
+                    // ★ 회복과 손실은 «부호» 하나만 다른 같은 문장이라 <b>키를 하나로 묶는다</b> —
+                    //   부호를 인자로 넘긴다(두 키로 두면 번역이 갈라질 자리가 공짜로 하나 늘어난다).
+                    return string.Format(
+                        UI.HudTheme.T("ui_reward_hp_percent", "체력 {0}% ({1}명)"),
+                        heal ? $"+{value}" : $"−{value}", touched);
                 }
 
                 // ── 침식 (즉시 · 절대값) ──
@@ -255,7 +259,10 @@ namespace LastSanctuary.Events
                         hit++;
                     }
                     if (hit == 0) return "";
-                    return up ? $"침식 +{Mathf.Abs(value)} ({hit}명)" : $"침식 −{Mathf.Abs(value)} ({hit}명)";
+                    // ★ 위 «체력» 과 같은 판단 — 오르내림은 부호만 다르므로 키 하나.
+                    return string.Format(
+                        UI.HudTheme.T("ui_reward_erosion", "침식 {0} ({1}명)"),
+                        up ? $"+{Mathf.Abs(value)}" : $"−{Mathf.Abs(value)}", hit);
                 }
 
                 // ── 처치 기록 부여 (즉시) ──
@@ -272,12 +279,15 @@ namespace LastSanctuary.Events
                     if (kills == null) return "";
                     int n = Mathf.Max(1, Mathf.Abs(value));
                     for (int i = 0; i < n; i++) kills.AddKill();
-                    return $"{pick.DisplayName} 처치 기록 +{n}";
+                    return string.Format(
+                        UI.HudTheme.T("ui_reward_kill_grant", "{0} 처치 기록 +{1}"), pick.DisplayName, n);
                 }
 
                 case "energy_gain":
                     ResourceManager.Instance?.AddEnergy(Mathf.Abs(value));
-                    return $"에너지 +{Mathf.Abs(value)}";
+                    // ★ 아래 energy_loss 와 <b>같은 키</b> — «에너지 {부호}{수} » 한 문장이다.
+                    return string.Format(
+                        UI.HudTheme.T("ui_reward_energy", "에너지 {0}"), $"+{Mathf.Abs(value)}");
 
                 case "energy_loss":
                 {
@@ -287,7 +297,9 @@ namespace LastSanctuary.Events
                     if (rm == null) return "";
                     int take = Mathf.Min(Mathf.Abs(value), rm.Energy);
                     if (take > 0) rm.TrySpend(take);
-                    return $"에너지 −{take}";
+                    // ★ energy_gain 과 같은 키를 쓴다(위 참조).
+                    return string.Format(
+                        UI.HudTheme.T("ui_reward_energy", "에너지 {0}"), $"−{take}");
                 }
 
                 case "nexus_percent_heal":
@@ -299,10 +311,13 @@ namespace LastSanctuary.Events
                     if (rewardType == "nexus_percent_heal")
                     {
                         nexus.Heal(amount);
-                        return $"성역 회복 +{amount}";
+                        return string.Format(
+                            UI.HudTheme.T("ui_reward_nexus_heal", "성역 회복 +{0}"), amount);
                     }
                     nexus.ApplyDamage(amount);
-                    return $"성역 손상 −{amount}";
+                    // ⚠ «회복» 과 «손상» 은 부호가 아니라 <b>낱말</b>이 다르므로 묶지 않는다.
+                    return string.Format(
+                        UI.HudTheme.T("ui_reward_nexus_damage", "성역 손상 −{0}"), amount);
                 }
 
                 // ══════════════════════════════════════════════════════════
@@ -323,7 +338,9 @@ namespace LastSanctuary.Events
                         touched++;
                     }
                     if (touched == 0) return "";
-                    return $"보호막 최대 체력의 {Mathf.Abs(value)}% ({touched}명)";
+                    return string.Format(
+                        UI.HudTheme.T("ui_reward_shield", "보호막 최대 체력의 {0}% ({1}명)"),
+                        Mathf.Abs(value), touched);
                 }
 
                 // ── 받는 회복량 증폭 (되돌려야 한다) ──
@@ -343,7 +360,16 @@ namespace LastSanctuary.Events
                         touched++;
                     }
                     if (touched == 0) return "";
-                    return $"받는 회복량 +{percent}%{Span(durationSeconds)} ({touched}명)";
+                    // ⚠ «{n}초» 꼬리를 <b>따로 이어 붙이지 않는다</b> — 영어는 그 자리가
+                    //   «for 30s» 라 낱말이 붙어야 한다. 그래서 지속시간이 있고 없고를
+                    //   <b>문장 두 벌</b>로 나눈다(아래 사거리·시야·능력치도 같은 방식).
+                    return durationSeconds > 0
+                        ? string.Format(
+                            UI.HudTheme.T("ui_reward_heal_received_timed", "받는 회복량 +{0}% {1}초 ({2}명)"),
+                            percent, durationSeconds, touched)
+                        : string.Format(
+                            UI.HudTheme.T("ui_reward_heal_received", "받는 회복량 +{0}% ({1}명)"),
+                            percent, touched);
                 }
 
                 // ── 정신 이상 해제 (즉시) ──
@@ -362,7 +388,8 @@ namespace LastSanctuary.Events
                     }
                     // ⚠ 아무도 정신 이상이 아니면 <b>아무 일도 안 일어난다</b> — 그것이 표의 뜻이다.
                     //   억지로 침식을 깎아 «비슷한 것» 을 주지 않는다.
-                    return cured == 0 ? "" : $"정신 이상 해제 ({cured}명)";
+                    return cured == 0 ? "" : string.Format(
+                        UI.HudTheme.T("ui_reward_mental_cure", "정신 이상 해제 ({0}명)"), cured);
                 }
 
                 // ── 공격 사거리 (되돌려야 한다) ──
@@ -390,7 +417,13 @@ namespace LastSanctuary.Events
                         touched++;
                     }
                     if (touched == 0) return "";
-                    return $"공격 사거리 {Signed(percent)}%{Span(durationSeconds)} ({touched}명)";
+                    return durationSeconds > 0
+                        ? string.Format(
+                            UI.HudTheme.T("ui_reward_range_timed", "공격 사거리 {0}% {1}초 ({2}명)"),
+                            Signed(percent), durationSeconds, touched)
+                        : string.Format(
+                            UI.HudTheme.T("ui_reward_range", "공격 사거리 {0}% ({1}명)"),
+                            Signed(percent), touched);
                 }
 
                 // ── 시야 (되돌려야 한다) ──
@@ -418,7 +451,13 @@ namespace LastSanctuary.Events
                         touched++;
                     }
                     if (touched == 0) return "";
-                    return $"시야 {Signed(percent)}%{Span(durationSeconds)} ({touched}명)";
+                    return durationSeconds > 0
+                        ? string.Format(
+                            UI.HudTheme.T("ui_reward_vision_timed", "시야 {0}% {1}초 ({2}명)"),
+                            Signed(percent), durationSeconds, touched)
+                        : string.Format(
+                            UI.HudTheme.T("ui_reward_vision", "시야 {0}% ({1}명)"),
+                            Signed(percent), touched);
                 }
 
                 // ── 영구 성장 (즉시 · 되돌리지 않는다) ──
@@ -439,7 +478,10 @@ namespace LastSanctuary.Events
 
                     int amount = Mathf.Max(1, Mathf.Abs(value));
                     pick.AddFlatStatBonus(stat, amount);
-                    return $"{pick.DisplayName} {StatBlock.DisplayName(stat)} +{amount} (영구)";
+                    // ⚠ {0}=이름 · {1}=능력치 이름 · {2}=수치. 셋 다 지우지 말 것.
+                    return string.Format(
+                        UI.HudTheme.T("ui_reward_permanent_stat", "{0} {1} +{2} (영구)"),
+                        pick.DisplayName, StatBlock.DisplayName(stat), amount);
                 }
 
                 // ── 유물 획득 (즉시) ──
@@ -476,8 +518,11 @@ namespace LastSanctuary.Events
                     }
 
                     inv.Grant(relic);
-                    return $"{relic.DisplayName} 획득 " +
-                           $"({Relics.RelicDefinitionSO.NameOf(relic.grade)})";
+                    // ⚠ 예전에는 «이름 획득 » 과 «(등급)» 을 <b>이어 붙였다</b> — 영어는 어순이
+                    //   달라(Obtained X) 조각으로 두면 번역이 불가능하다. 한 형식으로 합친다.
+                    return string.Format(
+                        UI.HudTheme.T("ui_reward_relic_gain", "{0} 획득 ({1})"),
+                        relic.DisplayName, Relics.RelicDefinitionSO.NameOf(relic.grade));
                 }
 
                 // ── 합류 / 사망 (즉시 · 확률) ──
@@ -485,8 +530,13 @@ namespace LastSanctuary.Events
                 {
                     if (!Roll(value)) return "";
                     var create = UI.CharacterCreationService.Instance;
-                    CharacterUnit joined = create != null ? create.CreateFree("이벤트") : null;
-                    return joined == null ? "" : $"{joined.DisplayName} 합류";
+                    // ★ 「이벤트」는 <b>화면에 나간다</b> — CreateFree 가 «{이름} 합류 ({사유})»
+                    //   로그를 찍는다. 아래 화상·구속의 표시 이름과 <b>같은 키</b>를 쓴다.
+                    CharacterUnit joined = create != null
+                        ? create.CreateFree(UI.HudTheme.T("ui_reward_source_event", "이벤트"))
+                        : null;
+                    return joined == null ? "" : string.Format(
+                        UI.HudTheme.T("ui_reward_char_join", "{0} 합류"), joined.DisplayName);
                 }
 
                 case "char_die":
@@ -499,7 +549,8 @@ namespace LastSanctuary.Events
                     CharacterUnit victim = pool[Random.Range(0, pool.Count)];
                     string name = victim.DisplayName;
                     victim.ApplyDamage(victim.CurrentHp);
-                    return $"{name} 사망";
+                    return string.Format(
+                        UI.HudTheme.T("ui_reward_char_die", "{0} 사망"), name);
                 }
 
                 // ── 적 — 지속 상태 (전부 자기 만료 · 되돌릴 것 없음) ──
@@ -524,8 +575,13 @@ namespace LastSanctuary.Events
                         touched++;
                     }
                     if (touched == 0) return "";
-                    string what = atk ? "적 공격 속도" : "적 이동 속도";
-                    return $"{what} {Signed(percent)}%{Span((int)seconds)} ({touched}마리)";
+                    // ⚠ 예전에는 «적 공격 속도» 라는 <b>낱말만</b> 골라 문장에 끼워 넣었다 —
+                    //   그러면 번역할 것이 낱말 조각이 되어 어순을 못 맞춘다. <b>문장을 통째로</b> 고른다.
+                    // ★ seconds 는 여기서 항상 0보다 크다(위 120f 기본값) — 지속시간 없는 벌이 필요 없다.
+                    string fmt = atk
+                        ? UI.HudTheme.T("ui_reward_enemy_atk_spd", "적 공격 속도 {0}% {1}초 ({2}마리)")
+                        : UI.HudTheme.T("ui_reward_enemy_move_spd", "적 이동 속도 {0}% {1}초 ({2}마리)");
+                    return string.Format(fmt, Signed(percent), (int)seconds, touched);
                 }
 
                 case "enemy_atk_durat_down":
@@ -541,8 +597,9 @@ namespace LastSanctuary.Events
                         combat.ApplyWeaken(Mathf.Abs(value), seconds);
                         touched++;
                     }
-                    return touched == 0 ? ""
-                        : $"적 공격력 −{Mathf.Abs(value)}%{Span((int)seconds)} ({touched}마리)";
+                    return touched == 0 ? "" : string.Format(
+                        UI.HudTheme.T("ui_reward_enemy_atk_down", "적 공격력 −{0}% {1}초 ({2}마리)"),
+                        Mathf.Abs(value), (int)seconds, touched);
                 }
 
                 case "enemy_def_durat_down":
@@ -560,8 +617,9 @@ namespace LastSanctuary.Events
                         PassiveSkillService.ApplyCorrosion(mobs[i], amount, seconds);
                         touched++;
                     }
-                    return touched == 0 ? ""
-                        : $"적 방어력 −{Mathf.Abs(value)}%{Span((int)seconds)} ({touched}마리)";
+                    return touched == 0 ? "" : string.Format(
+                        UI.HudTheme.T("ui_reward_enemy_def_down", "적 방어력 −{0}% {1}초 ({2}마리)"),
+                        Mathf.Abs(value), (int)seconds, touched);
                 }
 
                 case "enemy_hp_percent_loss":
@@ -575,7 +633,9 @@ namespace LastSanctuary.Events
                         mobs[i].ApplyDamage(amount);
                         touched++;
                     }
-                    return touched == 0 ? "" : $"적 체력 −{Mathf.Abs(value)}% ({touched}마리)";
+                    return touched == 0 ? "" : string.Format(
+                        UI.HudTheme.T("ui_reward_enemy_hp_loss", "적 체력 −{0}% ({1}마리)"),
+                        Mathf.Abs(value), touched);
                 }
 
                 case "enemy_burn":
@@ -589,11 +649,13 @@ namespace LastSanctuary.Events
                             Mathf.RoundToInt(mobs[i].MaxHp * Mathf.Abs(value) * 0.01f));
                         var combat = mobs[i].GetComponent<UnitCombat>();
                         if (combat == null) continue;
-                        combat.ApplyBurn(perSecond, seconds, "이벤트");
+                        // ★ 이 이름은 화상 표시 이름(UnitCombat.BurnLabel)으로 남는다 — 위 char_join 과 같은 키.
+                        combat.ApplyBurn(perSecond, seconds, UI.HudTheme.T("ui_reward_source_event", "이벤트"));
                         touched++;
                     }
-                    return touched == 0 ? ""
-                        : $"적 화상 초당 {Mathf.Abs(value)}%{Span((int)seconds)} ({touched}마리)";
+                    return touched == 0 ? "" : string.Format(
+                        UI.HudTheme.T("ui_reward_enemy_burn", "적 화상 초당 {0}% {1}초 ({2}마리)"),
+                        Mathf.Abs(value), (int)seconds, touched);
                 }
 
                 case "enemy_bind":
@@ -607,10 +669,15 @@ namespace LastSanctuary.Events
                     {
                         var combat = mobs[i].GetComponent<UnitCombat>();
                         if (combat == null) continue;
-                        combat.ApplyBind(seconds, "이벤트");
+                        // ★ 이 이름은 초상화의 구속 표시(UnitCombat.BoundLabel)로 뜬다 — 같은 키.
+                        combat.ApplyBind(seconds, UI.HudTheme.T("ui_reward_source_event", "이벤트"));
                         touched++;
                     }
-                    return touched == 0 ? "" : $"적 구속 {seconds:0}초 ({touched}마리)";
+                    // ⚠ 옛 «{seconds:0}» 서식은 인자 쪽으로 옮겼다 — 형식 문자열에 숫자 서식을
+                    //   남기면 번역가가 «:0» 을 지워도 컴파일은 통과하고 화면만 어긋난다.
+                    return touched == 0 ? "" : string.Format(
+                        UI.HudTheme.T("ui_reward_enemy_bind", "적 구속 {0}초 ({1}마리)"),
+                        seconds.ToString("0"), touched);
                 }
 
                 case "summon_enemy":
@@ -618,7 +685,8 @@ namespace LastSanctuary.Events
                     var spawner = Object.FindFirstObjectByType<MonsterSpawner>();
                     if (spawner == null) return "";
                     int n = spawner.SpawnExtraNormals(Mathf.Max(1, Mathf.Abs(value)));
-                    return n == 0 ? "" : $"적 {n}마리 추가 소환";
+                    return n == 0 ? "" : string.Format(
+                        UI.HudTheme.T("ui_reward_summon_enemy", "적 {0}마리 추가 소환"), n);
                 }
 
                 default:
@@ -629,8 +697,9 @@ namespace LastSanctuary.Events
             }
         }
 
-        /// <summary>«{n}초» 꼬리 — 지속시간이 0 이면 빈 문자열.</summary>
-        static string Span(int seconds) => seconds > 0 ? $" {seconds}초" : "";
+        // ⚠ 옛 <c>Span(seconds)</c>(«{n}초» 꼬리를 만들어 문장 뒤에 이어 붙이던 것)는 <b>지웠다</b> —
+        //   그 꼬리가 영어에서는 «for 30s» 라 낱말이 필요하고, 조각으로 두면 번역할 수가 없다.
+        //   지금은 지속시간이 «있는 문장/없는 문장» 두 벌을 각각 스트링 키로 둔다.
 
         /// <summary>부호를 붙인 정수 문구(+8 / −8). 로그가 표의 result_effect 와 같은 모양이 되게.</summary>
         static string Signed(float percent) =>
@@ -670,10 +739,16 @@ namespace LastSanctuary.Events
 
             if (touched == 0) return "";
             string name = StatBlock.DisplayName(stat);
-            string span = durationSeconds > 0 ? $" {durationSeconds}초" : "";
-            return percent > 0
-                ? $"{name} +{percent}%{span} ({touched}명)"
-                : $"{name} {percent}%{span} ({touched}명)";
+            // ★ 오름/내림은 <b>부호만</b> 다르므로 인자로 넘겨 키를 하나로 묶는다
+            //   (음수는 int 서식이 이미 «-» 를 붙여 준다 — 옛 문장과 한 글자도 다르지 않다).
+            string amount = percent > 0 ? $"+{percent}" : percent.ToString();
+            return durationSeconds > 0
+                ? string.Format(
+                    UI.HudTheme.T("ui_reward_stat_timed", "{0} {1}% {2}초 ({3}명)"),
+                    name, amount, durationSeconds, touched)
+                : string.Format(
+                    UI.HudTheme.T("ui_reward_stat", "{0} {1}% ({2}명)"),
+                    name, amount, touched);
         }
 
         /// <summary>

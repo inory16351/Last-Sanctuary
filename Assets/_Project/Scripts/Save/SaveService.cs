@@ -60,7 +60,10 @@ namespace LastSanctuary.Save
 
                 if (data == null)
                 {
-                    LastMessage = "저장 파일을 읽지 못했습니다.";
+                    // ⚠ 이 파일은 using 이 System.IO · UnityEngine 뿐이다 — HudTheme(UI) 를 끌어오지 않고
+                    //   그것이 감싸고 있는 스트링 표를 완전한 이름으로 직접 부른다.
+                    LastMessage = LastSanctuary.Data.StringTable.Get(
+                        "ui_save_load_failed", "저장 파일을 읽지 못했습니다.");
                     Debug.LogWarning($"[저장] 파싱 실패 — {FilePath}");
                     return null;
                 }
@@ -69,7 +72,10 @@ namespace LastSanctuary.Save
                 //   복원되어 "캐릭터가 사라진 세이브" 같은 조용한 손상이 된다.
                 if (data.version != SaveData.CurrentVersion)
                 {
-                    LastMessage = $"저장 형식이 다릅니다 (파일 {data.version} · 지금 {SaveData.CurrentVersion}).";
+                    LastMessage = string.Format(
+                        LastSanctuary.Data.StringTable.Get(
+                            "ui_save_version_mismatch", "저장 형식이 다릅니다 (파일 {0} · 지금 {1})."),
+                        data.version, SaveData.CurrentVersion);
                     Debug.LogWarning($"[저장] {LastMessage}");
                     return null;
                 }
@@ -78,7 +84,8 @@ namespace LastSanctuary.Save
             }
             catch (System.Exception e)
             {
-                LastMessage = "저장 파일을 읽지 못했습니다.";
+                LastMessage = LastSanctuary.Data.StringTable.Get(
+                    "ui_save_load_failed", "저장 파일을 읽지 못했습니다.");
                 Debug.LogError($"[저장] 읽기 실패 — {e.Message}");
                 return null;
             }
@@ -103,12 +110,15 @@ namespace LastSanctuary.Save
                 if (File.Exists(FilePath)) File.Delete(FilePath);
                 File.Move(temp, FilePath);
 
-                LastMessage = $"저장했습니다 ({data.savedAt})";
+                LastMessage = string.Format(
+                    LastSanctuary.Data.StringTable.Get("ui_save_written", "저장했습니다 ({0})"),
+                    data.savedAt);
                 return true;
             }
             catch (System.Exception e)
             {
-                LastMessage = "저장하지 못했습니다.";
+                LastMessage = LastSanctuary.Data.StringTable.Get(
+                    "ui_save_write_failed", "저장하지 못했습니다.");
                 Debug.LogError($"[저장] 쓰기 실패 — {e.Message}");
                 return false;
             }

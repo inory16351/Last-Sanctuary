@@ -508,7 +508,10 @@ namespace LastSanctuary.Events
 
             MarkUsed(def);
 
-            UI.HudLog.Add($"<b>[사건]</b> {def.DisplayName}", UI.HudLogKind.Good);
+            // ⚠ {0} = 사건 이름. <b> 태그는 TMP 서식이라 번역문에도 그대로 남겨야 한다.
+            UI.HudLog.Add(
+                string.Format(UI.HudTheme.T("log_event_begin", "<b>[사건]</b> {0}"), def.DisplayName),
+                UI.HudLogKind.Good);
             OnEventChanged?.Invoke(Current, CurrentChoice);
             ShowPanel();
         }
@@ -547,7 +550,11 @@ namespace LastSanctuary.Events
 
             string log = EventRewardService.Apply(type, value, duration);
             if (!string.IsNullOrEmpty(log))
-                UI.HudLog.Add($"[사건] {Current.DisplayName} — {log}", UI.HudLogKind.Good);
+                // ⚠ {0} = 사건 이름 · {1} = EventRewardService 가 만든 <b>이미 번역된</b> 효과 한 줄.
+                UI.HudLog.Add(
+                    string.Format(UI.HudTheme.T("log_event_reward", "[사건] {0} — {1}"),
+                                  Current.DisplayName, log),
+                    UI.HudLogKind.Good);
         }
 
         /// <summary>

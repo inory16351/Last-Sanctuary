@@ -274,16 +274,24 @@ namespace LastSanctuary.Buildings
 
             if (!CanPlace)
             {
-                HudLog.Add(AtLimit ? "더 이상 건설할 수 없습니다"
-                                   : $"에너지가 부족합니다 (건설 비용 {CurrentCost})",
+                // 두 사유 모두 표를 거친다 — 아래 TryPlaceSite 와 같은 키를 쓴다.
+                HudLog.Add(AtLimit
+                               ? HudTheme.T("log_build_limit_reached", "더 이상 건설할 수 없습니다")
+                               : string.Format(
+                                     HudTheme.T("log_build_not_enough_energy", "에너지가 부족합니다 (건설 비용 {0})"),
+                                     CurrentCost),
                            HudLogKind.Danger);
                 return;
             }
 
             IsPicking = true;
             _pressActive = false;
-            HudLog.Add($"건설 자리 지정 — {FootprintSize}x{FootprintSize} 범위를 클릭하세요 " +
-                       $"(비용 {CurrentCost}, Esc 취소)", HudLogKind.Warn);
+            // ⚠ 조각을 잇지 않고 «형식 하나» 로 둔다 — 영어는 어순이 달라 조각으로는 못 옮긴다.
+            HudLog.Add(string.Format(
+                           HudTheme.T("log_build_pick_site",
+                                      "건설 자리 지정 — {0}x{1} 범위를 클릭하세요 (비용 {2}, Esc 취소)"),
+                           FootprintSize, FootprintSize, CurrentCost),
+                       HudLogKind.Warn);
         }
 
         public void CancelPicking() => IsPicking = false;
@@ -331,7 +339,7 @@ namespace LastSanctuary.Buildings
             if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
             {
                 CancelPicking();
-                HudLog.Add("건설 취소");
+                HudLog.Add(HudTheme.T("log_build_cancelled", "건설 취소"));
                 return;
             }
 
@@ -402,12 +410,14 @@ namespace LastSanctuary.Buildings
 
             if (!IsAreaBuildable(minCell))
             {
-                HudLog.Add("그 자리에는 지을 수 없습니다", HudLogKind.Danger);
+                HudLog.Add(HudTheme.T("log_build_cannot_place_here", "그 자리에는 지을 수 없습니다"),
+                           HudLogKind.Danger);
                 return false;
             }
             if (AtLimit)
             {
-                HudLog.Add("더 이상 건설할 수 없습니다", HudLogKind.Danger);
+                HudLog.Add(HudTheme.T("log_build_limit_reached", "더 이상 건설할 수 없습니다"),
+                           HudLogKind.Danger);
                 return false;
             }
 
@@ -415,7 +425,10 @@ namespace LastSanctuary.Buildings
             ResourceManager res = ResourceManager.Instance;
             if (res == null || !res.TrySpend(cost))
             {
-                HudLog.Add($"에너지가 부족합니다 (건설 비용 {cost})", HudLogKind.Danger);
+                HudLog.Add(string.Format(
+                               HudTheme.T("log_build_not_enough_energy", "에너지가 부족합니다 (건설 비용 {0})"),
+                               cost),
+                           HudLogKind.Danger);
                 return false;
             }
 
@@ -428,7 +441,10 @@ namespace LastSanctuary.Buildings
             });
 
             if (logChanges) Debug.Log($"[Build] 건설 예정지 등록 {minCell} · 비용 {cost}", this);
-            HudLog.Add($"{turretDefinition.DisplayName} 건설 예약 (에너지 {cost})", HudLogKind.Good);
+            HudLog.Add(string.Format(
+                           HudTheme.T("log_build_site_reserved", "{0} 건설 예약 (에너지 {1})"),
+                           turretDefinition.DisplayName, cost),
+                       HudLogKind.Good);
             return true;
         }
 
@@ -444,7 +460,9 @@ namespace LastSanctuary.Buildings
                 if (!overlaps) continue;
 
                 ResourceManager.Instance?.AddEnergy(_sites[i].PaidCost);
-                HudLog.Add($"건설 예약 취소 (에너지 +{_sites[i].PaidCost})");
+                HudLog.Add(string.Format(
+                               HudTheme.T("log_build_site_refunded", "건설 예약 취소 (에너지 +{0})"),
+                               _sites[i].PaidCost));
                 _sites.RemoveAt(i);
                 return true;
             }
@@ -580,7 +598,10 @@ namespace LastSanctuary.Buildings
             _builtCount++;
 
             if (logChanges) Debug.Log($"[Build] {site.Definition.DisplayName} 완성 {site.MinCell}", this);
-            HudLog.Add($"{site.Definition.DisplayName} 건설 완료", HudLogKind.Good);
+            HudLog.Add(string.Format(
+                           HudTheme.T("log_build_completed", "{0} 건설 완료"),
+                           site.Definition.DisplayName),
+                       HudLogKind.Good);
         }
 
         /// <summary>템플릿 복제 (진행상황 5절 — 이 프로젝트의 모든 유닛 생성 방식).</summary>

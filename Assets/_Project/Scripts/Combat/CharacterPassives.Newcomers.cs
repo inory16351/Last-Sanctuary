@@ -320,7 +320,10 @@ namespace LastSanctuary.Combat
             int hits = DamageEnemiesInRadius(center, radius, percent);
 
             UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName,
-                                              $"반경 {radius:0.#}타일 · {hits}명"), UI.HudLogKind.Good);
+                                              string.Format(UI.HudTheme.T("log_detail_radius_hits",
+                                                                          "반경 {0:0.#}타일 · {1}명"),
+                                                            radius, hits)),
+                          UI.HudLogKind.Good);
             return true;
         }
 
@@ -397,7 +400,12 @@ namespace LastSanctuary.Combat
             _animator?.PlaySkillMotion(0, 0.4f, myPos + Vector3.right);
 
             PassiveSkillSO salv = Find(PassiveSkillType.Salvation);
-            string label = salv != null ? $"{moved}명 이송 · 재생 해제" : $"{moved}명 이송";
+            // 두 경우를 «형식 하나»씩 따로 둔다 — 꼬리말(· 재생 해제)만 떼어 번역하면
+            // 어순이 다른 언어에서 문장이 어그러진다.
+            string label = salv != null
+                ? string.Format(UI.HudTheme.T("log_detail_ferried_cleansed",
+                                              "{0}명 이송 · 재생 해제"), moved)
+                : string.Format(UI.HudTheme.T("log_detail_ferried", "{0}명 이송"), moved);
             UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName, label),
                           UI.HudLogKind.Good);
             return true;
@@ -476,7 +484,8 @@ namespace LastSanctuary.Combat
 
             _animator?.PlaySkillMotion(1, 0.8f, _golem.transform.position);
 
-            UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName, "골렘 소환"),
+            UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName,
+                                              UI.HudTheme.T("log_detail_golem_summoned", "골렘 소환")),
                           UI.HudLogKind.Good);
             return true;
         }
@@ -562,7 +571,10 @@ namespace LastSanctuary.Combat
             //     정면 자세가 아닌 시전 원화가 오면 이 줄을 되살리면 된다.
 
             UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName,
-                                              $"보호막 {amount} · {seconds:0.#}초"), UI.HudLogKind.Good);
+                                              string.Format(UI.HudTheme.T("log_detail_shield",
+                                                                          "보호막 {0} · {1:0.#}초"),
+                                                            amount, seconds)),
+                          UI.HudLogKind.Good);
             return true;
         }
 
@@ -632,7 +644,9 @@ namespace LastSanctuary.Combat
                                        seconds, target.transform.position);
 
             UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName,
-                                              $"정신집중 {seconds:0.#}초"), UI.HudLogKind.Good);
+                                              string.Format(UI.HudTheme.T("log_detail_channeling",
+                                                                          "정신집중 {0:0.#}초"), seconds)),
+                          UI.HudLogKind.Good);
             return true;
         }
 
@@ -664,7 +678,9 @@ namespace LastSanctuary.Combat
                 _shieldBurstAt = Time.time + tauntSeconds;
 
                 UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName,
-                                                  $"도발 {taunted}명 · {tauntSeconds:0.#}초"),
+                                                  string.Format(UI.HudTheme.T("log_detail_taunt",
+                                                                              "도발 {0}명 · {1:0.#}초"),
+                                                                taunted, tauntSeconds)),
                               UI.HudLogKind.Good);
                 return;
             }
@@ -711,7 +727,9 @@ namespace LastSanctuary.Combat
                 CombatProjectileFx.PlayArea(fx, center, new Vector2(length, thick), angle, null, FxSeconds);
 
             UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName,
-                                              $"{length:0.#}x{thick:0.#}타일 · {hits}명"),
+                                              string.Format(UI.HudTheme.T("log_detail_box_hits",
+                                                                          "{0:0.#}x{1:0.#}타일 · {2}명"),
+                                                            length, thick, hits)),
                           UI.HudLogKind.Good);
         }
 
@@ -734,7 +752,9 @@ namespace LastSanctuary.Combat
                                             new Vector2(radius * 2f, radius * 2f), 0f, null, FxSeconds);
 
             int hits = DamageEnemiesInRadius(transform.position, radius, percent);
-            UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName, $"반격 {hits}명"),
+            UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName,
+                                              string.Format(UI.HudTheme.T("log_detail_riposte_hits",
+                                                                          "반격 {0}명"), hits)),
                           UI.HudLogKind.Good);
         }
 
@@ -800,7 +820,9 @@ namespace LastSanctuary.Combat
             _animator?.PlaySkillMotion(1, 0.6f, center);
 
             UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName,
-                                              $"{front.DisplayName} 자리 · {seconds:0.#}초"),
+                                              string.Format(UI.HudTheme.T("log_detail_at_ally_seconds",
+                                                                          "{0} 자리 · {1:0.#}초"),
+                                                            front.DisplayName, seconds)),
                           UI.HudLogKind.Good);
             return true;
         }
@@ -890,13 +912,17 @@ namespace LastSanctuary.Combat
             // ── 행동 불능 ──
             if (stun > 0f)
             {
-                _combat?.ApplyBind(stun, "탈진");
+                // 상태 이름은 상세 카드에 그대로 뜬다 — 표를 거쳐 넘긴다.
+                _combat?.ApplyBind(stun, UI.HudTheme.T("ui_status_exhausted", "탈진"));
                 _nobilityStunUntil = Time.time + stun;
                 _animator?.PlayStunMotion(stun);
             }
 
             UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName,
-                                              $"{hits}명 · 탈진 {stun:0.#}초"), UI.HudLogKind.Good);
+                                              string.Format(UI.HudTheme.T("log_detail_hits_exhaust",
+                                                                          "{0}명 · 탈진 {1:0.#}초"),
+                                                            hits, stun)),
+                          UI.HudLogKind.Good);
             return true;
         }
 
@@ -942,7 +968,9 @@ namespace LastSanctuary.Combat
             if (perSecond <= 0) return;
 
             var tc = target.GetComponent<UnitCombat>();
-            tc?.ApplyBurn(perSecond, Mathf.Max(0f, so.value03), "화상");
+            // 상태 이름은 로스터·상세 카드에 그대로 뜬다 — 표를 거쳐 넘긴다.
+            tc?.ApplyBurn(perSecond, Mathf.Max(0f, so.value03),
+                          UI.HudTheme.T("ui_status_burn", "화상"));
         }
 
         /// <summary>
@@ -973,7 +1001,10 @@ namespace LastSanctuary.Combat
 
             int hits = DamageEnemiesInRadius(center, radius, percent);
             UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName,
-                                              $"반경 {radius:0.#}타일 · {hits}명"), UI.HudLogKind.Good);
+                                              string.Format(UI.HudTheme.T("log_detail_radius_hits",
+                                                                          "반경 {0:0.#}타일 · {1}명"),
+                                                            radius, hits)),
+                          UI.HudLogKind.Good);
             return true;
         }
 

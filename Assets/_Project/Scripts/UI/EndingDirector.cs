@@ -1095,6 +1095,10 @@ namespace LastSanctuary.UI
             rollFallenHeader = HudTheme.T("ui_ending_fallen_head", rollFallenHeader);
             rollSurvivorHeader = HudTheme.T("ui_ending_survivor_head", rollSurvivorHeader);
             rollFallenFormat = HudTheme.T("ui_ending_roll_format", rollFallenFormat);
+            // ⚠ 2026-08-27 — <b>이 줄이 빠져 있었다</b>. 「돌아오지 못한 이들」 형식만 표를
+            //   거치고 「끝까지 남은 이들」 형식은 안 거쳐서, 영어로 두면 엔딩 두루마리의
+            //   <b>절반만</b> 번역됐다(그 안의 «웨이브» 라는 글자가 한쪽에만 있어 눈에 덜 띄었다).
+            rollSurvivorFormat = HudTheme.T("ui_ending_roll_survivor_format", rollSurvivorFormat);
             skipButtonText = HudTheme.T("ui_btn_skip", skipButtonText);
         }
 }

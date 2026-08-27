@@ -452,7 +452,11 @@ namespace LastSanctuary.Relics
                     _revivedOnce.Add(fallen);
                     int hp = Mathf.Max(1, Mathf.RoundToInt(fallen.MaxHp * revivePct * 0.01f));
                     fallen.ReviveWithHp(hp);
-                    UI.HudLog.Add($"{fallen.DisplayName} — 「{own.DisplayName}」 이(가) 다시 일으켰습니다.",
+                    // ⚠ 이 파일에는 using LastSanctuary.UI 가 없다 — 상대 참조 그대로 쓴다.
+                    UI.HudLog.Add(string.Format(
+                                      UI.HudTheme.T("log_relic_revived",
+                                                    "{0} — 「{1}」 이(가) 다시 일으켰습니다."),
+                                      fallen.DisplayName, own.DisplayName),
                                   UI.HudLogKind.Good);
                     return;
                 }

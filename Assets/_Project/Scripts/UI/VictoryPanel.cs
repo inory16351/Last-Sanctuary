@@ -151,7 +151,9 @@ namespace LastSanctuary.UI
             if (useEnding && !string.IsNullOrWhiteSpace(endingSceneName))
             {
                 Combat.CombatProjectileFx.ClearAll();
-                HudLog.Add($"승리 — 웨이브 {_finalWave} 클리어", HudLogKind.Good);
+                // ⚠ {0} = 클리어한 웨이브 번호. 아래 결과 화면 경로와 같은 키를 쓴다.
+                HudLog.Add(string.Format(HudTheme.T("log_victory", "승리 — 웨이브 {0} 클리어"), _finalWave),
+                           HudLogKind.Good);
 
                 Time.timeScale = 1f;
                 SceneManager.LoadScene(endingSceneName);
@@ -173,7 +175,9 @@ namespace LastSanctuary.UI
 
             if (pauseGameOnVictory) Time.timeScale = 0f;
 
-            HudLog.Add($"승리 — 웨이브 {_finalWave} 클리어", HudLogKind.Good);
+            // 엔딩 경로와 같은 문구다 — 키 하나로 묶는다({0} = 웨이브 번호).
+            HudLog.Add(string.Format(HudTheme.T("log_victory", "승리 — 웨이브 {0} 클리어"), _finalWave),
+                       HudLogKind.Good);
         }
 
         /// <summary>

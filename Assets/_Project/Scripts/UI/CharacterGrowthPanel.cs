@@ -767,7 +767,11 @@ namespace LastSanctuary.UI
             {
                 if (_wornScratch.Count == 0)
                 {
-                    _relicSlotName.text = has ? "없음" : "캐릭터를 선택하세요";
+                    // 「캐릭터를 선택하세요」는 위 유물 카드가 쓰는 ui_relic_pick_character 와
+                    // 같은 문구다 — 키 하나로 묶는다.
+                    _relicSlotName.text = has
+                        ? HudTheme.T("ui_relic_none", "없음")
+                        : HudTheme.T("ui_relic_pick_character", "캐릭터를 선택하세요");
                     _relicSlotName.color = new Color(0.62f, 0.68f, 0.75f, 1f);
                 }
                 else
@@ -1230,7 +1234,10 @@ namespace LastSanctuary.UI
             // 붉게 표시해 "왜 버튼이 안 눌리는지"가 바로 보이게 한다.
             if (_costText != null)
             {
-                _costText.text = has ? $"에너지 {cost}" : "-";
+                // ⚠ {0} = 강화 비용. 지우면 숫자가 사라져 칸이 「에너지」만 남는다.
+                _costText.text = has
+                    ? string.Format(HudTheme.T("ui_growth_cost_format", "에너지 {0}"), cost)
+                    : "-";
                 _costText.color = !has || canUpgrade ? costColor : costUnaffordableColor;
             }
 

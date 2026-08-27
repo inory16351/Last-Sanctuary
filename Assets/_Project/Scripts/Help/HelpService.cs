@@ -811,7 +811,7 @@ namespace LastSanctuary.Help
             PlayerPrefs.DeleteKey(PrefsKey);
             PlayerPrefs.Save();
             CollectPolled();
-            HudLog.Add("도움말을 처음 상태로 되돌렸습니다", HudLogKind.Info);
+            HudLog.Add(HudTheme.T("log_help_reset", "도움말을 처음 상태로 되돌렸습니다"), HudLogKind.Info);
         }
 
         /// <summary>지금까지 본 조언 수 / 전체 항목 수 — 환경 설정에 보여줄 수 있다.</summary>

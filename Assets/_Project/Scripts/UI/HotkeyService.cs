@@ -94,26 +94,49 @@ namespace LastSanctuary.UI
             { HotkeyAction.Recenter,        Key.Space },
         };
 
-        /// <summary>창에 보여줄 이름. ⚠ HUD 버튼의 글자와 같게 둔다 — 다르면 못 찾는다.</summary>
+        /// <summary>
+        /// 창에 보여줄 이름. ⚠ HUD 버튼의 글자와 같게 둔다 — 다르면 못 찾는다.
+        ///
+        /// ★★★ <b>2026-08-27 — 표를 거친다</b> (유저 리포트: *"영어로 변경되지 않는 UI들이
+        /// 있어(ex 로그, 단축키 설정 등)"*). 예전에는 열여섯 줄이 <b>전부 한글 리터럴</b>이라
+        /// 언어를 영어로 바꿔도 단축키 창의 <b>왼쪽 열 전체</b>가 한국어로 남았다.
+        ///
+        /// ★ <b>HUD 버튼과 키를 나눠 쓴다</b>(<c>ui_action_*</c>) — 위 ⚠ 의 «같게 둔다» 를
+        ///   규약이 아니라 <b>구조</b>로 만든 것이다. 한쪽만 고쳐서 어긋날 길이 없어진다
+        ///   (179-1절의 «같은 문구는 키 하나로» 그 규칙).
+        /// ⚠ <b>다섯은 나눠 쓸 수 없어 따로 만들었다</b> — HUD 쪽 문구에 자리표나 덧말이
+        ///   붙어 있기 때문이다: <c>ui_action_help</c> 는 «도움말 <b>(F1)</b>» ·
+        ///   <c>ui_action_create</c> 는 «캐릭터 생성 <b>{0}</b>» · <c>ui_speed_pause</c> 는
+        ///   «<b>정지</b>»(여기는 «일시정지»). 그 셋을 그대로 쓰면 창에 «도움말 (F1)» 이
+        ///   찍힌다.
+        /// ★ <b>배속 넷은 키 하나로 묶었다</b> — 「배속 N단계」는 숫자만 다르다. 넷으로
+        ///   나누면 문구를 다듬을 때 넷을 고쳐야 하고 반드시 하나가 뒤처진다.
+        ///   자리표 하나짜리 형식이라 <b>영어의 어순이 달라도 된다</b>(173-6절의 그 규칙).
+        /// </summary>
         public static string Label(HotkeyAction action) => action switch
         {
-            HotkeyAction.Settings        => "환경 설정",
-            HotkeyAction.Help            => "도움말",
-            HotkeyAction.CreateCharacter => "캐릭터 생성",
-            HotkeyAction.Squad           => "부대 설정",
-            HotkeyAction.Tactics         => "전술 지침",
-            HotkeyAction.Growth          => "캐릭터 성장",
-            HotkeyAction.Subjugate       => "토벌 지시",
-            HotkeyAction.Relics          => "유물 관리",
-            HotkeyAction.Hotkeys         => "단축키 설정",
-            HotkeyAction.Pause           => "일시정지",
-            HotkeyAction.Speed1          => "배속 1단계",
-            HotkeyAction.Speed2          => "배속 2단계",
-            HotkeyAction.Speed3          => "배속 3단계",
-            HotkeyAction.Speed4          => "배속 4단계",
-            HotkeyAction.Recenter        => "성역으로 화면 되돌리기",
+            HotkeyAction.Settings        => HudTheme.T("ui_action_settings", "환경 설정"),
+            HotkeyAction.Help            => HudTheme.T("ui_hotkey_action_help", "도움말"),
+            HotkeyAction.CreateCharacter => HudTheme.T("ui_hotkey_action_create", "캐릭터 생성"),
+            HotkeyAction.Squad           => HudTheme.T("ui_action_squad", "부대 설정"),
+            HotkeyAction.Tactics         => HudTheme.T("ui_action_tactics", "전술 지침"),
+            HotkeyAction.Growth          => HudTheme.T("ui_action_upgrade", "캐릭터 성장"),
+            HotkeyAction.Subjugate       => HudTheme.T("ui_action_subjugate", "토벌 지시"),
+            HotkeyAction.Relics          => HudTheme.T("ui_action_relic", "유물 관리"),
+            HotkeyAction.Hotkeys         => HudTheme.T("ui_settings_hotkeys", "단축키 설정"),
+            HotkeyAction.Pause           => HudTheme.T("ui_hotkey_action_pause", "일시정지"),
+            HotkeyAction.Speed1          => SpeedLabel(1),
+            HotkeyAction.Speed2          => SpeedLabel(2),
+            HotkeyAction.Speed3          => SpeedLabel(3),
+            HotkeyAction.Speed4          => SpeedLabel(4),
+            HotkeyAction.Recenter        => HudTheme.T("ui_hotkey_action_recenter",
+                                                      "성역으로 화면 되돌리기"),
             _                            => action.ToString(),
         };
+
+        /// <summary>「배속 N단계」 — 자리표 하나짜리 형식을 표에서 가져온다.</summary>
+        static string SpeedLabel(int step) =>
+            string.Format(HudTheme.T("ui_hotkey_action_speed", "배속 {0}단계"), step);
 
         /// <summary>기능 목록 — 창이 이 순서로 줄을 그린다(enum 선언 순서).</summary>
         public static readonly HotkeyAction[] All =
@@ -176,6 +199,7 @@ namespace LastSanctuary.UI
         /// 화면에 보여줄 키 이름. <see cref="Key.None"/> 은 «없음» 으로 적는다 —
         /// 빈 칸이면 «못 불러온 것» 처럼 보인다.
         /// </summary>
-        public static string KeyLabel(Key key) => key == Key.None ? "없음" : key.ToString();
+        public static string KeyLabel(Key key) =>
+            key == Key.None ? HudTheme.T("ui_hotkey_key_none", "없음") : key.ToString();
     }
 }

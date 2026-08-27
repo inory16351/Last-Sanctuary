@@ -199,7 +199,10 @@ namespace LastSanctuary.Combat
             _strongMindReadyAt = Time.time + Mathf.Max(0f, so.coolTime);
             _animator?.PlaySkillMotion(0, TrioFxSeconds, transform.position + Vector3.right);
             UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName,
-                                              $"체력 +{amount} ({seconds:0.#}초)"), UI.HudLogKind.Good);
+                                              string.Format(UI.HudTheme.T("log_detail_hp_gain_over",
+                                                                          "체력 +{0} ({1:0.#}초)"),
+                                                            amount, seconds)),
+                          UI.HudLogKind.Good);
             return true;
         }
 
@@ -310,7 +313,9 @@ namespace LastSanctuary.Combat
             _animator?.PlaySkillMotion(0, TrioFxSeconds, at + Vector3.right);
             PlayTrioAreaFx(0, at, radius * 2f);
             UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName,
-                                              $"{hits}명 피격 · 아군 {healed}명 +{heal}"),
+                                              string.Format(UI.HudTheme.T("log_detail_hits_and_heal",
+                                                                          "{0}명 피격 · 아군 {1}명 +{2}"),
+                                                            hits, healed, heal)),
                           UI.HudLogKind.Good);
             return true;
         }
@@ -361,7 +366,9 @@ namespace LastSanctuary.Combat
             StartCoroutine(FireVolley(near, shots));
 
             UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName,
-                                              $"{so.value02:0.#}타일 도약 · {shots}발"),
+                                              string.Format(UI.HudTheme.T("log_detail_leap_shots",
+                                                                          "{0:0.#}타일 도약 · {1}발"),
+                                                            so.value02, shots)),
                           UI.HudLogKind.Good);
             return true;
         }
@@ -414,7 +421,9 @@ namespace LastSanctuary.Combat
                                      Mathf.Max(1, Mathf.RoundToInt(so.value04))));
 
             UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName,
-                                              $"{length:0.#}x{width:0.#}타일 · {so.value04:0.#}초"),
+                                              string.Format(UI.HudTheme.T("log_detail_box_seconds",
+                                                                          "{0:0.#}x{1:0.#}타일 · {2:0.#}초"),
+                                                            length, width, so.value04)),
                           UI.HudLogKind.Good);
             return true;
         }
@@ -603,7 +612,10 @@ namespace LastSanctuary.Combat
             _animator?.PlaySkillMotion(0, TrioFxSeconds, at + Vector3.right);
             PlayTrioAreaFx(0, at, radius * 2f);
             UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName,
-                                              $"{hits}명 · 영혼 {_souls}"), UI.HudLogKind.Good);
+                                              string.Format(UI.HudTheme.T("log_detail_hits_souls",
+                                                                          "{0}명 · 영혼 {1}"),
+                                                            hits, _souls)),
+                          UI.HudLogKind.Good);
         }
 
         // ==================================================================

@@ -76,8 +76,12 @@ namespace LastSanctuary.UI
         //    없던 것은 <b>그것을 누를 자리</b>뿐이었다.
         //  ⚠ <b>이미 그려진 글자는 저절로 안 바뀐다.</b> 대부분의 패널은 열 때마다 다시
         //    칠하므로 창을 닫았다 열면 바뀌지만, <b>상시 HUD</b>(로스터·로그·액션)는
-        //    갱신 시점이 따로다. 그래서 이 창이 <c>OnLanguageChanged</c> 를 받아
-        //    <b>씬 전체의 «다시 그려라»</b> 를 한 번 돌린다(<see cref="HandleLanguageChanged"/>).
+        //    갱신 시점이 따로다.
+        //  ★★★ <b>2026-08-27 — 창마다 스스로 구독한다.</b> 예전에 이 자리에 «이 창이
+        //    <c>OnLanguageChanged</c> 를 받아 씬 전체의 다시 그리기를 돌린다» 고 적어 뒀는데
+        //    <b>그 코드가 실제로는 없었다</b>(주석만 있었다). 한 창이 남의 창까지 책임지는
+        //    구조는 «누가 누구를 아는가» 를 늘리기만 하므로, 지금은 창 열넷이 <b>각자</b>
+        //    이 이벤트를 구독한다. 이 창은 <see cref="HandleLanguageChanged"/> 로 자기 것만 그린다.
         [SerializeField] string languageButtonPath = "Body/LanguageButton";
 
         [Tooltip("언어 버튼에 찍는 글 — {0} 에 지금 언어 이름이 들어간다")]
@@ -152,13 +156,41 @@ namespace LastSanctuary.UI
         void Awake()
         {
             LocalizeLabels();
+            // ★★★ 2026-08-27 — <b>언어가 바뀌면 다시 그린다</b>. 아래 <see cref="HandleLanguageChanged"/>.
+            Data.StringTable.OnLanguageChanged -= HandleLanguageChanged;
+            Data.StringTable.OnLanguageChanged += HandleLanguageChanged;
             Instance = this;
             EnsureBound();
         }
 
         void OnDestroy()
         {
+            // ⚠ <b>반드시 끊는다.</b> <c>OnLanguageChanged</c> 는 <b>정적</b> 이벤트라 이 창이
+            //   사라져도 구독이 남는다. 씬을 갈아탄 뒤 언어를 바꾸면 죽은 오브젝트의
+            //   메서드를 부르게 되어 <c>MissingReferenceException</c> 이 난다
+            //   (<c>StringTable.ResetStatics</c> 는 <b>판마다</b> 한 번이라 씬 전환으로는 안 돈다).
+            Data.StringTable.OnLanguageChanged -= HandleLanguageChanged;
             if (_instance == this) _instance = null;
+        }
+
+        /// <summary>
+        /// ★★★ <b>언어가 바뀌었을 때 이 창을 다시 그린다</b> (2026-08-27 · 유저 리포트:
+        /// *"현재 언어에서 영어로 변경해도 영어로 변경되지 않는 UI들이 있어"*).
+        ///
+        /// <b>무엇이 빠져 있었나</b> — 이 파일 머리글(★★★ «언어 바꾸기» 절)은 <b>예전부터</b>
+        /// «이 창이 <c>OnLanguageChanged</c> 를 받아 씬 전체의 다시 그리기를 돌린다» 고 적어
+        /// 두었는데, <b>그 메서드도 구독도 실제로는 없었다</b>. 그래서 <see cref="LocalizeLabels"/>
+        /// 가 <c>Awake</c> 에서 <b>딱 한 번</b>만 돌았다 — 언어 버튼을 누른 <b>그 창 자신</b>이
+        /// 한국어로 남는, 가장 눈에 띄는 자리였다.
+        ///
+        /// ★ <b>씬 전체를 돌리지 않는다</b> — 머리글의 그 계획과 다르다. 지금은 창마다
+        ///   스스로 이 이벤트를 구독하므로(2026-08-27 에 열넷을 한꺼번에 이었다),
+        ///   한 창이 남의 창을 다시 그려 줄 이유가 없다. <b>자기 것만</b> 책임진다.
+        /// </summary>
+        void HandleLanguageChanged()
+        {
+            LocalizeLabels();
+            RefreshLanguageLabel();
         }
 
         /// <summary>
@@ -344,7 +376,8 @@ namespace LastSanctuary.UI
             HotkeyPanel panel = HotkeyPanel.Instance;
             if (panel == null)
             {
-                HudLog.Add("단축키 설정 창을 찾지 못했습니다", HudLogKind.Warn);
+                HudLog.Add(HudTheme.T("log_hotkey_panel_missing", "단축키 설정 창을 찾지 못했습니다"),
+                           HudLogKind.Warn);
                 return;
             }
 

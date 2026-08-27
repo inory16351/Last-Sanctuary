@@ -21,9 +21,13 @@ namespace LastSanctuary.Units
     /// </summary>
     public class CharacterUpgradeService : MonoBehaviour
     {
+        // ⚠⚠ <b>이 아래 기본값은 「능력치 및 공식 정리.xlsx」의 「계수」 시트와 같아야 한다</b>
+        //   (2026-08-27 정리 · <c>BalanceConfigSO</c> 머리글의 그 규약). 표는 «강화 기본 비용 40 ·
+        //   강화 증가 비용 10» 이고 씬도 그렇다. 기본값만 옛 20 에 남아 있었다.
+
         [Header("비용 (캐릭터별로 따로 올라감)")]
-        [Tooltip("한 번도 강화하지 않은 캐릭터의 강화 비용")]
-        [Min(0)] [SerializeField] int baseCost = 20;
+        [Tooltip("한 번도 강화하지 않은 캐릭터의 강화 비용. 기본 40 — 「계수」 시트의 «강화 기본 비용»")]
+        [Min(0)] [SerializeField] int baseCost = 40;
 
         [Tooltip("그 캐릭터를 한 번 강화할 때마다 다음 비용에 더해지는 양")]
         [Min(0)] [SerializeField] int costIncreasePerUpgrade = 10;
@@ -115,7 +119,10 @@ namespace LastSanctuary.Units
                  "★ 여기가 '각 수치마다 상승 확률'을 조절하는 자리다 — 양 끝을 낮추고 " +
                  "가운데를 높이면 평균 근처가 자주 나온다.\n" +
                  "일반 능력치는 이 굴림이 그대로 0~5, 성장 유형에 묶인 능력치는 +1 되어 1~6 이 된다")]
-        [SerializeField] int[] growthWeights = { 8, 17, 25, 25, 17, 8 };
+        // ⚠ 기본값이 옛 {8,17,25,25,17,8}(평균 2.5)이었다. 「계수」 시트와 「성장 시뮬레이션」
+        //   시트의 정본은 <b>{24,28,23,15,7,3}</b>(평균 1.62)이고 씬도 그렇다 — 그 분포라야
+        //   «Lv35 에 주력이 상한 100 에 닿는다» 는 경제 착지점이 맞는다(2026-08-27 정리).
+        [SerializeField] int[] growthWeights = { 24, 28, 23, 15, 7, 3 };
 
         [Tooltip("일반(성장 유형에 안 묶인) 능력치의 최솟값. 0 이면 '안 오를 수도 있다'")]
         [Min(0)] [SerializeField] int growthBaseMin = 0;

@@ -85,13 +85,11 @@ RULES = [
     ('웨이브 몬스터 테이블.xlsx', 'wave_nom', 'monster_id', [
         ('monster_name', 'monster_name', 'kr'),
     ]),
-    ('웨이브 몬스터 테이블.xlsx', 'wave_mid_boss', 'monster_id', [
-        ('monster_name', 'monster_name', 'kr'),
-        # 2026-08-13: 중간보스에도 칭호 칸을 만들었다(H열). 최종보스에만 있던 것이라
-        # 체력바에 띄울 칭호가 없었다 — 유저 지시 "보스 몬스터는 소환되면 체력바에
-        # 타이틀을 붙여서 표기". 영어 칭호는 스트링 키 테이블에서 직접 채운다.
-        ('boss_title', 'boss_title', 'kr'),
-    ]),
+    # ⚠ `wave_mid_boss` 시트는 <b>더 이상 없다</b> — 2026-08-18 의 보스 개편이 중간보스를
+    #   없애면서 시트째 지웠다(`table_update_20260818_boss_rework.py`). 그런데 이 규칙만
+    #   남아 있어 돌릴 때마다 «시트 없음 wave_mid_boss» 경고가 떴다. 경고가 늘 하나 떠 있으면
+    #   <b>진짜 경고가 그 소음에 묻힌다</b> — 그래서 규칙을 지운다(2026-08-27).
+    #   중간보스의 칭호 칸(H열) 이야기도 함께 사라진다. 최종보스의 `boss_title` 은 아래에 남는다.
     ('웨이브 몬스터 테이블.xlsx', 'wave_top_boss', 'monster_id', [
         ('monster_name', 'monster_name', 'kr'),
         ('boss_title', 'boss_title', 'kr'),

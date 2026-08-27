@@ -184,7 +184,11 @@ namespace LastSanctuary.Units
                 if (logOrders)
                     Debug.Log($"[토벌] 에픽 몬스터 발견 — {n.DisplayName}" +
                               (string.IsNullOrWhiteSpace(n.Title) ? "" : $" ({n.Title})"), n);
-                UI.HudLog.Add($"에픽 몬스터 발견 — {n.DisplayName}", UI.HudLogKind.Warn);
+                // ⚠ 이 파일에는 using LastSanctuary.UI 가 없다 — HudLog 처럼 상대 참조로 부른다.
+                UI.HudLog.Add(string.Format(
+                                  UI.HudTheme.T("log_epic_monster_found", "에픽 몬스터 발견 — {0}"),
+                                  n.DisplayName),
+                              UI.HudLogKind.Warn);
             }
             return changed;
         }
@@ -346,13 +350,19 @@ namespace LastSanctuary.Units
             if (ReferenceEquals(now, target)) return false;
 
             SquadService squads = SquadService.Instance;
-            string squadName = squads?.Find(squadId)?.Name ?? $"부대 {squadId}";
+            string squadName = squads?.Find(squadId)?.Name
+                               ?? string.Format(UI.HudTheme.T("ui_squad_default_name", "부대 {0}"), squadId);
 
             // ★ 정원 검사 — 해제(target == null)는 통과시킨다.
             if (target != null && !CanOrder(squadId, target))
             {
-                UI.HudLog.Add($"{target.DisplayName} 에는 이미 {MaxSquadsPerTarget}개 부대가 " +
-                              "가 있습니다", UI.HudLogKind.Warn);
+                // ★ 버그 수정 — 조각 두 개를 잇다가 «부대가 가 있습니다» 로 나왔다.
+                //   형식 하나로 합치면서 조사 중복을 없앴다.
+                UI.HudLog.Add(string.Format(
+                                  UI.HudTheme.T("log_subjugation_target_full",
+                                                "{0} 에는 이미 {1}개 부대가 있습니다"),
+                                  target.DisplayName, MaxSquadsPerTarget),
+                              UI.HudLogKind.Warn);
                 if (logOrders)
                     Debug.Log($"[토벌] {squadName} → {target.DisplayName} 거절 " +
                               $"(정원 {MaxSquadsPerTarget})", this);
@@ -362,13 +372,17 @@ namespace LastSanctuary.Units
             if (target == null || !target.IsAlive)
             {
                 _orders.Remove(squadId);
-                UI.HudLog.Add($"{squadName} 토벌 명령 해제");
+                UI.HudLog.Add(string.Format(
+                    UI.HudTheme.T("log_subjugation_order_cleared", "{0} 토벌 명령 해제"), squadName));
                 if (logOrders) Debug.Log($"[토벌] {squadName} 명령 해제", this);
             }
             else
             {
                 _orders[squadId] = target;
-                UI.HudLog.Add($"{squadName} → {target.DisplayName} 토벌", UI.HudLogKind.Warn);
+                UI.HudLog.Add(string.Format(
+                                  UI.HudTheme.T("log_subjugation_ordered", "{0} → {1} 토벌"),
+                                  squadName, target.DisplayName),
+                              UI.HudLogKind.Warn);
                 if (logOrders) Debug.Log($"[토벌] {squadName} → {target.DisplayName}", this);
             }
 

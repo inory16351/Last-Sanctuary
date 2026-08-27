@@ -206,7 +206,9 @@ namespace LastSanctuary.UI
             // 멈추는 것은 화면을 띄우는 시점이다 — 성역이 부서지는 순간은 그대로 보여준다.
             if (pauseGameOnDefeat) Time.timeScale = 0f;
 
-            HudLog.Add($"패배 — {ReasonLine()}", HudLogKind.Danger);
+            // ⚠ {0} = 패배 사유 한 줄(ReasonLine 이 이미 표를 거친다). 지우지 말 것.
+            HudLog.Add(string.Format(HudTheme.T("log_defeat", "패배 — {0}"), ReasonLine()),
+                       HudLogKind.Danger);
         }
 
         /// <summary>

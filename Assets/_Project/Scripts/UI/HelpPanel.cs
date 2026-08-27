@@ -189,6 +189,9 @@ namespace LastSanctuary.UI
         void Awake()
         {
             LocalizeLabels();
+            // ★★★ 2026-08-27 — 언어가 바뀌면 다시 그린다.
+            Data.StringTable.OnLanguageChanged -= HandleLanguageChanged;
+            Data.StringTable.OnLanguageChanged += HandleLanguageChanged;
             _instance = this;
             EnsureBound();
             // ⚠⚠ 여기서 자기를 끄지 않는다 — 이 창은 비활성으로 저장돼 있어 Awake 가
@@ -197,7 +200,16 @@ namespace LastSanctuary.UI
 
         void OnDestroy()
         {
+            // ⚠ 정적 이벤트라 끊지 않으면 죽은 오브젝트가 구독에 남는다(SettingsPanel 의 그 ⚠).
+            Data.StringTable.OnLanguageChanged -= HandleLanguageChanged;
             if (_instance == this) _instance = null;
+        }
+
+        /// <summary>언어가 바뀌면 문구를 다시 받아 오고, 열려 있으면 목록째 다시 짓는다.</summary>
+        void HandleLanguageChanged()
+        {
+            LocalizeLabels();
+            if (IsOpen) Rebuild();
         }
 
         // ------------------------------------------------------------------

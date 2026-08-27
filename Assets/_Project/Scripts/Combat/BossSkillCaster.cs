@@ -778,8 +778,10 @@ namespace LastSanctuary.Combat
             float body = Mathf.Max(2f, SelfBodyRadiusTiles() * 2f);
             PlayFx(slot, skill, transform.position, Vector2.right, body, body, null);
 
+            // 꼬리말도 표를 거친다 — 캐릭터·스킬 이름은 이미 표에서 온다.
             string line = UI.HudLog.SkillLine(_self.DisplayName, skill.DisplayName,
-                                              $"체력 +{amount}");
+                                              string.Format(UI.HudTheme.T("log_detail_hp_gain",
+                                                                          "체력 +{0}"), amount));
             UI.HudLog.Add(line, UI.HudLogKind.Danger);
             if (logCasts)
                 Debug.Log($"[보스스킬] {line} · 문턱 {threshold:0.#}% (지금 {now:0.#}%) · " +
@@ -1028,7 +1030,10 @@ namespace LastSanctuary.Combat
             // "누가 · 무슨 스킬" (유저 지시 2026-08-13: "로그에 스킬 쓰면 스킬 이름이랑
             // 같이 나오게 해줘 누가 썼는지랑"). 형식 문자열은 UI.HudLog.SkillLine 한 곳에 있다.
             string line = UI.HudLog.SkillLine(_self.DisplayName, skill.DisplayName,
-                                              hits > 0 ? $"{hits}명 피격" : null);
+                                              hits > 0
+                                                  ? string.Format(UI.HudTheme.T("log_detail_hits",
+                                                                                "{0}명 피격"), hits)
+                                                  : null);
             UI.HudLog.Add(line, UI.HudLogKind.Danger);
 
             if (logCasts)
@@ -1140,8 +1145,11 @@ namespace LastSanctuary.Combat
         static void Bind(UnitCombat combat, DamageableUnit target, float seconds, string label)
         {
             combat.ApplyBind(seconds, label);
-            string shown = string.IsNullOrEmpty(label) ? "구속" : label;
-            UI.HudLog.Add($"{target.DisplayName} {shown}!", UI.HudLogKind.Danger);
+            // 이름을 안 넘긴 스킬은 UnitCombat 이 표에서 고른 기본 이름을 그대로 되돌려 준다 —
+            // 여기서 "구속" 을 또 적으면 두 곳이 서로 다른 문구를 들 수 있다.
+            string shown = string.IsNullOrEmpty(label) ? combat.BoundLabel : label;
+            UI.HudLog.Add(string.Format(UI.HudTheme.T("log_status_applied", "{0} {1}!"),
+                                        target.DisplayName, shown), UI.HudLogKind.Danger);
         }
 
         /// <summary>
@@ -1169,7 +1177,9 @@ namespace LastSanctuary.Combat
             // 로그는 <b>새로 걸릴 때만</b> 남긴다 — 연기 안에 서 있으면 매 프레임 다시
             // 거므로(LingerSmoke) 안 그러면 로그창이 한 종류로 가득 찬다.
             if (wasClean && combat.IsPoisoned)
-                UI.HudLog.Add($"{target.DisplayName} {combat.PoisonLabel}!", UI.HudLogKind.Danger);
+                UI.HudLog.Add(string.Format(UI.HudTheme.T("log_status_applied", "{0} {1}!"),
+                                            target.DisplayName, combat.PoisonLabel),
+                              UI.HudLogKind.Danger);
         }
 
         /// <summary>

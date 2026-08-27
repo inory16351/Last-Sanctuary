@@ -144,8 +144,13 @@ namespace LastSanctuary.Relics
             // ★★ <b>유물 이름과 등급을 등급 색으로</b> (2026-08-26 · 유저 지시:
             //   일반 하양 · 레어 파랑 · 에픽 보라). 로그 한 줄 안에서 색이 갈려야 하므로
             //   <b>리치 텍스트 태그</b>를 쓴다 — TMP 는 태그 색이 라벨 색을 이긴다.
-            HudLog.Add($"{victimName} 이(가) <color=#{relic.GradeHex}>「{relic.DisplayName}」" +
-                       $" ({RelicDefinitionSO.NameOf(relic.grade)})</color> 을(를) 남겼습니다",
+            // ⚠ 색 태그까지 포함해 «형식 하나» 로 둔다 — 조각으로 나누면 영어 어순
+            //   (누가 · 무엇을 · 남겼다)을 못 맞춘다.
+            HudLog.Add(string.Format(
+                           HudTheme.T("log_relic_dropped",
+                                      "{0} 이(가) <color=#{1}>「{2}」 ({3})</color> 을(를) 남겼습니다"),
+                           victimName, relic.GradeHex, relic.DisplayName,
+                           RelicDefinitionSO.NameOf(relic.grade)),
                        relic.grade == RelicGrade.Epic ? HudLogKind.Good : HudLogKind.Info);
 
             // ★★ <b>보스가 남긴 것만 창을 띄운다</b> (2026-08-24 · 유저 지시:
@@ -175,8 +180,10 @@ namespace LastSanctuary.Relics
 
             panel.PresentBossDrop(
                 flavor,
-                $"유물 「{relic.DisplayName}」 ({RelicDefinitionSO.NameOf(relic.grade)})" +
-                "\n" + relic.Desc,
+                // 제목 줄만 표를 거친다 — 뒤에 붙는 설명은 유물 데이터 자체다(문구가 아니다).
+                string.Format(HudTheme.T("ui_relic_boss_drop_title", "유물 「{0}」 ({1})"),
+                              relic.DisplayName, RelicDefinitionSO.NameOf(relic.grade))
+                + "\n" + relic.Desc,
                 relic.icon);
         }
     }

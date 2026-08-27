@@ -12,25 +12,31 @@ namespace LastSanctuary.UI
     /// <c>CharacterUpgradeService</c> ↔ <c>UpgradeButtonUI</c> 와 같은 모양으로 맞췄다.
     /// 덕분에 버튼을 다시 만들어도 비용 규칙은 그대로 남는다.
     ///
-    /// <b>비용 공식(유저 확정)</b>: <c>150 + 100n</c> — <c>n</c> 은 몇 번째로 만드는 캐릭터인지
+    /// <b>비용 공식</b>: <c>200 + 150n</c> — <c>n</c> 은 몇 번째로 만드는 캐릭터인지
     /// (1부터, ex: 1 → 2 → 3 …). 캐릭터 성장 기획서 5장의 "생성한 캐릭터 수에 비례하여
     /// 자원 소모량 점진적 상승"을 그대로 수치화한 것 — 문서엔 구체적인 공식이 없어서
     /// 유저가 직접 지정한 값을 그대로 반영한다.
     ///
-    ///   비용 = baseCost(150) + costPerCreation(100) × n
+    ///   비용 = baseCost(200) + costPerCreation(150) × n
+    ///
+    /// ⚠ <b>옛 값은 150 + 100n 이었다</b>(그 전에는 130 + 40n). 2026-08-24 의 경제 재밸런싱이
+    ///   씬의 값을 200/150 으로 올렸는데 <b>이 주석과 기본값만 옛 값에 남아</b> 있었다
+    ///   (2026-08-27 정리). 정본은 「능력치 및 공식 정리.xlsx」의 <b>「계수」 시트</b>다 —
+    ///   거기에 «생성 기본 비용 200 · 생성 증가 비용 150 (2026-08-24 개정 — 옛 값 130/40)»
+    ///   으로 적혀 있다. 씬 값은 안 바뀐다(직렬화된 값이 기본값을 이긴다).
     ///
     /// 시작 인원(UnitSpawner 가 게임 시작에 만드는 3명)은 비용 계산에서 빼서,
-    /// 첫 추가 생성이 항상 n=1(=250) 부터 시작하게 했다 — 시작 캐릭터는 "생성" 이 아니라
+    /// 첫 추가 생성이 항상 n=1(=350) 부터 시작하게 했다 — 시작 캐릭터는 "생성" 이 아니라
     /// 게임이 처음부터 쥐여주는 인원이라, 기획서가 말하는 "생성한 캐릭터 수"에 포함되지 않는다.
     /// </summary>
     public class CharacterCreationService : MonoBehaviour
     {
-        [Header("비용 — 캐릭터 성장 기획서 5장 + 유저 확정 공식 150+100n")]
-        [Tooltip("공식의 상수항(150)")]
-        [Min(0)] [SerializeField] int baseCost = 150;
+        [Header("비용 — 「계수」 시트의 생성 비용 공식 200+150n")]
+        [Tooltip("공식의 상수항(200)")]
+        [Min(0)] [SerializeField] int baseCost = 200;
 
-        [Tooltip("공식의 n 배율(100) — n 은 몇 번째 생성인지(1부터)")]
-        [Min(0)] [SerializeField] int costPerCreation = 100;
+        [Tooltip("공식의 n 배율(150) — n 은 몇 번째 생성인지(1부터)")]
+        [Min(0)] [SerializeField] int costPerCreation = 150;
 
         [Header("제한")]
         [Tooltip("이 인원을 넘겨서는 만들 수 없다. 0 이면 제한 없음")]
@@ -109,7 +115,7 @@ namespace LastSanctuary.UI
             }
         }
 
-        /// <summary>다음 캐릭터를 만드는 데 드는 에너지. 150 + 100n.</summary>
+        /// <summary>다음 캐릭터를 만드는 데 드는 에너지. 200 + 150n (2026-08-27 — 옛 값 150+100n).</summary>
         public int CurrentCost => baseCost + costPerCreation * NextCreationNumber;
 
         /// <summary>인원 상한에 걸렸는지.</summary>
@@ -168,7 +174,10 @@ namespace LastSanctuary.UI
 
             if (logCreation)
                 Debug.Log($"[Create] {unit.name} 합류(무료 · {reason}) · 다음 생성 비용 {CurrentCost}", unit);
-            HudLog.Add($"{unit.name} 합류 ({reason})", HudLogKind.Good);
+            // ⚠ {0} = 캐릭터 이름 · {1} = 합류 사유. 둘 다 지우지 말 것.
+            HudLog.Add(string.Format(HudTheme.T("log_char_joined_free", "{0} 합류 ({1})"),
+                                     unit.name, reason),
+                       HudLogKind.Good);
 
             OnCreated?.Invoke(unit, 0);
             return unit;
@@ -184,7 +193,10 @@ namespace LastSanctuary.UI
 
             if (AtLimit)
             {
-                HudLog.Add($"인원 상한 {maxCharacters} 명에 도달했습니다", HudLogKind.Warn);
+                // ⚠ {0} = 인원 상한. 지우지 말 것.
+                HudLog.Add(string.Format(HudTheme.T("log_create_at_limit", "인원 상한 {0} 명에 도달했습니다"),
+                                         maxCharacters),
+                           HudLogKind.Warn);
                 return null;
             }
 
@@ -192,7 +204,8 @@ namespace LastSanctuary.UI
             //   비용을 깎기 <b>전에</b> 막는다: 환불 경로를 타면 로그가 두 줄 나와 헷갈린다.
             if (OutOfCandidates)
             {
-                HudLog.Add("더 등장할 인물이 없습니다", HudLogKind.Warn);
+                HudLog.Add(HudTheme.T("log_create_no_candidates", "더 등장할 인물이 없습니다"),
+                           HudLogKind.Warn);
                 return null;
             }
 
@@ -208,7 +221,10 @@ namespace LastSanctuary.UI
             {
                 if (logCreation)
                     Debug.Log($"[Create] 에너지 부족 — 생성에 {cost} 필요, 보유 {resources.Energy}");
-                HudLog.Add($"에너지 부족 — 생성에 {cost} 필요", HudLogKind.Warn);
+                // ⚠ {0} = 필요한 에너지. 지우지 말 것.
+                HudLog.Add(string.Format(HudTheme.T("log_create_no_energy", "에너지 부족 — 생성에 {0} 필요"),
+                                         cost),
+                           HudLogKind.Warn);
                 return null;
             }
 
@@ -222,7 +238,9 @@ namespace LastSanctuary.UI
             }
 
             if (logCreation) Debug.Log($"[Create] {unit.name} 생성 · 비용 {cost} · 다음 비용 {CurrentCost}", unit);
-            HudLog.Add($"{unit.name} 생성 (−{cost})", HudLogKind.Good);
+            // ⚠ {0} = 캐릭터 이름 · {1} = 쓴 에너지. 순서를 바꾸지 말 것.
+            HudLog.Add(string.Format(HudTheme.T("log_char_created", "{0} 생성 (−{1})"), unit.name, cost),
+                       HudLogKind.Good);
 
             OnCreated?.Invoke(unit, cost);
             return unit;

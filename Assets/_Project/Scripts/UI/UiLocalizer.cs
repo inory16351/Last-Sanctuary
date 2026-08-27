@@ -85,8 +85,17 @@ namespace LastSanctuary.UI
             E("HUD_Squad/Footer/CloseButton/Label",   "ui_btn_close"),
 
             // ── 토벌 지시 ─────────────────────────────────────────────────
+            // ⚠ 2026-08-27 — <b>제목 칸이 빠져 있었다</b>. 안쪽 머리글 둘만 이어 두고 정작
+            //   창 제목은 아무도 안 건드려 «토벌 지시» 가 영영 한국어였다(유저 리포트의 그 종류).
+            //   HUD 액션 버튼과 <b>같은 키</b>를 쓴다 — 같은 창을 가리키는 같은 말이다.
+            E("HUD_Subjugate/Header",                 "ui_action_subjugate"),
             E("HUD_Subjugate/Squads/Label",           "ui_head_squads"),
             E("HUD_Subjugate/Targets/Label",          "ui_subj_targets_head"),
+
+            // ── 유물 관리 ─────────────────────────────────────────────────
+            // ⚠ 2026-08-27 — 위 「토벌 지시」와 같은 건. 안쪽 문구는 RelicPanel 이
+            //   키로 채우는데(ui_relic_hint_*) <b>제목만</b> 씬에 구운 채 남아 있었다.
+            E("HUD_Relics/Header",                    "ui_action_relic"),
 
             // ── 도움말 ───────────────────────────────────────────────────
             E("HUD_Help/Header",                      "ui_help_title"),
@@ -108,6 +117,10 @@ namespace LastSanctuary.UI
             E("HUD_Growth/Header/Subtitle",           "ui_growth_subtitle"),
             E("HUD_Growth/Info/CostLabel",            "ui_growth_cost_head"),
             E("HUD_Growth/Info/HpLabel",              "ui_head_hp_now"),
+            // ⚠ 2026-08-27 — 초상화 자리의 «캐릭터 선택». 코드는 이 칸을 <b>켜고 끄기만</b>
+            //   하고(<c>_portraitHint.SetActive</c>) 글자는 한 번도 안 쓴다 — 그래서 지도가
+            //   맡는다. 전술 지침 창에도 <b>같은 칸</b>이 있어 키를 나눠 쓴다.
+            E("HUD_Growth/Info/Portrait/Hint",        "ui_portrait_pick_hint"),
             E("HUD_Growth/Stats/Head",                "ui_growth_stats_head"),
             E("HUD_Growth/Stats/GrowthLabel",         "ui_growth_focus_head"),
             E("HUD_Growth/Stats/PassiveHead",         "ui_growth_passive_head"),
@@ -124,6 +137,8 @@ namespace LastSanctuary.UI
             // ── 전술 지침 ─────────────────────────────────────────────────
             E("HUD_Tactics/Header/Title",             "ui_tactics_title"),
             E("HUD_Tactics/Header/Subtitle",          "ui_tactics_subtitle"),
+            // ⚠ 성장 창과 <b>같은 칸·같은 키</b>다(위 ui_portrait_pick_hint 의 ⚠).
+            E("HUD_Tactics/Info/Portrait/Hint",       "ui_portrait_pick_hint"),
             E("HUD_Tactics/Col1/Head",                "ui_tactics_col1_head"),
             E("HUD_Tactics/Col1/PosLabel",            "ui_tactics_pos_head"),
             E("HUD_Tactics/Col1/PosHint",             "ui_tactics_pos_hint"),

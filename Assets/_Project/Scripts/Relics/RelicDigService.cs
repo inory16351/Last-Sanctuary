@@ -622,7 +622,8 @@ namespace LastSanctuary.Relics
                 if (!_fog.IsExplored(s.Cell)) continue;
 
                 s.Revealed = true;
-                HudLog.Add("발굴할 수 있는 자리를 찾았습니다", HudLogKind.Good);
+                HudLog.Add(HudTheme.T("log_dig_site_found", "발굴할 수 있는 자리를 찾았습니다"),
+                           HudLogKind.Good);
             }
         }
 
@@ -763,7 +764,8 @@ namespace LastSanctuary.Relics
         {
             if (site == null || site.Ordered) return;
             site.Ordered = true;
-            HudLog.Add("발굴을 지시했습니다 — 가장 가까운 캐릭터가 갑니다", HudLogKind.Good);
+            HudLog.Add(HudTheme.T("log_dig_ordered", "발굴을 지시했습니다 — 가장 가까운 캐릭터가 갑니다"),
+                       HudLogKind.Good);
         }
 
         // ==================================================================
@@ -893,21 +895,26 @@ namespace LastSanctuary.Relics
             DigOutcomeRow row = _table != null ? _table.Roll() : null;
             if (row == null)
             {
-                HudLog.Add("발굴을 마쳤지만 아무것도 나오지 않았습니다");
+                HudLog.Add(HudTheme.T("log_dig_finished_empty", "발굴을 마쳤지만 아무것도 나오지 않았습니다"));
                 return;
             }
 
             row = PromoteIfExhausted(row);
 
             string what = ApplyOutcome(row, digger);
-            string who = digger != null ? digger.DisplayName : "누군가";
-            HudLog.Add(string.IsNullOrEmpty(what)
-                           ? $"{who} — 발굴: {row.Script}"
-                           : $"{who} — 발굴: {what}",
-                       what.StartsWith("−") || row.outcomeType == "dig_hurt" ||
-                       row.outcomeType == "dig_erosion_up"
-                           ? HudLogKind.Warn
-                           : HudLogKind.Good);
+            string who = digger != null ? digger.DisplayName : HudTheme.T("ui_dig_digger_unknown", "누군가");
+
+            // ⚠ 경고 여부를 <b>문구가 아니라 결과 종류</b>로 판정한다 — 예전에는
+            //   what.StartsWith("−") 로 봤는데, 문구가 표를 거치면서 번역되면
+            //   "−" 로 시작한다는 보장이 사라진다. "−" 로 시작하던 결과는
+            //   dig_hurt(체력 −)와 dig_erosion_down(침식 −) 둘뿐이라 판정은 그대로다.
+            bool warn = row.outcomeType == "dig_hurt" ||
+                        row.outcomeType == "dig_erosion_up" ||
+                        row.outcomeType == "dig_erosion_down";
+
+            HudLog.Add(string.Format(HudTheme.T("log_dig_result", "{0} — 발굴: {1}"),
+                                     who, string.IsNullOrEmpty(what) ? row.Script : what),
+                       warn ? HudLogKind.Warn : HudLogKind.Good);
 
             // ★ 결과 창 — 같은 대사 묶음의 result 줄 + 표의 결과 문구(2026-08-24).
             var panel = UI.RelicDigPanel.Instance;
@@ -973,7 +980,8 @@ namespace LastSanctuary.Relics
             if (!_promotionAnnounced)
             {
                 _promotionAnnounced = true;
-                HudLog.Add("일반 유물을 모두 모았습니다 — 이제 그 자리에서 에픽을 찾습니다",
+                HudLog.Add(HudTheme.T("log_dig_epic_promotion",
+                                      "일반 유물을 모두 모았습니다 — 이제 그 자리에서 에픽을 찾습니다"),
                            HudLogKind.Good);
             }
 
@@ -1064,7 +1072,7 @@ namespace LastSanctuary.Relics
                     // ★★ 에너지만 «판이 익을수록» 커진다 (2026-08-25 · ScaledEnergy 의 설명).
                     int amount = ScaledEnergy(row.value01);
                     Resource.ResourceManager.Instance?.AddEnergy(amount);
-                    return $"에너지 +{amount}";
+                    return string.Format(HudTheme.T("ui_dig_outcome_energy", "에너지 +{0}"), amount);
                 }
 
                 case "dig_heal":
@@ -1072,7 +1080,7 @@ namespace LastSanctuary.Relics
                     if (digger == null || !digger.IsAlive) return "";
                     int amount = Mathf.Max(1, Mathf.RoundToInt(digger.MaxHp * row.value01 * 0.01f));
                     digger.Heal(amount);
-                    return $"체력 +{row.value01}%";
+                    return string.Format(HudTheme.T("ui_dig_outcome_heal", "체력 +{0}%"), row.value01);
                 }
 
                 case "dig_hurt":
@@ -1082,7 +1090,7 @@ namespace LastSanctuary.Relics
                     // ⚠ 표: *"이 피해로 죽지 않습니다"* — 체력 1 을 남긴다(이벤트 보상과 같은 규칙).
                     int safe = Mathf.Min(amount, Mathf.Max(0, digger.CurrentHp - 1));
                     if (safe > 0) digger.ApplyDamage(safe);
-                    return $"체력 −{row.value01}%";
+                    return string.Format(HudTheme.T("ui_dig_outcome_hurt", "체력 −{0}%"), row.value01);
                 }
 
                 case "dig_erosion_up":
@@ -1092,7 +1100,9 @@ namespace LastSanctuary.Relics
                     if (er == null) return "";
                     bool up = row.outcomeType == "dig_erosion_up";
                     er.AddErosion(up ? row.value01 : -row.value01);
-                    return up ? $"침식 +{row.value01}" : $"침식 −{row.value01}";
+                    return up
+                        ? string.Format(HudTheme.T("ui_dig_outcome_erosion_up", "침식 +{0}"), row.value01)
+                        : string.Format(HudTheme.T("ui_dig_outcome_erosion_down", "침식 −{0}"), row.value01);
                 }
 
                 case "dig_nothing":
@@ -1118,7 +1128,9 @@ namespace LastSanctuary.Relics
         {
             RelicDefinitionSO relic = RelicRegistry.RollGrade(grade, digOnly);
             if (relic == null)
-                return $"{RelicDefinitionSO.NameOf(grade)} 유물은 이미 다 모았습니다";
+                return string.Format(
+                    HudTheme.T("ui_dig_relic_all_collected", "{0} 유물은 이미 다 모았습니다"),
+                    RelicDefinitionSO.NameOf(grade));
 
             RelicInventory.Instance?.Grant(relic);
             _lastGrantedIcon = relic.icon;
@@ -1127,8 +1139,11 @@ namespace LastSanctuary.Relics
             //   에픽 보라). 로그 한 줄 안에서 색이 갈려야 하므로 리치 텍스트 태그를 쓴다 —
             //   색의 정본은 유물 표(<c>Grade</c> 시트)이고 <see cref="RelicDefinitionSO.ColorOf"/>
             //   가 그것을 그대로 들고 있다.
-            return $"유물 <color=#{relic.GradeHex}>「{relic.DisplayName}」 " +
-                   $"({RelicDefinitionSO.NameOf(grade)})</color>";
+            // ⚠ 색 태그까지 «형식 하나» 에 넣는다 — 조각으로 나누면 영어에서 이름과 등급의
+            //   자리를 바꿀 수 없고, 인용 부호도 언어마다 달라야 한다(「」 ↔ "").
+            return string.Format(
+                HudTheme.T("ui_dig_relic_granted", "유물 <color=#{0}>「{1}」 ({2})</color>"),
+                relic.GradeHex, relic.DisplayName, RelicDefinitionSO.NameOf(grade));
         }
 
         // ==================================================================

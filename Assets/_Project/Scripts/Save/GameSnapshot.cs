@@ -115,10 +115,13 @@ namespace LastSanctuary.Save
         // 그 저장이 없으면 유저가 게임을 껐다 켜서 죽음을 무를 수 있다.
         // ==================================================================
 
-        void HandleWaveEnded(int wave) => AutoSave($"웨이브 {wave} 클리어");
+        void HandleWaveEnded(int wave) =>
+            AutoSave(string.Format(HudTheme.T("log_autosave_wave_cleared", "웨이브 {0} 클리어"), wave));
 
         void HandleUpgraded(CharacterUnit unit, int cost) =>
-            AutoSave($"{(unit != null ? unit.DisplayName : "캐릭터")} 강화");
+            AutoSave(string.Format(
+                HudTheme.T("log_autosave_upgraded", "{0} 강화"),
+                unit != null ? unit.DisplayName : HudTheme.T("ui_unit_generic", "캐릭터")));
 
         /// <summary>
         /// 캐릭터가 죽었을 때만 저장한다. 몬스터 사망은 초당 수십 번 일어나 저장이 의미가 없다.
@@ -137,7 +140,7 @@ namespace LastSanctuary.Save
             //   구독하면 그 판단이 두 벌이 되고 반드시 갈린다.
             RunRecord.NoteDeath(character, CurrentWaveNumber());
 
-            AutoSave($"{character.DisplayName} 사망");
+            AutoSave(string.Format(HudTheme.T("log_autosave_died", "{0} 사망"), character.DisplayName));
         }
 
         /// <summary>
@@ -166,7 +169,10 @@ namespace LastSanctuary.Save
             _nextAutoSaveAllowed = Time.unscaledTime + autoSaveCooldown;
 
             if (!SaveNow(reason)) return;
-            if (logAutoSave) HudLog.Add($"자동 저장 — {reason}", HudLogKind.Info);
+            // reason 은 위 Handle*** 이 이미 표를 거쳐 만든 문구다 — 여기서는 감싸기만 한다.
+            if (logAutoSave)
+                HudLog.Add(string.Format(HudTheme.T("log_autosave", "자동 저장 — {0}"), reason),
+                           HudLogKind.Info);
         }
 
         /// <summary>
@@ -207,7 +213,8 @@ namespace LastSanctuary.Save
             {
                 Debug.LogWarning($"[저장] 캐릭터가 0명이라 «{reason}» 저장을 건너뜁니다 — " +
                                  "그 세이브를 불러오면 시작 캐릭터가 지워지고 0명으로 시작합니다.", this);
-                HudLog.Add("캐릭터가 없어 저장하지 않았습니다", HudLogKind.Warn);
+                HudLog.Add(HudTheme.T("log_save_skipped_no_characters", "캐릭터가 없어 저장하지 않았습니다"),
+                           HudLogKind.Warn);
                 return false;
             }
 
@@ -549,7 +556,9 @@ namespace LastSanctuary.Save
             try { Restore(data); }
             finally { _restoring = false; }
 
-            HudLog.Add($"불러왔습니다 — 웨이브 {data.waveNumber} ({data.savedAt})", HudLogKind.Good);
+            HudLog.Add(string.Format(HudTheme.T("log_load_done", "불러왔습니다 — 웨이브 {0} ({1})"),
+                                     data.waveNumber, data.savedAt),
+                       HudLogKind.Good);
         }
 
         void Restore(SaveData data)
@@ -614,7 +623,8 @@ namespace LastSanctuary.Save
             {
                 Debug.LogError("[불러오기] 저장에 캐릭터가 0명입니다 — 불러오기를 건너뜁니다. " +
                                "시작 캐릭터를 그대로 둡니다(그러지 않으면 0명으로 시작한다).", this);
-                HudLog.Add("저장에 캐릭터가 없어 불러오지 않았습니다", HudLogKind.Warn);
+                HudLog.Add(HudTheme.T("log_load_skipped_no_characters", "저장에 캐릭터가 없어 불러오지 않았습니다"),
+                           HudLogKind.Warn);
                 return;
             }
 

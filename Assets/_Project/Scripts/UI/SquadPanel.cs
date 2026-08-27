@@ -51,7 +51,18 @@ namespace LastSanctuary.UI
             rallyClear = HudTheme.T("ui_squad_rally_clear", rallyClear);
             coopExpeditionOn = HudTheme.T("ui_squad_coop_on", coopExpeditionOn);
             coopExpeditionOff = HudTheme.T("ui_squad_coop_off", coopExpeditionOff);
+            squadRemove = HudTheme.T("ui_squad_remove", squadRemove);
         }
+
+        // ★★ 2026-08-27 — <b>「부대 해제」 만 여기 없었다</b> (유저 리포트: *"영어로 변경되지
+        //   않는 UI들이 있어"*). 카드의 다른 버튼 셋(협동·집결지 설정·집결지 해제)은 전부
+        //   <b>코드가 글자를 쓴다</b>. 「부대 해제」만 <b>씬에 구운 글자를 그대로 두고</b>
+        //   <c>Button</c> 만 잡아 왔다 — 그래서 아무도 안 건드리는 칸이 되어 영영 한국어였다.
+        //   ⚠ <b><c>UiLocalizer</c> 지도로는 못 고친다</b> — 이 칸은 «카드 틀»(SquadCard_Template)
+        //     안에 있고 부대마다 <b>복제</b>된다. 지도는 틀만 고치므로 <b>이미 만들어진 카드</b>는
+        //     그대로 남는다. 그래서 다른 셋과 <b>같은 자리</b>에서 같은 방식으로 쓴다.
+        [Tooltip("부대 카드의 「부대 해제」 버튼 글자")]
+        [SerializeField] string squadRemove = "부대 해제";
 
         [Header("색")]
         [SerializeField] Color squadNormal = new Color(0.11f, 0.13f, 0.17f, 0.92f);
@@ -73,6 +84,8 @@ namespace LastSanctuary.UI
             public TMP_Text Count;
             public Button Button;
             public Button RemoveButton;
+            /// <summary>★ 2026-08-27 — 「부대 해제」 글자. 예전에는 <b>아무도 안 썼다</b>(아래 ★ 참조).</summary>
+            public TMP_Text RemoveLabel;
             public Button CoopButton;
             public Image CoopBackground;
             public TMP_Text CoopLabel;
@@ -334,6 +347,7 @@ namespace LastSanctuary.UI
                 Count = FindText(root, "Count"),
                 Button = root.GetComponent<Button>(),
                 RemoveButton = root.Find("RemoveButton")?.GetComponent<Button>(),
+                RemoveLabel = FindText(root, "RemoveButton/Label"),
                 CoopButton = root.Find("CoopButton")?.GetComponent<Button>(),
                 CoopBackground = root.Find("CoopButton")?.GetComponent<Image>(),
                 CoopLabel = FindText(root, "CoopButton/Label"),
@@ -557,6 +571,10 @@ namespace LastSanctuary.UI
                     Paint(card.RallyClearBackground, hasRally ? ButtonState.Normal : ButtonState.Off);
                 if (card.RallyClearLabel != null) card.RallyClearLabel.text = rallyClear;
             }
+
+            // ★ 2026-08-27 — 「부대 해제」도 같은 자리에서 쓴다(위 ★★ 참조).
+            //   상태에 따라 달라지지 않는 글자라 조건 없이 한 번 쓴다.
+            if (card.RemoveLabel != null) card.RemoveLabel.text = squadRemove;
         }
 
         /// <summary>표시에 영향을 주는 값들을 한 정수로 접는다 — 바뀔 때만 다시 그리려는 것.</summary>

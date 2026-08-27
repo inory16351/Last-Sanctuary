@@ -333,7 +333,12 @@ namespace LastSanctuary.UI
             ExpandedPointId = pointId;      // 옮기는 동안 범위를 같이 보여준다
             CameraControl.CameraRigController.PanSuppressed = true;
 
-            HudLog.Add($"{SquadLabel(point.SquadId)} 집결지 이동 — 원하는 자리에서 손을 떼세요", HudLogKind.Warn);
+            // ⚠ 자리표 {0} 은 부대 이름이다 — 표에서 지우면 «어느 부대를 옮기는지» 가 사라진다.
+            HudLog.Add(string.Format(
+                           HudTheme.T("log_rally_drag_begin",
+                                      "{0} 집결지 이동 — 원하는 자리에서 손을 떼세요"),
+                           SquadLabel(point.SquadId)),
+                       HudLogKind.Warn);
         }
 
         void HandleFlagDrag()
@@ -347,7 +352,7 @@ namespace LastSanctuary.UI
                 || mouse.rightButton.wasPressedThisFrame)
             {
                 CancelFlagDrag();
-                HudLog.Add("집결지 이동 취소");
+                HudLog.Add(HudTheme.T("log_rally_move_cancel", "집결지 이동 취소"));
                 return;
             }
 
@@ -450,7 +455,12 @@ namespace LastSanctuary.UI
                 OnPickingChanged?.Invoke(true);
             }
 
-            HudLog.Add($"{SquadLabel(squadId)} 집결지 지정 — 맵을 클릭하세요 (Esc 취소)", HudLogKind.Warn);
+            // ⚠ 자리표 {0} 은 부대 이름이다 — 지우지 말 것.
+            HudLog.Add(string.Format(
+                           HudTheme.T("log_rally_pick_begin",
+                                      "{0} 집결지 지정 — 맵을 클릭하세요 (Esc 취소)"),
+                           SquadLabel(squadId)),
+                       HudLogKind.Warn);
         }
 
         public void CancelPicking()
@@ -466,7 +476,8 @@ namespace LastSanctuary.UI
             if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
             {
                 CancelPicking();
-                HudLog.Add("집결지 지정 취소");
+                // Esc·우클릭 두 경로가 같은 문구다 — 키 하나로 묶는다.
+                HudLog.Add(HudTheme.T("log_rally_pick_cancel", "집결지 지정 취소"));
                 return;
             }
 
@@ -477,7 +488,8 @@ namespace LastSanctuary.UI
             if (mouse.rightButton.wasPressedThisFrame)
             {
                 CancelPicking();
-                HudLog.Add("집결지 지정 취소");
+                // Esc·우클릭 두 경로가 같은 문구다 — 키 하나로 묶는다.
+                HudLog.Add(HudTheme.T("log_rally_pick_cancel", "집결지 지정 취소"));
                 return;
             }
 
@@ -541,7 +553,10 @@ namespace LastSanctuary.UI
             {
                 point.World = world;
                 if (logChanges) Debug.Log($"[Rally] 집결지 #{point.Id} 이동 → {world} ({SquadLabel(squadId)})");
-                HudLog.Add($"{SquadLabel(squadId)} 집결지 이동", HudLogKind.Good);
+                // ⚠ {0} = 부대 이름. 이 형식은 MovePoint 와 같은 키를 쓴다(문구가 같다).
+                HudLog.Add(string.Format(HudTheme.T("log_rally_moved", "{0} 집결지 이동"),
+                                         SquadLabel(squadId)),
+                           HudLogKind.Good);
             }
             else
             {
@@ -549,7 +564,10 @@ namespace LastSanctuary.UI
                 _points.Add(point);
 
                 if (logChanges) Debug.Log($"[Rally] 집결지 #{point.Id} 생성 → {world} ({SquadLabel(squadId)})");
-                HudLog.Add($"{SquadLabel(squadId)} 집결지 지정", HudLogKind.Good);
+                // ⚠ {0} = 부대 이름. 지우지 말 것.
+                HudLog.Add(string.Format(HudTheme.T("log_rally_set", "{0} 집결지 지정"),
+                                         SquadLabel(squadId)),
+                           HudLogKind.Good);
             }
 
             OnPointsChanged?.Invoke();
@@ -564,7 +582,10 @@ namespace LastSanctuary.UI
 
             point.SquadId = squadId;
             if (logChanges) Debug.Log($"[Rally] 집결지 #{point.Id} → {SquadLabel(squadId)}");
-            HudLog.Add($"집결지 #{point.Id} → {SquadLabel(squadId)}", HudLogKind.Good);
+            // ⚠ {0} = 집결지 번호 · {1} = 부대 이름. 순서를 바꾸지 말 것.
+            HudLog.Add(string.Format(HudTheme.T("log_rally_assign", "집결지 #{0} → {1}"),
+                                     point.Id, SquadLabel(squadId)),
+                       HudLogKind.Good);
             OnPointsChanged?.Invoke();
         }
 
@@ -581,7 +602,10 @@ namespace LastSanctuary.UI
 
             point.World = world;
             if (logChanges) Debug.Log($"[Rally] 집결지 #{point.Id} 이동 → {world} ({SquadLabel(point.SquadId)})");
-            HudLog.Add($"{SquadLabel(point.SquadId)} 집결지 이동", HudLogKind.Good);
+            // SetRallyPoint 의 이동 로그와 같은 문구다 — 키 하나로 묶는다({0} = 부대 이름).
+            HudLog.Add(string.Format(HudTheme.T("log_rally_moved", "{0} 집결지 이동"),
+                                     SquadLabel(point.SquadId)),
+                       HudLogKind.Good);
             OnPointsChanged?.Invoke();
         }
 
@@ -594,7 +618,8 @@ namespace LastSanctuary.UI
             _points.RemoveAt(index);
             if (ExpandedPointId == pointId) ExpandedPointId = 0;
 
-            HudLog.Add($"집결지 #{pointId} 해제");
+            // ⚠ {0} = 집결지 번호. 지우지 말 것.
+            HudLog.Add(string.Format(HudTheme.T("log_rally_removed", "집결지 #{0} 해제"), pointId));
             OnPointsChanged?.Invoke();
         }
 
@@ -608,7 +633,9 @@ namespace LastSanctuary.UI
             if (ExpandedPointId == point.Id) ExpandedPointId = 0;
             if (IsPicking && PickingSquadId == squadId) CancelPicking();
 
-            HudLog.Add($"{SquadLabel(squadId)} 집결지 해제");
+            // ⚠ {0} = 부대 이름. 지우지 말 것.
+            HudLog.Add(string.Format(HudTheme.T("log_rally_removed_squad", "{0} 집결지 해제"),
+                                     SquadLabel(squadId)));
             OnPointsChanged?.Invoke();
             return true;
         }
@@ -620,7 +647,7 @@ namespace LastSanctuary.UI
 
             _points.Clear();
             ExpandedPointId = 0;
-            HudLog.Add("집결지 전체 해제");
+            HudLog.Add(HudTheme.T("log_rally_removed_all", "집결지 전체 해제"));
             OnPointsChanged?.Invoke();
         }
 
@@ -708,11 +735,18 @@ namespace LastSanctuary.UI
             if (changed) OnPointsChanged?.Invoke();
         }
 
+        /// <summary>
+        /// 부대 id → 화면에 적을 이름. 로그와 깃발 이름표가 <b>같은 문구</b>를 쓴다 —
+        /// 그래서 <c>log_</c> 가 아니라 <c>ui_</c> 접두사다.
+        /// ★ 유저가 지은 부대 이름은 번역하지 않는다(표를 거치지 않고 그대로 나간다).
+        /// </summary>
         static string SquadLabel(int squadId)
         {
-            if (squadId == 0) return "전체";
+            if (squadId == 0) return HudTheme.T("ui_squad_all", "전체");
             var squad = SquadService.Instance != null ? SquadService.Instance.Find(squadId) : null;
-            return squad != null ? squad.Name : $"부대 #{squadId}";
+            // ⚠ {0} = 부대 번호. 이름 없는 부대의 임시 표기라 자리표를 지우면 셋을 구분할 수 없다.
+            return squad != null ? squad.Name
+                                 : string.Format(HudTheme.T("ui_squad_numbered", "부대 #{0}"), squadId);
         }
 
         /// <summary>

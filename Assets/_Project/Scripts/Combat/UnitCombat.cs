@@ -787,8 +787,15 @@ namespace LastSanctuary.Combat
         /// 「구속」의 화면 표시 이름. 보스마다 다른 이름(예: 기절)을 쓸 수 있어서
         /// (<see cref="BossSkillSO.StatusName"/>, 2026-08-19) 상수가 아니라 인스턴스 값이다.
         /// 기본값 "구속" — 이름을 안 넘기는 옛 호출부·비어 있는 스킬은 그대로 이걸 쓴다.
+        ///
+        /// ★ 비어 있으면 <see cref="DefaultBoundLabel"/> 로 떨어진다 — 기본값을 필드 초기화로
+        ///   박아 두면 <b>객체를 만든 순간의 언어</b>로 굳어 버려서, 도중에 언어를 바꿔도
+        ///   옛 문구가 남는다. 그래서 «읽을 때» 표를 본다.
         /// </summary>
-        string _boundLabel = "구속";
+        string _boundLabel;
+
+        /// <summary>표에서 가져오는 「구속」 기본 표시 이름. 언어를 바꾸면 곧바로 따라온다.</summary>
+        static string DefaultBoundLabel => UI.HudTheme.T("ui_status_bind", "구속");
 
         /// <summary>
         /// <b>「허약」</b> — 공격속도를 <paramref name="reducePercent"/> % 만큼 깎는다.
@@ -917,8 +924,14 @@ namespace LastSanctuary.Combat
         /// <summary>다음 「중독」 피해를 넣을 시각 — 1초 간격을 지키는 데 쓴다.</summary>
         float _poisonNextTickAt;
 
-        /// <summary>「중독」의 화면 표시 이름. 「구속」의 <c>_boundLabel</c> 과 같은 이유로 인스턴스 값이다.</summary>
-        string _poisonLabel = "중독";
+        /// <summary>
+        /// 「중독」의 화면 표시 이름. 「구속」의 <c>_boundLabel</c> 과 같은 이유로 인스턴스 값이고,
+        /// 같은 이유로 <b>기본값을 필드에 박지 않는다</b> — 비어 있으면 읽을 때 표에서 가져온다.
+        /// </summary>
+        string _poisonLabel;
+
+        /// <summary>표에서 가져오는 「중독」 기본 표시 이름.</summary>
+        static string DefaultPoisonLabel => UI.HudTheme.T("ui_status_poison", "중독");
 
         /// <summary>
         /// <b>「중독」</b> — <paramref name="seconds"/> 초 동안 매초 최대 체력의
@@ -949,7 +962,8 @@ namespace LastSanctuary.Combat
         /// 마지막 값을 들고 있으니 호출부는 반드시 그쪽을 먼저 볼 것
         /// (<see cref="BoundLabel"/> 과 같은 규칙).
         /// </summary>
-        public string PoisonLabel => _poisonLabel;
+        public string PoisonLabel =>
+            string.IsNullOrEmpty(_poisonLabel) ? DefaultPoisonLabel : _poisonLabel;
 
         /// <summary>「중독」을 즉시 푼다.</summary>
         public void ClearPoison()
@@ -1072,7 +1086,8 @@ namespace LastSanctuary.Combat
         {
             if (seconds <= 0f) return;
             _boundUntil = Mathf.Max(_boundUntil, Time.time + seconds);
-            _boundLabel = string.IsNullOrEmpty(label) ? "구속" : label;
+            // 빈 이름은 «비움» 으로 둔다 — 읽는 쪽(BoundLabel)이 그때의 언어로 기본값을 고른다.
+            _boundLabel = string.IsNullOrEmpty(label) ? null : label;
             _target = null;
             _engaged = false;
             _engagedWith = null;
@@ -1086,7 +1101,8 @@ namespace LastSanctuary.Combat
         /// false 여도 마지막 값을 들고 있을 수 있으니, 호출부는 반드시 <see cref="IsBound"/>
         /// 를 먼저 확인할 것(<see cref="UI.UnitPortraitPanel"/> 참조).
         /// </summary>
-        public string BoundLabel => _boundLabel;
+        public string BoundLabel =>
+            string.IsNullOrEmpty(_boundLabel) ? DefaultBoundLabel : _boundLabel;
 
         /// <summary>
         /// 구속을 <b>즉시</b> 푼다 — 피올로의 「정신 안정」이 쓴다.

@@ -377,6 +377,10 @@ namespace LastSanctuary.UI
 
             HeroAwakeningService.OnAwakened -= HandleHeroAwakened;
             HeroAwakeningService.OnAwakened += HandleHeroAwakened;
+
+            // ★★★ 2026-08-27 — 언어가 바뀌면 문구를 다시 받아 온다(다음에 뜨는 숫자·글자부터).
+            Data.StringTable.OnLanguageChanged -= LocalizeLabels;
+            Data.StringTable.OnLanguageChanged += LocalizeLabels;
         }
 
         void OnDestroy()
@@ -386,6 +390,7 @@ namespace LastSanctuary.UI
             DamageableUnit.OnAnyMissed -= HandleMissed;
             ErosionService.OnMentalErrorTriggered -= HandleMentalError;
             HeroAwakeningService.OnAwakened -= HandleHeroAwakened;
+            Data.StringTable.OnLanguageChanged -= LocalizeLabels;
             if (_instance == this) _instance = null;
         }
 

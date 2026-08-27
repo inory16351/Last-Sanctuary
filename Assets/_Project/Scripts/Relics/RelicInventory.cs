@@ -356,11 +356,24 @@ namespace LastSanctuary.Relics
         public bool TryEquip(CharacterUnit unit, RelicDefinitionSO relic, out string reason)
         {
             reason = "";
-            if (unit == null || relic == null) { reason = "대상이 없습니다."; return false; }
-            if (unit.IsSummoned) { reason = "소환수에게는 장착할 수 없습니다."; return false; }
+            // ⚠ 이 파일에는 using LastSanctuary.UI 가 없다 — 네임스페이스 상대 참조로 부른다.
+            if (unit == null || relic == null)
+            {
+                reason = UI.HudTheme.T("ui_relic_equip_no_target", "대상이 없습니다.");
+                return false;
+            }
+            if (unit.IsSummoned)
+            {
+                reason = UI.HudTheme.T("ui_relic_equip_summon_denied", "소환수에게는 장착할 수 없습니다.");
+                return false;
+            }
 
             int key = KeyOf(unit);
-            if (key <= 0) { reason = "이 캐릭터에는 정의가 없습니다."; return false; }
+            if (key <= 0)
+            {
+                reason = UI.HudTheme.T("ui_relic_equip_no_definition", "이 캐릭터에는 정의가 없습니다.");
+                return false;
+            }
 
             // 이미 그걸 끼고 있으면 아무 일도 하지 않는다(눌러도 값이 안 흔들리게).
             if (IsEquippedOn(unit, relic)) return true;
@@ -369,7 +382,8 @@ namespace LastSanctuary.Relics
             //   자기 것이 점유로 잡히는 문제는 바로 위 «이미 끼고 있으면 그냥 성공» 이 막는다.
             if (FreeCount(relic.relicId) <= 0)
             {
-                reason = "남은 수량이 없습니다(다른 캐릭터가 끼고 있습니다).";
+                reason = UI.HudTheme.T("ui_relic_equip_none_left",
+                                       "남은 수량이 없습니다(다른 캐릭터가 끼고 있습니다).");
                 return false;
             }
 
@@ -380,7 +394,9 @@ namespace LastSanctuary.Relics
 
             if (free < 0)
             {
-                reason = $"유물 칸이 가득 찼습니다({slots.Length}칸). 먼저 하나를 벗기세요.";
+                reason = string.Format(
+                    UI.HudTheme.T("ui_relic_equip_slots_full", "유물 칸이 가득 찼습니다({0}칸). 먼저 하나를 벗기세요."),
+                    slots.Length);
                 return false;
             }
 

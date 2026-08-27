@@ -73,6 +73,20 @@ namespace LastSanctuary.UI
         readonly Dictionary<HotkeyAction, TMP_Text> _keyLabels =
             new Dictionary<HotkeyAction, TMP_Text>();
 
+        // ★★ 2026-08-27 — <b>언어가 바뀌면 다시 써야 하는 글자 칸들</b> (유저 리포트:
+        //   *"영어로 변경되지 않는 UI들이 있어(ex 로그, 단축키 설정 등)"*).
+        //   이 창은 <see cref="Build"/> 에서 <b>한 번</b> 지어지고 그 뒤로는 <see cref="Redraw"/>
+        //   가 «키 칸» 만 다시 썼다. 제목·안내·버튼 둘·<b>기능 이름 열다섯</b>은 지을 때
+        //   쓴 글자가 그대로 남아 있어, 언어를 바꿔도 창을 다시 열어도 한국어였다
+        //   (창을 <b>다시 짓지 않기</b> 때문이다 — <c>_built</c> 가 막는다).
+        readonly Dictionary<HotkeyAction, TMP_Text> _nameLabels =
+            new Dictionary<HotkeyAction, TMP_Text>();
+
+        TMP_Text _titleLabel;
+        TMP_Text _hintLabel;
+        TMP_Text _resetLabelText;
+        TMP_Text _closeLabelText;
+
         HotkeyAction? _capturing;
         bool _built;
 
@@ -89,12 +103,43 @@ namespace LastSanctuary.UI
             if (_body != null) _body.SetActive(false);
 
             HotkeyService.OnChanged += Redraw;
+
+            // ★★★ 2026-08-27 — 언어가 바뀌면 <see cref="Relabel"/> 로 다시 쓴다.
+            Data.StringTable.OnLanguageChanged -= HandleLanguageChanged;
+            Data.StringTable.OnLanguageChanged += HandleLanguageChanged;
         }
 
         void OnDestroy()
         {
             HotkeyService.OnChanged -= Redraw;
+            // ⚠ 정적 이벤트라 끊지 않으면 죽은 오브젝트가 구독에 남는다(SettingsPanel 의 그 ⚠).
+            Data.StringTable.OnLanguageChanged -= HandleLanguageChanged;
             if (Instance == this) Instance = null;
+        }
+
+        /// <summary>
+        /// ★★★ <b>언어가 바뀌면 이 창의 글자를 전부 다시 쓴다</b> (2026-08-27).
+        ///
+        /// ⚠ <b>다시 «짓지» 않는다</b> — <see cref="Build"/> 는 <see cref="_built"/> 가 막고,
+        ///   다시 지으면 지금 구르고 있는 위치와 «키 잡는 중» 상태가 날아간다. 글자만 갈아 끼운다.
+        /// </summary>
+        void HandleLanguageChanged()
+        {
+            LocalizeLabels();
+            Relabel();
+            Redraw();          // 키 칸의 «없음» 도 표를 거치므로 함께 다시 쓴다
+        }
+
+        /// <summary>지어 둔 글자 칸에 <b>지금 언어</b>의 문구를 다시 적는다.</summary>
+        void Relabel()
+        {
+            if (_titleLabel != null) _titleLabel.text = titleText;
+            if (_hintLabel != null) _hintLabel.text = hintText;
+            if (_resetLabelText != null) _resetLabelText.text = resetLabel;
+            if (_closeLabelText != null) _closeLabelText.text = closeLabel;
+
+            foreach (var kv in _nameLabels)
+                if (kv.Value != null) kv.Value.text = HotkeyService.Label(kv.Key);
         }
 
         void Update()
@@ -122,13 +167,23 @@ namespace LastSanctuary.UI
                 HotkeyAction? stolen = HotkeyService.Set(action, chosen);
 
                 // ★ 빼앗은 기능을 <b>말해 준다</b> — 조용히 지우면 «저쪽 단축키가 왜 사라졌지» 가 된다.
+                // ⚠ <b>조각을 이어 붙이지 않는다</b> — 자리표 셋짜리 «형식 하나»를 표에서
+                //   가져온다. 영어는 어순이 달라(「A 의 키를 B 가 가져갔다」 ↔ 「B took … from A」)
+                //   조각으로 나누면 옮길 방법이 없다(173-6절·179-2절의 그 규칙).
                 if (stolen.HasValue)
-                    HudLog.Add($"「{HotkeyService.Label(stolen.Value)}」의 단축키가 해제되었습니다 " +
-                               $"— {HotkeyService.KeyLabel(chosen)} 를 「{HotkeyService.Label(action)}」이 가져갔습니다",
+                    HudLog.Add(string.Format(
+                                   HudTheme.T("log_hotkey_stolen",
+                                              "「{0}」의 단축키가 해제되었습니다 — {1} 를 「{2}」이 가져갔습니다"),
+                                   HotkeyService.Label(stolen.Value),
+                                   HotkeyService.KeyLabel(chosen),
+                                   HotkeyService.Label(action)),
                                HudLogKind.Warn);
                 else
-                    HudLog.Add($"「{HotkeyService.Label(action)}」 단축키 → " +
-                               $"{HotkeyService.KeyLabel(chosen)}", HudLogKind.Good);
+                    HudLog.Add(string.Format(
+                                   HudTheme.T("log_hotkey_assigned", "「{0}」 단축키 → {1}"),
+                                   HotkeyService.Label(action),
+                                   HotkeyService.KeyLabel(chosen)),
+                               HudLogKind.Good);
 
                 Redraw();
                 return;
@@ -226,7 +281,7 @@ namespace LastSanctuary.UI
             title.pivot = new Vector2(0.5f, 1f);
             title.sizeDelta = new Vector2(-40f, 40f);
             title.anchoredPosition = new Vector2(0f, -14f);
-            Label(title, titleText, 24f, TextAlignmentOptions.Left, HudTheme.TextMain);
+            _titleLabel = Label(title, titleText, 24f, TextAlignmentOptions.Left, HudTheme.TextMain);
 
             // 안내
             RectTransform hint = NewRect("Hint", panel);
@@ -235,9 +290,9 @@ namespace LastSanctuary.UI
             hint.pivot = new Vector2(0.5f, 1f);
             hint.sizeDelta = new Vector2(-40f, 34f);
             hint.anchoredPosition = new Vector2(0f, -54f);
-            TMP_Text hintLabel = Label(hint, hintText, 14f,
-                                       TextAlignmentOptions.TopLeft, HudTheme.TextDim);
-            hintLabel.textWrappingMode = TextWrappingModes.Normal;
+            _hintLabel = Label(hint, hintText, 14f,
+                               TextAlignmentOptions.TopLeft, HudTheme.TextDim);
+            _hintLabel.textWrappingMode = TextWrappingModes.Normal;
 
             // ★★★ <b>줄은 «구르는 칸» 안에 넣는다</b> (2026-08-25 · 유저 지시:
             //   *"단축키 설정에 스크롤 바 넣어주고"*).
@@ -311,15 +366,17 @@ namespace LastSanctuary.UI
             catcher.raycastTarget = true;
 
             // 아래 버튼 둘
-            BuildButton(panel, "ResetButton", resetLabel,
+            _resetLabelText = BuildButton(panel, "ResetButton", resetLabel,
                         new Vector2(20f, 18f), new Vector2(0f, 0f), new Vector2(150f, 38f),
                         () =>
                         {
                             HotkeyService.ResetAll();
-                            HudLog.Add("단축키를 기본값으로 되돌렸습니다", HudLogKind.Good);
+                            HudLog.Add(HudTheme.T("log_hotkey_reset_all",
+                                                  "단축키를 기본값으로 되돌렸습니다"),
+                                       HudLogKind.Good);
                         });
 
-            BuildButton(panel, "CloseButton", closeLabel,
+            _closeLabelText = BuildButton(panel, "CloseButton", closeLabel,
                         new Vector2(-20f, 18f), new Vector2(1f, 0f), new Vector2(110f, 38f),
                         Close);
         }
@@ -349,8 +406,8 @@ namespace LastSanctuary.UI
             name.anchorMax = new Vector2(1f, 1f);
             name.offsetMin = new Vector2(12f, 0f);
             name.offsetMax = new Vector2(-(keyColumnWidth + 8f), 0f);
-            Label(name, HotkeyService.Label(action), 15f,
-                  TextAlignmentOptions.Left, HudTheme.TextMain);
+            _nameLabels[action] = Label(name, HotkeyService.Label(action), 15f,
+                                        TextAlignmentOptions.Left, HudTheme.TextMain);
 
             // 키 칸 — 오른쪽. <b>이게 버튼이다</b>
             RectTransform keyRect = NewRect("Key", row);
@@ -381,9 +438,10 @@ namespace LastSanctuary.UI
             _keyLabels[action] = keyLabel;
         }
 
-        void BuildButton(RectTransform panel, string name, string text,
-                         Vector2 offset, Vector2 anchor, Vector2 size,
-                         UnityEngine.Events.UnityAction onClick)
+        /// <summary>버튼 하나를 짓고 <b>그 글자 칸을 돌려준다</b> — 언어가 바뀌면 다시 써야 한다.</summary>
+        TMP_Text BuildButton(RectTransform panel, string name, string text,
+                             Vector2 offset, Vector2 anchor, Vector2 size,
+                             UnityEngine.Events.UnityAction onClick)
         {
             RectTransform rect = NewRect(name, panel);
             rect.anchorMin = rect.anchorMax = anchor;
@@ -407,7 +465,7 @@ namespace LastSanctuary.UI
 
             RectTransform labelRect = NewRect("Label", rect);
             Stretch(labelRect);
-            Label(labelRect, text, 16f, TextAlignmentOptions.Center, HudTheme.TextMain);
+            return Label(labelRect, text, 16f, TextAlignmentOptions.Center, HudTheme.TextMain);
         }
 
         static TMP_Text Label(RectTransform rect, string text, float size,

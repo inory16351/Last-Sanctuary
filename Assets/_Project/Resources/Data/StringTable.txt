@@ -1345,19 +1345,182 @@ ui_lobby_quit	게임 종료	Quit Game
 ui_squad_name_format	{0}부대	Squad {0}
 ui_skill_cooltime_format	재사용 대기시간 {0}초	Cooldown {0}s
 ui_tactics_retreat_off	사용 안 함	Off
-ui_opening_vo_01_1	기억한다 — 이 성역이 순백으로 빛나던 시절을.	I remember — when this sanctuary shone pure white.
-ui_opening_vo_01_2	천사들의 노래가 첨탑마다 울려 퍼졌고,	The song of the angels rang out from every spire,
-ui_opening_vo_01_3	그 어떤 어둠도 이 문턱을 넘지 못했다.	and no darkness ever crossed this threshold.
-ui_opening_vo_02_1	그 빛은 꺼졌다.	That light went out.
-ui_opening_vo_02_2	하늘은 순식간에 핏빛으로 물들었고,	In an instant the sky was stained the color of blood,
-ui_opening_vo_02_3	노도와 같은 어둠은 그들을 집어삼켰다.	and darkness came like a flood and swallowed them.
-ui_opening_vo_02_4	터전을 지키는 데에,	In the defense of the place they called home,
-ui_opening_vo_02_5	그 이유는 중요치 않으리 — 그들은 영문도 모른 채,	the reason hardly mattered — knowing nothing of why,
-ui_opening_vo_02_6	갑주를 여미고, 짙어지는 어둠을 향해 나아갈 뿐이었다.	they only fastened their armor and walked into the deepening dark.
-ui_opening_vo_03_1	성문은 무너졌고, 하늘에서는 짐승이 울부짖는다.	The gates have fallen, and beasts are howling in the sky.
-ui_opening_vo_03_2	불길은 자비를 모르고, 어둠은 뿌리처럼 번져간다.	The flames know no mercy, and the dark spreads like roots.
-ui_opening_vo_03_3	남은 것은 잿더미와, 지켜지지 못한 맹세뿐.	All that is left is ash, and oaths that went unkept.
-ui_opening_vo_04_1	쓰러진 이들의 이름을 나는 다 기억하지 못한다.	I cannot remember every name of the fallen.
-ui_opening_vo_04_2	그러나 그들이 지키려 했던 것만은 잊지 않았다.	But what they meant to protect — that I have not forgotten.
-ui_opening_vo_04_3	그대여, 마지막 성역이 완전히 저물기 전에 —	You there — before the last sanctuary sets for good,
-ui_opening_vo_04_4	나서라.	go out to meet it.
+ui_opening_vo_01_1	기억한다 — 이 성역이 순백으로 빛나던 시절을.	I remember — when this sanctuary shone in pristine white.
+ui_opening_vo_01_2	천사들의 노래가 첨탑마다 울려 퍼졌고,	The songs of angels echoed from every spire,
+ui_opening_vo_01_3	그 어떤 어둠도 이 문턱을 넘지 못했다.	and no darkness could cross these sacred gates.
+ui_opening_vo_02_1	그 빛은 꺼졌다.	Then, the light was extinguished.
+ui_opening_vo_02_2	하늘은 순식간에 핏빛으로 물들었고,	The heavens were suddenly stained crimson,
+ui_opening_vo_02_3	노도와 같은 어둠은 그들을 집어삼켰다.	and a tide of darkness swept forth, swallowing everything in its path.
+ui_opening_vo_02_4	터전을 지키는 데에,	When it comes to defending their home,
+ui_opening_vo_02_5	그 이유는 중요치 않으리 — 그들은 영문도 모른 채,	perhaps the reason matters little — they know not why,
+ui_opening_vo_02_6	갑주를 여미고, 짙어지는 어둠을 향해 나아갈 뿐이었다.	only that they must don their armor and march toward the deepening darkness.
+ui_opening_vo_03_1	성문은 무너졌고, 하늘에서는 짐승이 울부짖는다.	The gates have fallen, and beasts howl from the skies.
+ui_opening_vo_03_2	불길은 자비를 모르고, 어둠은 뿌리처럼 번져간다.	The flames know no mercy, and darkness spreads like roots through the earth.
+ui_opening_vo_03_3	남은 것은 잿더미와, 지켜지지 못한 맹세뿐.	All that remains are ashes—and the vows that could not be kept.
+ui_opening_vo_04_1	쓰러진 이들의 이름을 나는 다 기억하지 못한다.	I cannot remember the names of all those who fell.
+ui_opening_vo_04_2	그러나 그들이 지키려 했던 것만은 잊지 않았다.	But I have never forgotten what they sought to protect.
+ui_opening_vo_04_3	그대여, 마지막 성역이 완전히 저물기 전에 —	You, then—before the last sanctuary is swallowed by twilight completely —
+ui_opening_vo_04_4	나서라.	step forward.
+log_ally_died	{0} 사망	{0} died
+log_autosave	자동 저장 — {0}	Autosaved — {0}
+log_autosave_died	{0} 사망	{0} died
+log_autosave_upgraded	{0} 강화	{0} upgraded
+log_autosave_wave_cleared	웨이브 {0} 클리어	Wave {0} cleared
+log_battlelog_ready	전투 로그 준비 완료	Battle log ready
+log_build_cancelled	건설 취소	Build canceled
+log_build_cannot_place_here	그 자리에는 지을 수 없습니다	You can't build there
+log_build_completed	{0} 건설 완료	{0} built
+log_build_limit_reached	더 이상 건설할 수 없습니다	No more can be built
+log_build_not_enough_energy	에너지가 부족합니다 (건설 비용 {0})	Not enough energy (build cost {0})
+log_build_pick_site	건설 자리 지정 — {0}x{1} 범위를 클릭하세요 (비용 {2}, Esc 취소)	Build site — click a {0}x{1} area (cost {2}, Esc to cancel)
+log_build_site_refunded	건설 예약 취소 (에너지 +{0})	Build order canceled (energy +{0})
+log_build_site_reserved	{0} 건설 예약 (에너지 {1})	{0} queued (energy {1})
+log_char_created	{0} 생성 (−{1})	{0} created (−{1})
+log_char_joined	{0} 합류	{0} joined
+log_char_joined_free	{0} 합류 ({1})	{0} joined ({1})
+log_create_at_limit	인원 상한 {0} 명에 도달했습니다	Roster limit reached ({0})
+log_create_no_candidates	더 등장할 인물이 없습니다	No characters left to recruit
+log_create_no_energy	에너지 부족 — 생성에 {0} 필요	Not enough energy — {0} needed
+log_defeat	패배 — {0}	Defeat — {0}
+log_detail_at_ally_seconds	{0} 자리 · {1:0.#}초	at {0}'s side · {1:0.#}s
+log_detail_box_hits	{0:0.#}x{1:0.#}타일 · {2}명	{0:0.#}x{1:0.#} tiles · {2} hit
+log_detail_box_seconds	{0:0.#}x{1:0.#}타일 · {2:0.#}초	{0:0.#}x{1:0.#} tiles · {2:0.#}s
+log_detail_channeling	정신집중 {0:0.#}초	channeling {0:0.#}s
+log_detail_ferried	{0}명 이송	{0} ferried
+log_detail_ferried_cleansed	{0}명 이송 · 재생 해제	{0} ferried · regen cleansed
+log_detail_golem_summoned	골렘 소환	golem summoned
+log_detail_healed	{0} 회복	{0} healed
+log_detail_hits	{0}명 피격	{0} hit
+log_detail_hits_and_heal	{0}명 피격 · 아군 {1}명 +{2}	{0} hit · {1} allies +{2}
+log_detail_hits_exhaust	{0}명 · 탈진 {1:0.#}초	{0} hit · exhausted {1:0.#}s
+log_detail_hits_souls	{0}명 · 영혼 {1}	{0} hit · souls {1}
+log_detail_hp_gain	체력 +{0}	HP +{0}
+log_detail_hp_gain_over	체력 +{0} ({1:0.#}초)	HP +{0} (over {1:0.#}s)
+log_detail_invincible	{0:0.#}초 무적	invincible {0:0.#}s
+log_detail_leap_shots	{0:0.#}타일 도약 · {1}발	leap {0:0.#} tiles · {1} shots
+log_detail_radius	반경 {0:0.#}타일	radius {0:0.#} tiles
+log_detail_radius_hits	반경 {0:0.#}타일 · {1}명	radius {0:0.#} tiles · {1} hit
+log_detail_revive_in	{0:0.#}초 뒤 부활	revives in {0:0.#}s
+log_detail_riposte_hits	반격 {0}명	riposte {0}
+log_detail_share_hp	아군 {0}명 +{1} · 자신 −{1}	{0} allies +{1} · self −{1}
+log_detail_shield	보호막 {0} · {1:0.#}초	shield {0} · {1:0.#}s
+log_detail_taunt	도발 {0}명 · {1:0.#}초	taunt {0} · {1:0.#}s
+log_dig_epic_promotion	일반 유물을 모두 모았습니다 — 이제 그 자리에서 에픽을 찾습니다	You've collected every common relic — epics can be found there now
+log_dig_finished_empty	발굴을 마쳤지만 아무것도 나오지 않았습니다	The dig turned up nothing
+log_dig_ordered	발굴을 지시했습니다 — 가장 가까운 캐릭터가 갑니다	Dig ordered — the nearest character is on the way
+log_dig_result	{0} — 발굴: {1}	{0} — dug up: {1}
+log_dig_site_found	발굴할 수 있는 자리를 찾았습니다	Found a spot worth digging
+log_energy_gain	에너지 +{0} (총 {1})	Energy +{0} (total {1})
+log_epic_monster_found	에픽 몬스터 발견 — {0}	Epic monster found — {0}
+log_event_begin	<b>[사건]</b> {0}	<b>[Event]</b> {0}
+log_event_reward	[사건] {0} — {1}	[Event] {0} — {1}
+log_game_speed	게임 속도 {0}	Game speed {0}
+log_help_reset	도움말을 처음 상태로 되돌렸습니다	Help has been reset to its initial state
+log_hero_awaken	{0} 영웅 각성!	{0} hero awakening!
+log_hero_awaken_stage	{0} 영웅 각성! ({1}단계)	{0} hero awakening! (stage {1})
+log_hotkey_assigned	「{0}」 단축키 → {1}	"{0}" key → {1}
+log_hotkey_panel_missing	단축키 설정 창을 찾지 못했습니다	Hotkey settings window not found
+log_hotkey_reset_all	단축키를 기본값으로 되돌렸습니다	Key bindings restored to defaults
+log_hotkey_stolen	「{0}」의 단축키가 해제되었습니다 — {1} 를 「{2}」이 가져갔습니다	"{0}" lost its key — {1} was taken by "{2}"
+log_kill_monster	몬스터 처치 — {0}	Monster slain — {0}
+log_kill_neutral	중립 몬스터 처치 — {0}	Neutral monster slain — {0}
+log_load_done	불러왔습니다 — 웨이브 {0} ({1})	Loaded — wave {0} ({1})
+log_load_skipped_no_characters	저장에 캐릭터가 없어 불러오지 않았습니다	No characters in the save — nothing was loaded
+log_mental_error_onset	{0} {1} 상태에 빠집니다.	{0} falls into {1}.
+log_minimap_alert	웨이브 {0} 소환 — 미니맵 {1}곳 경보	Wave {0} spawn — {1} minimap alerts
+log_nexus_destroyed	성역 파괴	Sanctuary destroyed
+log_paused	일시정지	Paused
+log_rally_assign	집결지 #{0} → {1}	Rally #{0} → {1}
+log_rally_drag_begin	{0} 집결지 이동 — 원하는 자리에서 손을 떼세요	{0} rally move — release where you want it
+log_rally_move_cancel	집결지 이동 취소	Rally move canceled
+log_rally_moved	{0} 집결지 이동	{0} rally point moved
+log_rally_pick_begin	{0} 집결지 지정 — 맵을 클릭하세요 (Esc 취소)	{0} rally point — click the map (Esc to cancel)
+log_rally_pick_cancel	집결지 지정 취소	Rally placement canceled
+log_rally_removed	집결지 #{0} 해제	Rally #{0} cleared
+log_rally_removed_all	집결지 전체 해제	All rally points cleared
+log_rally_removed_squad	{0} 집결지 해제	{0} rally point cleared
+log_rally_set	{0} 집결지 지정	{0} rally point set
+log_relic_dropped	{0} 이(가) <color=#{1}>「{2}」 ({3})</color> 을(를) 남겼습니다	{0} left behind <color=#{1}>"{2}" ({3})</color>
+log_relic_revived	{0} — 「{1}」 이(가) 다시 일으켰습니다.	{0} — "{1}" brought them back.
+log_resumed	재개 ({0})	Resumed ({0})
+log_revived	{0} 부활	{0} revived
+log_save_skipped_no_characters	캐릭터가 없어 저장하지 않았습니다	No characters — nothing was saved
+log_status_applied	{0} {1}!	{0} {1}!
+log_subjugation_order_cleared	{0} 토벌 명령 해제	{0} slay order cleared
+log_subjugation_ordered	{0} → {1} 토벌	{0} → slay {1}
+log_subjugation_target_full	{0} 에는 이미 {1}개 부대가 있습니다	{0} already has {1} squads assigned
+log_upgraded	{0} Lv.{1} (−{2})	{0} Lv.{1} (−{2})
+log_victory	승리 — 웨이브 {0} 클리어	Victory — wave {0} cleared
+log_wave_cleared	웨이브 {0} 클리어 — 승리!	Wave {0} cleared — victory!
+log_wave_spawned	웨이브 {0} 몬스터 소환	Wave {0} monsters spawned
+ui_dig_dialogue_accept	천사 하나가 그 자리로 향합니다.	One of the angels heads for the spot.
+ui_dig_dialogue_boss_drop	쓰러진 것에게서 무언가를 얻었습니다.	Something was taken from the fallen.
+ui_dig_dialogue_decline	그 자리를 그대로 둡니다.	The spot is left alone.
+ui_dig_dialogue_discover	무언가 묻혀 있는 것 같습니다.	Something seems to be buried here.
+ui_dig_dialogue_result	파낸 자리를 확인합니다.	The dug-up spot is examined.
+ui_dig_digger_unknown	누군가	Someone
+ui_dig_outcome_energy	에너지 +{0}	Energy +{0}
+ui_dig_outcome_erosion_down	침식 −{0}	Corruption −{0}
+ui_dig_outcome_erosion_up	침식 +{0}	Corruption +{0}
+ui_dig_outcome_heal	체력 +{0}%	HP +{0}%
+ui_dig_outcome_hurt	체력 −{0}%	HP −{0}%
+ui_dig_relic_all_collected	{0} 유물은 이미 다 모았습니다	You've already collected every {0} relic
+ui_dig_relic_granted	유물 <color=#{0}>「{1}」 ({2})</color>	Relic <color=#{0}>"{1}" ({2})</color>
+ui_ending_roll_survivor_format	{0}  <size=80%>{1} · Lv.{2}</size>	{0}  <size=80%>{1} · Lv.{2}</size>
+ui_growth_cost_format	에너지 {0}	Energy {0}
+ui_hotkey_action_create	캐릭터 생성	Create Character
+ui_hotkey_action_help	도움말	Help
+ui_hotkey_action_pause	일시정지	Pause
+ui_hotkey_action_recenter	성역으로 화면 되돌리기	Center view on the Sanctuary
+ui_hotkey_action_speed	배속 {0}단계	Speed step {0}
+ui_hotkey_key_none	없음	None
+ui_portrait_pick_hint	캐릭터 선택	Pick a character
+ui_relic_boss_drop_title	유물 「{0}」 ({1})	Relic "{0}" ({1})
+ui_relic_equip_no_definition	이 캐릭터에는 정의가 없습니다.	This character has no definition.
+ui_relic_equip_no_target	대상이 없습니다.	No target.
+ui_relic_equip_none_left	남은 수량이 없습니다(다른 캐릭터가 끼고 있습니다).	None left (another character has it equipped).
+ui_relic_equip_slots_full	유물 칸이 가득 찼습니다({0}칸). 먼저 하나를 벗기세요.	Relic slots are full ({0}). Unequip one first.
+ui_relic_equip_summon_denied	소환수에게는 장착할 수 없습니다.	Summons cannot equip relics.
+ui_relic_none	없음	None
+ui_reward_char_die	{0} 사망	{0} died
+ui_reward_char_join	{0} 합류	{0} joined
+ui_reward_enemy_atk_down	적 공격력 −{0}% {1}초 ({2}마리)	Enemy ATK −{0}% for {1}s ({2} enemies)
+ui_reward_enemy_atk_spd	적 공격 속도 {0}% {1}초 ({2}마리)	Enemy attack speed {0}% for {1}s ({2} enemies)
+ui_reward_enemy_bind	적 구속 {0}초 ({1}마리)	Enemies bound {0}s ({1} enemies)
+ui_reward_enemy_burn	적 화상 초당 {0}% {1}초 ({2}마리)	Enemies burning {0}%/s for {1}s ({2} enemies)
+ui_reward_enemy_def_down	적 방어력 −{0}% {1}초 ({2}마리)	Enemy DEF −{0}% for {1}s ({2} enemies)
+ui_reward_enemy_hp_loss	적 체력 −{0}% ({1}마리)	Enemy HP −{0}% ({1} enemies)
+ui_reward_enemy_move_spd	적 이동 속도 {0}% {1}초 ({2}마리)	Enemy move speed {0}% for {1}s ({2} enemies)
+ui_reward_energy	에너지 {0}	Energy {0}
+ui_reward_erosion	침식 {0} ({1}명)	Corruption {0} ({1} allies)
+ui_reward_heal_received	받는 회복량 +{0}% ({1}명)	Healing received +{0}% ({1} allies)
+ui_reward_heal_received_timed	받는 회복량 +{0}% {1}초 ({2}명)	Healing received +{0}% for {1}s ({2} allies)
+ui_reward_hp_percent	체력 {0}% ({1}명)	HP {0}% ({1} allies)
+ui_reward_kill_grant	{0} 처치 기록 +{1}	{0} kill count +{1}
+ui_reward_mental_cure	정신 이상 해제 ({0}명)	Mental disorders cleared ({0} allies)
+ui_reward_nexus_damage	성역 손상 −{0}	Sanctuary damaged −{0}
+ui_reward_nexus_heal	성역 회복 +{0}	Sanctuary repaired +{0}
+ui_reward_permanent_stat	{0} {1} +{2} (영구)	{0} {1} +{2} (permanent)
+ui_reward_range	공격 사거리 {0}% ({1}명)	Attack range {0}% ({1} allies)
+ui_reward_range_timed	공격 사거리 {0}% {1}초 ({2}명)	Attack range {0}% for {1}s ({2} allies)
+ui_reward_relic_gain	{0} 획득 ({1})	{0} obtained ({1})
+ui_reward_shield	보호막 최대 체력의 {0}% ({1}명)	Shield {0}% of max HP ({1} allies)
+ui_reward_source_event	이벤트	Event
+ui_reward_stat	{0} {1}% ({2}명)	{0} {1}% ({2} allies)
+ui_reward_stat_timed	{0} {1}% {2}초 ({3}명)	{0} {1}% for {2}s ({3} allies)
+ui_reward_summon_enemy	적 {0}마리 추가 소환	{0} more enemies summoned
+ui_reward_vision	시야 {0}% ({1}명)	Vision {0}% ({1} allies)
+ui_reward_vision_timed	시야 {0}% {1}초 ({2}명)	Vision {0}% for {1}s ({2} allies)
+ui_save_load_failed	저장 파일을 읽지 못했습니다.	Couldn't read the save file.
+ui_save_version_mismatch	저장 형식이 다릅니다 (파일 {0} · 지금 {1}).	Save format differs (file {0} · now {1}).
+ui_save_write_failed	저장하지 못했습니다.	Couldn't save.
+ui_save_written	저장했습니다 ({0})	Saved ({0})
+ui_squad_all	전체	All
+ui_squad_default_name	부대 {0}	Squad {0}
+ui_squad_numbered	부대 #{0}	Squad #{0}
+ui_squad_remove	부대 해제	Disband
+ui_status_bind	구속	Bound
+ui_status_burn	화상	Burning
+ui_status_exhausted	탈진	Exhausted
+ui_status_poison	중독	Poisoned
+ui_unit_generic	캐릭터	Character

@@ -60,6 +60,27 @@ namespace LastSanctuary.UI
         {
             EnsureBound();
             LocalizeLabels();
+            // ★★★ 2026-08-27 — <b>언어가 바뀌면 다시 그린다</b>. 이 창에는 언어 버튼이 붙어
+            //   있는데도 <c>LocalizeLabels</c> 가 <c>Awake</c> 에서 한 번만 돌아, 버튼을 누른
+            //   <b>그 창 자신</b>이 한국어로 남아 있었다(게임 쪽 <c>SettingsPanel</c> 과 같은 건).
+            Data.StringTable.OnLanguageChanged -= HandleLanguageChanged;
+            Data.StringTable.OnLanguageChanged += HandleLanguageChanged;
+        }
+
+        void OnDestroy()
+        {
+            // ⚠⚠ <b>로비는 씬을 갈아탄다</b> — 「새로하기」를 누르면 이 창이 통째로 사라진다.
+            //   <c>OnLanguageChanged</c> 는 <b>정적</b> 이벤트라 끊지 않으면 구독이 남고,
+            //   게임 안에서 언어를 바꾸는 순간 <b>죽은 오브젝트</b>의 메서드를 부르게 된다
+            //   (<c>StringTable.ResetStatics</c> 는 판마다 한 번이라 씬 전환으로는 안 돈다).
+            Data.StringTable.OnLanguageChanged -= HandleLanguageChanged;
+        }
+
+        /// <summary>언어가 바뀌면 문구를 다시 받아 와 버튼에 새로 적는다.</summary>
+        void HandleLanguageChanged()
+        {
+            LocalizeLabels();
+            RefreshLanguageLabel();
         }
 
         void EnsureBound()

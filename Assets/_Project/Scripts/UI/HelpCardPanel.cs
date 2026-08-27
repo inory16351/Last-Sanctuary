@@ -79,6 +79,11 @@ namespace LastSanctuary.UI
         void Awake()
         {
             LocalizeLabels();
+            // ★ 2026-08-27 — 182-3절이 <see cref="Show"/> 안에서 다시 번역하게 만들어 «다음
+            //   카드부터» 는 이미 따라왔다. 여기 구독을 더해 <b>떠 있는 카드</b>도 따라온다.
+            //   («여러 번 불러도 안전» 은 _defaults 가 보장한다 — LocalizeLabels 의 ★.)
+            Data.StringTable.OnLanguageChanged -= LocalizeLabels;
+            Data.StringTable.OnLanguageChanged += LocalizeLabels;
             _instance = this;
             EnsureBound();
             // ⚠⚠ 여기서 자기를 끄지 않는다 — 이 카드는 비활성으로 저장돼 있어 Awake 가
@@ -87,6 +92,8 @@ namespace LastSanctuary.UI
 
         void OnDestroy()
         {
+            // ⚠ 정적 이벤트라 끊지 않으면 죽은 오브젝트가 구독에 남는다(SettingsPanel 의 그 ⚠).
+            Data.StringTable.OnLanguageChanged -= LocalizeLabels;
             if (_instance == this) _instance = null;
         }
 
