@@ -58,6 +58,9 @@ namespace LastSanctuary.UI
         /// <summary>칸 사이 간격(픽셀).</summary>
         const float Gap = 10f;
 
+        /// <summary>칸에 남겨야 할 최소 높이 — 아이콘(46) + 위아래 숨통.</summary>
+        const float MinCardHeight = 60f;
+
         /// <summary>판때기 그림 — 스킬 칸(<c>PassiveCard_*</c>)과 <b>같은 것</b>을 쓴다.</summary>
         const string PlateResource = "UI/Frames/Hud_Plate";
 
@@ -82,8 +85,16 @@ namespace LastSanctuary.UI
         /// 띠 오른쪽에 <b>비워 둘 폭</b> — 「유물 관리 열기」 버튼 자리다. 이걸 안 빼면
         /// 마지막 칸이 버튼 밑으로 들어간다.
         /// </param>
+        /// <param name="topReserved">
+        /// ★★ 띠 <b>위쪽에 비워 둘 높이</b> — 머리글 자리다. 칸은 띠에 <b>나중에</b> 붙으므로
+        /// 그리는 순서상 머리글 위에 얹힌다 — 자리를 안 비우면 글자가 판때기에 먹힌다
+        /// (2026-08-27 · 유저 리포트: *"이름 글씨 뒤에 있는 회색글씨"*).
+        /// 지금은 머리글을 <b>지워서</b> 0 이지만, 다시 얹으면 <b>코드를 안 고쳐도</b> 칸이 내려간다.
+        /// ⚠ <b>여기서 재지 않는다</b> — 머리글이 어디 있는지는 씬이 정하므로 부르는 쪽
+        ///   (성장 창)이 그 칸에서 재어 넘긴다. 숫자를 두 곳에 두지 않는다.
+        /// </param>
         public void Build(RectTransform bar, Image icon, TMP_Text name, TMP_Text effect,
-                          int slots, float rightReserved)
+                          int slots, float rightReserved, float topReserved = 0f)
         {
             if (_cards.Count > 0) return;
             if (bar == null || slots <= 0) return;
@@ -92,6 +103,13 @@ namespace LastSanctuary.UI
 
             float barW = bar.rect.width;
             float barH = bar.rect.height;
+
+            // ★ 비워 달라는 높이가 띠를 다 먹으면 칸이 «선» 이 된다. 칸에 남겨야 할 최소
+            //   높이를 지키는 선에서만 비운다 — 옛 폴백 경로(`Stats/RelicSlot`, 58px)로
+            //   되돌린 씬에서도 칸이 사라지지 않게 하는 안전장치다.
+            topReserved = Mathf.Clamp(topReserved, 0f, Mathf.Max(0f, barH - MinCardHeight));
+            float cardH = barH - topReserved;
+
             float width = (barW - rightReserved - Gap * (slots - 1)) / slots;
             if (width < 40f) return;                 // 띠가 너무 좁다 — 짓지 않는다(빈 목록이 곧 «없음»)
 
@@ -105,8 +123,8 @@ namespace LastSanctuary.UI
                 rt.SetParent(bar, false);
                 rt.anchorMin = rt.anchorMax = new Vector2(0f, 1f);
                 rt.pivot = new Vector2(0f, 1f);
-                rt.sizeDelta = new Vector2(width, barH);
-                rt.anchoredPosition = new Vector2(i * (width + Gap), 0f);
+                rt.sizeDelta = new Vector2(width, cardH);
+                rt.anchoredPosition = new Vector2(i * (width + Gap), -topReserved);
 
                 card.Root = go;
                 card.Plate = go.AddComponent<Image>();
@@ -132,7 +150,7 @@ namespace LastSanctuary.UI
                 //   테두리에 <b>닿기만 해도</b> 글자가 그림에 먹힌 것으로 보이므로 4px 숨통을 더 준다.
                 Place(card.Icon, new Vector2(14f, -14f), new Vector2(46f, 46f));
                 Place(card.Name, new Vector2(70f, -14f), new Vector2(width - 84f, 24f));
-                Place(card.Effect, new Vector2(70f, -40f), new Vector2(width - 84f, barH - 52f));
+                Place(card.Effect, new Vector2(70f, -40f), new Vector2(width - 84f, cardH - 52f));
 
                 // 이름은 한 줄, 효과는 두 줄까지 — 칸이 좁으니 글자가 줄어들어 들어간다.
                 HudTheme.FitText(card.Name, 11f, wrap: false);

@@ -98,6 +98,16 @@ namespace LastSanctuary.UI
 
         void Bind()
         {
+            // ★★★ 2026-08-27 — <b>문구를 여기서 받는다</b> (유저 리포트: *"유물 발굴 시 처음에
+            //   한 해서 언어를 영어로 한 상태에서도 한글로된 문구가 나와"*).
+            //   이 창은 씬에 <b>비활성</b>으로 저장돼 있어 <c>Awake</c> 가 «처음 켜질 때» 도는데,
+            //   그 <c>SetActive(true)</c> 는 <see cref="Show"/> <b>안에서</b> 일어난다. 그런데
+            //   제목은 <c>Show(titleDiscover, …)</c> 처럼 <b>부르기 전에</b> 읽히므로,
+            //   첫 창만 «Awake 전» 값 — 인스펙터에 구워진 한글 — 을 들고 갔다.
+            //   → 모든 입구가 <c>Bind()</c> 를 먼저 부르므로 여기서 받으면 첫 창부터 맞는다.
+            //   ⚠ <b>_bound 가드보다 위</b>다 — 가드 아래에 두면 두 번째부터는 안 돈다.
+            LocalizeLabels();
+
             if (_bound) return;
             _bound = true;
 

@@ -2159,7 +2159,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
   m_AnchoredPosition: {x: 0, y: -229}
-  m_SizeDelta: {x: 1135, y: 731}
+  m_SizeDelta: {x: 1143, y: 731}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!225 &952036173
 CanvasGroup:
@@ -3475,6 +3475,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ec0f173ee9e50074f831ed4c96ae11a1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LastSanctuary.UI.UiLocalizer
+  fitLabels: 1
+  minScale: 0.62
+  minSizeFloor: 9
 --- !u!1 &1304479223
 GameObject:
   m_ObjectHideFlags: 0
@@ -4231,7 +4234,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 1}
   m_AnchorMax: {x: 0.5, y: 1}
   m_AnchoredPosition: {x: 0, y: -7}
-  m_SizeDelta: {x: 757, y: 444}
+  m_SizeDelta: {x: 762, y: 444}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!114 &1695913019
 MonoBehaviour:

@@ -1446,8 +1446,22 @@ namespace LastSanctuary.UI
                     br.parent == barRect)
                     reserved = br.rect.width + 24f;
 
+                // ★★ 위 예약높이 — 머리글 자리 (2026-08-27). 칸은 띠에 <b>나중에</b> 붙어
+                //   그리는 순서상 머리글 위에 얹히므로, 자리를 안 비우면 글자가 먹힌다.
+                //   ⚠ 지금은 머리글(`RelicBar/Head`)을 <b>지워서</b> 0 이다 — 유저 지시로
+                //     「Equipped Relics」 를 없앴다. 다시 얹으면 여기가 알아서 재어 넘긴다.
+                // ★ 숫자를 박지 않고 <b>씬의 머리글 칸에서 잰다</b> — 자리 규칙을 두 곳에
+                //   두지 않는 것은 UI-69-3 과 같은 판단이다.
+                // ⚠ 머리글은 <b>띠 위끝에 앵커</b>돼 있다고 본다 — 아래끝까지의 거리는
+                //   그때 `-(y - 높이 × 피벗y)` 다.
+                float topReserved = 0f;
+                if (transform.Find(bar + "/Head") is RectTransform headRect &&
+                    headRect.parent == barRect)
+                    topReserved = -(headRect.anchoredPosition.y
+                                    - headRect.rect.height * headRect.pivot.y) + RelicHeadGap;
+
                 _relicCards.Build(barRect, _relicSlotIcon, _relicSlotName, _relicSlotEffect,
-                                  slots, reserved);
+                                  slots, reserved, topReserved);
 
                 for (int i = 0; i < _relicCards.Cards.Count; i++)
                 {
@@ -1495,9 +1509,13 @@ namespace LastSanctuary.UI
                 if (label != null) label.text = StatGrowthFocusTable.Label(focus);
             }
 
+            // ⚠ 아래쪽 「닫기」는 <b>없앴다</b> (2026-08-27 · 유저 지시: *"우측 하단에 있는
+            //   «닫기» 버튼은 더 이상 필요 없으니까 삭제해줘"*). 닫는 길은 머리글의 X 하나다.
             HookClose("Header/CloseButton");
-            HookClose("Footer/CloseButton");
         }
+
+        /// <summary>유물 띠 머리글과 칸 사이의 숨통(픽셀).</summary>
+        const float RelicHeadGap = 6f;
 
         void HookClose(string path)
         {
