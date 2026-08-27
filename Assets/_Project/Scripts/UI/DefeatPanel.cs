@@ -1,4 +1,5 @@
-﻿using TMPro;
+﻿using System.Collections;
+using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -30,6 +31,36 @@ namespace LastSanctuary.UI
     /// <c>Body</c> 만 켜고 끈다 — 보스 체력바(<see cref="BossHealthPanel"/>)가 같은 이유로 쓰는 방식이다.
     /// 전체 화면을 덮는 반투명 이미지도 <c>Body</c> 쪽에 있어서, 숨어 있는 동안에는 클릭을
     /// 가로막지 않는다.
+    ///
+    /// ═══════════════════════════════════════════════════════════════
+    ///  ★★★ <b>2026-08-27 — 한꺼번에 뜨는 대신 «떠오른다»</b>
+    /// ═══════════════════════════════════════════════════════════════
+    /// 유저 지시: *"게임 오버 시 게임 오버 배경 Defeat_bg.png 가 천천히 페이드인 되면서
+    /// 떠오르고"* · *"그냥 배경에 UI 뜨는걸로 하자 뒷배경으로 깔고 UI가 배경이 다
+    /// 떠오른 후에 페이드 인으로 떠오르게 해줘"*.
+    ///
+    /// 두 박자다 — ① <b>어둠 + 배경 그림</b>이 아래에서 올라오며 서서히 나타나고,
+    /// 그것이 <b>다 끝난 뒤에</b> ② 문구·버튼이 같은 결로 한 번 더 떠오른다.
+    /// 지시가 «천천히» 라 <c>backgroundRiseSeconds</c> 기본값을 <b>3.2초</b>로 잡았다.
+    ///
+    /// ★ <b>요약 줄과 「패배」 제목은 뺐다</b>(유저 확정) — 남는 것은 <b>사유 두 줄</b>과
+    ///   「다시 시작」 버튼이다. 씬에서 지우지 않고 <c>showTitle</c>·<c>showSummary</c> 로
+    ///   끈다 — 이유는 그 칸 옆의 ⚠ 에 적었다.
+    /// ★★★ <b>배경은 코드가 짓는다</b>(<see cref="BuildBackground"/>) — 이유가 셋이다.
+    ///   ① MCP 로는 씬에 <b>스프라이트 참조</b>를 넣을 수 없다(진행상황 8절 1번).
+    ///   ② MCP 로는 <b>형제 순서</b>를 정할 수 없다 — 새 <c>Image</c> 를 씬에 넣으면
+    ///      글자 위로 올라갈 위험이 있다(164-5절의 그 제약).
+    ///   ③ ⚠⚠ <b>씬에 꽂아 두면 지워진다.</b> 164-3절은 이 그림을 <c>Panel</c> 의
+    ///      <c>Image.sprite</c> 에 꽂았는데 <b>지금 씬에는 그 참조가 한 군데도 없다</b>
+    ///      (실측 — 씬 파일에서 <c>DefeatBg.png</c> 의 guid 가 <b>0번</b> 나온다).
+    ///      범인은 에디터 도구 <c>UiSkinApplier</c> 다 — 그 도구의 <c>Plates</c> 목록에
+    ///      <b><c>HUD_Defeat/Body/Panel</c> 이 들어 있어서</b>, 한 번 돌릴 때마다
+    ///      그 칸을 <c>Hud_Plate</c> 로 <b>덮는다</b>. 즉 «누가 실수로 지웠다» 가 아니라
+    ///      <b>구조적으로 덮일 자리</b>였다. 코드가 자기 오브젝트를 따로 지으면
+    ///      그 도구가 손댈 것이 없다.
+    /// ⚠ 같은 이유로 <b><c>Panel</c> 의 색·그림은 언제든 그 도구가 되돌릴 수 있다</b> —
+    ///   판을 «조금 투명하게»(a 0.8) 해 둔 것도 그 도구를 다시 돌리면 0.95 로 돌아간다.
+    ///   거기에 의존하는 연출을 만들지 말 것.
     /// </summary>
     public class DefeatPanel : MonoBehaviour
     {
@@ -76,6 +107,58 @@ namespace LastSanctuary.UI
 
         [SerializeField] string restartLabel = "다시 시작";
 
+        // ══════════════════════════════════════════════════════════════════
+        //  ★★★ <b>패배 연출 — 배경이 «떠오른» 뒤에 UI 가 «떠오른다»</b>
+        //     (2026-08-27 · 유저 지시: *"게임 오버 시 게임 오버 배경 Defeat_bg.png 가 천천히
+        //      페이드인 되면서 떠오르고"* → *"그냥 배경에 UI 뜨는걸로 하자 뒷배경으로 깔고
+        //      UI가 배경이 다 떠오른 후에 페이드 인으로 떠오르게 해줘"*)
+        // ══════════════════════════════════════════════════════════════════
+        // 예전에는 <c>Body</c> 를 켜는 순간 <b>전부 한꺼번에</b> 나타났다. 이제 두 박자다 —
+        //   ① 화면을 덮는 어둠과 <b>배경 그림</b>이 함께 «아래에서 위로» 떠오르며 나타난다.
+        //   ② 그것이 <b>다 끝난 뒤에</b> 문구·버튼이 같은 결로 한 번 더 떠오른다.
+        //
+        // ★ <b>배경은 코드가 짓는다.</b> MCP 로는 씬에 스프라이트 참조를 넣을 수 없고
+        //   (진행상황 8절 1번), 형제 순서도 정할 수 없다(164-5절). 코드가 만들면 둘 다
+        //   해결되고 — <c>SetAsFirstSibling</c> 로 <b>패널보다 뒤</b>임이 못박힌다 —
+        //   사람이 하이라키에서 드래그로 깨뜨릴 수도 없다.
+        // ⚠ <b>액자(RectMask2D) + AspectRatioFitter(EnvelopeParent)</b> 로 담는다.
+        //   <c>preserveAspect</c> 로는 화면비가 다를 때 <b>검은 띠</b>가 생긴다
+        //   (<see cref="EndingDirector"/> 가 같은 이유로 같은 구조를 쓴다).
+        // ⚠ 떠오르는 거리만큼 그림을 <b>미리 키워 둔다</b>(액자 안쪽 칸을 위아래로
+        //   <c>backgroundRisePixels</c> 만큼 넓힌다) — 안 그러면 다 떠오르기 전까지
+        //   <b>화면 아래에 빈 띠</b>가 보인다.
+
+        [Header("패배 연출")]
+        [Tooltip("배경 그림의 Resources 경로(확장자 없음). 비우면 배경 없이 UI 만 뜬다")]
+        [SerializeField] string backgroundResource = "UI/Result/DefeatBg";
+
+        [Tooltip("배경이 다 떠오르기까지의 시간(초). 지시가 «천천히» 라 길게 잡았다. " +
+                 "Time.unscaledDeltaTime 기준이라 게임이 멈춰도 흐른다")]
+        [Min(0f)] [SerializeField] float backgroundRiseSeconds = 3.2f;
+
+        [Tooltip("배경이 아래에서 떠오르는 거리(px · 1920×1080 기준)")]
+        [Min(0f)] [SerializeField] float backgroundRisePixels = 90f;
+
+        [Tooltip("배경이 다 뜬 뒤 UI 가 나타나기까지의 뜸(초)")]
+        [Min(0f)] [SerializeField] float uiDelaySeconds = 0.35f;
+
+        [Tooltip("UI(문구·버튼)가 떠오르며 나타나는 시간(초)")]
+        [Min(0f)] [SerializeField] float uiRiseSeconds = 1.1f;
+
+        [Tooltip("UI 가 떠오르는 거리(px). 배경보다 짧아야 «뒤가 크게, 앞이 작게» 로 보인다")]
+        [Min(0f)] [SerializeField] float uiRisePixels = 40f;
+
+        // ★ 유저 확정 — <b>사유 두 줄만</b> 남긴다(«패배» 제목도, «웨이브 N 도달 · 생존 …»
+        //   요약도 뺀다). 요약은 <b>기록</b>의 말투라 연출과 어울리지 않는다.
+        // ⚠ <b>씬에서 지우거나 끄지 않았다</b> — 181-6절과 같은 판단이다. 씬에서 끄면
+        //   «누가 왜 껐는지» 가 아무 데도 안 남고, 되살릴 때 자리를 다시 재야 한다.
+        //   칸을 켜면 그대로 돌아온다(자리는 씬에 그대로 있다).
+        [Tooltip("켜면 「패배」 제목 줄을 다시 보여준다")]
+        [SerializeField] bool showTitle = false;
+
+        [Tooltip("켜면 「웨이브 N 도달 · 생존 …」 요약 줄을 다시 보여준다")]
+        [SerializeField] bool showSummary = false;
+
         /// <summary>
         /// 문구 칸을 표의 값으로 갈아 끼운다(2026-08-26 · 하드코딩 이관).
         /// ★ 제목·패배 사유는 이미 <c>…Key</c> 칸으로 표를 보고 있다 — 여기는 나머지다.
@@ -98,6 +181,21 @@ namespace LastSanctuary.UI
         GameObject _body;
         TMP_Text _title, _reason, _summary, _restartTextLabel;
         Button _restartButton;
+
+        /// <summary>화면을 덮는 어둠(<c>Body</c> 자신의 그림). 배경과 함께 서서히 짙어진다.</summary>
+        Image _curtain;
+        /// <summary>씬에 직렬화된 어둠의 진하기 — 연출이 끝났을 때의 목표값이다.</summary>
+        float _curtainAlpha = 1f;
+
+        /// <summary>배경 그림을 담은 칸(액자 안쪽). <b>이것이 떠오른다</b>.</summary>
+        RectTransform _backgroundRect;
+        CanvasGroup _backgroundGroup;
+
+        /// <summary>문구·버튼이 든 패널. 배경이 다 뜬 뒤에 떠오른다.</summary>
+        RectTransform _panelRect;
+        CanvasGroup _panelGroup;
+        /// <summary>패널의 제자리(씬 값). 떠오르기 «전» 위치는 여기서 아래로 뺀 값이다.</summary>
+        float _panelBaseY;
 
         WaveManager _wave;
 
@@ -192,7 +290,18 @@ namespace LastSanctuary.UI
                                               FormatDuration(_finalSeconds), _finalAlive);
             if (_restartTextLabel != null) _restartTextLabel.text = restartLabel;
 
+            // ★ <b>연출의 «0초» 를 먼저 만들고</b> 켠다 — 켠 뒤에 값을 넣으면 첫 프레임에
+            //   완성된 화면이 <b>한 번 번쩍</b>인다(182-2절의 «글자를 먼저 쓰고 창을 켠다» 와
+            //   같은 자리, 부호만 반대다).
+            PrimePresentation();
+
             if (_body != null) _body.SetActive(true);
+
+            // ⚠ <b>코루틴은 이 컴포넌트가 돌린다</b> — <c>HUD_Defeat</c> 는 항상 활성이므로
+            //   <c>Body</c> 를 켜고 끄는 것과 무관하게 연출이 끊기지 않는다(기존 설계 덕이다).
+            //   ⚠ 아래에서 <c>timeScale</c> 을 0 으로 만들지만 코루틴은 <b>계속 돈다</b> —
+            //     연출이 전부 <c>unscaledDeltaTime</c> 이기 때문이다(<see cref="RiseIn"/>).
+            StartCoroutine(PlayPresentation());
 
             // ★★ <b>떠 있는 전투 연출을 먼저 치운다</b> (2026-08-21 · 유저 리포트:
             //   *"아르세니아 이펙트가 중앙 건물 청크에 걸려서 장식물처럼 안없어져"*).
@@ -227,6 +336,162 @@ namespace LastSanctuary.UI
         ///   시작 캐릭터 3명조차 못 나오면서 「캐릭터 생성」이 영구히 죽는다.
         ///   판을 비우는 순서는 <see cref="Save.RunResetService"/> 한 곳에 있다.
         public void Restart() => Save.RunResetService.BeginNewRun();
+
+        // ═══════════════════════════════════════════════════════════════════
+        //  연출 — ① 어둠+배경이 떠었다가 → ② 다 뜨면 UI 가 떠오른다
+        // ═══════════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// 연출의 첫 프레임 상태를 만든다 — <b>전부 투명하고, 제자리보다 아래에 있다</b>.
+        /// ⚠ <c>blocksRaycasts</c> 를 끈다 — 안 끄면 문구가 보이기도 전에
+        /// 「다시 시작」이 <b>눌린다</b>(투명한 버튼도 클릭은 받는다).
+        /// </summary>
+        void PrimePresentation()
+        {
+            if (_curtain != null)
+            {
+                Color c = _curtain.color;
+                _curtain.color = new Color(c.r, c.g, c.b, 0f);
+            }
+
+            if (_backgroundGroup != null) _backgroundGroup.alpha = 0f;
+            if (_backgroundRect != null)
+                _backgroundRect.anchoredPosition = new Vector2(0f, -backgroundRisePixels);
+
+            if (_panelGroup != null)
+            {
+                _panelGroup.alpha = 0f;
+                _panelGroup.interactable = false;
+                _panelGroup.blocksRaycasts = false;
+            }
+            if (_panelRect != null)
+                _panelRect.anchoredPosition = new Vector2(_panelRect.anchoredPosition.x,
+                                                          _panelBaseY - uiRisePixels);
+        }
+
+        /// <summary>
+        /// ⚠ <b>전부 <see cref="Time.unscaledDeltaTime"/> 이다.</b> 이 연출이 도는 동안
+        /// <see cref="Show"/> 가 <c>timeScale</c> 을 0 으로 만든다 — 스케일된 시간을 쓰면
+        /// 그 순간 <b>영원히 멈춘 페이드</b>가 된다.
+        /// </summary>
+        IEnumerator PlayPresentation()
+        {
+            yield return RiseIn(_backgroundGroup, _backgroundRect, backgroundRisePixels,
+                                0f, backgroundRiseSeconds, fadeCurtain: true);
+
+            float wait = 0f;
+            while (wait < uiDelaySeconds) { wait += Time.unscaledDeltaTime; yield return null; }
+
+            yield return RiseIn(_panelGroup, _panelRect, uiRisePixels,
+                                _panelBaseY, uiRiseSeconds, fadeCurtain: false);
+
+            if (_panelGroup != null)
+            {
+                _panelGroup.interactable = true;
+                _panelGroup.blocksRaycasts = true;
+            }
+        }
+
+        /// <summary>
+        /// «아래에서 떠오르며 나타난다» 한 번. <paramref name="baseY"/> 가 도착점이고
+        /// 출발점은 거기서 <paramref name="rise"/> 만큼 아래다.
+        ///
+        /// ★ <b>부드럽기(smoothstep)를 쓴다</b> — 선형으로 움직이면 끝나는 순간 «툭» 멈춰
+        /// 미끄러지다 만 것처럼 보인다. 알파와 자리에 <b>같은 값</b>을 먹여 둘이 어긋나지
+        /// 않게 한다.
+        /// </summary>
+        IEnumerator RiseIn(CanvasGroup group, RectTransform rect, float rise,
+                           float baseY, float seconds, bool fadeCurtain)
+        {
+            float t = 0f;
+            while (t < 1f)
+            {
+                t = seconds <= 0f ? 1f : Mathf.Clamp01(t + Time.unscaledDeltaTime / seconds);
+                float e = t * t * (3f - 2f * t);          // smoothstep
+
+                if (group != null) group.alpha = e;
+                if (rect != null)
+                    rect.anchoredPosition = new Vector2(rect.anchoredPosition.x,
+                                                        baseY - rise * (1f - e));
+                if (fadeCurtain && _curtain != null)
+                {
+                    Color c = _curtain.color;
+                    _curtain.color = new Color(c.r, c.g, c.b, _curtainAlpha * e);
+                }
+                yield return null;
+            }
+        }
+
+        /// <summary>
+        /// 배경 그림을 <b>코드가 짓는다</b> — <c>Body</c> 의 <b>첫 형제</b>로 넣어
+        /// 패널·문구보다 <b>뒤</b>에 그려지게 한다(한 캔버스 안의 순서는 형제 순서다 —
+        /// 164-5절). 세 겹인 이유는 위 «패배 연출» 절의 ⚠ 둘이다:
+        /// <code>
+        ///   Background        액자 — 화면에 딱 맞게 · RectMask2D 로 넘치는 부분을 자른다
+        ///     Inner           떠오르는 칸 — 액자보다 위아래로 rise 만큼 크다 · CanvasGroup
+        ///       Sprite        그림 — AspectRatioFitter(EnvelopeParent) 로 «꽉 채우기»
+        /// </code>
+        /// 그림을 못 찾으면 <b>아무것도 만들지 않고</b> 경고만 남긴다 — 배경 없이도
+        /// 패배 화면은 떠야 한다.
+        /// ⚠ 새 PNG 를 넣을 때는 <b>Sprite 로 들여왔는지</b> 볼 것(164-7절 —
+        /// Default 텍스처면 <c>Resources.Load&lt;Sprite&gt;</c> 가 null 이라 검은 화면이 된다).
+        /// </summary>
+        void BuildBackground()
+        {
+            if (_body == null || string.IsNullOrWhiteSpace(backgroundResource)) return;
+
+            var sprite = Resources.Load<Sprite>(backgroundResource.Trim());
+            if (sprite == null)
+            {
+                Debug.LogWarning($"[패배] 배경 'Resources/{backgroundResource}' 를 찾지 못했습니다 — " +
+                                 "배경 없이 문구만 뜹니다.", this);
+                return;
+            }
+
+            var frame = new GameObject("Background", typeof(RectTransform), typeof(RectMask2D));
+            RectTransform frameRect = (RectTransform)frame.transform;
+            frameRect.SetParent(_body.transform, false);
+            frame.layer = _body.layer;
+            Stretch(frameRect, 0f);
+            frameRect.SetAsFirstSibling();      // ★ 패널·문구보다 «뒤»
+
+            var inner = new GameObject("Inner", typeof(RectTransform), typeof(CanvasGroup));
+            _backgroundRect = (RectTransform)inner.transform;
+            _backgroundRect.SetParent(frameRect, false);
+            inner.layer = _body.layer;
+            Stretch(_backgroundRect, backgroundRisePixels);
+            _backgroundGroup = inner.GetComponent<CanvasGroup>();
+            _backgroundGroup.blocksRaycasts = false;
+            _backgroundGroup.alpha = 0f;
+
+            var art = new GameObject("Sprite", typeof(RectTransform), typeof(Image),
+                                     typeof(AspectRatioFitter));
+            RectTransform artRect = (RectTransform)art.transform;
+            artRect.SetParent(_backgroundRect, false);
+            art.layer = _body.layer;
+            Stretch(artRect, 0f);
+
+            var image = art.GetComponent<Image>();
+            image.sprite = sprite;
+            image.raycastTarget = false;
+            image.preserveAspect = false;       // ⚠ 켜면 화면비가 다를 때 검은 띠가 생긴다
+
+            var fitter = art.GetComponent<AspectRatioFitter>();
+            fitter.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
+            fitter.aspectRatio = sprite.rect.height > 0f
+                ? sprite.rect.width / sprite.rect.height
+                : 16f / 9f;
+        }
+
+        /// <summary>부모에 꽉 차게 편다. <paramref name="overscan"/> 만큼 위아래로 더 키운다.</summary>
+        static void Stretch(RectTransform rect, float overscan)
+        {
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.offsetMin = new Vector2(0f, -overscan);
+            rect.offsetMax = new Vector2(0f, overscan);
+        }
 
         static int CountAliveCharacters()
         {
@@ -264,6 +529,34 @@ namespace LastSanctuary.UI
 
             _restartButton = transform.Find("Body/Panel/RestartButton")?.GetComponent<Button>();
             if (_restartButton != null) _restartButton.onClick.AddListener(Restart);
+
+            // ── 연출에 쓰는 것들 (2026-08-27) ─────────────────────────────
+
+            // 화면을 덮는 어둠은 <c>Body</c> 자신의 그림이다. 진하기는 <b>씬에 직렬화된
+            // 값</b>을 그대로 목표로 삼는다 — 코드에 0.82 를 박아 두면, 사람이 씬에서
+            // 어둠을 새로 맞춰도 <b>연출이 매번 자기 값으로 되돌려 놓는다</b>.
+            _curtain = _body.GetComponent<Image>();
+            if (_curtain != null) _curtainAlpha = _curtain.color.a;
+
+            // 문구·버튼을 한 번에 투명하게 하려면 <c>CanvasGroup</c> 이 필요하다.
+            // ★ 없으면 <b>붙인다</b> — 씬에서 누가 지워도 연출이 살아 있게 하는
+            //   «안전망» 이다(<c>UiFillBar.Prepare</c>·<c>CharacterKills.EnsureOn</c> 와 같은 결).
+            Transform panel = transform.Find("Body/Panel");
+            if (panel != null)
+            {
+                _panelRect = panel as RectTransform;
+                if (_panelRect != null) _panelBaseY = _panelRect.anchoredPosition.y;
+
+                _panelGroup = panel.GetComponent<CanvasGroup>();
+                if (_panelGroup == null) _panelGroup = panel.gameObject.AddComponent<CanvasGroup>();
+            }
+
+            // ★ 유저 확정 — <b>사유 두 줄만</b> 남긴다. 씬에서 지우지 않은 이유는
+            //   위 «패배 연출» 절의 ⚠ 다 — 칸을 다시 켜면 자리가 그대로 돌아온다.
+            if (_title != null) _title.gameObject.SetActive(showTitle);
+            if (_summary != null) _summary.gameObject.SetActive(showSummary);
+
+            BuildBackground();
         }
 
         TMP_Text FindText(string path)

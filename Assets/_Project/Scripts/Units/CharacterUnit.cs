@@ -412,7 +412,19 @@ namespace LastSanctuary.Units
             //   ★★ 2026-08-27 — 이름은 <b>같은 성별의 주머니</b>에서 나온다(유저 지시:
             //     *"남캐는 남자 이름 여캐는 여자이름으로"*). 성별의 정본은 캐릭터 테이블의
             //     `gender` 칸이고, 비어 있으면 예전처럼 안 가리고 뽑는다.
-            altNameKey = CharacterAltNames.RegisterAppearance(def.characterId, def.gender);
+            //
+            //   ⚠⚠ <b>소환수는 «등장» 이 아니다</b> (2026-08-27 · 유저 리포트: *"첫번째 생성
+            //     때에도 고유한 자신의 이름이 아니라 랜덤 생성 이름을 가지고 나온다"*).
+            //     아루의 골렘은 <c>UnitSpawner.SpawnSummon</c> 이 이 문을 지나며 만드는데,
+            //     그 런타임 정의의 <c>characterId</c> 는 <b>90081</b> 로 0 이 아니다 —
+            //     그래서 골렘을 부를 때마다 «인물 90081 이 또 등장했다» 로 세어졌고,
+            //     ① 두 번째 골렘부터 <b>사람 이름</b>(「테오도르」 따위)을 달고 나왔으며
+            //     ② 그때마다 주머니에서 이름을 <b>한 개씩 빼먹어</b> 정작 사람이 다시 태어날
+            //        때 «이름이 남지 않아 원래 이름으로» 가 됐다.
+            //     ★ <c>SpawnSummon</c> 이 <c>MarkSummoned()</c> 를 <b>이 호출보다 먼저</b>
+            //       부르므로 여기서 이미 참이다 — 그 순서에 기대고 있다는 것을 적어 둔다.
+            if (!IsSummoned)
+                altNameKey = CharacterAltNames.RegisterAppearance(def.characterId, def.gender);
 
             ApplyObjectName();
             ApplyDefinitionSkin(def);

@@ -80,8 +80,14 @@ namespace LastSanctuary.Save
         static void ResetStatics() => Clear();
 
         /// <summary>
-        /// 기록을 비운다. <b>부르는 곳은 <see cref="RunResetService.BeginNewRun"/> 하나다</b> —
-        /// 위 doc 의 ⚠⚠ 참조. 다른 곳에서 부르지 말 것.
+        /// 기록을 비운다. <b>부르는 곳은 «판이 시작되는 자리» 뿐이다</b> — 위 doc 의 ⚠⚠ 참조.
+        ///
+        /// ⚠ <b>2026-08-27 — 자리가 둘이 됐다.</b> 예전 규약은 «<see cref="RunResetService"/>
+        ///   하나» 였는데, <b>이어하기가 그 문을 지나지 않는다</b>는 것이 드러났다
+        ///   (<c>GameSnapshot.Restore</c>). 로비로 나갔다 이어하기를 누르면 같은 프로세스라
+        ///   static 이 살아 있어 <b>지난 판의 전사자가 이 판의 엔딩에 실렸다</b>.
+        ///   그래서 <c>GameSnapshot.Restore</c> 가 <b>맨 앞에서</b> 한 번 더 부른다.
+        ///   <b>그 둘 말고는 부르지 말 것</b> — 판 도중에 부르면 전사자가 통째로 사라진다.
         /// </summary>
         public static void Clear()
         {

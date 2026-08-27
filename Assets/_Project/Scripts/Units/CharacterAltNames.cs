@@ -155,7 +155,16 @@ namespace LastSanctuary.Units
             if (!string.IsNullOrEmpty(altNameKey)) _used.Add(altNameKey);
         }
 
-        /// <summary>새 판 — 등장 기록과 쓴 이름을 비운다.</summary>
+        /// <summary>
+        /// 새 판 — 등장 기록과 쓴 이름을 비운다.
+        ///
+        /// ⚠ <b>2026-08-27 — 부르는 자리가 둘이다.</b> ① <c>RunResetService.ClearRunState</c>(새 판)
+        ///   ② <c>GameSnapshot.RestoreCharacters</c>(이어하기). 이어하기는 ①의 문을 지나지 않아
+        ///   <b>지난 판의 등장 기록이 그대로 남았고</b>, 그래서 이어한 판에서 <b>처음 만든
+        ///   캐릭터가 곧바로 대체 이름</b>을 달고 나왔다(유저 리포트). ②는 비운 뒤
+        ///   <see cref="MarkRestored"/> 로 세이브에 든 사실을 다시 채운다 — 자세한 이유는
+        ///   그쪽 주석에 적어 뒀다.
+        /// </summary>
         public static void ResetRun()
         {
             _appeared.Clear();
