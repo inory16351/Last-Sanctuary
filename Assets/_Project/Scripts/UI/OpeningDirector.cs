@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using TMPro;
@@ -160,6 +160,13 @@ namespace LastSanctuary.UI
                      "0 이면 앞 장면이 검게 진 직후 바로 시작한다")]
             [Min(0f)] public float atMusicTime;
 
+            [Tooltip("★ 앞 장면에서 <b>검게 지지 않고 그림끼리 겹쳐</b> 넘어온다(크로스 디졸브).\n" +
+                     "⚠ 첫 장면에서는 무시된다 — 앞에 겹칠 그림이 없다.\n" +
+                     "이 스위치가 «여덟 장을 브금 안에 넣는» 방법이다: 검은 전환은 컷마다 " +
+                     "머묾+페이드아웃+페이드인 ≒ 4.3초를 먹지만 디졸브는 <b>0초</b>다 " +
+                     "(<see cref=\"slides\"/> 의 «여덟 컷» 설명)")]
+            public bool dissolve;
+
             [Tooltip("자막의 타자 속도를 <b>그 문장 음성의 길이에 맞춰</b> 정한다. " +
                      "켜두면 문장을 말하는 동안 자막이 다 쳐진다")]
             public bool fitCaptionsToVoice = true;
@@ -251,17 +258,50 @@ namespace LastSanctuary.UI
         /// 영어와 달라도 타자 속도는 <see cref="Slide.fitCaptionsToVoice"/> 가 음성 길이에서
         /// 다시 계산하므로 <b>시각을 손댈 일이 없다</b>(㉡).
         ///
-        /// ★★ <b>배경을 대사에 맞춰 다시 짝지었다</b> (같은 지시 — <i>"이미지 배경이 컷이랑
-        /// 안 맞아 한글대사 읽어보고 해당 대사에 맞춰서 해줘"</i>). 넉 장은 볼트 그림을 2×2 로
-        /// 자른 순서(BG_01~04)일 뿐이고 <b>이야기 순서가 아니었다</b> —
+        /// ★★★ <b>2026-08-28 — 컷을 넷에서 여덟으로 늘렸다</b> (유저 지시: <i>"오프닝도 8장 하고 …
+        /// 처음부터 구성해줘 장면을 음성에 맞춰서"</i> · <i>"클릭하면 다음 그림으로 넘어가게 …
+        /// 8단계에 걸쳐"</i>). 그림도 전부 새로 뽑았고 <b>파일 이름이 곧 이야기 순서</b>가 됐다 —
+        /// 예전의 «자른 순서(BG_04 → 01 → 03 → 02)» 라는 함정이 사라졌다.
         /// <code>
-        ///   1컷 «순백으로 빛나던 시절 · 천사들의 노래»  → BG_04 (흰 성역 · 맑은 하늘)
-        ///   2컷 «빛이 꺼지고 하늘이 핏빛 · 갑주를 여미고» → BG_01 (붉은 일식 · 진군하는 기사들)
-        ///   3컷 «성문이 무너지고 짐승이 울부짖는다»      → BG_03 (불타는 성 · 용과 마군)
-        ///   4컷 «쓰러진 이들 · 지켜지지 못한 맹세»        → BG_02 (주저앉은 천사 · 잿더미)
+        ///   1컷 BG_01   1.59  01-01·01-02  순백으로 빛나던 시절 · 천사들의 노래
+        ///   2컷 BG_02  15.38  01-03         어둠도 이 문턱을 넘지 못했다
+        ///   3컷 BG_03  23.22  02-01~03      빛이 꺼지고 · 핏빛 하늘 · 어둠이 집어삼킴
+        ///   4컷 BG_04  41.71  02-04~06      갑주를 여미고 어둠을 향해
+        ///   5컷 BG_05  59.58  03-01·03-02   성문이 무너지고 짐승이 울부짖는다
+        ///   6컷 BG_06  77.14  03-03         잿더미와 지켜지지 못한 맹세
+        ///   7컷 BG_07  89.05  04-01·04-02   쓰러진 이들의 이름
+        ///   8컷 BG_08 104.09  04-03·04-04   그대여 — 나서라
         /// </code>
-        /// ⚠ <b>음성(VO)의 순서는 그대로다</b> — 내레이션은 이미 이야기 순서로 녹음되어 있다.
-        ///   바꾼 것은 «어느 그림을 어느 컷에 쓸지» 뿐이다.
+        ///
+        /// ★★★ <b>여덟 컷을 넣으려면 페이드를 조여야 했다</b> — 이것이 이 판의 값이다.
+        /// 컷을 하나 늘릴 때마다 «머묾 + 페이드아웃 + 페이드인 + 리드» 가 통째로 붙는다.
+        /// 내레이션 93.07초 / 브금 119.65초라 여유가 <b>26.6초뿐</b>인데, 예전 값
+        /// (인 1.6 · 머묾 1.5 · 아웃 1.2)으로 넉 장을 더하면 <b>136.97초</b>가 되어 17.3초 넘친다.
+        /// <code>
+        ///   컷=2마디 · 조각=박        152.98초   ✗
+        ///   컷=마디  · 조각=박        141.69초   ✗
+        ///   컷=마디  · 조각=박의 1/3  129.16초   ✗
+        ///   컷=반마디 · 조각=박의 1/3 125.39초   ✗
+        ///   컷=박    · 조각=박의 1/3  120.69초   ✗  (1.04초 모자란다)
+        ///   컷=박의 1/3 · 조각=박의 1/3 118.81초 ✓  ← 고른 것 (0.84초 남는다)
+        /// </code>
+        /// 그래서 <b>페이드인 1.6→1.0 · 머묾 1.5→0.6 · 페이드아웃 1.2→0.6</b> 으로 조이고
+        /// 컷 전환을 <b>박의 1/3</b> 격자에 올렸다. 전환이 예전보다 또렷하게 빨라진다 —
+        /// 컷이 두 배가 된 값이다. (2026-08-28 유저 지시: <i>"디졸브 말고 페이드 인 아웃으로 해줘"</i>.
+        /// 겹치기(<see cref="Slide.dissolve"/>)를 쓰면 <b>시각표를 안 건드리고</b> 예전의 느린
+        /// 페이드를 그대로 둘 수 있다 — 장치는 <see cref="CrossFade"/> 에 남겨 뒀고 지금은
+        /// <b>아무 컷도 쓰지 않는다</b>. 다시 느리게 가고 싶으면 그 스위치를 켜면 된다.)
+        ///
+        /// ★ <b>클릭 한 번 = 그림 한 장</b>. 클릭은 «다음 컷» 으로 넘기므로(<see cref="SeekToCut"/>)
+        ///   컷이 여덟이 된 지금은 저절로 <b>여덟 단계</b>로 넘어간다.
+        ///
+        /// ⚠ <b>음성(VO) 파일 이름은 그대로다</b>(VO_01_1 … VO_04_4) — 컷 번호로 이름을 지어 내면
+        ///   컷을 다시 묶을 때마다 파일과 스트링 키를 전부 갈아야 한다. <c>Tools/import_opening_voice.py</c>
+        ///   의 SCRIPT 가 «볼트 이름 · 넣을 이름 · 자막» 셋을 따로 들고 있는 이유다.
+        ///
+        /// ⚠ <b>시각은 도구가 다시 계산했다</b> — 손으로 옮기지 말 것.
+        ///   <c>python Tools/import_opening_voice.py --cs</c> 가 이 표를 통째로 찍어 준다
+        ///   (볼트의 voice/ 가 없어도 Resources 의 음성에서 길이를 재어 돈다).
         ///
         /// ⚠⚠ <b>이 표는 씬에도 복사되어 있다</b>(<c>Opening.unity</c> 의 OpeningDirector).
         ///    <see cref="SerializeField"/> 이므로 <b>씬에 저장된 값이 이 코드보다 이긴다</b> —
@@ -274,129 +314,161 @@ namespace LastSanctuary.UI
         {
             new Slide
             {
-                background  = "Opening/BG_04",
+                background  = "Opening/BG_01",
                 atMusicTime = 1.59f,
                 captions = new[]
                 {
                     new Caption
                     {
                         voice       = "Opening/VO_01_1",     // 6.16초
-                        atMusicTime = 3.47f,
+                        atMusicTime = 2.84f,
                         text = "기억한다 — 이 성역이 순백으로 빛나던 시절을.",
                     },
                     new Caption
                     {
                         voice       = "Opening/VO_01_2",     // 4.73초
-                        atMusicTime = 10.05f,
+                        atMusicTime = 9.43f,
                         text = "천사들의 노래가 첨탑마다 울려 퍼졌고,",
-                    },
-                    new Caption
-                    {
-                        voice       = "Opening/VO_01_3",     // 5.38초
-                        atMusicTime = 15.07f,
-                        text = "그 어떤 어둠도 이 문턱을 넘지 못했다.",
-                    },
-                },
-            },
-            new Slide
-            {
-                background  = "Opening/BG_01",
-                atMusicTime = 23.22f,
-                captions = new[]
-                {
-                    new Caption
-                    {
-                        voice       = "Opening/VO_02_1",     // 3.84초
-                        atMusicTime = 25.10f,
-                        text = "그 빛은 꺼졌다.",
-                    },
-                    new Caption
-                    {
-                        voice       = "Opening/VO_02_2",     // 3.71초
-                        atMusicTime = 29.49f,
-                        text = "하늘은 순식간에 핏빛으로 물들었고,",
-                    },
-                    new Caption
-                    {
-                        voice       = "Opening/VO_02_3",     // 7.52초
-                        atMusicTime = 33.56f,
-                        text = "노도와 같은 어둠은 그들을 집어삼켰다.",
-                    },
-                    new Caption
-                    {
-                        voice       = "Opening/VO_02_4",     // 2.77초
-                        atMusicTime = 41.71f,
-                        text = "터전을 지키는 데에,",
-                    },
-                    new Caption
-                    {
-                        voice       = "Opening/VO_02_5",     // 5.46초
-                        atMusicTime = 44.85f,
-                        text = "그 이유는 중요치 않으리 — 그들은 영문도 모른 채,",
-                    },
-                    new Caption
-                    {
-                        voice       = "Opening/VO_02_6",     // 6.45초
-                        atMusicTime = 50.49f,
-                        text = "갑주를 여미고, 짙어지는 어둠을 향해 나아갈 뿐이었다.",
-                    },
-                },
-            },
-            new Slide
-            {
-                background  = "Opening/BG_03",
-                atMusicTime = 59.90f,
-                captions = new[]
-                {
-                    new Caption
-                    {
-                        voice       = "Opening/VO_03_1",     // 5.25초
-                        atMusicTime = 61.78f,
-                        text = "성문은 무너졌고, 하늘에서는 짐승이 울부짖는다.",
-                    },
-                    new Caption
-                    {
-                        voice       = "Opening/VO_03_2",     // 9.27초
-                        atMusicTime = 67.42f,
-                        text = "불길은 자비를 모르고, 어둠은 뿌리처럼 번져간다.",
-                    },
-                    new Caption
-                    {
-                        voice       = "Opening/VO_03_3",     // 9.43초
-                        atMusicTime = 77.14f,
-                        text = "남은 것은 잿더미와, 지켜지지 못한 맹세뿐.",
                     },
                 },
             },
             new Slide
             {
                 background  = "Opening/BG_02",
-                atMusicTime = 89.99f,
-                holdAfterLastCaption = 1.5f,
+                atMusicTime = 15.38f,
+                captions = new[]
+                {
+                    new Caption
+                    {
+                        voice       = "Opening/VO_01_3",     // 5.38초
+                        atMusicTime = 16.64f,
+                        text = "그 어떤 어둠도 이 문턱을 넘지 못했다.",
+                    },
+                },
+            },
+            new Slide
+            {
+                background  = "Opening/BG_03",
+                atMusicTime = 23.22f,
+                captions = new[]
+                {
+                    new Caption
+                    {
+                        voice       = "Opening/VO_02_1",     // 3.84초
+                        atMusicTime = 24.47f,
+                        text = "그 빛은 꺼졌다.",
+                    },
+                    new Caption
+                    {
+                        voice       = "Opening/VO_02_2",     // 3.71초
+                        atMusicTime = 28.86f,
+                        text = "하늘은 순식간에 핏빛으로 물들었고,",
+                    },
+                    new Caption
+                    {
+                        voice       = "Opening/VO_02_3",     // 7.52초
+                        atMusicTime = 32.94f,
+                        text = "노도와 같은 어둠은 그들을 집어삼켰다.",
+                    },
+                },
+            },
+            new Slide
+            {
+                background  = "Opening/BG_04",
+                atMusicTime = 41.71f,
+                captions = new[]
+                {
+                    new Caption
+                    {
+                        voice       = "Opening/VO_02_4",     // 2.77초
+                        atMusicTime = 42.97f,
+                        text = "터전을 지키는 데에,",
+                    },
+                    new Caption
+                    {
+                        voice       = "Opening/VO_02_5",     // 5.46초
+                        atMusicTime = 46.10f,
+                        text = "그 이유는 중요치 않으리 — 그들은 영문도 모른 채,",
+                    },
+                    new Caption
+                    {
+                        voice       = "Opening/VO_02_6",     // 6.45초
+                        atMusicTime = 51.75f,
+                        text = "갑주를 여미고, 짙어지는 어둠을 향해 나아갈 뿐이었다.",
+                    },
+                },
+            },
+            new Slide
+            {
+                background  = "Opening/BG_05",
+                atMusicTime = 59.58f,
+                captions = new[]
+                {
+                    new Caption
+                    {
+                        voice       = "Opening/VO_03_1",     // 5.25초
+                        atMusicTime = 60.84f,
+                        text = "성문은 무너졌고, 하늘에서는 짐승이 울부짖는다.",
+                    },
+                    new Caption
+                    {
+                        voice       = "Opening/VO_03_2",     // 9.27초
+                        atMusicTime = 66.48f,
+                        text = "불길은 자비를 모르고, 어둠은 뿌리처럼 번져간다.",
+                    },
+                },
+            },
+            new Slide
+            {
+                background  = "Opening/BG_06",
+                atMusicTime = 77.14f,
+                captions = new[]
+                {
+                    new Caption
+                    {
+                        voice       = "Opening/VO_03_3",     // 9.43초
+                        atMusicTime = 78.39f,
+                        text = "남은 것은 잿더미와, 지켜지지 못한 맹세뿐.",
+                    },
+                },
+            },
+            new Slide
+            {
+                background  = "Opening/BG_07",
+                atMusicTime = 89.05f,
                 captions = new[]
                 {
                     new Caption
                     {
                         voice       = "Opening/VO_04_1",     // 5.85초
-                        atMusicTime = 91.87f,
+                        atMusicTime = 90.30f,
                         text = "쓰러진 이들의 이름을 나는 다 기억하지 못한다.",
                     },
                     new Caption
                     {
                         voice       = "Opening/VO_04_2",     // 6.27초
-                        atMusicTime = 98.14f,
+                        atMusicTime = 96.57f,
                         text = "그러나 그들이 지키려 했던 것만은 잊지 않았다.",
                     },
+                },
+            },
+            new Slide
+            {
+                background  = "Opening/BG_08",
+                atMusicTime = 104.09f,
+                holdAfterLastCaption = 1.5f,
+                captions = new[]
+                {
                     new Caption
                     {
                         voice       = "Opening/VO_04_3",     // 8.39초
-                        atMusicTime = 105.03f,
+                        atMusicTime = 105.35f,
                         text = "그대여, 마지막 성역이 완전히 저물기 전에 —",
                     },
                     new Caption
                     {
                         voice       = "Opening/VO_04_4",     // 2.59초
-                        atMusicTime = 113.81f,
+                        atMusicTime = 114.12f,
                         text = "나서라.",
                     },
                 },
@@ -420,12 +492,18 @@ namespace LastSanctuary.UI
 
         [Header("페이드 (배경이 넘어갈 때)")]
         [Tooltip("검은 막이 걷히는 시간(초) — 배경이 드러난다")]
-        [Min(0f)] [SerializeField] float fadeInSeconds = 1.6f;
+        [Min(0f)] [SerializeField] float fadeInSeconds = 1.0f;
 
         [Tooltip("검은 막이 덮이는 시간(초) — 배경이 검게 진다.\n" +
                  "다음 장면의 atMusicTime 에서 이 값을 <b>거꾸로 빼서</b> 페이드 아웃을 시작하므로 " +
                  "«완전히 검어지는 순간 = 다음 장면이 밝아지기 시작하는 순간» 이 딱 맞는다")]
-        [Min(0f)] [SerializeField] float fadeOutSeconds = 1.2f;
+        [Min(0f)] [SerializeField] float fadeOutSeconds = 0.6f;
+
+        [Tooltip("<b>그림끼리 겹쳐 넘기는</b> 시간(초) — <see cref=\"Slide.dissolve\"/> 가 켜진 장면에만.\n" +
+                 "페이드아웃과 마찬가지로 다음 장면의 atMusicTime 에서 <b>거꾸로 빼서</b> 시작하므로 " +
+                 "«겹치기가 끝나는 순간 = 다음 장면의 시각» 이 딱 맞는다. 검은 화면이 없어 " +
+                 "<b>추가로 먹는 시간이 0</b> 이다")]
+        [Min(0f)] [SerializeField] float dissolveSeconds = 1.2f;
 
         [Header("자막 (타자 효과)")]
         [Tooltip("1초에 치는 글자 수. ⚠ fitCaptionsToVoice 가 켜진 장면에서는 이 값 대신 " +
@@ -518,6 +596,15 @@ namespace LastSanctuary.UI
 
         Image _background;
         AspectRatioFitter _backgroundFit;
+
+        /// <summary>
+        /// 크로스 디졸브용 <b>윗장</b>. 새 그림을 여기에 얹고 알파만 0→1 로 올린 뒤
+        /// <see cref="_background"/>(아랫장)에 옮겨 담고 다시 감춘다 (<see cref="CrossFade"/>).
+        /// 평소에는 꺼져 있어 그리기 비용이 없다.
+        /// </summary>
+        Image _backgroundTop;
+        AspectRatioFitter _backgroundTopFit;
+
         CanvasGroup _curtain;
         TMP_Text _caption;
         CanvasGroup _skipButton;
@@ -626,11 +713,17 @@ namespace LastSanctuary.UI
         /// ⚠ 곡의 끝을 넘어가면 <see cref="AudioSource.time"/> 에 넣을 수 없다 — 그때는
         ///   시계만 밀어 준다. 시계는 브금 없이도 스스로 굴러가게 되어 있다(<see cref="_clock"/>).
         /// </summary>
-        void SeekToCut(float? nextCutMusicTime)
+        void SeekToCut(float? nextCutMusicTime) => SeekToCut(nextCutMusicTime, fadeOutSeconds);
+
+        /// <summary>
+        /// 위와 같되 <b>전환에 쓸 시간</b>을 따로 준다 — 겹쳐 넘길 때는 페이드아웃이 아니라
+        /// <see cref="dissolveSeconds"/> 만큼 앞에 서야 «겹치기가 끝나는 순간» 이 다음 컷의 시각에 맞는다.
+        /// </summary>
+        void SeekToCut(float? nextCutMusicTime, float lead)
         {
             if (!nextCutMusicTime.HasValue || nextCutMusicTime.Value <= 0f) return;
 
-            float target = Mathf.Max(0f, nextCutMusicTime.Value - fadeOutSeconds);
+            float target = Mathf.Max(0f, nextCutMusicTime.Value - lead);
             if (target <= _clock) return;                 // 이미 지나 있다 — 되돌리지 않는다
 
             if (_bgm != null && _bgm.clip != null && target < _bgm.clip.length - 0.05f)
@@ -665,27 +758,58 @@ namespace LastSanctuary.UI
                 // ★ 이 컷을 지금부터 센다 — 앞 컷에서 남은 클릭이 이 컷을 곧바로 넘기지 않는다.
                 _cutRequested = false;
 
-                // ① 이 장면이 시작될 «노래의 시각» 까지 검은 화면으로 기다린다.
-                //    ⚠ 여기서는 클릭을 <b>받지 않는다</b> — 검은 화면에는 «다 본 컷» 이 없다.
+                //    ★ 앞 컷이 «겹쳐서» 넘겨 준 컷인가. 첫 컷은 겹칠 앞 그림이 없다.
+                bool dissolvedIn = i > 0 && slide.dissolve;
+
+                // ① 이 장면이 시작될 «노래의 시각» 까지 기다린다.
+                //    ⚠ 여기서는 클릭을 <b>받지 않는다</b> — 검은 화면에는 «다 본 컷» 이 없고,
+                //      겹쳐 온 컷이면 앞 컷의 ⑤ 가 이미 그 클릭을 처리했다.
                 if (slide.atMusicTime > 0f)
                     while (_clock < slide.atMusicTime) yield return null;
 
-                // ② 막이 내려간 동안 배경을 갈아끼운다 — 바뀌는 순간이 보이지 않는다.
+                // ② 배경 — 겹쳐 온 컷이면 <b>이미 새 그림이 떠 있다</b>(앞 컷의 ⑤ 에서 갈렸다).
+                //    검은 전환이면 막이 내려간 동안 갈아끼운다 — 바뀌는 순간이 보이지 않는다.
                 //    ★ 음성은 여기서 틀지 않는다 — 문장마다 <b>제 시각에</b> 제 음성을 튼다(④).
-                ApplyBackground(slide.background);
+                if (!dissolvedIn) ApplyBackground(slide.background);
                 _caption.text = string.Empty;
                 _voiceEndsAt = _clock;
 
-                // ③ 페이드 인
-                yield return Fade(_curtain, 1f, 0f, fadeInSeconds);
+                // ③ 페이드 인 — 겹쳐 온 컷은 막이 애초에 걷혀 있다.
+                if (!dissolvedIn)
+                    yield return Fade(_curtain, 1f, 0f, fadeInSeconds);
 
                 // ④ 문장을 차례대로 — 각 문장이 «제 시각에» 말을 시작하고 자막이 같이 쳐진다
                 yield return TypeCaptions(slide);
 
-                // ⑤ 페이드 아웃을 <b>언제</b> 시작할지 — 다음 장면이 노래에서 밀리지 않는 것이 우선이다.
+                // ⑤ 이 컷을 <b>언제 · 어떻게</b> 넘길지.
                 //    ⚠ 마지막 장면은 «말이 끝난 뒤»(_voiceEndsAt)부터 머문다 — 자막은 말보다 먼저
                 //      끝나므로 _clock 만 보면 <b>마지막 문장이 잘린 채</b> 검게 진다.
                 float? next = NextSlideMusicTime(i);
+                bool nextDissolves = i + 1 < slides.Length && slides[i + 1] != null &&
+                                     slides[i + 1].dissolve && next.HasValue && next.Value > 0f;
+
+                //    ★ 다음 컷이 «겹쳐서» 들어온다면 — 검은 막을 아예 쓰지 않는다.
+                if (nextDissolves)
+                {
+                    float dissolveAt = next.Value - dissolveSeconds;
+                    while (_clock < dissolveAt && !_cutRequested) yield return null;
+
+                    if (_cutRequested)
+                    {
+                        _cutRequested = false;
+                        if (_voice != null) _voice.Stop();
+                        SeekToCut(next, dissolveSeconds);
+                    }
+
+                    //    ⚠ 자막은 <b>여기서 지우지 않는다</b>. 겹치기는 다음 컷의 시각에서 거꾸로
+                    //      빼서 시작하므로 <b>앞 문장의 음성이 끝나기 0.6~0.9초 전</b>에 걸린다 —
+                    //      여기서 지우면 <b>말하는 중에 자막이 사라진다</b>. 다음 컷의 ② 가
+                    //      제 시각에 지우고, 그 시각이 곧 다음 문장이 쳐지기 시작하는 시각이라
+                    //      화면에는 «글이 갈리는» 것으로만 보인다.
+                    yield return CrossFade(slides[i + 1].background, dissolveSeconds);
+                    continue;
+                }
+
                 float fadeOutAt = next.HasValue && next.Value > 0f
                     ? next.Value - fadeOutSeconds
                     : Mathf.Max(_clock, _voiceEndsAt) + slide.holdAfterLastCaption;
@@ -933,6 +1057,54 @@ namespace LastSanctuary.UI
 
             if (sprite != null && _backgroundFit != null)
                 _backgroundFit.aspectRatio = sprite.rect.width / Mathf.Max(1f, sprite.rect.height);
+
+            HideBackgroundTop();
+        }
+
+        /// <summary>윗장을 감춘다 — 아랫장이 곧 화면이 된다.</summary>
+        void HideBackgroundTop()
+        {
+            if (_backgroundTop == null) return;
+            _backgroundTop.enabled = false;
+            _backgroundTop.color = new Color(1f, 1f, 1f, 0f);
+        }
+
+        /// <summary>
+        /// <b>그림끼리 겹쳐 넘긴다</b> — 검은 막을 쓰지 않는다.
+        ///
+        /// ★ 새 그림을 <see cref="_backgroundTop"/>(윗장)에 얹고 알파만 0→1 로 올린다. 다 오르면
+        /// 그 그림을 아랫장에 옮겨 담고 윗장을 감춘다 — 그 다음 컷도 같은 방법으로 겹칠 수 있다.
+        /// <b>한 프레임도 검어지지 않으므로 시간을 먹지 않는다</b>. 이것이 컷을 넷에서 여덟으로
+        /// 늘리고도 브금이 안 밀리는 이유다 (<see cref="Slide.dissolve"/>).
+        /// </summary>
+        IEnumerator CrossFade(string resource, float seconds)
+        {
+            Sprite sprite = LoadOnce<Sprite>(resource);
+            if (sprite == null || _backgroundTop == null)
+            {
+                ApplyBackground(resource);
+                yield break;
+            }
+
+            _backgroundTop.sprite = sprite;
+            _backgroundTop.enabled = true;
+            _backgroundTop.color = new Color(1f, 1f, 1f, 0f);
+            if (_backgroundTopFit != null)
+                _backgroundTopFit.aspectRatio = sprite.rect.width / Mathf.Max(1f, sprite.rect.height);
+
+            if (seconds > 0f)
+            {
+                float t = 0f;
+                while (t < seconds)
+                {
+                    t += Time.unscaledDeltaTime;
+                    _backgroundTop.color = new Color(1f, 1f, 1f, Mathf.Clamp01(t / seconds));
+                    yield return null;
+                }
+            }
+
+            //  ★ 다 올랐으면 아랫장에 옮겨 담는다 — 그래야 다음 디졸브가 또 겹칠 수 있다.
+            ApplyBackground(resource);
         }
 
         /// <summary>이 장면의 음성을 틀고 <b>길이(초)</b>를 돌려준다. 없으면 0.</summary>
@@ -1019,6 +1191,18 @@ namespace LastSanctuary.UI
             _background.preserveAspect = false;
             _backgroundFit = bg.gameObject.AddComponent<AspectRatioFitter>();
             _backgroundFit.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
+
+            //    ★ 윗장 — 크로스 디졸브 전용. 같은 액자 안에 같은 설정으로 하나 더 둔다
+            //      (<see cref="CrossFade"/>). 평소에는 꺼져 있다.
+            RectTransform bgTop = NewRect("SpriteTop", frame);
+            Stretch(bgTop);
+            _backgroundTop = bgTop.gameObject.AddComponent<Image>();
+            _backgroundTop.raycastTarget = false;
+            _backgroundTop.preserveAspect = false;
+            _backgroundTop.enabled = false;
+            _backgroundTop.color = new Color(1f, 1f, 1f, 0f);
+            _backgroundTopFit = bgTop.gameObject.AddComponent<AspectRatioFitter>();
+            _backgroundTopFit.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
 
             // ② 자막 뒤 그늘 — 아래로 갈수록 진해지는 세로 그라데이션.
             //    통짜 반투명 띠는 «막대» 로 보여 그림을 가로막는다. 그라데이션은 경계가 없다.

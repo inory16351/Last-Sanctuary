@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
@@ -48,8 +48,8 @@ namespace LastSanctuary.UI
     ///
     /// 쓰는 에셋 (<c>Tools/import_ending_assets.py</c> 가 볼트에서 들여왔다) —
     /// <code>
-    ///   Resources/Ending/BG_01 ~ BG_04            ← Ending_bg.png 를 2×2 로 자른 넉 장
-    ///                                                ★ 자른 순서 = 이야기 순서 (오프닝과 다르다)
+    ///   Resources/Ending/BG_01 ~ BG_08            ← 2026-08-28 새로 뽑은 여덟 장 (1672×941)
+    ///                                                ★ 파일 이름 = 이야기 순서
     ///   Resources/Ending/VO_01_1 ~ VO_04_5        ← 유저가 문장별로 나눠 준 17개
     ///   Resources/Bgm/The Unspoken Oath           ← 엔딩 브금 (119.77초)
     ///   Resources/UI/Lobby/LobbyButtonSkip        ← 건너뛰기 버튼 판 (오프닝과 같은 것)
@@ -81,8 +81,8 @@ namespace LastSanctuary.UI
                      "Tools/gen_ending_schedule.py 가 박자 격자에 맞춰 계산해 준다")]
             [Min(0f)] public float atMusicTime;
 
-            [Tooltip("이 조각이 <b>다 쳐진 뒤</b> 전사자 명단을 띄운다. 컷 2 의 4번째 조각" +
-                     "(«그 이름은 성역에 새겨질 것이다») 하나만 켜져 있다")]
+            [Tooltip("이 조각이 <b>다 쳐진 뒤</b> 전사자 명단을 띄운다. <b>4컷</b>의 첫 조각" +
+                     "(VO_02_4 · «그 이름은 성역에 새겨질 것이다») 하나만 켜져 있다")]
             public bool showRoll;
 
             /// <summary>화면에 뜰 글. 스트링 테이블이 정본이고 <see cref="text"/> 가 폴백이다.</summary>
@@ -95,6 +95,11 @@ namespace LastSanctuary.UI
         {
             [Tooltip("배경 그림 — Resources 아래의 경로(확장자 없이)")]
             public string background;
+
+            [Tooltip("★ 앞 컷에서 <b>검게 지지 않고 그림끼리 겹쳐</b> 넘어온다(크로스 디졸브).\n" +
+                     "⚠ 첫 컷에서는 무시된다 — 앞에 겹칠 그림이 없다.\n" +
+                     "오프닝과 같은 장치다 (OpeningDirector.Slide.dissolve)")]
+            public bool dissolve;
 
             [Tooltip("이 컷이 <b>페이드 인을 시작하는</b> 브금의 시각(초)")]
             [Min(0f)] public float atMusicTime;
@@ -134,16 +139,26 @@ namespace LastSanctuary.UI
         /// ★ 최소 텀이 어느 쪽인지는 <b>앞 자막의 «끝 글자» 가 정한다</b> — 마침표면 문장,
         /// 쉼표·줄표(—)·말줄임(…)이면 절이다. 오프닝과 같은 규칙이다.
         ///
-        /// 시각표 —
+        /// ★★★ <b>2026-08-28 — 컷을 넷에서 여덟으로 늘렸다</b> (그림을 여덟 장 새로 뽑았다).
+        /// 여덟 컷 전부 <b>검게 졌다 밝아진다</b>. 시각은 <c>Tools/gen_ending_schedule.py</c> 가
+        /// 박자 격자에 맞춰 다시 계산했다 — 손으로 옮기지 말 것.
         /// <code>
-        ///   컷 1  1.90 :  4.28 · 8.26 · 13.83                        → 23.91 끝
-        ///   컷 2 25.75 : 28.14 · 35.70 · 40.47 · 45.64 · 51.20        → 58.55
-        ///                ★ 45.64 조각이 끝나면 명단이 뜬다 (약 9초 보인다)
-        ///   컷 3 59.95 : 62.34 · 66.71 · 74.26 · 80.63               → 86.16
-        ///   컷 4 87.78 : 90.17 · 94.94 · 98.92 · 104.09 · 108.06     → 113.92
-        ///                그 뒤 검게 져 115.11초, 브금 페이드까지 117.6초
-        ///   (브금 The Unspoken Oath 는 119.77초 — 넘지 않는다)
+        ///   1컷 BG_01   1.90 :   3.49 · 7.07
+        ///   2컷 BG_02  13.83 :  15.42
+        ///   3컷 BG_03  26.55 :  28.14 · 35.30 · 40.07
+        ///   4컷 BG_04  46.43 :  48.02 · 53.19   ★ 48.02 뒤에 명단이 뜬다 (약 9초)
+        ///   5컷 BG_05  61.54 :  63.13 · 67.50
+        ///   6컷 BG_06  75.85 :  77.44 · 83.41
+        ///   7컷 BG_07  90.17 :  91.76 · 96.13 · 99.71
+        ///   8컷 BG_08 106.87 : 108.46 · 112.04 → 115.51, 검게 져 118.69초
+        ///   (브금 The Unspoken Oath 는 119.77초 — 1.08초 남는다)
         /// </code>
+        /// ⚠ 컷이 두 배가 되어 <b>페이드도 조였다</b> — 인 1.59→0.80 · 아웃 1.19→0.80 ·
+        ///   문장텀 2박→1.5박. 안 조이면 130.61초로 브금을 10.8초 넘긴다.
+        ///   (2026-08-28 유저 지시: <i>"디졸브 말고 페이드 인 아웃으로"</i> — 겹치기 장치는
+        ///   <see cref="CrossFade"/> 에 남아 있지만 <b>지금은 아무 컷도 쓰지 않는다</b>.)
+        /// ⚠ <b>명단은 4컷(BG_04)에 얹힌다</b> — 그 그림만 «가운데가 비어 있게» 주문했다.
+        ///   조각을 옮길 때 <c>showRoll</c> 이 켜진 조각(VO_02_4)은 <b>그 컷에 남아야 한다</b>.
         ///
         /// ⚠⚠ <b>이 표는 씬에도 복사된다</b>(<c>Ending.unity</c>). <see cref="SerializeField"/>
         ///    이므로 <b>씬에 저장된 값이 이 코드보다 이긴다</b> — 코드만 고치면 게임에는
@@ -163,28 +178,36 @@ namespace LastSanctuary.UI
                         textKey     = "ending_caption_01_1",
                         text        = "울음이 그쳤다.",
                         voice       = "Ending/VO_01_1",     // 2.09초
-                        atMusicTime = 4.28f,
+                        atMusicTime = 3.49f,
                     },
                     new Caption
                     {
                         textKey     = "ending_caption_01_2",
                         text        = "전장의 열기가 잦아든다.",
                         voice       = "Ending/VO_01_2",     // 3.89초
-                        atMusicTime = 8.26f,
-                    },
-                    new Caption
-                    {
-                        textKey     = "ending_caption_01_3",
-                        text        = "떠나간 이들도 남은 이들도, 그 잔열에 몸을 떨고 있을 뿐이다.",
-                        voice       = "Ending/VO_01_3",     // 8.49초
-                        atMusicTime = 13.83f,
+                        atMusicTime = 7.07f,
                     },
                 },
             },
             new Slide
             {
                 background  = "Ending/BG_02",
-                atMusicTime = 25.75f,
+                atMusicTime = 13.83f,
+                captions = new[]
+                {
+                    new Caption
+                    {
+                        textKey     = "ending_caption_01_3",
+                        text        = "떠나간 이들도 남은 이들도, 그 잔열에 몸을 떨고 있을 뿐이다.",
+                        voice       = "Ending/VO_01_3",     // 8.49초
+                        atMusicTime = 15.42f,
+                    },
+                },
+            },
+            new Slide
+            {
+                background  = "Ending/BG_03",
+                atMusicTime = 26.55f,
                 captions = new[]
                 {
                     new Caption
@@ -199,21 +222,29 @@ namespace LastSanctuary.UI
                         textKey     = "ending_caption_02_2",
                         text        = "누구도 제 몸을 아끼지 않고 던졌고,",
                         voice       = "Ending/VO_02_2",     // 3.58초
-                        atMusicTime = 35.70f,
+                        atMusicTime = 35.30f,
                     },
                     new Caption
                     {
                         textKey     = "ending_caption_02_3",
                         text        = "때로는 그 목숨까지 희생했다.",
                         voice       = "Ending/VO_02_3",     // 3.29초
-                        atMusicTime = 40.47f,
+                        atMusicTime = 40.07f,
                     },
+                },
+            },
+            new Slide
+            {
+                background  = "Ending/BG_04",
+                atMusicTime = 46.43f,
+                captions = new[]
+                {
                     new Caption
                     {
                         textKey     = "ending_caption_02_4",
                         text        = "그 이름은 성역에 새겨질 것이다.",
                         voice       = "Ending/VO_02_4",     // 3.94초
-                        atMusicTime = 45.64f,
+                        atMusicTime = 48.02f,
                         showRoll    = true,                 // ★ 여기서 명단이 뜬다
                     },
                     new Caption
@@ -221,14 +252,14 @@ namespace LastSanctuary.UI
                         textKey     = "ending_caption_02_5",
                         text        = "잊혀지지 않은채로, 영원히…",
                         voice       = "Ending/VO_02_5",     // 3.37초
-                        atMusicTime = 51.20f,
+                        atMusicTime = 53.19f,
                     },
                 },
             },
             new Slide
             {
-                background  = "Ending/BG_03",
-                atMusicTime = 59.95f,
+                background  = "Ending/BG_05",
+                atMusicTime = 61.54f,
                 captions = new[]
                 {
                     new Caption
@@ -236,36 +267,43 @@ namespace LastSanctuary.UI
                         textKey     = "ending_caption_03_1",
                         text        = "찢어진 자리에 새 살이 돋는다.",
                         voice       = "Ending/VO_03_1",     // 3.34초
-                        atMusicTime = 62.34f,
+                        atMusicTime = 63.13f,
                     },
                     new Caption
                     {
                         textKey     = "ending_caption_03_2",
                         text        = "보기 흉해도, 비 온 뒤에 땅은 더 굳어지는 법이다.",
                         voice       = "Ending/VO_03_2",     // 5.93초
-                        atMusicTime = 66.71f,
+                        atMusicTime = 67.50f,
                     },
+                },
+            },
+            new Slide
+            {
+                background  = "Ending/BG_06",
+                atMusicTime = 75.85f,
+                captions = new[]
+                {
                     new Caption
                     {
                         textKey     = "ending_caption_03_3",
                         text        = "성벽은 예전 모양으로 돌아가지 않는다.",
                         voice       = "Ending/VO_03_3",     // 4.49초
-                        atMusicTime = 74.26f,
+                        atMusicTime = 77.44f,
                     },
                     new Caption
                     {
                         textKey     = "ending_caption_03_4",
                         text        = "돌아가지 않은 채로, 그 자리를 지킬 뿐…",
                         voice       = "Ending/VO_03_4",     // 3.94초
-                        atMusicTime = 80.63f,
+                        atMusicTime = 83.41f,
                     },
                 },
             },
             new Slide
             {
-                background  = "Ending/BG_04",
-                atMusicTime = 87.78f,
-                holdAfterLastCaption = 2.39f,
+                background  = "Ending/BG_07",
+                atMusicTime = 90.17f,
                 captions = new[]
                 {
                     new Caption
@@ -273,35 +311,44 @@ namespace LastSanctuary.UI
                         textKey     = "ending_caption_04_1",
                         text        = "어둠은 그저 물러갔을 뿐이다.",
                         voice       = "Ending/VO_04_1",     // 3.00초
-                        atMusicTime = 90.17f,
+                        atMusicTime = 91.76f,
                     },
                     new Caption
                     {
                         textKey     = "ending_caption_04_2",
                         text        = "그 뿌리는 그대로 남아 있다.",
                         voice       = "Ending/VO_04_2",     // 2.35초
-                        atMusicTime = 94.94f,
+                        atMusicTime = 96.13f,
                     },
                     new Caption
                     {
                         textKey     = "ending_caption_04_3",
                         text        = "언제 다시 하늘이 붉어질지는 아무도 모른다.",
                         voice       = "Ending/VO_04_3",     // 4.36초
-                        atMusicTime = 98.92f,
+                        atMusicTime = 99.71f,
                     },
+                },
+            },
+            new Slide
+            {
+                background  = "Ending/BG_08",
+                atMusicTime = 106.87f,
+                holdAfterLastCaption = 2.39f,
+                captions = new[]
+                {
                     new Caption
                     {
                         textKey     = "ending_caption_04_4",
                         text        = "그대여, 우리는 그때에도 —",
                         voice       = "Ending/VO_04_4",     // 2.27초
-                        atMusicTime = 104.09f,
+                        atMusicTime = 108.46f,
                     },
                     new Caption
                     {
                         textKey     = "ending_caption_04_5",
                         text        = "이 땅과 당신을 지킬 것이다.",
                         voice       = "Ending/VO_04_5",     // 3.47초
-                        atMusicTime = 108.06f,
+                        atMusicTime = 112.04f,
                     },
                 },
             },
@@ -322,8 +369,12 @@ namespace LastSanctuary.UI
         [Range(0f, 1f)] [SerializeField] float voiceVolume = 1f;
 
         [Header("페이드 (오프닝과 같은 값 — 두 연출이 한 벌로 보여야 한다)")]
-        [Min(0f)] [SerializeField] float fadeInSeconds = 1.59f;
-        [Min(0f)] [SerializeField] float fadeOutSeconds = 1.19f;
+        [Min(0f)] [SerializeField] float fadeInSeconds = 0.80f;
+        [Min(0f)] [SerializeField] float fadeOutSeconds = 0.80f;
+
+        [Tooltip("<b>그림끼리 겹쳐 넘기는</b> 시간(초) — <see cref=\"Slide.dissolve\"/> 가 켜진 컷에만. " +
+                 "다음 컷의 시각에서 거꾸로 빼서 시작하므로 검은 화면이 없고 <b>시간을 0초 먹는다</b>")]
+        [Min(0f)] [SerializeField] float dissolveSeconds = 1.2f;
 
         [Header("자막 (타자 효과)")]
         [Min(1f)] [SerializeField] float charsPerSecond = 22f;
@@ -428,6 +479,11 @@ namespace LastSanctuary.UI
 
         Image _background;
         AspectRatioFitter _backgroundFit;
+
+        /// <summary>크로스 디졸브용 <b>윗장</b> (<see cref="CrossFade"/>). 평소에는 꺼져 있다.</summary>
+        Image _backgroundTop;
+        AspectRatioFitter _backgroundTopFit;
+
         CanvasGroup _curtain;
         TMP_Text _caption;
         CanvasGroup _roll;
@@ -511,24 +567,55 @@ namespace LastSanctuary.UI
 
                 _cutRequested = false;
 
-                // ① 이 컷이 시작될 «노래의 시각» 까지 검은 화면으로 기다린다
+                //    ★ 앞 컷이 «겹쳐서» 넘겨 준 컷인가 (첫 컷은 겹칠 앞 그림이 없다)
+                bool dissolvedIn = i > 0 && slide.dissolve;
+
+                // ① 이 컷이 시작될 «노래의 시각» 까지 기다린다
                 if (slide.atMusicTime > 0f)
                     while (_clock < slide.atMusicTime) yield return null;
 
-                // ② 막이 내려간 동안 배경을 갈아끼운다
-                ApplyBackground(slide.background);
+                // ② 배경 — 겹쳐 온 컷이면 이미 새 그림이 떠 있다(앞 컷의 ⑤ 에서 갈렸다)
+                if (!dissolvedIn) ApplyBackground(slide.background);
                 _caption.text = string.Empty;
                 HideRoll();
                 _voiceEndsAt = _clock;
 
-                // ③ 페이드 인
-                yield return Fade(_curtain, 1f, 0f, fadeInSeconds);
+                // ③ 페이드 인 — 겹쳐 온 컷은 막이 애초에 걷혀 있다
+                if (!dissolvedIn)
+                    yield return Fade(_curtain, 1f, 0f, fadeInSeconds);
 
                 // ④ 조각을 차례대로
                 yield return TypeCaptions(slide);
 
-                // ⑤ 페이드 아웃을 언제 시작할지 — 다음 컷이 노래에서 밀리지 않는 것이 우선이다
+                // ⑤ 이 컷을 언제 · 어떻게 넘길지 — 다음 컷이 노래에서 밀리지 않는 것이 우선이다
                 float? next = NextSlideMusicTime(i);
+                bool nextDissolves = i + 1 < slides.Length && slides[i + 1] != null &&
+                                     slides[i + 1].dissolve && next.HasValue && next.Value > 0f;
+
+                //    ★ 다음 컷이 «겹쳐서» 들어온다면 검은 막을 아예 쓰지 않는다.
+                if (nextDissolves)
+                {
+                    float dissolveAt = next.Value - dissolveSeconds;
+                    while (_clock < dissolveAt && !_cutRequested) yield return null;
+
+                    if (_cutRequested)
+                    {
+                        _cutRequested = false;
+                        if (_voice != null) _voice.Stop();
+                        SeekToCut(next, dissolveSeconds);
+                    }
+
+                    //    ⚠ 명단이 떠 있으면 <b>같이 흐려 준다</b> — 검은 막이 없으므로 그냥 두면
+                    //      다음 컷 위에 이름이 얹힌 채로 남는다.
+                    if (_roll != null && _roll.alpha > 0f)
+                        StartCoroutine(Fade(_roll, _roll.alpha, 0f, dissolveSeconds));
+
+                    //    ⚠ 자막은 여기서 지우지 않는다 — 겹치기가 앞 문장의 말끝에 걸리기 때문이다
+                    //      (다음 컷의 ② 가 제 시각에 지운다).
+                    yield return CrossFade(slides[i + 1].background, dissolveSeconds);
+                    continue;
+                }
+
                 float fadeOutAt = next.HasValue && next.Value > 0f
                     ? next.Value - fadeOutSeconds
                     : Mathf.Max(_clock, _voiceEndsAt) + slide.holdAfterLastCaption;
@@ -557,11 +644,15 @@ namespace LastSanctuary.UI
         /// 노래를 다음 컷의 자리로 민다 — 컷을 클릭으로 넘길 때 부른다.
         /// 화면만 앞질러 보내면 자막·음성이 <b>지나간 박자</b>를 기다려 연출이 통째로 어긋난다.
         /// </summary>
-        void SeekToCut(float? nextCutMusicTime)
+        void SeekToCut(float? nextCutMusicTime) => SeekToCut(nextCutMusicTime, fadeOutSeconds);
+
+        /// <summary>위와 같되 <b>전환에 쓸 시간</b>을 따로 준다 — 겹쳐 넘길 때는 페이드아웃이 아니라
+        /// <see cref="dissolveSeconds"/> 만큼 앞에 서야 한다.</summary>
+        void SeekToCut(float? nextCutMusicTime, float lead)
         {
             if (!nextCutMusicTime.HasValue || nextCutMusicTime.Value <= 0f) return;
 
-            float target = Mathf.Max(0f, nextCutMusicTime.Value - fadeOutSeconds);
+            float target = Mathf.Max(0f, nextCutMusicTime.Value - lead);
             if (target <= _clock) return;
 
             if (_bgm != null && _bgm.clip != null && target < _bgm.clip.length - 0.05f)
@@ -804,6 +895,48 @@ namespace LastSanctuary.UI
 
             if (sprite != null && _backgroundFit != null)
                 _backgroundFit.aspectRatio = sprite.rect.width / Mathf.Max(1f, sprite.rect.height);
+
+            HideBackgroundTop();
+        }
+
+        void HideBackgroundTop()
+        {
+            if (_backgroundTop == null) return;
+            _backgroundTop.enabled = false;
+            _backgroundTop.color = new Color(1f, 1f, 1f, 0f);
+        }
+
+        /// <summary>
+        /// <b>그림끼리 겹쳐 넘긴다</b> — 검은 막을 쓰지 않으므로 시간을 먹지 않는다.
+        /// 오프닝과 같은 장치다 (OpeningDirector.CrossFade 의 설명).
+        /// </summary>
+        IEnumerator CrossFade(string resource, float seconds)
+        {
+            Sprite sprite = LoadOnce<Sprite>(resource);
+            if (sprite == null || _backgroundTop == null)
+            {
+                ApplyBackground(resource);
+                yield break;
+            }
+
+            _backgroundTop.sprite = sprite;
+            _backgroundTop.enabled = true;
+            _backgroundTop.color = new Color(1f, 1f, 1f, 0f);
+            if (_backgroundTopFit != null)
+                _backgroundTopFit.aspectRatio = sprite.rect.width / Mathf.Max(1f, sprite.rect.height);
+
+            if (seconds > 0f)
+            {
+                float t = 0f;
+                while (t < seconds)
+                {
+                    t += Time.unscaledDeltaTime;
+                    _backgroundTop.color = new Color(1f, 1f, 1f, Mathf.Clamp01(t / seconds));
+                    yield return null;
+                }
+            }
+
+            ApplyBackground(resource);
         }
 
         float PlayVoice(string resource)
@@ -882,6 +1015,17 @@ namespace LastSanctuary.UI
             _background.preserveAspect = false;
             _backgroundFit = bg.gameObject.AddComponent<AspectRatioFitter>();
             _backgroundFit.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
+
+            //    ★ 윗장 — 크로스 디졸브 전용 (<see cref="CrossFade"/>). 평소에는 꺼져 있다.
+            RectTransform bgTop = NewRect("SpriteTop", frame);
+            Stretch(bgTop);
+            _backgroundTop = bgTop.gameObject.AddComponent<Image>();
+            _backgroundTop.raycastTarget = false;
+            _backgroundTop.preserveAspect = false;
+            _backgroundTop.enabled = false;
+            _backgroundTop.color = new Color(1f, 1f, 1f, 0f);
+            _backgroundTopFit = bgTop.gameObject.AddComponent<AspectRatioFitter>();
+            _backgroundTopFit.aspectMode = AspectRatioFitter.AspectMode.EnvelopeParent;
 
             // ② 자막 뒤 그늘
             if (captionShadeAlpha > 0f)

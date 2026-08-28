@@ -54,11 +54,20 @@ VO_DIR = os.path.join(RES, 'Ending')
 # (컷, 조각, 끝 문장부호)  — 끝 부호가 «텀» 을 정한다:
 #   '.' 문장이 끝났다 → 숨을 쉬는 자리 (긴 텀)
 #   ',' '—' '…' 이어 읽는다 → 짧은 텀
+#  ★★ 2026-08-28 — 컷을 넷에서 여덟으로 늘렸다 (그림을 여덟 장 새로 뽑았다).
+#     ⚠ 컷 번호가 바뀌어도 <b>음성 파일 이름은 그대로</b>다 — 그래서 이름을 따로 적는다.
+#        (예전에는 이름을 «컷_조각» 으로 지어 냈는데, 그러면 컷을 다시 묶을 때마다
+#         파일과 스트링 키를 전부 갈아야 한다.)
+#     컷 번호 = 배경 그림 번호(BG_0N). 명단은 4컷(VO_02_4)에서 뜬다.
 SCRIPT = [
-    (1, 1, '.'), (1, 2, '.'), (1, 3, '.'),
-    (2, 1, '.'), (2, 2, ','), (2, 3, '.'), (2, 4, '.'), (2, 5, '…'),
-    (3, 1, ','), (3, 2, '.'), (3, 3, '.'), (3, 4, '…'),
-    (4, 1, '.'), (4, 2, '.'), (4, 3, '—'), (4, 4, '.'), (4, 5, '.'),
+    (1, 'VO_01_1', '.'), (1, 'VO_01_2', '.'),
+    (2, 'VO_01_3', '.'),
+    (3, 'VO_02_1', '.'), (3, 'VO_02_2', ','), (3, 'VO_02_3', '.'),
+    (4, 'VO_02_4', '.'), (4, 'VO_02_5', '…'),
+    (5, 'VO_03_1', ','), (5, 'VO_03_2', '.'),
+    (6, 'VO_03_3', '.'), (6, 'VO_03_4', '…'),
+    (7, 'VO_04_1', '.'), (7, 'VO_04_2', '.'), (7, 'VO_04_3', '—'),
+    (8, 'VO_04_4', '.'), (8, 'VO_04_5', '.'),
 ]
 
 # ── 연출 규칙 (박 단위) ─────────────────────────────────────────────────
@@ -67,19 +76,19 @@ SCRIPT = [
 INTRO_BEATS = 2.0        # ★ 첫 박에서 이만큼 뒤에 컷 1 이 밝아지기 시작한다.
                          #   0 으로 두면 브금이 시작하는 <b>그 순간</b> 화면이 밝아져
                          #   «시작 버튼을 누르자마자 들이닥친다». 오프닝도 1.59초를 비워 뒀다.
-FADE_IN_BEATS = 2.0      # 컷이 밝아지는 시간
+FADE_IN_BEATS = 1.0      # 컷이 밝아지는 시간
 LEAD_BEATS = 1.0         # 밝아진 뒤 첫 조각이 말을 시작하기까지
-GAP_SENTENCE_BEATS = 2.0 # 문장이 끝난 뒤
+GAP_SENTENCE_BEATS = 1.5 # 문장이 끝난 뒤
 GAP_CLAUSE_BEATS = 1.0   # 문장 안에서 끊길 때
 HOLD_BEATS = 2.0         # 컷의 말이 끝난 뒤 머무는 시간
-FADE_OUT_BEATS = 1.5     # 검게 지는 시간
+FADE_OUT_BEATS = 1.0     # 검게 지는 시간
 HOLD_LAST_BEATS = 3.0    # 마지막 컷이 머무는 시간
 
 # ★★ 컷마다 머묾을 따로 줄 수 있다 — <b>컷 2 에는 전사자 명단이 뜬다</b>.
 #   기본 머묾(2박 = 1.6초)으로는 이름을 <b>읽을 시간이 안 난다</b>. 명단은 2-4
 #   («그 이름은 성역에 새겨질 것이다») 뒤에 떠서 컷이 끝날 때까지 화면에 있으므로,
 #   여기를 늘리면 그만큼 읽는 시간이 늘어난다.
-HOLD_BEATS_BY_CUT = {2: 5.0}
+HOLD_BEATS_BY_CUT = {4: 5.0}
 
 # 조각 시작은 «박의 1/N» 격자에 올린다 (오프닝은 3분할을 썼다)
 SUBDIV = 2
@@ -186,9 +195,8 @@ def main():
     print()
 
     lens = {}
-    for cut, frag, _ in SCRIPT:
-        p = os.path.join(VO_DIR, 'VO_%02d_%d.mp3' % (cut, frag))
-        lens[(cut, frag)] = duration(p)
+    for _, name, _ in SCRIPT:
+        lens[name] = duration(os.path.join(VO_DIR, name + '.mp3'))
 
     fade_in = FADE_IN_BEATS * beat
     fade_out = FADE_OUT_BEATS * beat
@@ -197,8 +205,8 @@ def main():
     hold_last = HOLD_LAST_BEATS * beat
 
     cuts = {}
-    for cut, frag, _ in SCRIPT:
-        cuts.setdefault(cut, []).append(frag)
+    for cut, name, _ in SCRIPT:
+        cuts.setdefault(cut, []).append(name)
 
     # 컷 1 은 첫 박에서 INTRO_BEATS 만큼 뒤에 시작한다
     t = first_beat + INTRO_BEATS * beat
@@ -208,12 +216,12 @@ def main():
         clock = cut_start + fade_in + lead
         rows = []
         frags = cuts[cut]
-        for i, frag in enumerate(frags):
+        for i, name in enumerate(frags):
             start = snap_up(clock, first_beat, beat, SUBDIV)   # 조각은 박의 1/2 위
-            dur = lens[(cut, frag)]
+            dur = lens[name]
             end = start + dur
-            rows.append((frag, start, dur))
-            punct = dict(((c, f), p) for c, f, p in SCRIPT)[(cut, frag)]
+            rows.append((name, start, dur))
+            punct = dict((n, pu) for _, n, pu in SCRIPT)[name]
             gap = (GAP_SENTENCE_BEATS if punct == '.' else GAP_CLAUSE_BEATS) * beat
             clock = end + gap
         last_end = rows[-1][1] + rows[-1][2]
@@ -233,9 +241,9 @@ def main():
 
     for cut, cut_start, rows, cut_end in out:
         print('컷 %d   atMusicTime = %.2f      (끝 %.2f)' % (cut, cut_start, cut_end))
-        for frag, start, dur in rows:
-            print('    %d-%d   atMusicTime = %-7.2f  (%.2f초, 끝 %.2f)'
-                  % (cut, frag, start, dur, start + dur))
+        for name, start, dur in rows:
+            print('    %-9s atMusicTime = %-7.2f  (%.2f초, 끝 %.2f)'
+                  % (name, start, dur, start + dur))
         print()
 
     print('마지막 컷이 검게 지고 끝나는 시각 %.2f초 / 브금 %.2f초 — %s'
@@ -246,8 +254,9 @@ def main():
     print()
     print('─── EndingDirector.cs 에 옮길 값 ───')
     for cut, cut_start, rows, cut_end in out:
-        print('컷%d %.2ff : %s' % (cut, cut_start,
-                                   ' · '.join('%.2ff' % s for _, s, _ in rows)))
+        print('컷%d(BG_%02d) %.2ff : %s'
+              % (cut, cut, cut_start,
+                 ' · '.join('%s %.2ff' % (n, s) for n, s, _ in rows)))
 
 
 if __name__ == '__main__':

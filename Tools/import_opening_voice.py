@@ -63,12 +63,12 @@ FFMPEG = shutil.which("ffmpeg") or (
     r"\ffmpeg-8.1.1-full_build\bin\ffmpeg.exe")
 
 # ── 연출 규칙 (초) ────────────────────────────────────────────────────────
-FADE_IN = 1.6        # 컷이 밝아지는 시간 (OpeningDirector.fadeInSeconds 와 같아야 한다)
+FADE_IN = 1.0        # 컷이 밝아지는 시간 (OpeningDirector.fadeInSeconds 와 같아야 한다)
 BEAT = 0.2           # 밝아진 뒤 첫 조각이 말을 시작하기까지의 한 박
 GAP_SENTENCE = 0.35  # ★ 문장이 끝난 뒤의 <b>최소</b> 텀 (격자에 맞추며 늘어난다)
 GAP_CLAUSE = 0.15    # ★ 문장 안에서 끊길 때의 <b>최소</b> 텀
-HOLD = 1.5           # 컷의 말이 끝난 뒤 머무는 시간 (그 뒤 FADE_OUT 만큼 검게 진다)
-FADE_OUT = 1.2       # OpeningDirector.fadeOutSeconds 와 같아야 한다
+HOLD = 0.6           # 컷의 말이 끝난 뒤 머무는 시간 (그 뒤 FADE_OUT 만큼 검게 진다)
+FADE_OUT = 0.6       # OpeningDirector.fadeOutSeconds 와 같아야 한다
 HOLD_LAST = 1.5      # 마지막 컷이 머무는 시간 (slides 의 holdAfterLastCaption)
 
 BGM_SECONDS = 119.65 # 브금 The Fall of the Sanctuary 의 길이
@@ -95,33 +95,43 @@ SLIDE_START_FREE = 2.0
 
 #: 컷마다 «조각 파일 이름 → 그 조각에 띄울 한글 자막».
 #:  ⚠ 자막의 <b>끝 글자</b>가 다음 텀을 정한다 (마침표=문장 텀 · 쉼표·줄표=절 텀).
+#:  ★★ 2026-08-28 — 컷을 넷에서 여덟으로 늘렸다. 항목이 셋이 됐다 —
+#:     (볼트의 조각 이름, <b>Resources 에 넣을 이름</b>, 자막).
+#:     ⚠ 넣을 이름을 «컷_순번» 으로 지어 내면 <b>컷을 다시 묶을 때마다 파일이 전부 갈린다</b>.
+#:        이름은 처음 녹음된 순서 그대로 박아 두고 컷 번호만 바꾼다.
+#:     컷 번호 = 배경 그림 번호(BG_0N) = 이야기 순서.
 SCRIPT = {
-    1: ("Opening/BG_04", [
-        ("01-01", "기억한다 — 이 성역이 순백으로 빛나던 시절을."),
-        ("01-02", "천사들의 노래가 첨탑마다 울려 퍼졌고,"),
-        ("01-03", "그 어떤 어둠도 이 문턱을 넘지 못했다."),
+    1: ("Opening/BG_01", [
+        ("01-01", "VO_01_1", "기억한다 — 이 성역이 순백으로 빛나던 시절을."),
+        ("01-02", "VO_01_2", "천사들의 노래가 첨탑마다 울려 퍼졌고,"),
     ]),
-    2: ("Opening/BG_01", [
-        ("02-01", "그 빛은 꺼졌다."),
-        ("02-02", "하늘은 순식간에 핏빛으로 물들었고,"),
-        ("02-03", "노도와 같은 어둠은 그들을 집어삼켰다."),
-        # ⚠ 이 셋의 나눈 자리는 <b>영어 조각과 맞물려야 한다</b> — 02-04 는 «When it comes to
-        #   defending their home,» 뿐이라 말이 1.96초로 짧다. 여기에 «그 이유는 중요치 않으리»
-        #   («perhaps the reason matters little» = 02-05)까지 붙이면 자막이 13자/초로 쏟아진다.
-        ("02-04", "터전을 지키는 데에,"),
-        ("02-05", "그 이유는 중요치 않으리 — 그들은 영문도 모른 채,"),
-        ("02-06", "갑주를 여미고, 짙어지는 어둠을 향해 나아갈 뿐이었다."),
+    2: ("Opening/BG_02", [
+        ("01-03", "VO_01_3", "그 어떤 어둠도 이 문턱을 넘지 못했다."),
     ]),
     3: ("Opening/BG_03", [
-        ("03-01", "성문은 무너졌고, 하늘에서는 짐승이 울부짖는다."),
-        ("03-02", "불길은 자비를 모르고, 어둠은 뿌리처럼 번져간다."),
-        ("03-03", "남은 것은 잿더미와, 지켜지지 못한 맹세뿐."),
+        ("02-01", "VO_02_1", "그 빛은 꺼졌다."),
+        ("02-02", "VO_02_2", "하늘은 순식간에 핏빛으로 물들었고,"),
+        ("02-03", "VO_02_3", "노도와 같은 어둠은 그들을 집어삼켰다."),
     ]),
-    4: ("Opening/BG_02", [
-        ("04-01", "쓰러진 이들의 이름을 나는 다 기억하지 못한다."),
-        ("04-02", "그러나 그들이 지키려 했던 것만은 잊지 않았다."),
-        ("04-03", "그대여, 마지막 성역이 완전히 저물기 전에 —"),
-        ("04-04", "나서라."),
+    4: ("Opening/BG_04", [
+        ("02-04", "VO_02_4", "터전을 지키는 데에,"),
+        ("02-05", "VO_02_5", "그 이유는 중요치 않으리 — 그들은 영문도 모른 채,"),
+        ("02-06", "VO_02_6", "갑주를 여미고, 짙어지는 어둠을 향해 나아갈 뿐이었다."),
+    ]),
+    5: ("Opening/BG_05", [
+        ("03-01", "VO_03_1", "성문은 무너졌고, 하늘에서는 짐승이 울부짖는다."),
+        ("03-02", "VO_03_2", "불길은 자비를 모르고, 어둠은 뿌리처럼 번져간다."),
+    ]),
+    6: ("Opening/BG_06", [
+        ("03-03", "VO_03_3", "남은 것은 잿더미와, 지켜지지 못한 맹세뿐."),
+    ]),
+    7: ("Opening/BG_07", [
+        ("04-01", "VO_04_1", "쓰러진 이들의 이름을 나는 다 기억하지 못한다."),
+        ("04-02", "VO_04_2", "그러나 그들이 지키려 했던 것만은 잊지 않았다."),
+    ]),
+    8: ("Opening/BG_08", [
+        ("04-03", "VO_04_3", "그대여, 마지막 성역이 완전히 저물기 전에 —"),
+        ("04-04", "VO_04_4", "나서라."),
     ]),
 }
 
@@ -232,18 +242,34 @@ def plan(cut_grid_step, cut_grid_zero, sub_step, sub_zero, first_slide, lengths)
 
 
 def main():
-    if not os.path.isdir(SRC):
-        print("⚠ 볼트의 음성 폴더가 없습니다:", SRC)
-        return 1
+    #  ★ 볼트가 없으면 <b>복사를 건너뛰고 시각표만</b> 뽑는다 — 음성은 이미
+    #    Resources 에 들어가 있고, 컷을 다시 묶을 때 필요한 것은 «길이» 뿐이다.
+    schedule_only = not os.path.isdir(SRC)
+    if schedule_only:
+        print("⚠ 볼트의 음성 폴더가 없다:", SRC)
+        print("  → 복사는 건너뛰고 <시각표만> 뽑는다 (길이는 Resources 의 파일에서 잰다)")
+        print()
+    else:
+        missing = [n for _, items in SCRIPT.values() for n, _, _ in items
+                   if not os.path.isfile(os.path.join(SRC, n + ".mp3"))]
+        if missing:
+            print("⚠ 볼트에 없는 조각:", missing)
+            return 1
 
-    # ① 있는 것 확인
-    missing = [n for _, items in SCRIPT.values() for n, _ in items
-               if not os.path.isfile(os.path.join(SRC, n + ".mp3"))]
-    if missing:
-        print("⚠ 볼트에 없는 조각:", missing)
-        return 1
+    # ② 예전 조각을 전부 치운다  (볼트가 있을 때만)
+    if schedule_only:
+        lengths = {}
+        for cut in sorted(SCRIPT):
+            _, items = SCRIPT[cut]
+            lengths[cut] = []
+            for _, name, caption in items:
+                dur, _h, _t = duration_and_edges(os.path.join(DST, name + ".mp3"))
+                lengths[cut].append((name, dur, caption))
+            print("컷 %d  %s" % (cut, " · ".join("%s %.2f초" % (n, d) for n, d, _ in lengths[cut])))
+        print()
+        return report(lengths)
 
-    # ② 예전 조각을 전부 치운다 — 개수가 11 → 16 으로 바뀌어 이름이 겹치지 않는 것이 남는다
+    #    예전 조각을 치운다 — 이름이 겹치지 않는 것이 남지 않도록
     removed = 0
     for f in sorted(os.listdir(DST)):
         if re.fullmatch(r"VO_\d\d(_\d)?\.mp3(\.meta)?", f):
@@ -258,9 +284,8 @@ def main():
         _, items = SCRIPT[cut]
         lengths[cut] = []
         print(f"컷 {cut}")
-        for i, (src_name, caption) in enumerate(items, start=1):
+        for src_name, name, caption in items:
             src = os.path.join(SRC, src_name + ".mp3")
-            name = f"VO_{cut:02d}_{i}"
             dst = os.path.join(DST, name + ".mp3")
             shutil.copy2(src, dst)
 
@@ -275,6 +300,11 @@ def main():
                   f"(앞 {head:.2f} · 뒤 {tail:.2f}){note}")
         print()
 
+    return report(lengths)
+
+
+def report(lengths):
+    """시각표를 짜서 찍는다 (복사 여부와 무관하게 같은 규칙을 쓴다)."""
     # ④ ★★ 어느 격자에 맞출 수 있나 — 「센 것부터」 시험한다
     print("=" * 78)
     print("[격자 맞추기]  노래에 맞출 수 있는 가장 «센» 격자를 고른다")
@@ -293,6 +323,8 @@ def main():
          BEAT_SECONDS * 2, BAR_ZERO, SUB_SECONDS, BEAT_ZERO, BAR_ZERO),
         ("④ 컷=박 · 조각=박의 1/3",
          BEAT_SECONDS, BEAT_ZERO, SUB_SECONDS, BEAT_ZERO, BAR_ZERO),
+        ("④b 컷=박의 1/3 · 조각=박의 1/3",
+         SUB_SECONDS, BEAT_ZERO, SUB_SECONDS, BEAT_ZERO, BAR_ZERO),
         ("⑤ 맞추지 않는다 (지금까지의 방식)",
          0, 0, 0, 0, SLIDE_START_FREE),
     ]

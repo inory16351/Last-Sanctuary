@@ -149,93 +149,122 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LastSanctuary.UI.OpeningDirector
   slides:
-  - background: Opening/BG_04
+  - background: Opening/BG_01
     atMusicTime: 1.59
+    dissolve: 0
     fitCaptionsToVoice: 1
     holdAfterLastCaption: 2
     captions:
     - text: "\uAE30\uC5B5\uD55C\uB2E4 \u2014 \uC774 \uC131\uC5ED\uC774 \uC21C\uBC31\uC73C\uB85C
         \uBE5B\uB098\uB358 \uC2DC\uC808\uC744."
       voice: Opening/VO_01_1
-      atMusicTime: 3.47
+      atMusicTime: 2.84
     - text: "\uCC9C\uC0AC\uB4E4\uC758 \uB178\uB798\uAC00 \uCCA8\uD0D1\uB9C8\uB2E4
         \uC6B8\uB824 \uD37C\uC84C\uACE0,"
       voice: Opening/VO_01_2
-      atMusicTime: 10.05
+      atMusicTime: 9.43
+  - background: Opening/BG_02
+    atMusicTime: 15.38
+    dissolve: 0
+    fitCaptionsToVoice: 1
+    holdAfterLastCaption: 2
+    captions:
     - text: "\uADF8 \uC5B4\uB5A4 \uC5B4\uB460\uB3C4 \uC774 \uBB38\uD131\uC744 \uB118\uC9C0
         \uBABB\uD588\uB2E4."
       voice: Opening/VO_01_3
-      atMusicTime: 15.07
-  - background: Opening/BG_01
+      atMusicTime: 16.64
+  - background: Opening/BG_03
     atMusicTime: 23.22
+    dissolve: 0
     fitCaptionsToVoice: 1
     holdAfterLastCaption: 2
     captions:
     - text: "\uADF8 \uBE5B\uC740 \uAEBC\uC84C\uB2E4."
       voice: Opening/VO_02_1
-      atMusicTime: 25.1
+      atMusicTime: 24.47
     - text: "\uD558\uB298\uC740 \uC21C\uC2DD\uAC04\uC5D0 \uD54F\uBE5B\uC73C\uB85C
         \uBB3C\uB4E4\uC5C8\uACE0,"
       voice: Opening/VO_02_2
-      atMusicTime: 29.49
+      atMusicTime: 28.86
     - text: "\uB178\uB3C4\uC640 \uAC19\uC740 \uC5B4\uB460\uC740 \uADF8\uB4E4\uC744
         \uC9D1\uC5B4\uC0BC\uCF30\uB2E4."
       voice: Opening/VO_02_3
-      atMusicTime: 33.56
+      atMusicTime: 32.94
+  - background: Opening/BG_04
+    atMusicTime: 41.71
+    dissolve: 0
+    fitCaptionsToVoice: 1
+    holdAfterLastCaption: 2
+    captions:
     - text: "\uD130\uC804\uC744 \uC9C0\uD0A4\uB294 \uB370\uC5D0,"
       voice: Opening/VO_02_4
-      atMusicTime: 41.71
+      atMusicTime: 42.97
     - text: "\uADF8 \uC774\uC720\uB294 \uC911\uC694\uCE58 \uC54A\uC73C\uB9AC \u2014
         \uADF8\uB4E4\uC740 \uC601\uBB38\uB3C4 \uBAA8\uB978 \uCC44,"
       voice: Opening/VO_02_5
-      atMusicTime: 44.85
+      atMusicTime: 46.1
     - text: "\uAC11\uC8FC\uB97C \uC5EC\uBBF8\uACE0, \uC9D9\uC5B4\uC9C0\uB294 \uC5B4\uB460\uC744
         \uD5A5\uD574 \uB098\uC544\uAC08 \uBFD0\uC774\uC5C8\uB2E4."
       voice: Opening/VO_02_6
-      atMusicTime: 50.49
-  - background: Opening/BG_03
-    atMusicTime: 59.9
+      atMusicTime: 51.75
+  - background: Opening/BG_05
+    atMusicTime: 59.58
+    dissolve: 0
     fitCaptionsToVoice: 1
     holdAfterLastCaption: 2
     captions:
     - text: "\uC131\uBB38\uC740 \uBB34\uB108\uC84C\uACE0, \uD558\uB298\uC5D0\uC11C\uB294
         \uC9D0\uC2B9\uC774 \uC6B8\uBD80\uC9D6\uB294\uB2E4."
       voice: Opening/VO_03_1
-      atMusicTime: 61.78
+      atMusicTime: 60.84
     - text: "\uBD88\uAE38\uC740 \uC790\uBE44\uB97C \uBAA8\uB974\uACE0, \uC5B4\uB460\uC740
         \uBFCC\uB9AC\uCC98\uB7FC \uBC88\uC838\uAC04\uB2E4."
       voice: Opening/VO_03_2
-      atMusicTime: 67.42
+      atMusicTime: 66.48
+  - background: Opening/BG_06
+    atMusicTime: 77.14
+    dissolve: 0
+    fitCaptionsToVoice: 1
+    holdAfterLastCaption: 2
+    captions:
     - text: "\uB0A8\uC740 \uAC83\uC740 \uC7BF\uB354\uBBF8\uC640, \uC9C0\uCF1C\uC9C0\uC9C0
         \uBABB\uD55C \uB9F9\uC138\uBFD0."
       voice: Opening/VO_03_3
-      atMusicTime: 77.14
-  - background: Opening/BG_02
-    atMusicTime: 89.99
+      atMusicTime: 78.39
+  - background: Opening/BG_07
+    atMusicTime: 89.05
+    dissolve: 0
     fitCaptionsToVoice: 1
-    holdAfterLastCaption: 1.5
+    holdAfterLastCaption: 2
     captions:
     - text: "\uC4F0\uB7EC\uC9C4 \uC774\uB4E4\uC758 \uC774\uB984\uC744 \uB098\uB294
         \uB2E4 \uAE30\uC5B5\uD558\uC9C0 \uBABB\uD55C\uB2E4."
       voice: Opening/VO_04_1
-      atMusicTime: 91.87
+      atMusicTime: 90.3
     - text: "\uADF8\uB7EC\uB098 \uADF8\uB4E4\uC774 \uC9C0\uD0A4\uB824 \uD588\uB358
         \uAC83\uB9CC\uC740 \uC78A\uC9C0 \uC54A\uC558\uB2E4."
       voice: Opening/VO_04_2
-      atMusicTime: 98.14
+      atMusicTime: 96.57
+  - background: Opening/BG_08
+    atMusicTime: 104.09
+    dissolve: 0
+    fitCaptionsToVoice: 1
+    holdAfterLastCaption: 1.5
+    captions:
     - text: "\uADF8\uB300\uC5EC, \uB9C8\uC9C0\uB9C9 \uC131\uC5ED\uC774 \uC644\uC804\uD788
         \uC800\uBB3C\uAE30 \uC804\uC5D0 \u2014"
       voice: Opening/VO_04_3
-      atMusicTime: 105.03
+      atMusicTime: 105.35
     - text: "\uB098\uC11C\uB77C."
       voice: Opening/VO_04_4
-      atMusicTime: 113.81
+      atMusicTime: 114.12
   bgmResource: Bgm/The Fall of the Sanctuary
   bgmVolume: 0.55
   bgmFadeOutSeconds: 2.5
   voiceVolume: 1
-  fadeInSeconds: 1.6
-  fadeOutSeconds: 1.2
+  fadeInSeconds: 1
+  fadeOutSeconds: 0.6
+  dissolveSeconds: 1.2
   charsPerSecond: 22
   captionTailSeconds: 0.8
   captionGapSeconds: 0.9

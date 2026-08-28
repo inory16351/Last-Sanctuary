@@ -1003,7 +1003,7 @@ ending_caption_02_1	성문 앞에 마지막까지 서 있던 이들이 있다.	T
 ending_caption_02_2	누구도 제 몸을 아끼지 않고 던졌고,	Not one of them spared themselves,
 ending_caption_02_3	때로는 그 목숨까지 희생했다.	and some gave even their lives.
 ending_caption_02_4	그 이름은 성역에 새겨질 것이다.	Their names will be carved into the sanctuary.
-ending_caption_02_5	잊혀지지 않은채로, 영원히…	Never forgotten — for all time.
+ending_caption_02_5	잊혀지지 않은채로, 영원히…	Never forgotten for all time.
 ending_caption_03_1	찢어진 자리에 새 살이 돋는다.	New flesh rises where it was torn.
 ending_caption_03_2	보기 흉해도, 비 온 뒤에 땅은 더 굳어지는 법이다.	It is unsightly, but the ground always hardens after the rain.
 ending_caption_03_3	성벽은 예전 모양으로 돌아가지 않는다.	The wall will not go back to the shape it had.
@@ -1011,7 +1011,7 @@ ending_caption_03_4	돌아가지 않은 채로, 그 자리를 지킬 뿐…	It o
 ending_caption_04_1	어둠은 그저 물러갔을 뿐이다.	The darkness has only withdrawn.
 ending_caption_04_2	그 뿌리는 그대로 남아 있다.	Its roots are still there.
 ending_caption_04_3	언제 다시 하늘이 붉어질지는 아무도 모른다.	No one knows when the sky will turn red again.
-ending_caption_04_4	그대여, 우리는 그때에도 —	And you — even then,
+ending_caption_04_4	그대여, 우리는 그때에도	And you even then,
 ending_caption_04_5	이 땅과 당신을 지킬 것이다.	we will guard this land, and you.
 defeat_title	패배	Defeat
 defeat_reason_nexus	심장부의 박동이 멎었습니다.\n성역을 지탱하던 빛이 마지막으로 한 번 떨리고, 꺼졌습니다.	The beating at the heart has stopped.\nThe light that held the sanctuary trembled once, and went out.
@@ -1345,21 +1345,21 @@ ui_lobby_quit	게임 종료	Quit Game
 ui_squad_name_format	{0}부대	Squad {0}
 ui_skill_cooltime_format	재사용 대기시간 {0}초	Cooldown {0}s
 ui_tactics_retreat_off	사용 안 함	Off
-ui_opening_vo_01_1	기억한다 — 이 성역이 순백으로 빛나던 시절을.	I remember — when this sanctuary shone in pristine white.
-ui_opening_vo_01_2	천사들의 노래가 첨탑마다 울려 퍼졌고,	The songs of angels echoed from every spire,
-ui_opening_vo_01_3	그 어떤 어둠도 이 문턱을 넘지 못했다.	and no darkness could cross these sacred gates.
-ui_opening_vo_02_1	그 빛은 꺼졌다.	Then, the light was extinguished.
-ui_opening_vo_02_2	하늘은 순식간에 핏빛으로 물들었고,	The heavens were suddenly stained crimson,
-ui_opening_vo_02_3	노도와 같은 어둠은 그들을 집어삼켰다.	and a tide of darkness swept forth, swallowing everything in its path.
-ui_opening_vo_02_4	터전을 지키는 데에,	When it comes to defending their home,
-ui_opening_vo_02_5	그 이유는 중요치 않으리 — 그들은 영문도 모른 채,	perhaps the reason matters little — they know not why,
-ui_opening_vo_02_6	갑주를 여미고, 짙어지는 어둠을 향해 나아갈 뿐이었다.	only that they must don their armor and march toward the deepening darkness.
-ui_opening_vo_03_1	성문은 무너졌고, 하늘에서는 짐승이 울부짖는다.	The gates have fallen, and beasts howl from the skies.
-ui_opening_vo_03_2	불길은 자비를 모르고, 어둠은 뿌리처럼 번져간다.	The flames know no mercy, and darkness spreads like roots through the earth.
-ui_opening_vo_03_3	남은 것은 잿더미와, 지켜지지 못한 맹세뿐.	All that remains are ashes—and the vows that could not be kept.
-ui_opening_vo_04_1	쓰러진 이들의 이름을 나는 다 기억하지 못한다.	I cannot remember the names of all those who fell.
-ui_opening_vo_04_2	그러나 그들이 지키려 했던 것만은 잊지 않았다.	But I have never forgotten what they sought to protect.
-ui_opening_vo_04_3	그대여, 마지막 성역이 완전히 저물기 전에 —	You, then—before the last sanctuary is swallowed by twilight completely —
+ui_opening_vo_01_1	기억한다 — 이 성역이 순백으로 빛나던 시절을.	I remember a time when this sanctuary shone in pure white.
+ui_opening_vo_01_2	천사들의 노래가 첨탑마다 울려 퍼졌고,	The songs of angels echoed through every spire,
+ui_opening_vo_01_3	그 어떤 어둠도 이 문턱을 넘지 못했다.	and no darkness could ever cross these sacred gates.
+ui_opening_vo_02_1	그 빛은 꺼졌다.	But then, the light went out.
+ui_opening_vo_02_2	하늘은 순식간에 핏빛으로 물들었고,	The heavens turned crimson in an instant,
+ui_opening_vo_02_3	노도와 같은 어둠은 그들을 집어삼켰다.	and a tide of darkness rose, swallowing everything in its path.
+ui_opening_vo_02_4	터전을 지키는 데에,	Why did they fight?
+ui_opening_vo_02_5	그 이유는 중요치 않으리 — 그들은 영문도 모른 채,	perhaps, in the end the reason no longer mattered.
+ui_opening_vo_02_6	갑주를 여미고, 짙어지는 어둠을 향해 나아갈 뿐이었다.	they simply donned their armor and marched toward to darkness.
+ui_opening_vo_03_1	성문은 무너졌고, 하늘에서는 짐승이 울부짖는다.	The gates have fallen, beasts howl in the skies.
+ui_opening_vo_03_2	불길은 자비를 모르고, 어둠은 뿌리처럼 번져간다.	The flames know no mercy, and darkness spreads like roots through the land.
+ui_opening_vo_03_3	남은 것은 잿더미와, 지켜지지 못한 맹세뿐.	Nothing remains but ashes and promises that could not be kept.
+ui_opening_vo_04_1	쓰러진 이들의 이름을 나는 다 기억하지 못한다.	I cannot remember the names of everyone who fell.
+ui_opening_vo_04_2	그러나 그들이 지키려 했던 것만은 잊지 않았다.	But I have never forgotten what they fought to protect.
+ui_opening_vo_04_3	그대여, 마지막 성역이 완전히 저물기 전에 —	So You before the last sanctuary is swallowed by darkness —
 ui_opening_vo_04_4	나서라.	step forward.
 log_ally_died	{0} 사망	{0} died
 log_autosave	자동 저장 — {0}	Autosaved — {0}

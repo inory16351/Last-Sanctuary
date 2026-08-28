@@ -150,6 +150,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LastSanctuary.UI.EndingDirector
   slides:
   - background: Ending/BG_01
+    dissolve: 0
     atMusicTime: 1.9
     fitCaptionsToVoice: 1
     holdAfterLastCaption: 2.4
@@ -157,21 +158,28 @@ MonoBehaviour:
     - textKey: ending_caption_01_1
       text: "\uC6B8\uC74C\uC774 \uADF8\uCCE4\uB2E4."
       voice: Ending/VO_01_1
-      atMusicTime: 4.28
+      atMusicTime: 3.49
       showRoll: 0
     - textKey: ending_caption_01_2
       text: "\uC804\uC7A5\uC758 \uC5F4\uAE30\uAC00 \uC7A6\uC544\uB4E0\uB2E4."
       voice: Ending/VO_01_2
-      atMusicTime: 8.26
+      atMusicTime: 7.07
       showRoll: 0
+  - background: Ending/BG_02
+    dissolve: 0
+    atMusicTime: 13.83
+    fitCaptionsToVoice: 1
+    holdAfterLastCaption: 2.4
+    captions:
     - textKey: ending_caption_01_3
       text: "\uB5A0\uB098\uAC04 \uC774\uB4E4\uB3C4 \uB0A8\uC740 \uC774\uB4E4\uB3C4,
         \uADF8 \uC794\uC5F4\uC5D0 \uBAB8\uC744 \uB5A8\uACE0 \uC788\uC744 \uBFD0\uC774\uB2E4."
       voice: Ending/VO_01_3
-      atMusicTime: 13.83
+      atMusicTime: 15.42
       showRoll: 0
-  - background: Ending/BG_02
-    atMusicTime: 25.75
+  - background: Ending/BG_03
+    dissolve: 0
+    atMusicTime: 26.55
     fitCaptionsToVoice: 1
     holdAfterLastCaption: 2.4
     captions:
@@ -185,88 +193,109 @@ MonoBehaviour:
       text: "\uB204\uAD6C\uB3C4 \uC81C \uBAB8\uC744 \uC544\uB07C\uC9C0 \uC54A\uACE0
         \uB358\uC84C\uACE0,"
       voice: Ending/VO_02_2
-      atMusicTime: 35.7
+      atMusicTime: 35.3
       showRoll: 0
     - textKey: ending_caption_02_3
       text: "\uB54C\uB85C\uB294 \uADF8 \uBAA9\uC228\uAE4C\uC9C0 \uD76C\uC0DD\uD588\uB2E4."
       voice: Ending/VO_02_3
-      atMusicTime: 40.47
+      atMusicTime: 40.07
       showRoll: 0
+  - background: Ending/BG_04
+    dissolve: 0
+    atMusicTime: 46.43
+    fitCaptionsToVoice: 1
+    holdAfterLastCaption: 2.4
+    captions:
     - textKey: ending_caption_02_4
       text: "\uADF8 \uC774\uB984\uC740 \uC131\uC5ED\uC5D0 \uC0C8\uACA8\uC9C8 \uAC83\uC774\uB2E4."
       voice: Ending/VO_02_4
-      atMusicTime: 45.64
+      atMusicTime: 48.02
       showRoll: 1
     - textKey: ending_caption_02_5
       text: "\uC78A\uD600\uC9C0\uC9C0 \uC54A\uC740\uCC44\uB85C, \uC601\uC6D0\uD788\u2026"
       voice: Ending/VO_02_5
-      atMusicTime: 51.2
+      atMusicTime: 53.19
       showRoll: 0
-  - background: Ending/BG_03
-    atMusicTime: 59.95
+  - background: Ending/BG_05
+    dissolve: 0
+    atMusicTime: 61.54
     fitCaptionsToVoice: 1
     holdAfterLastCaption: 2.4
     captions:
     - textKey: ending_caption_03_1
       text: "\uCC22\uC5B4\uC9C4 \uC790\uB9AC\uC5D0 \uC0C8 \uC0B4\uC774 \uB3CB\uB294\uB2E4."
       voice: Ending/VO_03_1
-      atMusicTime: 62.34
+      atMusicTime: 63.13
       showRoll: 0
     - textKey: ending_caption_03_2
       text: "\uBCF4\uAE30 \uD749\uD574\uB3C4, \uBE44 \uC628 \uB4A4\uC5D0 \uB545\uC740
         \uB354 \uAD73\uC5B4\uC9C0\uB294 \uBC95\uC774\uB2E4."
       voice: Ending/VO_03_2
-      atMusicTime: 66.71
+      atMusicTime: 67.5
       showRoll: 0
+  - background: Ending/BG_06
+    dissolve: 0
+    atMusicTime: 75.85
+    fitCaptionsToVoice: 1
+    holdAfterLastCaption: 2.4
+    captions:
     - textKey: ending_caption_03_3
       text: "\uC131\uBCBD\uC740 \uC608\uC804 \uBAA8\uC591\uC73C\uB85C \uB3CC\uC544\uAC00\uC9C0
         \uC54A\uB294\uB2E4."
       voice: Ending/VO_03_3
-      atMusicTime: 74.26
+      atMusicTime: 77.44
       showRoll: 0
     - textKey: ending_caption_03_4
       text: "\uB3CC\uC544\uAC00\uC9C0 \uC54A\uC740 \uCC44\uB85C, \uADF8 \uC790\uB9AC\uB97C
         \uC9C0\uD0AC \uBFD0\u2026"
       voice: Ending/VO_03_4
-      atMusicTime: 80.63
+      atMusicTime: 83.41
       showRoll: 0
-  - background: Ending/BG_04
-    atMusicTime: 87.78
+  - background: Ending/BG_07
+    dissolve: 0
+    atMusicTime: 90.17
     fitCaptionsToVoice: 1
-    holdAfterLastCaption: 2.39
+    holdAfterLastCaption: 2.4
     captions:
     - textKey: ending_caption_04_1
       text: "\uC5B4\uB460\uC740 \uADF8\uC800 \uBB3C\uB7EC\uAC14\uC744 \uBFD0\uC774\uB2E4."
       voice: Ending/VO_04_1
-      atMusicTime: 90.17
+      atMusicTime: 91.76
       showRoll: 0
     - textKey: ending_caption_04_2
       text: "\uADF8 \uBFCC\uB9AC\uB294 \uADF8\uB300\uB85C \uB0A8\uC544 \uC788\uB2E4."
       voice: Ending/VO_04_2
-      atMusicTime: 94.94
+      atMusicTime: 96.13
       showRoll: 0
     - textKey: ending_caption_04_3
       text: "\uC5B8\uC81C \uB2E4\uC2DC \uD558\uB298\uC774 \uBD89\uC5B4\uC9C8\uC9C0\uB294
         \uC544\uBB34\uB3C4 \uBAA8\uB978\uB2E4."
       voice: Ending/VO_04_3
-      atMusicTime: 98.92
+      atMusicTime: 99.71
       showRoll: 0
+  - background: Ending/BG_08
+    dissolve: 0
+    atMusicTime: 106.87
+    fitCaptionsToVoice: 1
+    holdAfterLastCaption: 2.39
+    captions:
     - textKey: ending_caption_04_4
       text: "\uADF8\uB300\uC5EC, \uC6B0\uB9AC\uB294 \uADF8\uB54C\uC5D0\uB3C4 \u2014"
       voice: Ending/VO_04_4
-      atMusicTime: 104.09
+      atMusicTime: 108.46
       showRoll: 0
     - textKey: ending_caption_04_5
       text: "\uC774 \uB545\uACFC \uB2F9\uC2E0\uC744 \uC9C0\uD0AC \uAC83\uC774\uB2E4."
       voice: Ending/VO_04_5
-      atMusicTime: 108.06
+      atMusicTime: 112.04
       showRoll: 0
   bgmResource: Bgm/The Unspoken Oath
   bgmVolume: 0.55
   bgmFadeOutSeconds: 2.5
   voiceVolume: 1
-  fadeInSeconds: 1.59
-  fadeOutSeconds: 1.19
+  fadeInSeconds: 0.8
+  fadeOutSeconds: 0.8
+  dissolveSeconds: 1.2
   charsPerSecond: 22
   captionTailSeconds: 0.8
   captionGapSeconds: 0.9
