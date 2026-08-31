@@ -128,6 +128,31 @@ namespace LastSanctuary.Units
             }
         }
 
+        /// <summary>
+        /// ★ 그림에 다시 맞춘 <b>콜라이더 크기</b>(타일, 가로·세로) — 2026-08-31 공개.
+        /// <see cref="MonsterUnit.ColliderSizeTiles"/> 와 <b>같은 값·같은 뜻</b>이다.
+        ///
+        /// <b>왜 공개하나</b> — <see cref="BodyRadiusTiles"/> 는 두 축 중 <b>작은 쪽</b>만 남긴
+        /// 원이라 «어디가 그림 끝인가» 를 못 말한다. 근거리 캐릭터가 <b>붙어서</b> 때리려면
+        /// 방향별 경계가 필요하고(<c>UnitCombat.TargetEdgeDistance</c>), 에픽은 두 축의
+        /// 차이가 3타일이 넘는다.
+        ///
+        /// ⚠ 스킨(<see cref="CharacterAnimator"/>)이 없는 종은 <c>Vector2.zero</c> 다 —
+        ///   부르는 쪽이 «모른다» 로 읽고 원형 판정으로 떨어지면 된다.
+        /// </summary>
+        public Vector2 ColliderSizeTiles
+        {
+            get
+            {
+                if (!_animatorResolved)
+                {
+                    _animator = GetComponent<CharacterAnimator>();
+                    _animatorResolved = true;
+                }
+                return _animator != null ? _animator.ColliderSizeTiles : Vector2.zero;
+            }
+        }
+
         CharacterAnimator _animator;
 
         /// <summary>

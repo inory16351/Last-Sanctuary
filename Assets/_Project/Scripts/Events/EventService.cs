@@ -160,6 +160,27 @@ namespace LastSanctuary.Events
         /// </summary>
         public EventChoice CurrentChoice { get; private set; }
 
+        /// <summary>
+        /// ★★★ <b>선택지를 아직 안 골랐다</b> — 즉 «반드시 답해야 하는» 상태 (2026-08-31 신설).
+        ///
+        /// <b>왜 이 한 줄이 필요한가</b> (유저 리포트: *"이벤트 등장 시 이벤트 선택지 선택 전엔
+        /// 다른 ui로 넘어가지거나 게임이 진행되면 안되는데 그냥 이벤트 창을 끄고 넘어갈 수 있는
+        /// 현상 발생"*) — «창이 열려 있다» 와 «답을 기다린다» 는 <b>다른 질문</b>이다.
+        /// 결과창(<see cref="CurrentChoice"/> 가 채워진 뒤)은 열려 있어도 닫아도 되는 창이고,
+        /// 본문 단계만 잠겨야 한다. 판정을 <b>여기 한 곳</b>에 두어 창·단축키·배타 조정자가
+        /// 같은 값을 본다 — 세 곳이 각자 «지금 잠긴 상태인가» 를 계산하면 반드시 갈린다.
+        /// ⚠⚠ <b>«고를 것이 하나라도 있어야» 기다린다.</b> 선택지가 <b>0개</b>인 사건까지
+        ///   잠그면 <b>답할 방법이 없는 채로 게임이 멈춘다</b> — 버튼도 없고 닫기도 막히고
+        ///   <c>timeScale</c> 은 0 이다. 표에 그런 줄이 생기면(<c>IsUsable</c> 이 걸러 주지만
+        ///   그 검사는 <b>후보를 뽑을 때</b>만 돈다) 판이 통째로 죽는다.
+        ///   <b>잠금 조건에 «탈출구가 있다» 를 반드시 포함한다.</b>
+        /// </summary>
+        public bool AwaitingChoice =>
+            Current != null && CurrentChoice == null && Current.choices.Count > 0;
+
+        /// <summary>정적 편의 — 창·단축키가 <see cref="Instance"/> 널 검사 없이 물어볼 수 있게.</summary>
+        public static bool IsAwaitingChoice => Instance != null && Instance.AwaitingChoice;
+
         /// <summary>이벤트가 열리거나(정의·선택) 닫힐 때(null) 알린다 — UI 가 구독한다.</summary>
         public event System.Action<EventDefinitionSO, EventChoice> OnEventChanged;
 

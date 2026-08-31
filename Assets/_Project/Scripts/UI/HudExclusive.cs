@@ -158,6 +158,12 @@ namespace LastSanctuary.UI
         ///   («규칙을 한 곳에 모은다» 는 이 클래스의 존재 이유 그대로다.)
         /// ⚠ 배타 창은 «동시에 하나» 가 규칙이라 하나만 닫으면 끝이지만, 혹시 둘이 열려
         ///   있어도 <b>전부</b> 닫는다 — 한 번의 Esc 로 화면이 확실히 정리되는 편이 낫다.
+        /// ★★★ <b>2026-08-31 — 창은 «닫기를 거절» 할 수 있다.</b>
+        ///   <see cref="EventPanel"/> 은 선택지를 고르기 전에는 <c>Close()</c> 를 무시한다
+        ///   (유저 지시: *"반드시 이벤트 선택지부터 선택"*). 그래서 «불렀으니 닫혔다» 고
+        ///   가정하지 않는다 — <b>부른 뒤에 <c>IsOpen</c> 을 다시 본다</b>. 이 값이 틀리면
+        ///   Esc 를 받는 쪽이 «닫을 창이 있었다» 고 판단해 <b>환경 설정을 안 열고</b>
+        ///   아무 일도 안 하는 상태가 된다.
         /// </summary>
         public static bool CloseOpenPanel()
         {
@@ -172,7 +178,7 @@ namespace LastSanctuary.UI
                 if (!p.IsOpen) continue;
 
                 p.Close();
-                closed = true;
+                if (!p.IsOpen) closed = true;      // ★ 거절했으면 «닫았다» 로 세지 않는다
             }
             return closed;
         }

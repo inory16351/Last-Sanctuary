@@ -160,6 +160,27 @@ namespace LastSanctuary.Combat
         /// </summary>
         public int OneShotAttackBonus { get; set; }
 
+        /// <summary>
+        /// ★★★ <b>다음 한 번의 공격에만</b> 더해지는 <b>최종 피해</b>(방어력·치명타 계산이
+        /// <b>끝난 뒤</b> 더한다). 2026-08-31 신설 — 히스톤 「복수자」(80015)가 쓴다.
+        ///
+        /// <b><see cref="OneShotAttackBonus"/> 와 무엇이 다른가</b> — 저쪽은 <b>공격력 능력치</b>에
+        /// 얹혀 «공격력 − 방어력» 공식을 <b>같이 통과</b>한다. 이 값은 공식을 통과하지 않는다:
+        /// <code>
+        ///   OneShotAttackBonus : 피해 = 공식(공격력 + N, 방어력)          ← 방어력이 깎아낸다
+        ///   OneShotFlatDamage  : 피해 = 공식(공격력, 방어력) + N          ← 방어력이 못 깎는다
+        /// </code>
+        /// 「복수자」의 정의문이 <i>"근거리 공격 데미지 + 히스톤이 보유한 분노의 데미지
+        /// (<b>공식 계산 후 합연산</b>)"</i> 이라고 <b>계산 순서를 못박고</b> 있어서 칸을 따로 뒀다 —
+        /// 공격력 자리에 넣으면 방어력 높은 적에게 분노가 통째로 먹히고, 그것은 정의문과 다르다.
+        ///
+        /// ⚠ <b>치명타가 곱하지 않는다</b> — 정의문의 «공식 계산 후» 에는 치명타 배수도 포함된다고
+        ///   읽었다(치명타는 <c>balance.ApplyCriticalDamage</c> 로 공식 안에 있다). 분노에 치명타가
+        ///   곱하면 분노 100 · 치명타에서 한 방이 두 배로 튀어 «가끔 죽지 않는 적이 죽는» 편차가 된다.
+        /// ⚠ 쓰고 나면 스스로 비워진다 — 안 비우면 다음 공격까지 새어나간다.
+        /// </summary>
+        public int OneShotFlatDamage { get; set; }
+
         // ------------------------------------------------------------------
 
         public BalanceConfigSO Balance => balance;
@@ -334,6 +355,9 @@ namespace LastSanctuary.Combat
             float hit = attacker.HitChancePercent;
             if (hit < 100f && Random.value * 100f >= hit)
             {
+                // ⚠ 빗나가도 <b>일회성 최종 피해는 비운다</b> — 안 비우면 그 값이 다음 공격까지
+                //   살아남아 <b>두 번 더해진다</b>(호출부가 매 공격마다 += 로 채운다).
+                attacker.OneShotFlatDamage = 0;
                 OnAnyMissed?.Invoke(attacker, this);
                 return;
             }
@@ -357,6 +381,13 @@ namespace LastSanctuary.Combat
                 damage = balance.ApplyCriticalDamage(damage);
                 OnAnyCritical?.Invoke(attacker, this);
             }
+
+            // ★ 공식 «뒤» 의 합연산 — 히스톤 「복수자」의 분노 피해가 여기로 들어온다
+            //   (<see cref="OneShotFlatDamage"/> 의 ⚠ 두 개 참조). ③ 치명타보다 <b>아래</b>에
+            //   두어야 «공식 계산 후» 가 되고, 쓰는 즉시 비워야 다음 공격으로 새지 않는다.
+            int flat = attacker.OneShotFlatDamage;
+            attacker.OneShotFlatDamage = 0;
+            if (flat > 0) damage += flat;
 
             // ④ 적용 — 치명타 여부를 아래 ApplyDamage 가 이벤트에 실어 보낸다.
             _pendingCritical = critical;

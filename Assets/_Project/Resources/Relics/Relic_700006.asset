@@ -16,12 +16,12 @@ MonoBehaviour:
   relicName: "삼킨 티끌"
   grade: 1
   effectType: 22
-  value01: 5
-  value02: 40
+  value01: 3
+  value02: 0
   effectType2: 0
   value03: 0
   value04: 0
-  relicDesc: "적을 처치할 때 40% 확률로 에너지를 5 얻습니다."
+  relicDesc: "적을 처치할 때 에너지를 3 얻습니다."
   relicFlavor: "먹어치운 것을 곱씹어 양분으로 바꾼다. 남기는 것이 없다."
   source: 1
   sourceId: 0

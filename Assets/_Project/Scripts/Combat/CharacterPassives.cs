@@ -640,19 +640,18 @@ namespace LastSanctuary.Combat
             // 경직 내내 쓰러진 모션을 돌린다 — 원화가 없으면 조용히 생략된다.
             _animator?.PlayReviveMotion(stun);
 
-            // ★★★ 2026-08-25 — <b>「복수자」의 범위 연출을 여기서 같이 깐다</b> (유저 지시:
+            // ★★★ 2026-08-25 — <b>범위 연출을 여기서 같이 깐다</b> (유저 지시:
             //   *"히스톤 세번째 스킬 … <b>이펙트 삭제하고 두번째 스킬 부활 시에 해당 스킬
             //   이펙트 그냥 같이 넣어서 표현</b>"*).
             //
             //   <b>예전에는 두 박자였다</b> — ① 경직 내내 쓰러진 모션이 돌고 ② 경직이 <b>끝난 뒤</b>
-            //   <see cref="PerformReaverBurst"/> 가 0.6초짜리 범위 연출을 <b>따로</b> 깔았다.
-            //   그래서 「일어난다」와 「터진다」가 <b>이어진 한 장면으로 안 읽혔다</b>.
+            //   0.6초짜리 범위 연출이 <b>따로</b> 깔렸다. 그래서 「일어난다」와 「터진다」가
+            //   <b>이어진 한 장면으로 안 읽혔다</b>.
             //
             //   ★ 이제 연출은 <b>부활의 일부</b>다 — 쓰러진 모션과 <b>같은 구간</b>에 깔려
             //     경직 내내 발밑에 퍼져 있다가 일어설 때 함께 끝난다.
-            //   ⚠ <b>피해·회복은 옮기지 않았다</b>(<see cref="PerformReaverBurst"/> 에 그대로 있다).
-            //     유저가 바꾼 것은 «이펙트» 이고, 경직 중에 피해를 넣으면 <b>죽어 있는 동안
-            //     싸우는</b> 것이 된다 — 그것은 연출 변경이 아니라 밸런스 변경이다.
+            //   ⚠ 2026-08-31 — 연출의 <b>크기</b>가 더는 「복수자」에게서 오지 않는다
+            //     (그 스킬에 반경이 없어졌다). <see cref="PlayReviveFx"/> 의 ★★★ 참조.
             PlayReviveFx(stun);
 
             UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName,
@@ -693,86 +692,25 @@ namespace LastSanctuary.Combat
             UI.HudLog.Add(string.Format(UI.HudTheme.T("log_revived", "{0} 부활"), _unit.DisplayName),
                           UI.HudLogKind.Good);
 
-            PerformReaverBurst();
-        }
-
-        /// <summary>
-        /// 복수자 — 부활하는 순간 반경 value01 타일 <b>원형</b> 안에서
-        /// 적에게 공격력의 value02% 피해, <b>아군 캐릭터</b>에게 최대체력의 value03% 회복.
-        ///
-        /// 적 피해는 <see cref="DamageableUnit.TakeDamageFrom"/> 로 넣는다 — 정의문이
-        /// "공격력의 %" 라고 공격력을 기준으로 삼았으므로 방어력·치명타를 포함한
-        /// 정상 데미지 파이프라인을 타는 게 맞다(보스 스킬이 쓰는 경로와 같다).
-        /// 「타오르는 날개」가 <c>ApplyDamage</c> 를 쓰는 것과 갈리는 지점인데, 그쪽은
-        /// 기준이 "자기 <b>체력</b>의 %" 라 공격력 자리에 넣을 값이 따로 있었다.
-        ///
-        /// 회복 대상은 <b>캐릭터만</b>이다(정의문 "아군 캐릭터들") — 성역·포탑은 제외한다.
-        /// 73-13절이 치유 유형에 대해 확정한 규칙과 같다. 자기 자신은 이미 만피로
-        /// 일어났으므로 넣어도 아무 일이 없지만, 정의문이 "아군"이라 했으니 제외하지 않는다.
-        /// </summary>
-        void PerformReaverBurst()
-        {
-            PassiveSkillSO so = Find(PassiveSkillType.Reaver);
-            if (so == null) return;
-
-            float radius = Mathf.Max(0f, so.value01);
-            if (radius <= 0f) return;
-
-            int damagePercent = Mathf.RoundToInt(so.value02);
-            float healRatio = so.value03 * 0.01f;
-            float sqr = radius * radius;
-            Vector3 myPos = transform.position;
-
-            // ⚠ <b>여기서 연출을 깔지 않는다</b> (2026-08-25 · 유저 지시로 옮겼다) —
-            //   범위 연출은 <see cref="TryBeginRevive"/> 가 <b>부활 모션과 같은 구간</b>에 깐다.
-            //   이 함수에는 이제 <b>피해와 회복만</b> 남는다.
-
-            // 목록을 먼저 복사한다 — 피해로 유닛이 죽으면 UnitRegistry.All 이 그 자리에서
-            // 바뀔 수 있다(OnDied → 파괴 → Unregister). 역순 순회만으로는 부족하다.
-            _reaverScratch.Clear();
-            var all = UnitRegistry.All;
-            for (int i = 0; i < all.Count; i++)
-            {
-                DamageableUnit u = all[i];
-                if (u == null || !u.IsAlive) continue;
-                if (((Vector2)(u.transform.position - myPos)).sqrMagnitude > sqr) continue;
-                _reaverScratch.Add(u);
-            }
-
-            for (int i = 0; i < _reaverScratch.Count; i++)
-            {
-                DamageableUnit u = _reaverScratch[i];
-                if (u == null || !u.IsAlive) continue;
-
-                if (u.Faction == _unit.Faction)
-                {
-                    if (u.Kind != UnitKind.Character) continue;      // 성역·포탑 제외
-                    if (!u.AcceptsExternalHeal) continue;            // 이기심
-                    int heal = Mathf.RoundToInt(u.MaxHp * healRatio);
-                    if (heal > 0) u.Heal(heal);
-                }
-                else if (damagePercent > 0)
-                {
-                    u.TakeDamageFrom(_unit, damagePercent);
-                }
-            }
-            _reaverScratch.Clear();
-
-            UI.HudLog.Add(UI.HudLog.SkillLine(_unit.DisplayName, so.DisplayName,
-                                              string.Format(UI.HudTheme.T("log_detail_radius",
-                                                                          "반경 {0:0.#}타일"), radius)),
-                          UI.HudLogKind.Good);
+            // ⚠ 2026-08-31 — 여기서 <b>「복수자」의 범위 폭발을 부르지 않는다</b>.
+            //   그 스킬은 표의 정의문대로 «공격에 분노 피해를 더하는» 것으로 바뀌었다
+            //   (<see cref="OnAttacking"/> 의 ★★★). 부활은 <b>체력을 되돌리는 것</b>뿐이다.
         }
 
         /// <summary>
         /// ★★ <b>부활 범위 연출</b> — 쓰러진 모션과 <b>같은 구간</b>에 발밑에 깐다
         /// (2026-08-25 · 유저 지시로 「복수자」에서 <b>부활</b>로 옮겼다. <see cref="TryBeginRevive"/> 참조).
         ///
-        /// ★ <b>크기는 「복수자」의 반경을 따른다</b> — 연출이 부활 쪽으로 왔어도 «보이는 범위 =
-        ///   맞는 범위» 규칙(61-5절)은 그대로다. 실제로 맞는 범위가 그 반경이기 때문이다.
-        /// ⚠ <b>「복수자」가 없으면(=아직 안 열렸으면) 반경을 지어내지 않는다</b> — 그때는
-        ///   터질 것이 없으므로 연출도 깔지 않는다. 안 그러면 «퍼졌는데 아무 일도 안 일어나는»
-        ///   부활이 된다.
+        /// ★★★ <b>2026-08-31 — 크기가 더는 「복수자」에게서 오지 않는다.</b>
+        ///   「복수자」가 표의 정의문대로 «공격에 분노 피해를 더하는» 것으로 바뀌면서
+        ///   <b>반경이라는 값 자체가 사라졌다</b>(<see cref="OnAttacking"/> 의 ★★★).
+        ///   예전 주석은 «보이는 범위 = 맞는 범위»(61-5절)를 근거로 그 반경을 썼는데,
+        ///   이제 <b>맞는 범위가 없으므로 그 규칙이 걸리지 않는다</b> — 이 연출은 순수하게
+        ///   «일어나는 장면» 이고, 크기는 <see cref="PassiveSkillService.ReviveFxRadius"/>
+        ///   (인스펙터 값)가 정한다. 값을 코드에 박지 않는다는 규칙(35절) 그대로다.
+        ///
+        /// ★ 그래서 <b>「복수자」가 안 열려 있어도 깔린다</b> — 부활은 「분노」(80014)의 것이고,
+        ///   유저 지시(2026-08-25)는 «부활 시에 그 이펙트를 같이 넣어 표현» 이었다.
         /// ⚠ 원화(<c>reviveFx</c>)가 없는 스킨은 조용히 넘어간다 — 히스톤 외에는 다 비어 있다.
         /// </summary>
         void PlayReviveFx(float seconds)
@@ -782,17 +720,13 @@ namespace LastSanctuary.Combat
             Sprite[] fx = _animator != null && _animator.Skin != null ? _animator.Skin.ReviveFx() : null;
             if (fx == null) return;
 
-            PassiveSkillSO reaver = Find(PassiveSkillType.Reaver);
-            float radius = reaver != null ? Mathf.Max(0f, reaver.value01) : 0f;
+            float radius = PassiveSkillService.ReviveFxRadius;
             if (radius <= 0f) return;
 
             CombatProjectileFx.PlayArea(fx, transform.position,
                                         new Vector2(radius * 2f, radius * 2f),
                                         0f, null, seconds);
         }
-
-        /// <summary>복수자 범위 판정용 임시 목록. 유닛마다 갖지 않도록 정적으로 공유한다.</summary>
-        static readonly List<DamageableUnit> _reaverScratch = new List<DamageableUnit>();
 
         /// <summary>
         /// 희생 — 주변에 최대 체력의 value01% 이상 잃은 동료가 있으면, 자기 체력을 value02%
@@ -994,6 +928,34 @@ namespace LastSanctuary.Combat
             // ── 정화의 손길: 발동 중이면 때린 적에게 표식을 남긴다 ──
             if (PurifyActive && target != null && target.Faction != _unit.Faction)
                 PassiveSkillService.MarkPurified(target);
+
+            // ══════════════════════════════════════════════════════════════
+            //  ★★★ 복수자(80015) — <b>공격에 «지금 보유한 분노» 만큼의 피해를 더한다</b>
+            //      (2026-08-31 · 표의 정의문에 맞춰 <b>전면 교체</b>했다)
+            // ══════════════════════════════════════════════════════════════
+            // 표(`Skill_Type` ▸ `skill_type_desc_Reaver`):
+            //   <i>"히스톤의 공격은 근거리 공격 데미지 + 히스톤이 보유한 분노의 데미지를 준다.
+            //      (공식 계산 후 합연산)"</i>
+            //
+            // ⚠⚠ <b>예전 구현은 이것이 아니었다</b> — «부활하는 순간 반경 value01 안의 적에게
+            //   공격력의 value02% 피해 + 아군 value03% 회복» 이라는 <b>완전히 다른 스킬</b>
+            //   (`PerformReaverBurst`)이 들어 있었고, 표는 그 사이에 위 정의문으로 바뀌어 있었다.
+            //   표를 정본으로 삼아 <b>지웠다</b>. 되살릴 일이 생기면 이 파일의 git 이력에 있다.
+            //
+            // ★ <b>«보유한» 은 이 공격으로 쌓기 «전» 의 값이다</b> — 그래서 이 블록이 아래
+            //   「분노」 축적보다 <b>먼저</b> 있다. 순서를 뒤집으면 첫 공격부터 value01 만큼
+            //   덤이 붙어 정의문과 어긋난다.
+            // ★ <b>공격 유형을 보지 않는다</b> — 「선봉장」(80013)이 히스톤을 <b>근거리로 고정</b>
+            //   하므로 «근거리 공격» 이라는 전제는 이미 그쪽이 지킨다. 여기서 또 검사하면
+            //   전제가 두 곳에 갈려 «선봉장이 없으면 복수자도 안 도는» 숨은 의존이 생긴다.
+            // ⚠ 방어력·치명타가 <b>못 건드리는</b> 자리에 넣는다 (정의문의 «공식 계산 후») —
+            //   자세한 이유는 <see cref="DamageableUnit.OneShotFlatDamage"/> 의 표.
+            if (Find(PassiveSkillType.Reaver) != null && target != null &&
+                target.Faction != _unit.Faction)
+            {
+                int bonus = Mathf.FloorToInt(_rage);      // 분노는 실수로 쌓이고 피해는 정수다
+                if (bonus > 0) _unit.OneShotFlatDamage += bonus;
+            }
 
             // ── 분노: 공격할 때마다 value01 만큼 쌓인다 (상한 100) ──
             //    정의문이 "공격 할때 마다" 라 <b>맞았는지는 보지 않는다</b> — 이 이벤트는

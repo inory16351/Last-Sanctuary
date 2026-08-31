@@ -19,14 +19,14 @@ MonoBehaviour:
   effectKey: 'skill_type_desc_Reaver'
   skillName: '복수자'
   skillType: 'Reaver'
-  value01: 3
-  value02: 100
-  value03: 20
+  value01: 0
+  value02: 0
+  value03: 0
   value04: 0
   value05: 0
   value06: 0
   coolTime: 0
   iconName: 'icon_gold_tornado'
-  flavorText: '그의 부활은 적들에겐 공포이지만 아군에겐 기적과도 같습니다.'
-  detailText: '되살아날 때 반경 {value_01} 타일의 적에게 공격력의 {value_02}% 피해를 주고, 같은 범위의 동료를 최대 체력의 {value_03}%만큼 회복시킵니다.'
+  flavorText: '히스톤이 품은 분노는 어디로도 사라지지 않고, 그가 쥔 칼끝에 그대로 실립니다.'
+  detailText: '히스톤의 공격은 근거리 공격 피해에 더해, 지금 보유한 「분노」 수치만큼의 피해를 함께 입힙니다.'
   effectTemplate: '히스톤의 공격은 근거리 공격 데미지+히스톤이 보유한 분노의 데미지를 준다. (공식 계산 후 합연산)'

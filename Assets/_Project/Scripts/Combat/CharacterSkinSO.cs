@@ -113,12 +113,17 @@ namespace LastSanctuary.Combat
         //
         // 히스톤의 원화 시트에 <b>부활 모션</b>과 <b>부활 시 주변 이펙트</b> 두 행이 들어 있다.
         // 표의 패시브 스킬이 그 근거다:
-        //   Rage_on(80014) — 분노 100 에서 죽으면 경직 뒤 <b>부활</b>한다  → reviveRight/Left
-        //   Reaver (80015) — 부활할 때 반경 범위에 피해 + 아군 회복        → reviveFx
+        //   Rage_on(80014) — 분노 100 에서 죽으면 경직 뒤 <b>부활</b>한다  → reviveRight/Left + reviveFx
         //
         // ★ <b>이제 실제로 재생된다</b> (2026-08-15, 미결 177·178번 해소):
         //   <see cref="CharacterAnimator.PlayReviveMotion"/> 이 경직 구간에 reviveRight/Left 를 돌리고,
-        //   <see cref="CharacterPassives"/> 의 「복수자」가 되살아나는 순간 reviveFx 를 범위 크기로 깐다.
+        //   <see cref="CharacterPassives"/> 가 <b>같은 구간</b>에 reviveFx 를 깐다.
+        //
+        // ⚠⚠ <b>2026-08-31 — reviveFx 는 더 이상 「복수자」(80015)의 것이 아니다.</b>
+        //   예전에는 그 스킬이 «부활할 때 반경 범위 피해 + 아군 회복» 이었고 reviveFx 가 그
+        //   범위를 그렸다. 표의 정의문이 «공격에 분노 피해를 더한다» 로 바뀌면서 <b>범위라는
+        //   개념이 사라졌다</b> — 이제 이 원화는 <b>부활 연출 전용</b>이고 크기는
+        //   <c>PassiveSkillService.reviveFxRadius</c> 가 정한다.
         //
         // ⚠ 33-6절("캐릭터는 죽으면 다시 등장하지 않는다")과 <b>충돌하지 않는다</b> — 그 규칙은
         //   <b>새로 생성될 때 그 id 를 다시 뽑지 않는다</b>는 뜻이고, 여기 부활은 죽은 자리에서

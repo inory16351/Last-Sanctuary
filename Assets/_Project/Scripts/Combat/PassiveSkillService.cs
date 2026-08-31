@@ -29,6 +29,13 @@ namespace LastSanctuary.Combat
                  "표에 수치가 없다 — 값을 코드에 박지 않고 여기서 조정한다")]
         [Min(1f)] [SerializeField] float assistRadius = 6f;
 
+        [Tooltip("★ 히스톤 「분노」(80014)로 되살아날 때 발밑에 깔리는 연출의 반경(타일).\n" +
+                 "2026-08-31 신설 — 예전에는 「복수자」(80015)의 value_01 을 빌려 썼는데, 표의 " +
+                 "정의문이 바뀌어 그 스킬에서 «반경» 이 사라졌다. 연출 전용 값이므로 표에 " +
+                 "칸을 만들지 않고 여기서 조정한다 (「희생」의 assistRadius 와 같은 판단).\n" +
+                 "0 이면 연출을 깔지 않는다")]
+        [Min(0f)] [SerializeField] float reviveFxRadius = 3f;
+
         [Header("판정 시간 (초)")]
         [Tooltip("'포식'·'희열'(프레이야)의 \"직접 공격한 적이 사망\" 판정 유효시간. " +
                  "정의문이 '2초 내' 라고 못박고 있으므로 기본값 2 를 바꾸지 말 것 — " +
@@ -40,6 +47,12 @@ namespace LastSanctuary.Combat
 
         /// <summary>'희생' 이 동료를 찾는 반경. 서비스가 없으면 기본값으로 떨어진다.</summary>
         public static float AssistRadius => Instance != null ? Instance.assistRadius : 6f;
+
+        /// <summary>
+        /// 부활 연출의 반경(타일). 서비스가 없으면 기본값으로 떨어진다 —
+        /// <b>연출이 서비스 배선에 의존해 사라지면 안 된다</b>(부활 자체는 서비스 없이도 돈다).
+        /// </summary>
+        public static float ReviveFxRadius => Instance != null ? Instance.reviveFxRadius : 3f;
 
         // ── 누가 누구를 언제 때렸나 — '포식'·'희열'의 처치 판정용 ──────────────
         //   피해자별로 "마지막으로 때린 캐릭터와 시각" 하나만 들고 있으면 충분하다.

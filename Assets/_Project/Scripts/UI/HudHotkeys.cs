@@ -110,6 +110,33 @@ namespace LastSanctuary.UI
         /// </summary>
         void Invoke(HotkeyAction action)
         {
+            // ══════════════════════════════════════════════════════════════
+            //  ★★★ <b>사건 창이 답을 기다리는 동안에는 단축키가 전부 죽는다</b> (2026-08-31)
+            // ══════════════════════════════════════════════════════════════
+            // 유저 지시: *"이벤트 등장 시 … 다른 ui로 넘어가지거나 게임이 진행되면 안되는데 …
+            //   반드시 이벤트 선택지부터 선택하도록 수정"*
+            //
+            // <see cref="EventPanel"/> 은 <b>화면 전체를 덮는 판</b>으로 마우스를 막는데,
+            // <b>키보드는 그 판을 통과한다</b> — 판은 레이캐스트를 막는 것이고 키 입력은
+            // 레이캐스트가 아니다. 그래서 키 쪽 문은 여기 <b>한 곳</b>에 단다.
+            //
+            // ★ <b>«한 곳» 이 가능한 이유</b> — 2026-08-25 에 P·1·2·3·4 까지 이 클래스로
+            //   모아 두었다(<c>GameSpeedPanel.Update</c> 의 ★★★). 키로 할 수 있는 일이
+            //   전부 이 함수를 지나므로, 여기서 한 번 막으면 새 단축키가 늘어도 저절로 막힌다.
+            //
+            // ⚠ <b>Esc 도 막는다</b> — 그것이 이 버그의 절반이었다(Esc → <c>CloseOpenPanel</c> →
+            //   사건 창이 «닫혀» 선택 없이 끝났다). 사건 중에 환경 설정을 열 길이 없어지지만,
+            //   선택지는 한 번 누르면 끝나므로 «갇힌다» 고 볼 수 없다.
+            // ⚠ 배속·일시정지도 막는다 — 이미 <c>timeScale = 0</c> 이라 눌러도 뜻이 없고,
+            //   그 창의 소유권 판정을 흔들 이유가 없다(EventPanel.ApplyModalLock 의 ★★).
+            if (Events.EventService.IsAwaitingChoice)
+            {
+                if (logKeys)
+                    Debug.Log($"[단축키] 「{HotkeyService.Label(action)}」 무시 — " +
+                              "사건 선택지를 먼저 골라야 합니다", this);
+                return;
+            }
+
             switch (action)
             {
                 case HotkeyAction.Settings: HandleEscape(); return;

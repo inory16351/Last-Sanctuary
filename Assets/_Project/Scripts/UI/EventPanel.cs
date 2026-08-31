@@ -39,6 +39,48 @@ namespace LastSanctuary.UI
         [Tooltip("창이 <b>아래에서</b> 제자리로 올라오는 높이(px). 0 이면 제자리에서 밝아지기만 한다")]
         [Min(0f)] [SerializeField] float appearRisePixels = 36f;
 
+        // ══════════════════════════════════════════════════════════════
+        //  ★★★ <b>선택지를 고르기 전에는 아무것도 못 한다</b> (2026-08-31 신설)
+        // ══════════════════════════════════════════════════════════════
+        // 유저 리포트: *"이벤트 등장 시 이벤트 선택지 선택 전엔 다른 ui로 넘어가지거나 게임이
+        //   진행되면 안되는데 <b>그냥 이벤트 창을 끄고 넘어갈 수 있는 현상</b> 발생.
+        //   이벤트 등장 시 <b>반드시 이벤트 선택지부터 선택</b>하도록 수정"*
+        //
+        // <b>무엇이 뚫려 있었나 — 구멍이 셋이었다</b>:
+        // <code>
+        //   ① 본문 단계에도 「닫기」 버튼이 <b>보였다</b>      → 누르면 선택 없이 사건이 끝났다
+        //   ② Esc · 단축키 · 다른 창 버튼이 <b>다 살아 있었다</b> → HudExclusive 가 이 창을 닫았다
+        //   ③ 게임이 <b>계속 흘렀다</b>                        → 읽는 동안 웨이브가 밀려왔다
+        // </code>
+        //
+        // ★★ <b>고치는 방법을 «막을 곳마다» 두지 않았다.</b> 창을 열 수 있는 곳은
+        //   허드 액션 버튼 · 단축키 · 도움말 안내 · 발굴 표식 … 으로 계속 늘어난다. 하나씩
+        //   막으면 <b>새로 생기는 입구를 반드시 빠뜨린다</b>(HudExclusive 가 N² 를 피하려고
+        //   만들어진 것과 같은 이유). 그래서 두 가지 <b>포괄적인</b> 장치만 쓴다:
+        //
+        //   ⑴ <b>화면 전체를 덮는 투명 판</b>(<see cref="EnsureBlocker"/>) — 마우스로 누를 수
+        //      있는 것이 <b>이 창밖에 없다</b>. 허드 버튼·미니맵·맵 클릭·유닛 선택이 한 번에 막힌다.
+        //   ⑵ <b>시간을 멈춘다</b>(<see cref="ApplyModalLock"/>) — «게임이 진행되면 안 된다» 가
+        //      곧 <c>timeScale = 0</c> 이다. 이 프로젝트에는 이미 그 손잡이가 하나뿐이다.
+        //
+        //   키보드 단축키만 판으로 막을 수 없어서 <c>HudHotkeys</c> 한 곳에 문을 달았다.
+        //
+        // ⚠ <b>잠기는 것은 «본문 단계» 뿐이다</b> — 결과창은 답을 이미 받았으므로 예전처럼
+        //   닫아도 되고 다른 창으로 넘어가도 된다(<c>EventService.AwaitingChoice</c>).
+
+        [Header("선택 강제 (2026-08-31)")]
+        [Tooltip("선택지를 고르기 전에는 <b>화면 전체를 덮는 투명 판</b>으로 다른 클릭을 막는다. " +
+                 "끄면 예전처럼 다른 UI 를 누를 수 있다")]
+        [SerializeField] bool blockClicksUntilChosen = true;
+
+        [Tooltip("선택지를 고르기 전에는 <b>게임 시간을 멈춘다</b>(timeScale = 0). " +
+                 "⚠ 남이 멈춰둔 상태(패배·승리 화면)는 건드리지 않는다 — 아래 ApplyModalLock 참조")]
+        [SerializeField] bool pauseUntilChosen = true;
+
+        [Tooltip("덮는 판의 색. 알파를 0 으로 두면 «보이지 않게» 막고, 조금 올리면 뒤가 어두워져 " +
+                 "«지금은 이 창만 만질 수 있다» 가 눈에 보인다")]
+        [SerializeField] Color blockerColor = new Color(0f, 0f, 0f, 0.45f);
+
         [Header("임시 문구 — 표에 값이 없을 때만 쓴다")]
         [Tooltip("이벤트 이름이 비어 있을 때")]
         [SerializeField] string fallbackTitle = "이름 없는 사건";
@@ -141,6 +183,19 @@ namespace LastSanctuary.UI
         /// <summary>지금 도는 등장 연출. 새 단계가 오면 갈아탄다(둘이 겹치면 알파가 싸운다).</summary>
         Coroutine _intro;
 
+        /// <summary>화면 전체를 덮는 투명 판. <see cref="EnsureBlocker"/> 가 코드로 만든다.</summary>
+        RectTransform _blocker;
+
+        /// <summary>
+        /// ★★ <b>내가 멈춰둔 상태인가 — 소유권 증표다</b>(<c>GameSpeedPanel._paused</c> 와 같은 판단).
+        /// 패배·승리 화면도 <c>timeScale = 0</c> 을 쓰므로 «지금 0 이다» 만으로는 누가 멈춴
+        /// 것인지 알 수 없다. 이 칸이 true 일 때만 이 창이 0 을 풀 수 있다.
+        /// </summary>
+        bool _ownsPause;
+
+        /// <summary>멈추기 <b>직전</b>의 배속. 풀 때 그 값으로 되돌린다(1 로 덮으면 배속이 날아간다).</summary>
+        float _resumeTimeScale = 1f;
+
         /// <summary>
         /// 지금 <see cref="Present"/> 로 열리는 중인가. <see cref="Awake"/> 가 창을 다시
         /// 닫아버리는 것을 막는 데만 쓴다 (아래 ★★ 참조).
@@ -184,7 +239,19 @@ namespace LastSanctuary.UI
         {
             // ⚠ 정적 이벤트라 끊지 않으면 죽은 오브젝트가 구독에 남는다(SettingsPanel 의 그 ⚠).
             Data.StringTable.OnLanguageChanged -= LocalizeLabels;
+
+            // ⚠⚠ <b>멈춰둔 시간을 반드시 되돌린다.</b> 씬을 다시 열거나(게임 재시작·로비 복귀)
+            //   플레이 모드를 나갈 때 이 창이 파괴되는데, 그때 timeScale 이 0 으로 남으면
+            //   <b>다음 판이 멈춘 채로 시작한다</b> — GameSpeedPanel.OnDisable 이 이미 밟은 함정이다.
+            ReleasePause();
         }
+
+        /// <summary>
+        /// 창이 <b>어떤 경로로든</b> 꺼지면 잠금을 푼다 — <see cref="Close"/> 를 거치지 않는
+        /// 경로(<c>SetActive(false)</c> 를 직접 부르는 코드 · 씬 언로드)까지 이 한 곳에서 받는다.
+        /// ★ «푸는 곳을 하나로» 두는 것이 timeScale 을 다루는 유일한 안전한 방법이다.
+        /// </summary>
+        void OnDisable() => ReleasePause();
 
         void Start()
         {
@@ -378,8 +445,143 @@ namespace LastSanctuary.UI
             gameObject.SetActive(true);
             Refresh(def, choice);
 
+            // ★★★ 본문 단계면 잠근다 · 결과 단계면 푼다 (2026-08-31 · 위 ★★★ 참조).
+            //   <b>Refresh 뒤에</b> 부른다 — 판을 올릴 때 창의 내용이 이미 그려져 있어야
+            //   «막혔는데 뭘 골라야 하는지 안 보이는» 한 프레임이 생기지 않는다.
+            //   ⚠⚠ <b>고를 것이 없으면 잠그지 않는다</b> — 조건이 <c>EventService.AwaitingChoice</c>
+            //     와 <b>글자 그대로 같아야 한다</b>. 갈리면 «판은 올라갔는데 Close 는 허용» 같은
+            //     엇갈린 상태가 생긴다(그쪽의 ⚠⚠ 참조 — 탈출구 없는 정지).
+            ApplyModalLock(choice == null && HasAnyChoice(def));
+
             if (opening) PlayAppear();
         }
+
+        // ------------------------------------------------------------------
+        //  선택 강제 — 덮는 판 · 시간 멈춤
+        // ------------------------------------------------------------------
+
+        /// <summary>
+        /// 잠금을 켜거나 끈다. <paramref name="on"/> 은 «아직 안 골랐다» 다.
+        ///
+        /// ★★ <b>시간을 멈추는 규칙은 <c>GameSpeedPanel</c> 과 똑같이 «소유권» 으로 다룬다</b> —
+        ///   이 프로젝트에서 <c>timeScale = 0</c> 을 쓰는 주인이 이미 셋이다
+        ///   (일시정지 버튼 · 패배 화면 · 승리 화면). 넷째가 끼어들면서 남이 멈춰둔 것을
+        ///   풀어버리면 <b>끝난 게임이 다시 흐른다</b>.
+        ///   · 이미 0 이면 → <b>내가 멈춘 것이 아니다.</b> 손대지 않는다(잠글 필요도 없다).
+        ///   · 내가 멈췄으면 → 풀 때 <b>멈추기 직전의 배속</b>으로 되돌린다(1 로 덮으면 x4 가 날아간다).
+        ///
+        /// ⚠ <c>fixedDeltaTime</c> 은 건드리지 않는다 — 0 을 곱하면 유니티가 예외를 던지고,
+        ///   <c>timeScale</c> 이 0 이면 <c>FixedUpdate</c> 자체가 안 돈다(GameSpeedPanel 의 그 ⚠).
+        /// </summary>
+        void ApplyModalLock(bool on)
+        {
+            // ── 덮는 판 ──
+            if (blockClicksUntilChosen)
+            {
+                EnsureBlocker();
+                if (_blocker != null && _blocker.gameObject.activeSelf != on)
+                    _blocker.gameObject.SetActive(on);
+            }
+            else if (_blocker != null && _blocker.gameObject.activeSelf)
+            {
+                _blocker.gameObject.SetActive(false);
+            }
+
+            // ── 시간 ──
+            if (!on) { ReleasePause(); return; }
+            if (!pauseUntilChosen || _ownsPause) return;
+            if (Time.timeScale <= 0f) return;      // 남이 멈춰둔 상태 — 관여하지 않는다
+
+            _resumeTimeScale = Time.timeScale;
+            _ownsPause = true;
+            Time.timeScale = 0f;
+        }
+
+        /// <summary>내가 멈춰둔 시간을 되돌린다. 내 것이 아니면 아무것도 하지 않는다.</summary>
+        void ReleasePause()
+        {
+            if (!_ownsPause) return;
+            _ownsPause = false;
+
+            // ⚠ <b>지금도 0 일 때만</b> 되돌린다 — 그 사이에 누군가(패배 화면) 시간을 다시
+            //   흐르게 했다면 소유권을 잃은 것이므로 그쪽 값을 덮어쓰지 않는다.
+            if (Time.timeScale <= 0f)
+                Time.timeScale = _resumeTimeScale > 0f ? _resumeTimeScale : 1f;
+        }
+
+        /// <summary>
+        /// 화면 전체를 덮는 <b>투명 판</b>을 보장한다.
+        ///
+        /// ★★ <b>씬에 실물로 있다</b>(<c>HUD_Event/ModalBlocker</c> · MCP 로 만들었다 · §10 H-1) —
+        ///   유저 지시 *"템플릿 슬롯 복제 하는 경우를 제외하고는 하드 코딩을 하지말고 mcp 연결해서
+        ///   직접 생성 및 수정"* 그대로다. 그래서 <b>먼저 찾고</b>, 없을 때만 만든다.
+        /// ⚠ 만드는 갈래를 남겨 두는 이유 — 씬이 아직 갱신되지 않은 상태(다른 브랜치·옛 씬)에서도
+        ///   <b>선택 강제가 조용히 풀리면 안 된다</b>. 이 창의 <c>CanvasGroup</c> 이
+        ///   같은 이유로 같은 모양을 하고 있다(<see cref="EnsureIntro"/> 의 ★).
+        ///
+        /// ★★ <b>왜 «이 창의 자식» 인가</b> — UI 의 그리는 순서는 <b>형제 순서</b>이고,
+        ///   <see cref="HudExclusive.OpenOnly"/> 가 이 창을 <c>UI_Root</c> 의 <b>맨 뒤</b>로
+        ///   올린다(=맨 위에 그린다). 그래서 이 창의 자식은 <b>다른 모든 HUD 위</b>에 온다.
+        ///   판을 <c>UI_Root</c> 직속으로 만들면 «판과 창 중 누가 위인가» 를 따로 관리해야 하고,
+        ///   창이 맨 앞으로 올라갈 때마다 판을 그 바로 아래로 다시 끼워 넣어야 한다.
+        ///
+        /// ★ <b>자식 중에서는 맨 앞</b>(<c>SetAsFirstSibling</c>)에 둔다 — 창의 배경·글씨·버튼보다
+        ///   <b>먼저</b> 그려져야 <b>이 창의 선택지는 눌린다</b>. 판이 뒤에 있으면 창 자신도 막힌다.
+        ///
+        /// ⚠ 크기를 «부모에 스트레치 + 넉넉한 음수 오프셋» 으로 잡는다. 창은 760x420 인데
+        ///   화면은 그보다 크므로, 부모에 딱 맞추면 <b>창 바깥이 안 막힌다</b>.
+        ///   해상도를 읽어 맞추는 대신 <b>충분히 큰 값</b>을 쓴다 — 창을 드래그로 옮겨도
+        ///   (<c>UiWindowDrag</c>) 화면을 계속 덮는다.
+        /// </summary>
+        void EnsureBlocker()
+        {
+            if (_blocker != null) return;
+
+            // ★ 씬에 있는 것을 먼저 쓴다 (MCP 로 만든 HUD_Event/ModalBlocker).
+            _blocker = transform.Find(BlockerName) as RectTransform;
+            if (_blocker != null)
+            {
+                // 씬 값이 정본이다 — 크기·색을 코드가 다시 칠하지 않는다. 순서만 못박는다:
+                // 이 창의 배경·글씨·버튼보다 <b>먼저</b> 그려져야 선택지가 눌린다(위 ★).
+                _blocker.SetAsFirstSibling();
+
+                Image scene = _blocker.GetComponent<Image>();
+                if (scene != null) scene.raycastTarget = true;   // 이것만은 반드시 켜져 있어야 한다
+
+                _blocker.gameObject.SetActive(false);
+                return;
+            }
+
+            var go = new GameObject(BlockerName, typeof(RectTransform), typeof(Image));
+            go.layer = gameObject.layer;
+
+            _blocker = (RectTransform)go.transform;
+            _blocker.SetParent(transform, false);
+
+            _blocker.anchorMin = Vector2.zero;
+            _blocker.anchorMax = Vector2.one;
+            _blocker.pivot = new Vector2(0.5f, 0.5f);
+            _blocker.offsetMin = new Vector2(-BlockerPadding, -BlockerPadding);
+            _blocker.offsetMax = new Vector2(BlockerPadding, BlockerPadding);
+
+            var image = go.GetComponent<Image>();
+            image.color = blockerColor;
+            image.raycastTarget = true;          // ★ 이것이 «막는다» 의 전부다
+
+            _blocker.SetAsFirstSibling();
+            go.SetActive(false);
+        }
+
+        /// <summary>
+        /// 덮는 판이 창 밖으로 뻗어 나가는 여유(px). 창(760x420)과 이 값의 두 배를 더한 크기가
+        /// <b>어떤 해상도보다 커야</b> 한다 — 4K(3840x2160)를 기준 해상도로 환산해도 남는다.
+        /// ⚠ 이 값을 «화면 크기» 로 읽어 계산하지 않는 이유: 창은 드래그로 옮길 수 있어서
+        ///   «지금 화면» 에 맞춰도 옮기는 순간 한쪽이 뚫린다. 넉넉히 크면 그 걱정이 없다.
+        /// </summary>
+        const float BlockerPadding = 4000f;
+
+        /// <summary>덮는 판의 하이라키 이름. 씬(<c>HUD_Event/ModalBlocker</c>)과 짝을 맞춘다.</summary>
+        const string BlockerName = "ModalBlocker";
 
         // ------------------------------------------------------------------
         // 등장 연출 — 페이드 인 + 떠오르기 (2026-08-24)
@@ -490,12 +692,30 @@ namespace LastSanctuary.UI
             SetChoice(_choice0, _choice0Label, resultStage ? null : At(choices, 0), choice0Label);
             SetChoice(_choice1, _choice1Label, resultStage ? null : At(choices, 1), choice1Label);
 
-            // ★ 결과 단계에서만 «확인» — 본문 단계에서 닫기를 누르면 선택 없이 이벤트가
-            //   날아가므로, 그때는 라벨을 «닫기» 로 두어 «고르지 않고 물러난다» 를 분명히 한다.
-            // 「닫기」는 다른 창들이 이미 쓰는 ui_btn_close 를 그대로 쓴다(키를 새로 만들지 않는다).
+            // ★★★ 2026-08-31 — <b>본문 단계에는 닫는 버튼이 없다</b> (유저 지시:
+            //   *"반드시 이벤트 선택지부터 선택하도록"*).
+            //
+            //   ⚠⚠ 예전에는 여기서 라벨만 «닫기» 로 바꿔 <b>버튼을 남겨 두었다</b> —
+            //     주석은 «고르지 않고 물러난다 를 분명히 한다» 였지만, 그 «물러남» 이 곧
+            //     유저가 리포트한 버그다. 사건은 <b>고르는 것이 규칙</b>이므로 «안 고르는 길» 이
+            //     화면에 있으면 안 된다.
+            //   ★ <b>라벨을 지우는 것으로는 부족하다</b> — 버튼 자체를 감춰야 한다. 남겨 두면
+            //     빈 버튼이 <see cref="Close"/> 를 계속 부를 수 있다(그쪽도 막았지만, 화면에
+            //     «눌러도 아무 일 없는 버튼» 이 남는 것은 그 자체로 고장으로 읽힌다).
+            //   ⚠⚠ <b>고를 것이 없는 사건은 예외다</b> — 표에 선택지 0개짜리 줄이 생기면
+            //     버튼도 없고 닫기도 없어 <b>답할 방법이 없는 창</b>이 남는다. 그때는 닫기를
+            //     남겨 두는 것이 유일한 탈출구다(<c>EventService.AwaitingChoice</c> 의 ⚠⚠).
+            bool canClose = resultStage || !HasAnyChoice(def);
+            if (_close != null) _close.gameObject.SetActive(canClose);
             if (_closeLabel != null)
                 _closeLabel.text = resultStage ? finishLabel : HudTheme.T("ui_btn_close", "닫기");
         }
+
+        /// <summary>
+        /// 이 사건에 <b>고를 수 있는 것이 하나라도 있는가</b>. 잠금과 닫기 버튼이 <b>같은 값</b>을
+        /// 봐야 하므로 한 줄로 뽑았다 — <c>EventService.AwaitingChoice</c> 와 같은 조건이다.
+        /// </summary>
+        static bool HasAnyChoice(EventDefinitionSO def) => def != null && def.choices.Count > 0;
 
         static EventChoice At(System.Collections.Generic.List<EventChoice> list, int i) =>
             list != null && i < list.Count ? list[i] : null;
@@ -539,9 +759,23 @@ namespace LastSanctuary.UI
         ///   <c>Current</c> 가 남아 «이미 진행 중» 으로 보이고, <b>다음 이벤트가 영영 안 뜬다</b>.
         /// ⚠ <c>HudExclusive</c> 가 다른 창을 열면서 이것을 부를 수도 있다 — 그때도
         ///   이벤트를 끝내는 것이 맞다(창이 사라졌는데 이벤트가 살아 있으면 답할 방법이 없다).
+        /// ★★★ <b>2026-08-31 — 선택지를 안 골랐으면 닫히지 않는다.</b>
+        ///   위 ⚠ 는 «<c>HudExclusive</c> 가 다른 창을 열면서 이것을 부를 수도 있다 — 그때도
+        ///   이벤트를 끝내는 것이 맞다» 고 적어 두었는데, 유저 지시(*"반드시 이벤트 선택지부터
+        ///   선택"*)로 <b>그 판단이 뒤집혔다</b>. 이제 답하기 전에는 «창이 사라지는» 일 자체가
+        ///   없어야 하므로, 어디서 불려도 <b>거절</b>한다.
+        ///
+        ///   ★ <b>거절을 조용히 한다</b> — 이 함수는 배타 조정자·Esc·씬 정리가 부르는
+        ///     <b>내부 통로</b>다. 여기서 로그를 남기면 창 하나 열 때마다 로그가 한 줄씩 쌓인다.
+        ///     유저에게 «못 닫는다» 를 알리는 것은 <b>버튼을 감추는 쪽</b>이 한다(<see cref="Refresh"/>).
+        ///   ⚠ 부르는 쪽이 «닫았는지» 를 알아야 하면 <see cref="IsOpen"/> 을 다시 보면 된다 —
+        ///     <c>HudExclusive.CloseOpenPanel</c> 이 그렇게 한다.
         /// </summary>
         public void Close()
         {
+            // ⚠ 결과창은 예전처럼 닫힌다 — 잠기는 것은 <b>본문 단계</b>뿐이다.
+            if (Events.EventService.IsAwaitingChoice) return;
+
             _presenting = false;
 
             // ⚠ 연출 중에 닫히면 알파가 0.3, 자리가 아래인 채로 굳는다 — 다음에

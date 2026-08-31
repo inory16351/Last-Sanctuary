@@ -508,7 +508,14 @@ namespace LastSanctuary.Units
             // 탐험 유형 '탐색' 은 중립을 아예 안 건드린다 — 그 판정은 UnitCombat 이 들고 있어야
             // 반격·동료 구원·사냥 강제 세 경로를 한 번에 막을 수 있다. 지침이 들어오는
             // 이 지점에서만 밀어 넣으므로 매 프레임 확인할 필요가 없다.
-            _combat?.SetNeutralHostilitySuppressed(scoutMode == TacticalExpeditionType.Explore);
+            // ⚠⚠ 2026-08-31 — <b>토벌 명령이 억제를 내려 둔 상태면 그것을 존중한다.</b>
+            //   토벌 중에 유저가 전술 창을 열어 다른 값을 누르면 이 줄이 억제를 <b>다시 걸어</b>
+            //   («탐색» 이면 true) 부대가 그 자리에서 다시 얼어붙는다. 그리고
+            //   <see cref="_subjugationLiftedSuppression"/> 는 이미 true 라
+            //   <see cref="SyncSubjugationHostility"/> 가 «바뀐 것이 없다» 로 보고 <b>다시 안 내린다</b>.
+            //   두 곳이 같은 깃발을 쓰므로 여기서도 그 상태를 봐야 한다.
+            _combat?.SetNeutralHostilitySuppressed(
+                !_subjugationLiftedSuppression && scoutMode == TacticalExpeditionType.Explore);
 
             // 사냥에서 다른 유형으로 바꾸면 지금 물고 있던 사냥감도 그 자리에서 놓는다 —
             // 안 그러면 지침을 바꿔도 그 한 마리를 끝까지 쫓아가 반영이 안 된 것처럼 보인다.
@@ -1142,10 +1149,62 @@ namespace LastSanctuary.Units
         /// <summary>이번 토벌에서 <see cref="UnitCombat.SetHome"/> 를 한 번이라도 불렀는가.</summary>
         bool _subjugationHomeSet;
 
-        bool TickSubjugation()
+        /// <summary>
+        /// ★ 이 캐릭터의 부대에 <b>살아 있는 토벌 대상</b>이 지정돼 있는가 (2026-08-31 신설).
+        /// <see cref="TickSubjugation"/> 과 <see cref="UpdateFleeState"/> 가 <b>같은 값</b>을
+        /// 봐야 하므로 판정을 한 줄로 뽑았다 — 두 곳이 각자 물어보면 조건이 갈린다.
+        /// </summary>
+        bool HasSubjugationOrder()
         {
             EpicSubjugationService service = EpicSubjugationService.Instance;
             if (service == null) return false;
+
+            NeutralMonsterUnit t = service.TargetFor(_character);
+            return t != null && t.IsAlive;
+        }
+
+        /// <summary>
+        /// ★★★ <b>토벌 명령이 «탐색» 의 중립 불간섭을 덮고 있는가</b> (2026-08-31).
+        ///
+        /// <b>이것이 «한 부대만 보내면 토벌이 안 되던» 나머지 절반이다.</b>
+        /// 탐험 유형이 «탐색»(Explore)이면 <see cref="ApplyTactics"/> 가
+        /// <see cref="UnitCombat.SetNeutralHostilitySuppressed"/>(true) 를 걸어 두고,
+        /// 그 상태에서는 <see cref="UnitCombat.SetHuntTarget"/> 이 <b>중립을 조용히 거절</b>한다:
+        /// <code>
+        ///   if (_neutralHostilitySuppressed &amp;&amp; target.Faction == Faction.Neutral) return;
+        /// </code>
+        /// 그래서 부대는 에픽 앞까지 <b>걸어가서 가만히 서 있었다</b> — 중립은 전부 비선공이라
+        /// (2026-08-15 확정) 저쪽도 먼저 안 때리므로 «아무 일도 안 일어나는» 대치가 됐다.
+        /// 반격(<c>FindRetaliationTarget</c>)도 같은 깃발에 막혀 있어서, 다른 부대가 싸움을
+        /// 붙여 준 뒤에야 이 부대가 움직였다 — 그것이 «두 부대를 보내야 된다» 의 정체다.
+        ///
+        /// ★ <b>깃발 하나만 내린다</b> — 사거리·타겟팅·반격 세 경로가 전부 그 깃발을 보므로
+        ///   (<see cref="UnitCombat.SetNeutralHostilitySuppressed"/> 의 주석) 여기서 한 번
+        ///   내리면 셋이 같이 열린다. 경로마다 예외를 넣으면 새 경로가 생길 때 빠뜨린다.
+        /// ★ <b>전술 지침을 고치지 않는다</b> — 창에는 여전히 «탐색» 이라고 적혀 있어야 한다.
+        ///   토벌은 <b>일시적인 명시 지시</b>이고, 끝나면 그 부대는 다시 중립을 안 건드려야 한다.
+        /// ⚠ 그래서 <b>되돌리는 일이 이 함수의 절반</b>이다. <see cref="ApplyTactics"/> 는
+        ///   지침이 <b>바뀔 때만</b> 돌기 때문에, 명령이 끝났을 때 여기서 직접 복구하지 않으면
+        ///   «한 번 토벌을 다녀온 탐색 부대가 영구히 사냥꾼이 된다».
+        /// </summary>
+        bool _subjugationLiftedSuppression;
+
+        void SyncSubjugationHostility(bool hasOrder)
+        {
+            bool wantLift = hasOrder && _expeditionType == TacticalExpeditionType.Explore;
+            if (wantLift == _subjugationLiftedSuppression) return;
+
+            _subjugationLiftedSuppression = wantLift;
+
+            // 내릴 때는 false(억제 해제), 되돌릴 때는 지침이 정한 값 그대로.
+            _combat?.SetNeutralHostilitySuppressed(
+                wantLift ? false : _expeditionType == TacticalExpeditionType.Explore);
+        }
+
+        bool TickSubjugation()
+        {
+            EpicSubjugationService service = EpicSubjugationService.Instance;
+            if (service == null) { SyncSubjugationHostility(false); return false; }
 
             NeutralMonsterUnit target = service.TargetFor(_character);
             if (target == null || !target.IsAlive)
@@ -1153,8 +1212,12 @@ namespace LastSanctuary.Units
                 // ⚠ 명령이 없어졌으면 깃발을 내린다 — 안 내리면 <b>다음 토벌의 첫 프레임</b>에
                 //   «움직이지 않았다» 로 읽혀 옛 목적지로 걸어간다.
                 _subjugationHomeSet = false;
+                SyncSubjugationHostility(false);   // ★ 억제도 지침 값으로 되돌린다(위 ⚠)
                 return false;
             }
+
+            // ★★★ 명령이 있는 동안에는 «탐색» 의 중립 불간섭을 덮는다 (위 ★★★ 참조).
+            SyncSubjugationHostility(true);
 
             // ★ <b>웨이브가 오면 전술 지침을 따른다</b> (유저 확정 2026-08-16, 미결 191번).
             //   웨이브 반응이 '즉시 방어'면 토벌을 <b>잠시 놓고</b> 아래의 평소 판단으로
@@ -1609,6 +1672,31 @@ namespace LastSanctuary.Units
         /// </summary>
         void UpdateFleeState()
         {
+            // ★★★ <b>토벌 명령을 받은 부대는 도망가지 않는다</b> (2026-08-31 · 유저 리포트:
+            //   *"토벌을 한부대만 보내도 보스와 전투가 일어나야 하는데 반드시 두 부대를 보내야만
+            //   토벌이 가능한 버그"*).
+            //
+            //   <b>왜 여기가 원인인가</b> — 이 검사는 <see cref="Update"/> 에서
+            //   <see cref="TickSubjugation"/> <b>보다 먼저</b> 돈다. 그래서 탐험 유형이
+            //   «탐색»(Explore)인 부대는 토벌 대상에게 한 대 맞는 순간 <b>토벌 판단에
+            //   도달하지도 못하고</b> 도망 상태로 빠졌다 — 지시는 살아 있는데 몸은 달아난다.
+            //
+            //   ★ 순서를 바꾸지 않고 <b>여기서 거른다</b>. 도망은 «후퇴 다음, 임무보다 앞» 이라는
+            //     자리가 맞다(맞으면서 임무를 계속하는 것이 아니므로). 틀린 것은 «명시적인
+            //     지시까지 도망으로 덮는다» 는 것이었다 — <see cref="TickSubjugation"/> 이
+            //     스스로 적어 둔 규칙(«명시적인 지시는 자동 판단이 취소하면 안 된다»)과 같다.
+            //   ⚠ <b>후퇴(<see cref="UpdateRetreatState"/>)는 그대로 둔다</b> — 그쪽은 «체력이
+            //     기준 아래» 라는 <b>유저가 슬라이더로 정한 값</b>이고, 토벌 중에도 죽지 않게
+            //     빠지는 것이 맞다. 도망은 «탐색 유형은 중립과 안 싸운다» 는 <b>유형의 정의</b>라
+            //     성질이 다르다.
+            if (HasSubjugationOrder())
+            {
+                // ⚠ 이미 도망 중이었으면 <b>그 상태를 제대로 걷는다</b> — 아래 else 갈래와 같다.
+                //   목적지를 다시 고르게 하지 않으면 도망치던 자리로 계속 걸어간다.
+                if (_fleeing) { _fleeing = false; _repickTime = 0f; }
+                return;
+            }
+
             bool want = _expeditionType == TacticalExpeditionType.Explore && RecentNeutralAttacker() != null;
             if (want == _fleeing) return;
 

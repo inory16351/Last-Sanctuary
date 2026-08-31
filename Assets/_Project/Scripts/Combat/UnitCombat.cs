@@ -155,6 +155,13 @@ namespace LastSanctuary.Combat
                  "묻히고 몬스터 무리에 그대로 휩쓸려 끌려간다")]
         [Min(0.05f)] [SerializeField] float separationMaxInfluence = 0.7f;
 
+        [Tooltip("★ 근거리 유형이 <b>붙어서 때릴 때</b> 상대 그림 경계에서 띄우는 거리(타일).\n" +
+                 "2026-08-31 신설 — 예전에는 «때릴 수 있게 된 자리»(사거리 끝)에 멈춰서, 몸집이 " +
+                 "큰 보스에서 <b>칼이 닿지 않는 거리에서 휘두르는</b> 모습이 됐다 " +
+                 "(UnitCombat.CreepToContact 의 ★★★).\n" +
+                 "0 이면 그림에 딱 붙는다. <b>음수면 이 기능을 끈다</b>(예전 동작)")]
+        [SerializeField] float meleeContactGapTiles = 0.2f;
+
         [Header("바라보는 방향")]
         [Tooltip("켜면 좌우로 이동할 때 스프라이트를 뒤집어 진행 방향을 보게 한다. " +
                  "코어 키퍼·스타듀 밸리 방식 — 위아래로 이동할 때는 뒤집지 않고 " +
@@ -2110,6 +2117,9 @@ namespace LastSanctuary.Combat
             switch (_state)
             {
                 case CombatState.Attack:
+                    // ★★★ 때리면서 <b>계속 붙는다</b> — 큰 상대일 때만 눈에 보이는 차이다.
+                    //   아래 <see cref="CreepToContact"/> 의 긴 주석 참조.
+                    if (!immobile) CreepToContact(dt);
                     TryAttack();
                     break;
 
@@ -2127,6 +2137,134 @@ namespace LastSanctuary.Combat
                     if (!immobile) UnstackWhileIdle(dt);
                     break;
             }
+        }
+
+        /// <summary>
+        /// ★★★ <b>근거리는 «때릴 수 있게 된 자리» 에 멈추지 않고 «붙는 자리» 까지 간다</b>
+        /// (2026-08-31 · 유저 리포트: *"일부 보스 사냥 시 근거리 캐릭터의 사거리가 늘어나는
+        /// 버그가 있는 것 같음"*).
+        ///
+        /// ═══════════════════════════════════════════════════════════════════
+        ///  <b>사거리는 멀쩡했다 — 늘어난 것은 «몸집» 이다</b>
+        /// ═══════════════════════════════════════════════════════════════════
+        /// <see cref="DecideState"/> 는 <c>dist ≤ EffectiveAttackRange + TargetRadius(target)</c>
+        /// 가 되는 <b>첫 순간</b> <see cref="CombatState.Attack"/> 으로 올리고,
+        /// <b>Attack 은 이동하지 않는다</b>. 즉 근거리 캐릭터는 언제나 <b>자기 사거리의 끝</b>에
+        /// 선다. 상대가 작을 때는 그 끝이 곧 접촉이라 티가 안 났다:
+        /// <code>
+        ///   지옥 송곳니   TargetRadius 0.95  → 1.2 + 0.95 = <b>2.15</b> 타일에서 멈춘다
+        ///   말파스        TargetRadius 3.39  → 1.2 + 3.39 = <b>4.59</b>
+        ///   베일·레기미아 TargetRadius 5.00  → 1.2 + 5.00 = <b>6.20</b>   ← 몸집이 큰 «일부 보스»
+        /// </code>
+        /// <see cref="TargetRadius"/> 가 <b>가로·세로 중 작은 쪽</b>의 절반이라(그림이 넓적하면
+        /// 가로가 그보다 훨씬 크다), 보스의 <b>넓은 축</b>에서 다가간 캐릭터는 그림 한가운데로
+        /// 들어가고 <b>좁은 축</b>에서 다가간 캐릭터는 그림 밖 1.2타일에 선다.
+        /// 같은 부대의 근거리 둘이 <b>제각각 다른 거리</b>에서 칼을 휘두르는 것이 눈에 보이고,
+        /// 그것이 «사거리가 늘어난 것 같다» 의 정체다. 173-4절이 잡은 «거리 두기» 와 <b>같은
+        /// 성질의 두 번째 원인</b>이다(그때는 후방·중위 근거리가 <b>뒷걸음질</b>쳤다).
+        ///
+        /// → <b>Attack 상태에서도 계속 다가간다.</b> 때리는 것은 시간(<c>_nextAttackTime</c>)이
+        ///   정하므로 <b>멈춰 서 있을 이유가 없다</b> — 걸으면서 때린다(후퇴 사격이 이미 그렇게 한다).
+        ///
+        /// ═══════════════════════════════════════════════════════════════════
+        ///  ⚠⚠ <b>«타겟 자리로 걸어간다» 로 하면 안 된다 — 밀림이 못 막는다</b>
+        /// ═══════════════════════════════════════════════════════════════════
+        /// <see cref="Separation"/> 이 이미 <c>내 몸집 + 상대 몸집</c> 까지 밀어내므로
+        /// «다가가는 힘과 밀어내는 힘이 만나 경계에 선다» 고 생각하기 쉽지만, <b>틀렸다</b>:
+        /// 밀림은 <see cref="separationMaxInfluence"/>(0.7 &lt; 1) 아래에 있어
+        /// <b>가려던 방향을 절대 못 이긴다</b>(그 필드의 주석). 중심을 향해 걸으면
+        /// <b>보스 그림 한가운데까지 파고든다</b> — <see cref="TargetRadius"/> 가 애초에
+        /// 막으려던 바로 그 모습이다.
+        ///
+        /// → 그래서 <b>멈출 자리를 직접 계산한다</b>: <see cref="TargetEdgeDistance"/> 로
+        ///   «내가 서 있는 방향에서 그림의 경계가 어디인지» 를 구하고, 거기에
+        ///   <see cref="meleeContactGapTiles"/> 만큼만 띄운 점을 목적지로 준다.
+        ///
+        /// ★★ <b>«가까워지기만» 한다 — 절대 물러나지 않는다.</b> 경계는 방향마다 다르므로
+        ///   (넓은 축에서는 <see cref="TargetRadius"/> 보다 <b>멀다</b>) 이미 그림 안에 들어와
+        ///   있는 캐릭터를 «경계로» 되돌리면 <b>뒷걸음질</b>이 된다 — 173-4절이 방금 없앤 그 모습이다.
+        ///   목표보다 이미 가까우면 아무것도 하지 않는다.
+        ///
+        /// ⚠ <b>근거리만이다.</b> 원거리·마법·치유는 «떨어져서 쏘는 것» 이 유형의 정의이고
+        ///   전열 유지(<see cref="SetStandoff"/>)가 그 자리를 정한다 — 다가가면 그 설계가 무너진다.
+        /// ⚠ <b>최소 사거리가 있으면 다가가지 않는다</b> — 마법의 안전 반경처럼 «너무 붙으면
+        ///   못 때리는» 유형이 파고들면 스스로 공격을 못 하게 된다.
+        /// ⚠ <b>«자리를 지킨다»(HoldGround)·후퇴 사격 중에는 돌지 않는다</b> — 그 둘은 이동
+        ///   자체가 금지인 상태다. <see cref="DecideState"/> 가 그때는 Attack 을 주지 않지만,
+        ///   <see cref="_holdingGround"/> 를 여기서도 확인해 두 층이 어긋나지 않게 한다.
+        /// ⚠ <b>«때릴 수 있는 거리»(<see cref="InAttackRange"/>)는 한 줄도 안 바뀐다</b> —
+        ///   이 함수는 <b>서는 자리</b>만 다룬다. 판정을 건드리면 밸런스가 같이 움직인다.
+        /// </summary>
+        void CreepToContact(float dt)
+        {
+            if (attackType != TacticalAttackType.Melee) return;
+            if (meleeContactGapTiles < 0f) return;              // 음수 = 이 기능을 끈다
+            if (_target == null || !_target.IsAlive) return;
+            if (_holdingGround || _retreatFiring) return;
+            if (MinAttackDistance > 0f) return;
+            if (_standoffTiles > 0f) return;          // 누가 거리를 지정했으면 그 뜻을 존중한다
+
+            Vector3 center = _target.transform.position;
+            Vector2 away = transform.position - center;
+            float dist = away.magnitude;
+            if (dist < 0.01f) return;                 // 이미 겹쳐 있다 — 밀림이 알아서 푼다
+
+            Vector2 dir = away / dist;
+            float want = TargetEdgeDistance(_target, dir) + meleeContactGapTiles;
+
+            // ★ 가까워지기만 한다(위 ★★). 여유를 두어 밀림에 흔들릴 때마다 전진/정지가
+            //   뒤집히지 않게 한다 — StandoffTolerance 가 같은 목적으로 쓰이는 값이다.
+            if (dist <= want + StandoffTolerance) return;
+
+            MoveToDestination(center + (Vector3)(dir * want), dt);
+        }
+
+        /// <summary>
+        /// ★ <b>이 방향에서 그림의 경계가 중심으로부터 얼마나 먼가</b>(타일) — 2026-08-31 신설.
+        ///
+        /// <see cref="TargetRadius"/> 는 <b>원</b>(가로·세로 중 작은 쪽의 절반)이라 «어디까지
+        /// 다가가면 때릴 수 있나» 에는 맞지만 «어디가 그림 끝인가» 에는 안 맞는다 —
+        /// 몸집이 <b>넓적한</b> 보스(베일 13.7 x 10)는 두 축의 차이가 3타일이 넘는다.
+        /// 여기서는 <b>직사각형</b>으로 풀어 방향별 경계를 낸다:
+        /// <code>
+        ///   반쪽 크기 (a, b) · 단위 방향 (dx, dy)  →  min(a/|dx|, b/|dy|)
+        /// </code>
+        /// 축에 딱 붙은 방향(<c>dx</c> 또는 <c>dy</c> 가 0)은 그 축을 무한으로 두어 나눗셈을 피한다.
+        ///
+        /// ⚠ 크기의 정본은 <b>실제로 그려진 상자</b>(<c>ColliderSizeTiles</c>)다 — 표에 적은
+        ///   «희망 크기» 가 아니다. 그림은 그 상자 <b>안에</b> 맞춰 넣어지므로(contain) 한 축은
+        ///   표 값보다 작다. 못 읽으면 <see cref="TargetRadius"/> 로 정사각형을 만들어 떨어진다
+        ///   (그때는 예전과 같은 원형 판정이 된다 — <b>더 나빠지지는 않는다</b>).
+        /// </summary>
+        float TargetEdgeDistance(DamageableUnit target, Vector2 dir)
+        {
+            Vector2 half = TargetHalfExtents(target);
+
+            float ax = Mathf.Abs(dir.x);
+            float ay = Mathf.Abs(dir.y);
+            float tx = ax > 0.0001f ? half.x / ax : float.PositiveInfinity;
+            float ty = ay > 0.0001f ? half.y / ay : float.PositiveInfinity;
+
+            float edge = Mathf.Min(tx, ty);
+            return float.IsInfinity(edge) ? TargetRadius(target) : edge;
+        }
+
+        /// <summary>그려진 몸집의 <b>반쪽 크기</b>(타일). 모르면 <see cref="TargetRadius"/> 로 정사각형.</summary>
+        static Vector2 TargetHalfExtents(DamageableUnit target)
+        {
+            if (target is Units.MonsterUnit monster)
+            {
+                Vector2 box = monster.ColliderSizeTiles;
+                if (box.x > 0.01f && box.y > 0.01f) return box * 0.5f;
+            }
+            else if (target is Units.NeutralMonsterUnit neutral)
+            {
+                Vector2 box = neutral.ColliderSizeTiles;
+                if (box.x > 0.01f && box.y > 0.01f) return box * 0.5f;
+            }
+
+            float r = TargetRadius(target);
+            return new Vector2(r, r);
         }
 
         /// <summary>

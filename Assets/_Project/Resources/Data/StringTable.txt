@@ -103,7 +103,7 @@ skill_name_80014	분노	Wrath
 skill_name_80015	복수자	Avenger
 skill_explain_80013	전장의 앞을 지키는 것은 히스톤에게 쥐어진 운명입니다.	Guarding the front line of battle is the fate given to Histon.
 skill_explain_80014	죽음조차 히스톤의 복수를 막을 수는 없습니다.	Not even death can stop Histon's vengeance.
-skill_explain_80015	그의 부활은 적들에겐 공포이지만 아군에겐 기적과도 같습니다.	His resurrection is a terror to enemies, but a miracle to allies.
+skill_explain_80015	히스톤이 품은 분노는 어디로도 사라지지 않고, 그가 쥔 칼끝에 그대로 실립니다.	The wrath Histon holds never fades; it settles into the edge of his blade.
 skill_type_desc_Vanguard	히스톤의 포지션은 전방 / 공격 유형은 근거리로 고정된다. 히스톤의 근거리 공격은 예외적으로 크리티컬 공격이 가능하다.	Histon's position is fixed to Front, and his attack type is fixed to Melee. Exceptionally, Histon's melee attacks can land critical hits.
 skill_type_desc_Rage_on	히스톤에게 별개의 '분노' 수치 획득이 가능해진다.(0~100) 히스톤이 공격 할때 마다 {value_01} 만큼의 분노를 획득한다. 분노는 체력 재생 가능 상태 일때 초당 {value_02} 만큼 하락한다.(진군 중일때 제외) 분노가 100일 때 히스톤이 죽음에 이를 시 {value_03}초 만큼의 경직 시간 이후 부활한다.	Histon gains a separate 'Rage' value (0-100). Each time Histon attacks, he gains {value_01} Rage. Rage decreases by {value_02} per second while HP regeneration is possible (except while advancing). If Histon would die while Rage is at 100, he revives after a {value_03}-second stagger.
 skill_type_desc_Reaver	히스톤의 공격은 근거리 공격 데미지+히스톤이 보유한 분노의 데미지를 준다. (공식 계산 후 합연산)	Histon's attacks deal melee attack damage plus damage equal to his current Rage. (Added together after formula calculation.)
@@ -229,7 +229,7 @@ skill_detail_80011	같은 집결지의 동료가 나쁜 정신 이상에 걸리�
 skill_detail_80012	체력이 최대의 {value_03}%까지 떨어지면 {value_02}초 동안 발동합니다. 공격한 적에게 「정화」를 남기고, 그 적을 때린 동료가 최대 체력의 {value_01}%를 회복합니다.	Activates for {value_02} seconds when HP drops to {value_03}% of max. Leaves 'Purification' on the attacked enemy, and allies who hit that enemy recover {value_01}% of max HP.
 skill_detail_80013	포지션이 전방, 공격 유형이 근거리로 고정됩니다. 근거리 공격으로도 크리티컬이 터집니다.	Position is fixed to Front, and Attack Type is fixed to Melee. Critical hits can occur even with melee attacks.
 skill_detail_80014	공격할 때마다 「분노」가 {value_01} 쌓이고, 쉬는 동안 초당 {value_02} 줄어듭니다. 분노가 가득 찬 상태에서 죽으면 {value_03}초 뒤 되살아납니다.	Each attack builds {value_01} 'Wrath', which decreases by {value_02} per second while at rest. If you die with Wrath full, you are revived after {value_03} seconds.
-skill_detail_80015	되살아날 때 반경 {value_01} 타일의 적에게 공격력의 {value_02}% 피해를 주고, 같은 범위의 동료를 최대 체력의 {value_03}%만큼 회복시킵니다.	Upon revival, deals {value_02}% of Attack Power as damage to enemies within {value_01} tiles, and heals allies in the same range by {value_03}% of max HP.
+skill_detail_80015	히스톤의 공격은 근거리 공격 피해에 더해, 지금 보유한 「분노」 수치만큼의 피해를 함께 입힙니다.	Histon's attacks deal his melee damage plus extra damage equal to his current Wrath.
 skill_detail_80016	자신이 공격한 적이 {value_01}초 안에 죽으면 {value_02}% 확률로 발동합니다. 지름 {value_03} 범위의 동료를 자기 현재 체력의 {value_04}%만큼 회복시키고 자신은 그만큼 잃습니다. 후퇴 기준은 {value_05}%로 고정됩니다.	If an enemy you attacked dies within {value_01} seconds, this activates with a {value_02}% chance. Heals allies within a diameter of {value_03} by {value_04}% of your current HP, and you lose the same amount. The retreat threshold is fixed at {value_05}%.
 skill_detail_80017	「가학증」이 터질 때마다 공격 속도가 {value_01}% 오릅니다. {value_02}초 동안 이어지며, 겹치지 않고 지속시간만 새로 채워집니다.	Each time 'Sadism' triggers, Attack Speed increases by {value_01}%. This lasts for {value_02} seconds, does not stack, and only refreshes the duration.
 skill_detail_80018	체력이 최대의 {value_01}% 밑으로 떨어지면 {value_02}초 동안 어떤 피해도 받지 않습니다. 회복은 그대로 받습니다.	When HP falls below {value_01}% of max, you take no damage of any kind for {value_02} seconds. Healing is still received normally.
@@ -746,7 +746,7 @@ relic_desc_700002	공격 속도가 1 증가합니다.	Increases Attack Speed by 
 relic_desc_700003	체력이 1 증가합니다.	Increases Health by 1.
 relic_desc_700004	체력 재생이 1 증가합니다.	Increases Health Regeneration by 1.
 relic_desc_700005	저항력이 4 증가합니다.	Increases Resistance by 4.
-relic_desc_700006	적을 처치할 때마다 에너지를 12 얻습니다.	Gain 12 Energy each time you kill an enemy.
+relic_desc_700006	적을 처치할 때 에너지를 3 얻습니다.	Gain 3 Energy each time you kill an enemy.
 relic_desc_700007	명중률이 2 증가합니다.	Increases Accuracy by 2.
 relic_desc_700008	이동 속도가 1 증가합니다.	Increases Movement Speed by 1.
 relic_desc_700009	회복력이 1 증가합니다.	Increases Recovery by 1.
