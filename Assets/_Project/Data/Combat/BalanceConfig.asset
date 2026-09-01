@@ -21,6 +21,7 @@ MonoBehaviour:
   initialStatMax: 10
   hpBase: 40
   hpPerStat: 10
+  characterHpPercent: 150
   attackBase: 2
   attackPerStat: 2
   defenseK: 50
@@ -29,6 +30,10 @@ MonoBehaviour:
   regenTickSeconds: 10
   regenPerStat: 1
   outOfCombatRegenDelay: 5
+  healBase: 2
+  healPerStat: 1
+  healInCombatPercent: 50
+  healInCombatSeconds: 3
   accuracyBasePercent: 40
   accuracyPerStat: 0.6
   accuracyMaxPercent: 100
@@ -42,6 +47,6 @@ MonoBehaviour:
   moveSpeedHalfStat: 50
   moveSpeedMax: 6
   resistancePivot: 50
-  resistancePerStat: 0.01
+  resistancePerStat: 0.006
   attacksPerSecond: 1
   moveSpeedTilesPerSecond: 3

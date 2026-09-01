@@ -109,6 +109,33 @@ namespace LastSanctuary.Combat
         public virtual bool AcceptsExternalHeal => true;
 
         /// <summary>
+        /// ★ <b>전투 중 받는 회복 감소</b>가 이 유닛에 걸리는가 (2026-09-01 · 유저 지시).
+        ///
+        /// 기본 <b>false</b> — 몬스터·중립·성역·포탑은 예전 그대로 회복한다.
+        /// <see cref="LastSanctuary.Units.CharacterUnit"/> 만 <c>true</c> 로 연다.
+        ///
+        /// <b>왜 «캐릭터인가» 를 여기서 묻지 않나</b> — <c>UnitCombat.PerformHeal</c> 의
+        /// <c>FullAccuracyAllowed</c> 와 같은 원칙이다. 조건을 <b>유닛에게 묻는</b> 형태로
+        /// 두면, 나중에 같은 규칙을 갖는 유닛이 늘어도 이 파일은 그대로다.
+        ///
+        /// ⚠ <b>보스를 일부러 뺐다.</b> 보스의 자가 회복은 스킬 표가 «최대 체력 N%» 로
+        ///   못박은 값이라, 여기서 반토막을 내면 표에 적힌 숫자와 화면이 달라진다.
+        ///   문제가 된 것은 플레이어 쪽 지속력이므로 그쪽만 건드린다.
+        /// </summary>
+        protected virtual bool UsesInCombatHealPenalty => false;
+
+        /// <summary>
+        /// 지금 «전투 중» 이라 받는 회복이 깎이는 상태인가.
+        ///
+        /// ⚠ <see cref="IsInCombat"/> 와 <b>다른 시간 창</b>을 쓴다 — 그쪽은
+        ///   <c>outOfCombatRegenDelay</c>(5초)로 «완전히 물러났나» 를 묻고,
+        ///   이쪽은 <c>healInCombatSeconds</c>(3초)로 «지금 맞고 있나» 를 묻는다.
+        ///   두 규칙이 같은 칸을 쓰면 재생 대기시간을 만질 때 회복 페널티가 딸려 움직인다.
+        /// </summary>
+        public bool IsInHealPenaltyCombat =>
+            balance != null && Time.time - _lastCombatTime < balance.healInCombatSeconds;
+
+        /// <summary>
         /// 능력치에서 파생된 초당 공격 횟수. <b>0 이면 "이 유닛은 능력치로 정하지 않는다"</b>는 뜻이고
         /// <c>UnitCombat</c> 이 기존 경로(인스펙터 값 → 밸런스 폴백)를 그대로 쓴다.
         ///
@@ -660,6 +687,22 @@ namespace LastSanctuary.Combat
             // ★★ 받는 회복 증폭을 <b>여기서</b> 먹인다 (위 AmplifiedHeal 주석).
             amount = AmplifiedHeal(amount);
             if (amount <= 0) return;
+
+            // ★★★ <b>전투 중 받는 회복 감소</b> (2026-09-01 · 유저 지시).
+            //
+            //   증폭(성역 등) <b>다음에</b> 곱한다 — 증폭은 «이 캐릭터가 회복을 잘 받는다»,
+            //   이쪽은 «지금 맞고 있어서 잘 안 받는다» 라 서로 다른 층이다. 순서를 뒤집어도
+            //   값은 같지만, 이 순서라야 «성역 안에서도 전투 중이면 깎인다» 가 코드로 읽힌다.
+            //
+            //   ⚠ <c>_silentHeal</c> 은 <b>거른다</b>. 그 갈래로 오는 것은 체력 재생과
+            //     레벨업 체력 보정인데, 재생은 애초에 전투 중에 돌지 않고
+            //     레벨업 보정은 «최대 체력의 N% 로 맞춘다» 는 대입이라
+            //     배율을 먹이면 목표 체력에 못 미쳐 값이 깨진다.
+            if (!_silentHeal && UsesInCombatHealPenalty && IsInHealPenaltyCombat && balance != null)
+            {
+                amount = Mathf.RoundToInt(amount * balance.InCombatHealMultiplier);
+                if (amount <= 0) return;
+            }
 
             // ★ 실제로 찬 양을 재서 이벤트에 싣는다 — 요청량이 아니다(OnAnyHealed 주석 참조).
             int before = currentHp;

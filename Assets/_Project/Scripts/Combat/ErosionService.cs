@@ -44,16 +44,50 @@ namespace LastSanctuary.Combat
                  "타겟을 놓친 순간마다 침식이 끊기지 않게 하는 여유값")]
         [Min(0f)] [SerializeField] float waveCombatMemorySeconds = 3f;
 
+        // ══════════════════════════════════════════════════════════════
+        // ★★★ 후방 침식 (2026-09-01 신설 · 유저 지시)
+        //
+        //   *"후방에 있는 아군도 어느 정도는 침식이 되는 로직을 만들거나"*
+        //
+        //   <b>무엇이 문제였나</b> — <see cref="CharacterErosion"/> 의 <c>IsInWaveCombat</c> 은
+        //   «내 타겟이 <see cref="Faction.Cancer"/> 이거나 / 최근에 Cancer 에게 맞았거나» 다.
+        //   그런데 <b>힐러는 타겟이 아군</b>이라 이 조건에 <b>영영 안 걸린다</b>. 원거리·보조도
+        //   사거리 밖에 서 있으면 0 이다. 그래서 침식이 «앞줄 몇 명만의 시스템» 이 됐고,
+        //   유저 체감이 *"침식도 사실상 안되는 느낌"* 이 됐다.
+        //
+        //   ★ <b>웨이브 몬스터가 맵에 살아 있는 동안</b>에는 교전하지 않는 캐릭터도
+        //     전투치의 이 비율만큼 침식이 쌓인다. 침식은 «웨이브의 압박» 을 나타내는
+        //     수치이므로, 전장에 몬스터가 도는 동안 후방이라고 압박이 0 인 것이 오히려 이상하다.
+        //
+        //   ⚠ <b>중립 몬스터는 여기에도 안 들어간다</b> — <c>UnitKind.Monster</c> 를
+        //     공유하므로 <see cref="Faction.Cancer"/> 까지 확인해야 갈린다. 중립 사냥은
+        //     정비 시간의 자원 활동이라는 기존 규칙이 그대로다.
+        //
+        //   30% · 전투 120초 기준 후방 캐릭터가 웨이브당 약 47 을 쌓아
+        //   <b>2~3 웨이브에 한 번</b> 정신 이상이 온다.
+        // ══════════════════════════════════════════════════════════════
+
+        [Tooltip("★ 웨이브 몬스터가 맵에 살아있는 동안, <b>교전하지 않는</b> 캐릭터가 쌓는 " +
+                 "침식량(전투 중 침식의 %). 0 이면 예전 동작(후방은 전혀 안 쌓인다).\n" +
+                 "⚠ 이 값이 0 보다 크면 웨이브가 도는 내내 <b>회복 대기가 시작되지 않는다</b> — " +
+                 "침식이 빠지는 것은 웨이브를 정리한 뒤부터다")]
+        [Range(0, 100)] [SerializeField] int rearErosionPercent = 30;
+
         [Header("침식 회복 — 전투에서 벗어난 뒤 (초당)")]
         [Tooltip("전투에서 벗어난 뒤 회복이 시작되기까지의 대기 시간(초). " +
                  "체력 재생의 outOfCombatRegenDelay 와 같은 결이지만 그보다 조금 길다")]
-        // ⚠ 이 칸만은 「계수」 시트에 없다 — 씬(Proto_01)의 실측값 7 을 기본값으로 삼는다.
-        //   표에 자리가 생기면 그쪽이 정본이 된다.
-        [Min(0f)] [SerializeField] float recoverDelaySeconds = 7f;
+        // ⚠ 2026-09-01 — 7 → <b>12</b>. 「계수」 시트에 자리를 만들어 함께 올렸다.
+        //   후방 침식이 생기면서 «웨이브가 끝난 뒤» 가 유일한 회복 창이 됐는데,
+        //   대기시간 30초 중 23초가 회복 구간이면 쌓은 것의 상당량이 그대로 빠졌다.
+        [Min(0f)] [SerializeField] float recoverDelaySeconds = 12f;
 
-        [Tooltip("회복이 시작된 뒤 1초에 줄어드는 침식량. 기본 0.35 — 웨이브 하나를 온전히 " +
-                 "싸우면 정신 이상이 한 번쯤 오는 수준으로 잡은 값(2026-08-24 개정 · 옛 값 0.2)")]
-        [Min(0f)] [SerializeField] float erosionRecoverPerSecond = 0.35f;
+        // ★ 2026-09-01 — 0.35 → <b>0.15</b> (유저 지시: *"회복되는 속도를 낮추거나 해야 할듯"*).
+        //   0.35 이면 대기시간 30초에 약 8 이 빠지는데, 조기 처치 보너스로 대기시간이
+        //   늘어나면 그만큼 더 빠져서 «잘 싸울수록 침식이 안 쌓이는» 모양이 됐다.
+        [Tooltip("회복이 시작된 뒤 1초에 줄어드는 침식량. 기본 0.15 " +
+                 "(2026-09-01 개정 · 옛 값 0.35 · 그 전 0.2). 후방 침식이 생기면서 " +
+                 "«쌓는 창» 이 넓어졌으므로 «빠지는 창» 을 같이 좁혔다")]
+        [Min(0f)] [SerializeField] float erosionRecoverPerSecond = 0.15f;
 
         [Header("발동")]
         [Tooltip("침식 상한. 이 값에 닿으면 정신 이상이 발동한다")]
@@ -99,6 +133,12 @@ namespace LastSanctuary.Combat
         public float WaveCombatMemorySeconds => waveCombatMemorySeconds;
         public float RecoverDelaySeconds => recoverDelaySeconds;
         public float ErosionRecoverPerSecond => erosionRecoverPerSecond;
+
+        /// <summary>후방(비교전) 캐릭터가 쌓는 침식량 — 전투 중 침식의 %. 0 이면 안 쌓인다.</summary>
+        public int RearErosionPercent => Mathf.Clamp(rearErosionPercent, 0, 100);
+
+        /// <summary>후방 침식이 초당 얼마인가. <see cref="CharacterErosion.Tick"/> 이 쓴다.</summary>
+        public float RearErosionPerSecond => erosionPerSecondInCombat * RearErosionPercent / 100f;
         public int ErosionMax => Mathf.Max(1, erosionMax);
         public bool BlockWhileActive => blockWhileActive;
         public float InstantStateDisplaySeconds => instantStateDisplaySeconds;
@@ -154,6 +194,20 @@ namespace LastSanctuary.Combat
             float dt = Time.deltaTime;
             if (dt <= 0f) return;
 
+            // ★★ 후방 침식의 조건 — <b>웨이브 몬스터가 맵에 살아 있는가</b> (2026-09-01).
+            //
+            //   <b>왜 WaveManager 를 안 보나</b> — 그 클래스에는 static 진입점이 없어서
+            //   참조를 새로 뚫어야 하고, «웨이브 단계» 와 «몬스터가 실제로 전장에 있나» 는
+            //   미묘하게 다르다(진군 중·정리 중). 침식은 <b>압박</b>의 수치이므로
+            //   «전장에 웨이브 몬스터가 도는가» 로 묻는 것이 정의에 더 가깝다.
+            //
+            //   ⚠ <see cref="Faction.Cancer"/> 까지 확인해야 <b>중립 몬스터가 안 걸린다</b> —
+            //     둘 다 <c>UnitKind.Monster</c> 를 쓴다(<c>IsInWaveCombat</c> 이 밟은 함정과 같다).
+            //   비용은 «첫 한 마리를 찾으면 즉시 반환» 이라 실질적으로 무시할 수 있다.
+            bool waveMonstersAlive =
+                rearErosionPercent > 0 &&
+                UnitRegistry.FindFirst(Faction.Cancer, UnitKind.Monster) != null;
+
             // UnitRegistry 는 살아있는 유닛 전체를 이미 들고 있다 — FindObjectsByType 을 돌지 않는다(U-D10).
             var all = UnitRegistry.All;
             for (int i = 0; i < all.Count; i++)
@@ -175,7 +229,7 @@ namespace LastSanctuary.Combat
                 if (character.IsSummoned) continue;
 
                 CharacterErosion erosion = CharacterErosion.EnsureOn(character);
-                if (erosion != null) erosion.Tick(this, dt);
+                if (erosion != null) erosion.Tick(this, dt, waveMonstersAlive);
             }
         }
 

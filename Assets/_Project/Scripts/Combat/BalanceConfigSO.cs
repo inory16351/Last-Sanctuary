@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace LastSanctuary.Combat
 {
@@ -166,6 +166,33 @@ namespace LastSanctuary.Combat
         [Tooltip("체력 1당 최대 체력 증가량. 10 이면 체력 2 → 60, 체력 8 → 120")]
         [Min(0.01f)] public float hpPerStat = 10f;
 
+        // ══════════════════════════════════════════════════════════════
+        // ★★ 캐릭터 전용 체력 배율 (2026-09-01 신설 · 유저 지시)
+        //
+        //   *"체력의 밸류를 좀 올리고 회복의 밸류를 낮춰서 확실히 전략적으로 방어하는
+        //   느낌을 내고 싶은데"* — 그리고 *"지금 hp는 캐릭터만 150% 증가 별도로 추가"*.
+        //
+        //   <b>왜 hpPerStat 을 올리지 않았나</b> — 그 계수는 <b>몬스터도 같이 쓴다</b>
+        //   (<see cref="LastSanctuary.Units.MonsterUnit"/> ·
+        //   <see cref="LastSanctuary.Units.NeutralMonsterUnit"/> 의 MaxHp).
+        //   30웨이브 잡몹의 체력 능력치가 이미 260, 보스가 20,000 대라 계수를 1.5배 하면
+        //   <b>몬스터 체력도 그대로 1.5배</b>가 되어 웨이브 클리어 시간만 50% 늘어난다 —
+        //   «체력의 밸류» 는 하나도 안 오르고 판만 늘어지는 결과다.
+        //
+        //   ★ 그래서 <b>캐릭터의 최대 체력에만</b> 곱하는 칸을 따로 뒀다. 이 값은
+        //     <see cref="CharacterMaxHp"/> 하나에서만 쓰이고, 몬스터·중립·성역·포탑은
+        //     예전 그대로 <see cref="MaxHp"/> 를 쓴다.
+        //
+        //   실측(30웨이브 · 잡몹 6마리에게 동시 피격되는 Lv30 탱커):
+        //       100% → 체력   946 · 혼자 6.6초 버팀
+        //       150% → 체력 1,419 · 혼자 9.9초 버팀   ← «손쓸 틈» 이 생기는 지점
+        // ══════════════════════════════════════════════════════════════
+
+        [Tooltip("★ <b>캐릭터에만</b> 곱하는 최대 체력 배율(%). 100 이면 예전과 같다.\n" +
+                 "⚠ 몬스터·중립·성역·포탑에는 걸리지 않는다 — 그쪽까지 올리면 " +
+                 "체력의 상대 가치는 그대로인 채 웨이브 소요 시간만 늘어난다")]
+        [Min(1)] public int characterHpPercent = 150;
+
         [Header("타격력  =  기본 + 공격력 × 계수      (내부는 실수, 표시는 반올림)")]
         [Tooltip("공격 능력치 0 일 때의 타격력")]
         public float attackBase = 2f;
@@ -193,6 +220,72 @@ namespace LastSanctuary.Combat
         [Tooltip("전투(공격했거나 피해를 입은 상황)에서 벗어난 뒤 재생이 시작되기까지 기다리는 시간(초). " +
                  "0 이면 전투 중에도 재생된다")]
         [Min(0f)] public float outOfCombatRegenDelay = 5f;
+
+        // ══════════════════════════════════════════════════════════════
+        // ★★★ 치유량 — <b>공격 공식에서 떼어냈다</b> (2026-09-01 신설 · 유저 지시)
+        //
+        //   *"회복의 밸류가 너무 좋고 … 회복의 밸류를 낮춰서"*
+        //
+        //   <b>예전에 무슨 일이 있었나</b> — <c>UnitCombat.PerformHeal</c> 이
+        //   <c>Balance.Attack(회복력)</c> 을 그대로 썼다. 즉 치유량이
+        //   <b>공격력과 완전히 같은 계수</b>(2 + 2×능력치)였다. 그런데
+        //     · 피해는 방어력으로 <c>50/(50+방어)</c> 만큼 깎이고 <b>치유는 안 깎인다</b>
+        //     · 치유는 <b>공격 속도를 탄다</b>(Lv30 이면 2.1회/초)
+        //   이 둘이 겹쳐서, Lv20 기준 <b>회복 능력치 1점이 체력 1점의 11.2배</b>가 됐다
+        //   (30초 교전 환산: 체력 +1 = 10HP · 회복 +1 = 112HP).
+        //
+        //   그 결과 전투가 <b>이분법</b>이 됐다 — 힐이 닿으면 영원히 안 죽고(30웨이브
+        //   힐러 1명이 잡몹 8마리 피해를 상쇄했다), 안 닿으면 6초에 녹는다. 중간이 없으니
+        //   후퇴·교대가 의미를 잃고 «길을 막고 버티는» 것이 유일한 최적해가 됐다.
+        //
+        //   ★ <b>계수를 2.0 → 1.0 으로</b> 갈랐다. 공격과 같은 칸을 쓰지 않으므로
+        //     앞으로 공격 계수를 만져도 치유가 따라 움직이지 않는다.
+        //
+        //   ⚠ <see cref="UnitCombat"/> 의 <c>healPercentOfAttack</c> 은 <b>그대로 남아</b>
+        //     이 결과에 한 번 더 곱해진다(유닛별 미세 조정 칸). 기본 100 이라 판은 안 바뀐다.
+        // ══════════════════════════════════════════════════════════════
+
+        [Header("치유량  =  기본 + 회복력 × 계수      → 반올림 정수")]
+        [Tooltip("회복 능력치가 0 일 때의 치유량")]
+        public float healBase = 2f;
+
+        [Tooltip("★ 회복력 1당 치유량. <b>공격 계수(2.0)와 별개다</b> — 예전에는 공격 공식을 " +
+                 "그대로 썼다.\n" +
+                 "올리면 «버티기» 가 다시 강해진다. 잡몹 4~6마리 기준 «힐러 HPS ÷ 받는 DPS» 가 " +
+                 "1.0 을 넘는 순간 전투가 다시 이분법이 되므로, 0.7 아래로 두는 것이 안전하다")]
+        [Min(0f)] public float healPerStat = 1f;
+
+        // ══════════════════════════════════════════════════════════════
+        // ★★★ 전투 중 받는 회복 감소 (2026-09-01 신설 · 유저 지시)
+        //
+        //   계수를 내리는 것만으로는 <b>모양</b>이 안 바뀐다 — 힐량이 절반이 되어도
+        //   «받는 피해보다 크기만 하면 무적» 이라는 구조는 그대로이기 때문이다.
+        //   실제로 계수 1.2 · 감소 60% 로 잡아보면 30웨이브 탱커가 <b>1,933초</b>를
+        //   버틴다(사실상 무적). 비율이 1.0 근처에서 이분법이 되살아난다.
+        //
+        //   ★ 그래서 «<b>맞으면서 회복</b>» 을 직접 깎는다. 전투에서 <b>빼야</b> 제값으로
+        //     회복되므로, 후퇴 · 교대 · 재배치가 그 자체로 플레이가 된다 —
+        //     유저가 원한 *"확실히 전략적으로 방어하는 느낌"* 이 이 칸에서 나온다.
+        //
+        //   ⚠ <b>캐릭터에만 걸린다</b>(<c>DamageableUnit.UsesInCombatHealPenalty</c>).
+        //     보스의 자가 회복은 스킬 표가 «최대 체력 N%» 로 못박은 값이라, 여기서 반토막을
+        //     내면 <b>표에 적힌 숫자와 화면이 달라진다</b>. 문제가 된 것은 플레이어 쪽
+        //     지속력이므로 그쪽만 건드린다.
+        //
+        //   ⚠ <b>체력 재생과 레벨업 체력 보정에는 안 걸린다</b> — 그 둘은
+        //     <c>HealSilently</c> 로 들어오고, 재생은 애초에 전투 중에 돌지 않는다.
+        //     레벨업 보정은 «최대 체력의 N% 로 맞춘다» 는 대입이라 배율을 먹이면 값이 깨진다.
+        // ══════════════════════════════════════════════════════════════
+
+        [Header("전투 중 받는 회복 감소 (캐릭터 전용)")]
+        [Tooltip("★ 전투 중인 캐릭터가 <b>받는</b> 회복량(%). 100 이면 감소가 없다(예전 동작).\n" +
+                 "50 이면 맞으면서 받는 회복이 절반이고, 전투에서 빠지면 100% 로 돌아온다")]
+        [Range(1, 100)] public int healInCombatPercent = 50;
+
+        [Tooltip("마지막 전투 행동(공격했거나 맞았거나)으로부터 이 시간(초) 안이면 «전투 중» 으로 본다.\n" +
+                 "체력 재생의 outOfCombatRegenDelay(5초)와 <b>일부러 다른 칸</b>이다 — " +
+                 "재생은 «완전히 물러났나» 를, 이쪽은 «지금 맞고 있나» 를 묻는다")]
+        [Min(0f)] public float healInCombatSeconds = 3f;
 
         // ══════════════════════════════════════════════════════════════
         // ★★ 2026-08-20 — 명중·치명 공식을 표에 맞춰 다시 잡았다 (유저 지시:
@@ -268,9 +361,16 @@ namespace LastSanctuary.Combat
                  "기준보다 낮으면 침식이 빨리 쌓이고 늦게 빠진다 (유저 확정 2026-08-11)")]
         [Range(1f, 100f)] public float resistancePivot = 50f;
 
+        // ★ 2026-09-01 — 0.01 → <b>0.006</b> (유저 지시: 침식이 *"사실상 안되는 느낌"*).
+        //   로스터 14명의 저항력 평균이 <b>57.5</b> 라 기준점(50)보다 높다. 즉 절반 이상이
+        //   기준보다 «느리게 쌓이고 빠르게 빠지는» 쪽에 있었다. 특히 엘리시아(저항 96)는
+        //   상승 0.54배 · 회복 1.46배로 <b>사실상 침식 면역</b>이었다.
+        //   0.006 이면 엘리시아가 0.72배 · 1.28배가 되어 «느리다» 로 남되 «안 쌓인다» 는
+        //   아니게 된다. 저항력을 무의미하게 만들지 않으면서 상단만 눌렀다.
         [Tooltip("기준점에서 1 벗어날 때마다 배율이 이만큼 움직인다. " +
-                 "0.01 이면 저항력 13 → 상승 1.37배 / 회복 0.63배")]
-        [Min(0f)] public float resistancePerStat = 0.01f;
+                 "0.006 이면 저항력 13 → 상승 1.22배 / 회복 0.78배 " +
+                 "(2026-09-01 개정 — 옛 값 0.01 은 저항 96 캐릭터를 사실상 면역으로 만들었다)")]
+        [Min(0f)] public float resistancePerStat = 0.006f;
 
         [Header("프로토타입 고정 상수 (능력치로 분리되지 않은 값)")]
         [Tooltip("공속 능력치가 없는 유닛(몬스터·포탑)의 폴백 초당 공격 횟수")]
@@ -290,6 +390,16 @@ namespace LastSanctuary.Combat
 
         /// <summary>능력치 → 최대 체력. <b>반올림 정수</b> (체력은 개수).</summary>
         public int MaxHp(int hpStat) => Mathf.Max(1, Mathf.RoundToInt(hpBase + hpStat * hpPerStat));
+
+        /// <summary>
+        /// 능력치 → <b>캐릭터의</b> 최대 체력. <see cref="MaxHp"/> 에
+        /// <see cref="characterHpPercent"/> 를 곱한 값이다.
+        ///
+        /// ⚠ <b>몬스터는 이 경로를 쓰지 않는다</b> — 그쪽은 <see cref="MaxHp"/> 를 직접 부른다.
+        ///   둘을 가른 이유는 <see cref="characterHpPercent"/> 위의 긴 주석에 있다.
+        /// </summary>
+        public int CharacterMaxHp(int hpStat) =>
+            Mathf.Max(1, Mathf.RoundToInt(MaxHp(hpStat) * Mathf.Max(1, characterHpPercent) / 100f));
 
         /// <summary>
         /// 능력치 → 타격력(<b>실수</b>). 피해 계산의 중간값이라 여기서는 반올림하지 않는다 —
@@ -328,6 +438,23 @@ namespace LastSanctuary.Combat
         /// <summary>표시용 — 초당 회복량(실수). 실제 회복은 틱 단위 정수로 들어간다.</summary>
         public float RegenPerSecond(int regenStat) =>
             regenTickSeconds > 0f ? RegenPerTick(regenStat) / regenTickSeconds : 0f;
+
+        /// <summary>
+        /// 능력치 → 치유 1회당 회복량. <b>반올림 정수</b> (체력은 개수).
+        ///
+        /// ⚠ <b>공격 공식(<see cref="AttackPower"/>)과 다른 칸을 쓴다</b> — 예전에는 같았고,
+        ///   그래서 회복 1점이 체력 1점의 11배가 됐다(<see cref="healPerStat"/> 위 주석).
+        /// </summary>
+        public int HealAmount(int cureStat) =>
+            Mathf.Max(0, Mathf.RoundToInt(healBase + Mathf.Max(0, cureStat) * healPerStat));
+
+        /// <summary>
+        /// 전투 중이면 받는 회복에 곱하는 배율(0~1 실수). 전투 중이 아니면 1.0 을 쓴다.
+        /// 판정 자체(«지금 전투 중인가»)는 <c>DamageableUnit</c> 가 한다 —
+        /// 여기는 «얼마나 깎이는가» 만 안다.
+        /// </summary>
+        public float InCombatHealMultiplier =>
+            Mathf.Clamp(healInCombatPercent, 1, 100) / 100f;
 
         /// <summary>능력치 → 적중 확률(%). <b>실수</b> — 확률은 0.5% 단위 조정이 필요하다.</summary>
         public float HitChancePercent(int accuracyStat) =>
@@ -408,6 +535,8 @@ namespace LastSanctuary.Combat
             statMax = Mathf.Max(statMin, statMax);
             initialStatMin = Mathf.Clamp(initialStatMin, statMin, statMax);
             initialStatMax = Mathf.Clamp(initialStatMax, initialStatMin, statMax);
+            characterHpPercent = Mathf.Max(1, characterHpPercent);
+            healInCombatPercent = Mathf.Clamp(healInCombatPercent, 1, 100);
             defenseK = Mathf.Max(1f, defenseK);
             defensePerStat = Mathf.Max(0.01f, defensePerStat);
             regenTickSeconds = Mathf.Max(0.1f, regenTickSeconds);

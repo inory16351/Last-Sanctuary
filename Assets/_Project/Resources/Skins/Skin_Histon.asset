@@ -93,7 +93,7 @@ MonoBehaviour:
   impactFrames: []
   projectileScale: 0.55
   impactScale: {x: 1, y: 1}
-  contentSizeTiles: {x: 1.913, y: 1.962}
+  contentSizeTiles: {x: 2.391, y: 2.453}
   projectileSizeTiles: {x: 0, y: 0}
   impactSizeTiles: {x: 0, y: 0}
   projectileWidthTiles: 0

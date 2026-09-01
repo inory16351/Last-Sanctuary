@@ -211,7 +211,18 @@ namespace LastSanctuary.Units
             else if (target < CurrentHp) ApplyDamage(CurrentHp - target);
         }
 
-        public override int MaxHp => Balance != null ? Balance.MaxHp(EffectiveStat(StatType.Hp)) : 0;
+        // ★ 2026-09-01 — <c>MaxHp</c> 가 아니라 <c>CharacterMaxHp</c> 다.
+        //   캐릭터에만 걸리는 체력 배율(<c>characterHpPercent</c>, 기본 150%)이 그 안에 있다.
+        //   몬스터·중립·성역은 예전 그대로 <c>Balance.MaxHp</c> 를 쓴다 — 그쪽까지 올리면
+        //   체력의 상대 가치는 그대로인 채 웨이브 소요 시간만 늘어난다.
+        public override int MaxHp =>
+            Balance != null ? Balance.CharacterMaxHp(EffectiveStat(StatType.Hp)) : 0;
+
+        /// <summary>
+        /// ★ <b>전투 중 받는 회복 감소는 캐릭터에만 걸린다</b> (2026-09-01 · 유저 지시).
+        /// 이유는 <c>DamageableUnit.UsesInCombatHealPenalty</c> 의 주석에 있다.
+        /// </summary>
+        protected override bool UsesInCombatHealPenalty => true;
         public override int DefenseStat => EffectiveStat(StatType.Defense);
         protected override int RegenStat => EffectiveStat(StatType.Regen);
 

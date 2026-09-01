@@ -135,7 +135,15 @@ namespace LastSanctuary.Combat
         [Tooltip("치유 사거리(타일)")]
         [Min(0.5f)] [SerializeField] float healRangeTiles = 3f;
 
-        [Tooltip("치유량 = 공격력 × 이 퍼센트 ÷ 100. 100 이면 '공격력 수치만큼' 회복시킨다")]
+        // ⚠ 2026-09-01 — <b>더 이상 «공격력» 이 아니다.</b> 치유량 공식이
+        //   <c>BalanceConfigSO.HealAmount</c>(기본 + 회복력 × 계수)로 떨어져 나갔고,
+        //   이 칸은 그 결과에 한 번 더 곱하는 <b>유닛별 미세 조정</b>으로 남았다.
+        //   칸 이름을 그대로 둔 것은 씬·프리팹에 직렬화된 값(100)을 잃지 않기 위해서다 —
+        //   이름을 바꾸면 그 값이 조용히 기본값으로 되돌아간다.
+        [Tooltip("치유량 = <b>치유 공식</b>(BalanceConfig 의 healBase + 회복력 × healPerStat) " +
+                 "× 이 퍼센트 ÷ 100. 100 이면 공식 그대로다.\n" +
+                 "★ 전체 회복 밸류는 BalanceConfig 쪽에서 조정한다 — 이 칸은 " +
+                 "«이 유닛만 다르게» 할 때 쓴다")]
         [Min(0)] [SerializeField] int healPercentOfAttack = 100;
 
         [Tooltip("원거리·마법은 벽 너머의 적을 못 때리게 한다. 끄면 벽을 관통한다")]
@@ -2499,7 +2507,12 @@ namespace LastSanctuary.Combat
             if (_self.Balance == null) return;
             if (!_target.AcceptsExternalHeal) return;
 
-            int amount = _self.Balance.Attack(_self.AttackStat) * healPercentOfAttack / 100;
+            // ★ 2026-09-01 — <c>Attack()</c> 이 아니라 <c>HealAmount()</c> 다.
+            //   예전에는 치유가 공격과 <b>같은 계수</b>(2 + 2×능력치)를 썼는데, 피해는
+            //   방어력으로 절반쯤 깎이고 치유는 안 깎이는 데다 치유가 공속까지 타서
+            //   «회복 1점 = 체력 1점의 11배» 가 됐다(BalanceConfigSO 의 healPerStat 주석).
+            //   ⚠ <c>_self.AttackStat</c> 은 전술 유형이 Heal 이면 <b>회복력</b>을 돌려준다.
+            int amount = _self.Balance.HealAmount(_self.AttackStat) * healPercentOfAttack / 100;
             if (amount <= 0) return;
 
             // ★★ <b>회복에도 명중·치명타</b> — 「불안정성」(아르세니아 80028) (2026-08-20)

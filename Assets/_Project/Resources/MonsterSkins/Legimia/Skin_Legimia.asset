@@ -146,7 +146,7 @@ MonoBehaviour:
   groundImpactOnly: 0
   projectileScale: 0.55
   impactScale: {x: 1, y: 1}
-  contentSizeTiles: {x: 2.484, y: 1.812}
+  contentSizeTiles: {x: 7.453, y: 5.438}
   projectileSizeTiles: {x: 0, y: 0}
   impactSizeTiles: {x: 0, y: 0}
   projectileWidthTiles: 2.5

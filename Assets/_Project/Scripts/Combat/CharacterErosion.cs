@@ -156,7 +156,7 @@ namespace LastSanctuary.Combat
         // 진행 — ErosionService 가 매 프레임 부른다
         // ------------------------------------------------------------------
 
-        public void Tick(ErosionService service, float dt)
+        public void Tick(ErosionService service, float dt, bool waveMonstersAlive = false)
         {
             EnsureReady();
             if (service == null || _self == null || !_self.IsAlive) return;
@@ -187,6 +187,20 @@ namespace LastSanctuary.Combat
             {
                 _outOfCombatTime = 0f;
                 erosion += service.ErosionPerSecondInCombat * dt * gain;
+            }
+            else if (waveMonstersAlive && service.RearErosionPercent > 0)
+            {
+                // ★★ <b>후방 침식</b> (2026-09-01 · 유저 지시: *"후방에 있는 아군도 어느 정도는
+                //   침식이 되는 로직을 만들거나"*). 조건과 근거는 <see cref="ErosionService"/> 의
+                //   <c>rearErosionPercent</c> 위 주석에 있다.
+                //
+                //   ⚠ <b>회복 대기(_outOfCombatTime)를 여기서도 0 으로 되돌린다.</b> 안 그러면
+                //     쌓으면서 동시에 «대기시간이 흐르다가» 웨이브가 끝나는 순간 곧바로
+                //     회복이 시작돼, 후방은 쌓자마자 되돌려받는다 — 이 칸을 만든 뜻이 사라진다.
+                //   ★ 저항력 배율(gain)은 <b>전투 침식과 똑같이</b> 먹인다. 후방이라고 저항이
+                //     다르게 작동하면 «저항력» 이라는 능력치의 뜻이 두 벌이 된다.
+                _outOfCombatTime = 0f;
+                erosion += service.RearErosionPerSecond * dt * gain;
             }
             else
             {
