@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using LastSanctuary.Combat;
 using LastSanctuary.Map;
@@ -79,6 +79,12 @@ namespace LastSanctuary.Units
         {
             base.Start();
             RegisterFootprint();
+
+            // ★ 성역 바로 위의 체력 게이지 (2026-09-01 · 유저 지시).
+            //   씬·프리팹을 고치지 않고 코드가 붙인다 — <c>ShieldOverlayFx</c> 와 같은 규칙.
+            //   성역의 체력을 볼 수 있는 곳이 여태 <b>하나도 없었다</b>(보스 체력바는
+            //   몬스터 전용이고 로스터는 캐릭터만 보여준다). 파괴되면 즉시 패배인데도.
+            UI.NexusHealthBar.Ensure(this);
         }
 
         void RegisterFootprint()

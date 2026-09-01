@@ -65,6 +65,12 @@ namespace LastSanctuary.Units
         /// <summary>지금 쓰는 스킨 (디버그·검증용).</summary>
         public NexusSkinSO Skin => _skin;
 
+        /// <summary>
+        /// 그림을 넣는 상자 크기(타일). <see cref="UI.NexusHealthBar"/> 가 «성역이 얼마나
+        /// 높은가» 를 물을 때 쓴다 — 예전에는 private 이라 바깥에서 짐작해야 했다(2026-09-01).
+        /// </summary>
+        public Vector2 RenderSizeTiles => renderSizeTiles;
+
         void Awake()
         {
             _renderer = GetComponent<SpriteRenderer>();

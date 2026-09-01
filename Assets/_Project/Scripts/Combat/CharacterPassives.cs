@@ -521,46 +521,95 @@ namespace LastSanctuary.Combat
 
         /// <summary>
         /// 타오르는 날개 — 반경 안의 적에게 <b>초당</b> 자기 현재 체력의 value02% 피해.
-        /// 정의문에 "데미지 계산 공식 적용" 이 명시돼 있으므로 방어력 감소를 거친다
-        /// (<see cref="DamageableUnit.TakeDamageFrom"/> 이 아니라 계산된 값을 넣는 경로는
-        /// 방어력을 안 거치므로 쓰지 않는다).
+        /// 정의문에 "데미지 계산 공식 적용" 이 명시돼 있으므로 방어력 감소를 거친다.
         ///
-        /// 초당 값을 프레임으로 쪼개면 정수 피해가 0 이 되어 아무 일도 안 일어난다 —
-        /// <see cref="_blazeCarry"/> 에 실수로 모아 1 이상이 될 때만 적용한다
-        /// (체력 재생이 틱을 쓰는 것과 같은 이유, 4절).
+        /// ══════════════════════════════════════════════════════════════
+        /// ★★★ 2026-09-01 — <b>버그 둘을 고쳤다</b> (유저 리포트)
+        /// ══════════════════════════════════════════════════════════════
+        ///
+        /// <b>① 중립 몬스터에게 안 들어갔다</b> — *"비기오르 두번째 스킬 중립 몬스터에게
+        ///   적용안되는 버그"*. 판정이 <c>u.Faction != _unit.Faction.Opposite()</c> 하나였는데,
+        ///   <see cref="FactionExtensions.Opposite"/> 는 Angel → <b>Cancer</b> 다.
+        ///   중립은 <see cref="Faction.Neutral"/> 이라 <b>영영 안 걸렸다</b> —
+        ///   <c>PerformMagicSplash</c>·<c>PerformRangedMultiShot</c> 이 이미 두 번 밟은
+        ///   똑같은 함정이다(그쪽은 «타겟을 따로 때린다» 로 풀었다).
+        ///
+        ///   ★ 여기서는 유저가 규칙을 확정해 줬다 — *"중립 몬스터에겐 <b>전투가 시작하고
+        ///     부터</b> 데미지 들어가게"*. 그래서 <b>이미 교전 중인</b> 중립만 태운다
+        ///     (<see cref="DamageableUnit.IsInCombat"/>). 지나가기만 해도 타면
+        ///     «캐릭터가 중립을 자동으로 적대시하지 않는다» 는 <see cref="Faction"/> 의
+        ///     규칙이 깨지고, 서식지 옆을 지나는 것만으로 온 맵이 달려든다.
+        ///   ⚠ 한 번 타기 시작하면 <c>ApplyDamageCore</c> 가 <c>MarkCombatAction</c> 을
+        ///     찍으므로 교전 상태가 <b>스스로 유지</b>된다 — 시작만 못 할 뿐 끊기지 않는다.
+        ///
+        /// <b>② 「초당」이 아니었고 피해가 4배였다</b> — *"초당 데미지가 아닌거 같은데
+        ///   데미지가 너무 많이 떠"*. 원인이 <b>둘</b>이었다.
+        ///
+        ///   · <b>터지는 횟수</b> — 예전 코드는 «피해» 를 <see cref="_blazeCarry"/> 에 모아
+        ///     <b>1 이 될 때마다</b> 터뜨렸다. 초당 피해가 28 이면 <b>초당 28번</b> 터진다.
+        ///     화면에 숫자가 쉴 새 없이 뜨는 것이 그 정체다. 이제 <b>시간</b>을 모아
+        ///     <b>1초에 한 번</b>, 그 초의 피해를 <b>한 번에</b> 넣는다.
+        ///
+        ///   · <b>피해량</b> — <c>Balance.Damage(amount, def)</c> 는 첫 인자가 <b>공격 능력치</b>다.
+        ///     안에서 <c>타격력 = 2 + 능력치 × 2</c> 로 <b>한 번 더 변환</b>된다. 즉 1 짜리 조각이
+        ///     <b>4</b> 로 부풀었다(28회 × 4 ≈ 112 dps · 설계값 28 의 <b>4배</b>).
+        ///     게다가 조각마다 <c>minDamage</c> 1 이 걸려 <b>방어력이 거의 무의미</b>했다.
+        ///     이제 «초당 피해량» 을 <b>타격력 그 자체</b>로 보고 피해 배율만 곱한다 —
+        ///     정의문의 «데미지 계산 공식 적용» 이 뜻하는 바가 그것이다.
+        ///
+        /// ⚠ <see cref="_blazeCarry"/> 의 <b>뜻이 바뀌었다</b> — 이제 «모아둔 피해» 가 아니라
+        ///   «모아둔 시간(초)» 이다. 게임 속도 배속에서도 <c>Time.deltaTime</c> 이 같이
+        ///   늘어나므로 «게임 시간 1초에 한 번» 이 그대로 지켜진다.
         /// </summary>
         void TickBlazingWings(float dt)
         {
             PassiveSkillSO so = Find(PassiveSkillType.BlazingWings);
             if (so == null) { _blazeCarry = 0f; return; }
 
-            float perSecond = _unit.CurrentHp * so.value02 * 0.01f;
-            if (perSecond <= 0f) return;
-
-            _blazeCarry += perSecond * dt;
+            // ★ 시간을 모은다. 1 을 «빼는» 것이지 0 으로 지우는 것이 아니다 —
+            //   프레임이 딱 떨어지지 않아 남는 자투리가 다음 초로 넘어가야 초가 새지 않는다.
+            _blazeCarry += dt;
             if (_blazeCarry < 1f) return;
+            _blazeCarry -= 1f;
 
-            int amount = Mathf.FloorToInt(_blazeCarry);
-            _blazeCarry -= amount;
+            // 이번 1초 동안의 피해 = 지금 체력의 value02%. <b>이것이 곧 타격력</b>이다.
+            float power = _unit.CurrentHp * so.value02 * 0.01f;
+            if (power <= 0f) return;
 
             float radius = so.value01;
             float sqr = radius * radius;
             Vector3 myPos = transform.position;
             Faction enemy = _unit.Faction.Opposite();
+            int minDamage = _unit.Balance != null ? _unit.Balance.minDamage : 1;
 
             var all = UnitRegistry.All;
             for (int i = all.Count - 1; i >= 0; i--)
             {
                 DamageableUnit u = all[i];
-                if (u == null || !u.IsAlive || u.Faction != enemy) continue;
+                if (u == null || !u.IsAlive) continue;
+                if (!BurnsThis(u, enemy)) continue;
                 if (((Vector2)(u.transform.position - myPos)).sqrMagnitude > sqr) continue;
 
-                // 방어력 공식을 거친다 — 공격력 자리에 "초당 피해량" 을 넣는다.
+                // 피해 배율만 곱한다 — 타격력 변환(2 + 능력치×2)을 <b>또</b> 거치면 안 된다.
                 int def = Mathf.Max(0, u.DefenseStat + u.DefenseModifier);
-                int dealt = _unit.Balance != null ? _unit.Balance.Damage(amount, def) : amount;
-                u.ApplyDamage(dealt);
+                float mul = _unit.Balance != null ? _unit.Balance.DamageMultiplier(def) : 1f;
+                u.ApplyDamage(Mathf.Max(minDamage, Mathf.RoundToInt(power * mul)));
                 _unit.MarkCombatAction();
             }
+        }
+
+        /// <summary>
+        /// 이 유닛이 「타오르는 날개」에 타는가.
+        ///
+        /// 적 진영은 <b>항상</b> 탄다. 중립은 <b>이미 교전 중일 때만</b> 탄다 —
+        /// 근거는 위 함수 주석 ①.
+        /// </summary>
+        bool BurnsThis(DamageableUnit u, Faction enemy)
+        {
+            if (u.Faction == enemy) return true;
+            return u.Faction == Faction.Neutral
+                   && _unit.Faction == Faction.Angel
+                   && u.IsInCombat;
         }
 
         // ==================================================================

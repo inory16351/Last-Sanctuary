@@ -89,6 +89,42 @@ namespace LastSanctuary.Combat
                  "«쌓는 창» 이 넓어졌으므로 «빠지는 창» 을 같이 좁혔다")]
         [Min(0f)] [SerializeField] float erosionRecoverPerSecond = 0.15f;
 
+        // ══════════════════════════════════════════════════════════════
+        // ★★★ 침식 «관리 수단» — 회복을 받으면 침식이 줄어든다 (2026-09-01 신설)
+        //
+        //   유저 지시: *"침식 밸류가 지나치게 높아짐 … 회복 시 침식이 어느 정도 낮아 진다거나
+        //   … 침식을 관리할 수 있는 수단이 필요"* → 이어서 *"아니 되돌리진 말고 관리 수단을
+        //   추가해 관리 수단 추가 되면 <b>지금 속도가 딱 괜찮을듯</b>"*.
+        //
+        //   ★ 그래서 <b>쌓이는 속도는 한 칸도 안 건드렸다</b>(1.3 · 후방 30% · 회복 0.15 ·
+        //     대기 12 그대로). 대신 «플레이어가 손을 써서 줄이는 길» 을 열었다.
+        //
+        //   ★ <b>왜 하필 회복인가</b> — 199절에서 회복의 «피해 상쇄» 가치를 크게 깎았다
+        //     (계수 2.0 → 1.0 · 전투 중 50%). 힐러에게 <b>다른 쓸모</b>를 주는 자리가 필요했고,
+        //     그것이 «버티게 해준다» 가 아니라 «정신을 붙잡아 준다» 이면 199절이 깬
+        //     «길막기» 구조를 되살리지 않는다. 회복이 지속력이 아니라 <b>관리 자원</b>이 된다.
+        //
+        //   ★ <b>실제로 찬 체력만 센다</b> — <see cref="DamageableUnit.OnAnyHealed"/> 는
+        //     «요청량» 이 아니라 «실제로 찬 양» 을 싣는다. 그래서 <b>만피에 힐을 부어도
+        //     침식은 안 줄어든다</b>. 힐러를 세워두는 것만으로 침식이 상쇄되지 않고,
+        //     «맞은 만큼 회복시켜야» 줄어든다 — 침식이 «압박» 의 수치라는 정의와 맞는다.
+        //
+        //   ★ <b>체력 재생은 안 세어진다</b> — 그쪽은 <c>HealSilently</c> 라 이 이벤트가
+        //     아예 안 뜬다. 가만히 서 있는 것으로 침식이 빠지는 길은 «전투 이탈 회복»
+        //     하나로 남는다.
+        //
+        //   기준 계산 (Lv30 · 최대 체력 1,419 인 탱커):
+        //     힐러가 전투 중 초당 99 회복 → 최대 체력의 7%/초 → 침식 <b>0.84/초</b> 감소.
+        //     전방 누적이 1.3/초 이므로 <b>약 65% 를 상쇄</b>한다 — 크게 늦추지만
+        //     멈추지는 못한다(계속 맞으면 결국 온다).
+        // ══════════════════════════════════════════════════════════════
+
+        [Header("침식 관리 — 회복을 받으면 줄어든다")]
+        [Tooltip("★ <b>최대 체력만큼</b> 회복받았을 때 줄어드는 침식량. 0 이면 이 수단이 꺼진다.\n" +
+                 "12 면 «최대 체력의 10% 를 회복받을 때마다 침식 1.2 감소» 다.\n" +
+                 "⚠ 실제로 <b>찬</b> 체력만 센다 — 만피에 힐을 부어도 줄지 않는다")]
+        [Min(0f)] [SerializeField] float erosionDropPerFullHeal = 12f;
+
         [Header("발동")]
         [Tooltip("침식 상한. 이 값에 닿으면 정신 이상이 발동한다")]
         [Min(1)] [SerializeField] int erosionMax = 100;
@@ -134,6 +170,9 @@ namespace LastSanctuary.Combat
         public float RecoverDelaySeconds => recoverDelaySeconds;
         public float ErosionRecoverPerSecond => erosionRecoverPerSecond;
 
+        /// <summary>최대 체력만큼 회복받았을 때 줄어드는 침식량. 0 이면 꺼져 있다.</summary>
+        public float ErosionDropPerFullHeal => Mathf.Max(0f, erosionDropPerFullHeal);
+
         /// <summary>후방(비교전) 캐릭터가 쌓는 침식량 — 전투 중 침식의 %. 0 이면 안 쌓인다.</summary>
         public int RearErosionPercent => Mathf.Clamp(rearErosionPercent, 0, 100);
 
@@ -151,12 +190,44 @@ namespace LastSanctuary.Combat
         void Awake()
         {
             Instance = this;
+            DamageableUnit.OnAnyHealed += HandleHealed;
             _rng = new System.Random(randomizeSeed ? Random.Range(int.MinValue, int.MaxValue) : seed);
             LoadDefinitions();
         }
 
+        /// <summary>
+        /// ★ 회복을 받으면 침식이 줄어든다 (위 «침식 관리 수단» 주석).
+        ///
+        /// <b>왜 서비스가 듣나</b> — 규칙과 수치는 서비스가, 상태는
+        /// <see cref="CharacterErosion"/> 가 든다는 이 파일의 구조 그대로다.
+        /// 캐릭터마다 구독을 걸면 정적 이벤트에 수십 개가 붙고 해제를 한 번만 빠뜨려도 샌다.
+        ///
+        /// ⚠ <b>소환수는 제외</b> — 침식 자체가 없다(<see cref="Update"/> 의 같은 판정).
+        /// ⚠ <b>저항력의 «회복 배율» 을 그대로 먹인다</b> — 저항이 높으면 자연 회복이
+        ///   빠른 것과 같은 이유로 이 수단도 잘 듣는다. 안 그러면 «저항력» 이라는 능력치가
+        ///   회복 경로마다 다르게 작동하는 두 벌짜리 규칙이 된다.
+        /// </summary>
+        void HandleHealed(DamageableUnit unit, int applied)
+        {
+            if (!enableErosion || erosionDropPerFullHeal <= 0f) return;
+            if (applied <= 0 || unit == null || !unit.IsAlive) return;
+
+            if (!(unit is CharacterUnit character) || character.IsSummoned) return;
+
+            int max = unit.MaxHp;
+            if (max <= 0) return;
+
+            CharacterErosion erosion = CharacterErosion.Of(character);
+            if (erosion == null) return;
+
+            float drop = (float)applied / max * erosionDropPerFullHeal
+                         * character.ErosionRecoverMultiplier;
+            if (drop > 0f) erosion.AddErosion(-drop);
+        }
+
         void OnDestroy()
         {
+            DamageableUnit.OnAnyHealed -= HandleHealed;
             if (Instance == this) Instance = null;
         }
 
