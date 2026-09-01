@@ -57,11 +57,42 @@ INFO_SHEET = 'Info'
 # 하이퍼링크 표적이 되는 정의된 이름의 접두사. link_string_keys.py 와 같아야 한다.
 NAME_PREFIX = 'key_'
 
+# ══════════════════════════════════════════════════════════════════════
+# ★★★ 지원 언어 (2026-09-01 · 유저 지시: *"스페인어, 프랑스어, 독일어, 일본어,
+#   러시아어, 포르투갈어, 폴란드어 스트링 테이블에 추가하고 번역 추가해서"*)
+#
+#   <b>언어를 늘리려면 이 목록 한 줄만 고친다.</b> 헤더 3줄 · read_existing ·
+#   merge · write_xlsx · write_tsv 가 전부 여기서 파생된다 — 예전에는 kr·en 이
+#   그 다섯 곳에 <b>따로 박혀</b> 있어서, 한 곳만 빠뜨리면 «표에는 있는데 게임에는
+#   안 나오는» 상태가 된다.
+#
+#   ⚠ <b>순서가 곧 C# <c>GameLanguage</c> 의 값</b>이다(<c>StringTable.cs</c>).
+#     이미 나간 판의 PlayerPrefs 에 정수로 저장돼 있으므로 <b>가운데에 끼워 넣지 말고
+#     항상 뒤에 붙일 것</b> — 끼워 넣으면 유저의 «영어» 선택이 «스페인어» 가 된다.
+#
+#   ⚠ 언어 이름은 <b>제 나라 말로</b> 적는다(Español · 日本語). «Spanish» 라고 쓰면
+#     그 말을 쓰는 사람이 자기 언어를 못 찾는다 — LanguageSetting.NameOf 와 같은 규약.
+# ══════════════════════════════════════════════════════════════════════
+
+LANGS = [
+    # (필드명, 엑셀 1행 라벨)
+    ('kr', '한국어'),
+    ('en', '영어'),
+    ('es', '스페인어'),
+    ('fr', '프랑스어'),
+    ('de', '독일어'),
+    ('ja', '일본어'),
+    ('ru', '러시아어'),
+    ('pt', '포르투갈어'),
+    ('pl', '폴란드어'),
+]
+LANG_FIELDS = [f for f, _ in LANGS]
+
 # 3행 헤더 — 웨이브 몬스터 테이블의 string 시트와 완전히 같은 규약이다.
 #   1행 한글 라벨 / 2행 필드명 / 3행 자료형 / 4행부터 데이터
-HEADER_KR = ['스트링키', '한국어', '영어', '출처 테이블', '비고']
-HEADER_FIELD = ['string_key', 'kr', 'en', 'source', 'note']
-HEADER_TYPE = ['string', 'string', 'string', '-', '-']
+HEADER_KR = ['스트링키'] + [label for _, label in LANGS] + ['출처 테이블', '비고']
+HEADER_FIELD = ['string_key'] + LANG_FIELDS + ['source', 'note']
+HEADER_TYPE = ['string'] * (1 + len(LANGS)) + ['-', '-']
 DATA_ROW0 = 4
 
 FONT = 'Arial'
@@ -396,8 +427,10 @@ def read_existing():
         if not key:
             continue
         out[key] = {
-            'kr': norm(ws.cell(row=r, column=idx.get('kr', 2)).value),
-            'en': norm(ws.cell(row=r, column=idx.get('en', 3)).value),
+            # ★ 언어 칸은 LANGS 에서 파생한다. 표에 아직 없는 언어는 빈 칸이 된다
+            #   (컬럼을 새로 늘린 직후가 그 상태다).
+            **{lang: norm(ws.cell(row=r, column=idx[lang]).value) if lang in idx else ''
+               for lang in LANG_FIELDS},
             'source': norm(ws.cell(row=r, column=idx.get('source', 4)).value),
             'note': norm(ws.cell(row=r, column=idx.get('note', 5)).value),
         }
@@ -435,13 +468,15 @@ def merge(collected, existing, existing_order, rebuild):
         if key in result:
             continue
         result[key] = {'kr': seed_kr, 'en': seed_en, 'source': src, 'note': note}
+        for lang in LANG_FIELDS:
+            result[key].setdefault(lang, '')
         order.append(key)
 
     added, updated = [], []
     for key in sorted(collected.keys()):
         got = collected[key]
         if key not in result:
-            result[key] = {'kr': got['kr'], 'en': got['en'],
+            result[key] = {**{lang: got.get(lang, '') for lang in LANG_FIELDS},
                            'source': got['source'], 'note': ''}
             order.append(key)
             added.append(key)
@@ -449,8 +484,8 @@ def merge(collected, existing, existing_order, rebuild):
 
         cur = result[key]
         cur['source'] = got['source'] or cur.get('source', '')
-        for lang in ('kr', 'en'):
-            if not got[lang]:
+        for lang in LANG_FIELDS:
+            if not got.get(lang):
                 continue
             if rebuild or not cur.get(lang):
                 if cur.get(lang) != got[lang]:
@@ -479,18 +514,26 @@ def write_xlsx(rows, order):
             cell.fill = head_fill
             cell.alignment = Alignment(vertical='center')
 
+    n_lang = len(LANG_FIELDS)
+    col_source = 2 + n_lang          # 언어 칸 다음
+    col_note = col_source + 1
+
     for i, key in enumerate(order):
         v = rows[key]
         r = DATA_ROW0 + i
         ws.cell(row=r, column=1, value=key).font = Font(name=FONT)
-        ws.cell(row=r, column=2, value=v.get('kr', '')).font = Font(name=FONT)
-        ws.cell(row=r, column=3, value=v.get('en', '')).font = Font(name=FONT)
-        ws.cell(row=r, column=4, value=v.get('source', '')).font = Font(name=FONT, color='808080')
-        ws.cell(row=r, column=5, value=v.get('note', '')).font = Font(name=FONT, color='808080')
-        for c in (2, 3, 5):
-            ws.cell(row=r, column=c).alignment = Alignment(wrap_text=True, vertical='top')
+        for j, lang in enumerate(LANG_FIELDS):
+            cell = ws.cell(row=r, column=2 + j, value=v.get(lang, ''))
+            cell.font = Font(name=FONT)
+            cell.alignment = Alignment(wrap_text=True, vertical='top')
+        ws.cell(row=r, column=col_source,
+                value=v.get('source', '')).font = Font(name=FONT, color='808080')
+        note = ws.cell(row=r, column=col_note, value=v.get('note', ''))
+        note.font = Font(name=FONT, color='808080')
+        note.alignment = Alignment(wrap_text=True, vertical='top')
 
-    for c, width in zip(range(1, 6), (32, 52, 52, 22, 34)):
+    widths = [32] + [52] * n_lang + [22, 34]
+    for c, width in enumerate(widths, 1):
         ws.column_dimensions[get_column_letter(c)].width = width
     ws.freeze_panes = 'B4'
 
@@ -588,17 +631,18 @@ def write_tsv(rows, order):
     확장자를 .txt 로 두는 이유 — Unity 는 .tsv 를 TextAsset 으로 임포트하지 않는다."""
     os.makedirs(OUT_DIR_UNITY, exist_ok=True)
 
+    # ⚠ 헤더의 컬럼 순서가 곧 C# GameLanguage 의 값이다 — LANGS 주석 참조.
     lines = ['# Last Sanctuary 스트링 테이블 — Tools/gen_string_table.py 가 생성한다. 직접 고치지 말 것.',
              '# 원본: 데이터 테이블/스트링 키 테이블.xlsx',
-             'string_key\tkr\ten']
+             'string_key\t' + '\t'.join(LANG_FIELDS)]
     for key in order:
         v = rows[key]
-        kr = v.get('kr', '').replace('\t', ' ').replace('\r', '')
-        en = v.get('en', '').replace('\t', ' ').replace('\r', '')
-        # 줄바꿈은 \n 리터럴로 접어 한 줄에 담는다(런타임에서 되돌린다).
-        kr = kr.replace('\n', '\\n')
-        en = en.replace('\n', '\\n')
-        lines.append(f'{key}\t{kr}\t{en}')
+        cells = []
+        for lang in LANG_FIELDS:
+            t = (v.get(lang) or '').replace('\t', ' ').replace('\r', '')
+            # 줄바꿈은 \n 리터럴로 접어 한 줄에 담는다(런타임에서 되돌린다).
+            cells.append(t.replace('\n', '\\n'))
+        lines.append(key + '\t' + '\t'.join(cells))
 
     with open(OUT_TSV, 'w', encoding='utf-8', newline='\n') as f:
         f.write('\n'.join(lines) + '\n')

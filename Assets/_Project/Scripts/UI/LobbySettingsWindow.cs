@@ -145,7 +145,12 @@ namespace LastSanctuary.UI
 
         public void Toggle() => SetOpen(!IsOpen);
 
-        public void Close() => gameObject.SetActive(false);
+        public void Close()
+        {
+            // ★ 창이 닫힐 때 언어 목록도 같이 닫는다.
+            LanguagePickerPopup.CloseIfOpen();
+            gameObject.SetActive(false);
+        }
 
         public void SetOpen(bool open)
         {
@@ -163,11 +168,17 @@ namespace LastSanctuary.UI
         //  언어 · 단축키 · 도움말
         // ------------------------------------------------------------------
 
+        /// <summary>
+        /// ★★★ <b>언어 목록을 띄운다</b> (2026-09-01 개정). 근거는 SettingsPanel 의
+        /// 같은 메서드 주석에 있다 — 언어가 아홉이라 «누르면 다음» 은 못 쓴다.
+        /// </summary>
         void HandleToggleLanguage()
         {
-            Data.GameLanguage next = LanguageSetting.Toggle();
-            RefreshLanguageLabel();
-            SetStatus(string.Format(languageLabelFormat, LanguageSetting.NameOf(next)));
+            LanguagePickerPopup.Open(this, () =>
+            {
+                RefreshLanguageLabel();
+                SetStatus(string.Format(languageLabelFormat, LanguageSetting.CurrentName));
+            });
         }
 
         /// <summary>버튼에 지금 언어를 적는다.</summary>

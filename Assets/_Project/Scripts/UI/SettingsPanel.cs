@@ -170,6 +170,10 @@ namespace LastSanctuary.UI
             //   메서드를 부르게 되어 <c>MissingReferenceException</c> 이 난다
             //   (<c>StringTable.ResetStatics</c> 는 <b>판마다</b> 한 번이라 씬 전환으로는 안 돈다).
             Data.StringTable.OnLanguageChanged -= HandleLanguageChanged;
+
+            // ★ 설정 창이 사라지면 언어 목록도 닫는다 — 뒤에 남으면 «부모는
+            //   사라졌는데 띄 있는» 창이 된다.
+            LanguagePickerPopup.CloseIfOpen();
             if (_instance == this) _instance = null;
         }
 
@@ -393,19 +397,27 @@ namespace LastSanctuary.UI
         void RestoreLanguage() => LanguageSetting.Restore();
 
         /// <summary>
-        /// ★★ 한국어 ↔ English 를 오간다.
+        /// ★★★ <b>언어 목록을 띄운다</b> (2026-09-01 개정 · 유저 지시:
+        /// *"… 스크롤바 언어설정에 넣어서 언어 추가해줘"*).
         ///
-        /// ★ <b>고르는 창을 따로 두지 않았다</b> — 언어가 <b>둘뿐</b>이라 목록을 띄우면
-        ///   누르는 횟수만 늘어난다. 배속 버튼과 같은 «누르면 다음» 이다.
-        /// ⚠ <b>고른 것을 <see cref="PlayerPrefs"/> 에 남긴다</b> — 언어는 판마다 다시 고를
-        ///   값이 아니다(도움말의 «읽었다» 기억과 같은 자리에 둔다).
+        /// <b>예전에는 «누르면 다음 언어»</b> 였다. 언어가 <b>둘</b>일 때는 그것이 가장 적은
+        /// 조작이었지만 <b>아홉</b>이 되면 정반대다 — 폴란드어를 고르려고 여덟 번 눌러야 하고
+        /// 한 번 지나치면 여덟 번을 더 눌러야 한다.
+        ///
+        /// ★ 창은 <see cref="LanguagePickerPopup"/> 이 <b>코드로</b> 만든다 — 설정 창이
+        ///   게임과 로비 <b>두 씬</b>에 있어서 프리팹으로 두면 한쪽만 갱신되는 사고가 난다.
+        /// ⚠ 고른 뒤의 다시 그리기는 <c>OnLanguageChanged</c> 가 이미 해 주지만,
+        ///   콜백에서 한 번 더 부른다 — <b>같은 언어를 다시 고른 경우</b> 그 이벤트가
+        ///   발생하지 않기 때문이다(setter 가 같은 값을 걸러낸다).
         /// </summary>
         void HandleToggleLanguage()
         {
-            Data.GameLanguage next = LanguageSetting.Toggle();
-
-            RefreshLanguageLabel();
-            SetStatus(string.Format(languageLabelFormat, LanguageName(next)));
+            LanguagePickerPopup.Open(this, () =>
+            {
+                RefreshLanguageLabel();
+                SetStatus(string.Format(languageLabelFormat,
+                                        LanguageSetting.CurrentName));
+            });
         }
 
         /// <summary>버튼에 지금 언어를 적는다.</summary>

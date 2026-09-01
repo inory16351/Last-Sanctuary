@@ -1,13 +1,34 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 namespace LastSanctuary.Data
 {
-    /// <summary>표시 언어. 스트링 테이블의 컬럼(kr · en)과 1:1 이다.</summary>
+    /// <summary>
+    /// 표시 언어. <b>값이 곧 스트링 테이블의 컬럼 번호</b>다
+    /// (<c>Tools/gen_string_table.py</c> 의 <c>LANGS</c> 순서와 1:1 이어야 한다).
+    ///
+    /// ⚠⚠ <b>가운데에 끼워 넣지 말 것 — 항상 뒤에 붙인다.</b> 이 값은 유저의
+    ///   <see cref="PlayerPrefs"/> 에 <b>정수로</b> 저장돼 있다(<c>ls_language</c>).
+    ///   중간에 하나를 끼우면 이미 «English(1)» 를 고른 사람이 다음 실행에서
+    ///   <b>엉뚱한 언어</b>로 시작한다 — 되돌릴 방법이 없는 종류의 사고다.
+    ///   같은 이유로 <c>StatType</c> 의 0~3 번도 재배치를 금지해 뒀다.
+    ///
+    /// ★ 2026-09-01 — 유저 지시로 <b>일곱 언어를 뒤에 붙였다</b>
+    ///   (스페인어 · 프랑스어 · 독일어 · 일본어 · 러시아어 · 포르투갈어 · 폴란드어).
+    /// </summary>
     public enum GameLanguage
     {
         Korean = 0,
         English = 1,
+        Spanish = 2,
+        French = 3,
+        German = 4,
+        Japanese = 5,
+        Russian = 6,
+        Portuguese = 7,
+        Polish = 8,
+
+        COUNT = 9,
     }
 
     /// <summary>
@@ -38,7 +59,8 @@ namespace LastSanctuary.Data
         /// <summary><c>Resources.Load</c> 경로 (확장자 없음).</summary>
         public const string ResourcePath = "Data/StringTable";
 
-        static Dictionary<string, string[]> _rows;   // key → [kr, en]
+        /// <summary>key → 언어별 칸. 길이는 <see cref="GameLanguage.COUNT"/> 로 맞춘다.</summary>
+        static Dictionary<string, string[]> _rows;
         static GameLanguage _language = GameLanguage.Korean;
 
         /// <summary>언어가 바뀐 직후 발생. 이미 그려둔 UI 를 다시 그리는 데 쓴다.</summary>
@@ -87,7 +109,13 @@ namespace LastSanctuary.Data
                 if (column < cells.Length && !string.IsNullOrEmpty(cells[column]))
                     return cells[column];
 
-                // 요청한 언어가 비었으면 한국어로 — 영어 칸이 아직 대부분 비어 있다.
+                // ★ 요청한 언어가 비었으면 <b>영어 → 한국어</b> 순으로 내려간다.
+                //   영어를 한국어보다 먼저 보는 이유 — 새 언어가 덜 채워졌을 때
+                //   그 말을 쓰는 사람에게 한국어보다 영어가 읽을 확률이 높다.
+                int en = (int)GameLanguage.English;
+                if (column != en && en < cells.Length && !string.IsNullOrEmpty(cells[en]))
+                    return cells[en];
+
                 if (cells.Length > 0 && !string.IsNullOrEmpty(cells[0]))
                     return cells[0];
             }
@@ -173,8 +201,14 @@ namespace LastSanctuary.Data
                 string key = cells[0].Trim();
                 if (key.Length == 0 || key == "string_key") continue;
 
-                string kr = cells.Length > 1 ? Unfold(cells[1]) : string.Empty;
-                string en = cells.Length > 2 ? Unfold(cells[2]) : string.Empty;
+                // ★ 언어 칸을 <b>전부</b> 읽는다. 표에 아직 칸이 없는 언어는 빈 문자열이 되고,
+                //   그러면 아래 폴백 사슬이 «한국어» 로 내려간다 — 화면이 비지 않는다.
+                //   ⚠ 배열 길이를 COUNT 로 <b>고정</b>한다. 줄마다 길이가 다르면
+                //     Get 이 매번 길이 검사를 해야 하고, 한 줄이 짧을 때 조용히 폴백해서
+                //     «어떤 키만 번역이 안 되는» 것처럼 보인다.
+                var cell = new string[(int)GameLanguage.COUNT];
+                for (int c = 0; c < cell.Length; c++)
+                    cell[c] = cells.Length > c + 1 ? Unfold(cells[c + 1]) : string.Empty;
 
                 // 같은 키가 두 번 나오면 먼저 나온 것을 남긴다 — 엑셀에서 실수로 중복시켰을 때
                 // 조용히 뒤 값으로 바뀌면 원인을 찾기 어렵다.
@@ -183,7 +217,7 @@ namespace LastSanctuary.Data
                     Debug.LogWarning($"[String] 키가 중복됐습니다: '{key}' — 먼저 나온 값을 씁니다.");
                     continue;
                 }
-                _rows[key] = new[] { kr, en };
+                _rows[key] = cell;
             }
         }
 
