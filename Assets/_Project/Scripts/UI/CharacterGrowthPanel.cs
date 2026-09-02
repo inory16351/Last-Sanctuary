@@ -92,6 +92,11 @@ namespace LastSanctuary.UI
         [SerializeField] string passiveNoneText = "이 캐릭터에는 지정된 스킬이 없습니다.";
         [SerializeField] string passiveNoSelectionText = "캐릭터를 선택하세요.";
 
+        [Header("문구 — 유물 칸")]
+        [Tooltip("유물을 하나도 안 낀 캐릭터의 <b>효과 줄</b>에 뜨는 안내. " +
+                 "«무엇을 끼고 있나» 가 아니라 «어디서 끼우나» 를 알려 주는 자리다")]
+        [SerializeField] string relicSlotHint = "「유물 관리 열기」로 이 캐릭터에게 유물을 끼웁니다.";
+
         [Header("문구 — 각성 진행도 · 영웅 각성")]
         [Tooltip("★ <b>딜러</b>일 때의 각성 눈금. {0} = 지금 처치 수 · {1} = 필요한 처치 수.\n" +
                  "포지션이 회복이 아니면 이 줄이 보인다(2026-08-21)")]
@@ -436,6 +441,11 @@ namespace LastSanctuary.UI
             passiveClickHint = HudTheme.T("ui_passive_click_hint", passiveClickHint);
             passiveNoneText = HudTheme.T("ui_passive_none", passiveNoneText);
             passiveNoSelectionText = HudTheme.T("ui_passive_no_selection", passiveNoSelectionText);
+
+            // ⚠ 이 한 줄만 <b>호출문에 박힌 리터럴</b>이라 178·179절의 그물을 빠져나갔다
+            //   (184-4절의 「빗나감」과 같은 종류). 이웃한 «없음»·«캐릭터를 선택하세요» 는
+            //   진작 표를 거치고 있었는데 <b>효과 줄만</b> 한국어로 남아 있었다.
+            relicSlotHint = HudTheme.T("ui_growth_relic_hint", relicSlotHint);
 
             killProgressFormat = HudTheme.T("ui_hero_kill_progress", killProgressFormat);
             healProgressFormat = HudTheme.T("ui_hero_heal_progress", healProgressFormat);
@@ -801,9 +811,7 @@ namespace LastSanctuary.UI
             {
                 if (_wornScratch.Count == 0)
                 {
-                    _relicSlotEffect.text = has
-                        ? "「유물 관리 열기」로 이 캐릭터에게 유물을 끼웁니다."
-                        : "";
+                    _relicSlotEffect.text = has ? relicSlotHint : "";
                 }
                 else
                 {
