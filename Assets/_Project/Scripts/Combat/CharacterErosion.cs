@@ -32,7 +32,11 @@ namespace LastSanctuary.Combat
         MentalErrorDefinitionSO _active;
         float _activeEndTime;
 
-        /// <summary>웨이브 전투에서 벗어난 뒤 흐른 시간. 회복 대기(지연)를 재는 데 쓴다.</summary>
+        /// <summary>
+        /// 웨이브 몬스터와 <b>마지막으로 «한 대» 를 주고받은 뒤</b> 흐른 시간.
+        /// 회복 대기(지연)를 재는 데 쓴다 — <see cref="AddHitErosion"/> 이 0 으로 되돌리고
+        /// <see cref="Tick"/> 이 밀어 올린다.
+        /// </summary>
         float _outOfCombatTime;
 
         /// <summary>초당 소수 피해(피학·역겨움)를 정수로 만들 때까지 모아두는 나머지.</summary>
@@ -156,7 +160,7 @@ namespace LastSanctuary.Combat
         // 진행 — ErosionService 가 매 프레임 부른다
         // ------------------------------------------------------------------
 
-        public void Tick(ErosionService service, float dt, bool waveMonstersAlive = false)
+        public void Tick(ErosionService service, float dt)
         {
             EnsureReady();
             if (service == null || _self == null || !_self.IsAlive) return;
@@ -170,44 +174,23 @@ namespace LastSanctuary.Combat
 
             if (!service.EnableErosion) return;
 
-            // 저항력이 상승·회복 속도를 모두 바꾼다 (캐릭터 가이드 p10).
-            // 기준점(기본 50)에서 배율 1.0 이고, 그보다 낮으면 빨리 쌓이고 늦게 빠진다 —
-            // 두 배율은 정확히 대칭이다. 정의가 없는 캐릭터는 둘 다 1.0 이라 예전과 같이 동작한다.
-            // 침식 수치 자체는 실수로 누적한다(정수로 깎으면 초당 0.25 회복이 0 이 된다).
-            float gain = _character != null ? _character.ErosionGainMultiplier : 1f;
-
-            // ★★ 유물 「서늘한 해열」(relic_erosion_slow) — <b>쌓이는 쪽만</b> 늦춘다
-            //   (표 EffectType 시트: *"빠지는 속도는 건드리지 않습니다"*). 그래서 recover 에는
-            //   곱하지 않는다. 저항력 배율과 <b>곱해서</b> 쌓는다 — 둘은 서로 다른 이유로
-            //   같은 값을 바꾸므로 어느 한쪽이 다른 쪽을 덮으면 안 된다.
-            gain *= Relics.RelicEffectService.ErosionGainMultiplier(_character);
+            // ★★★ 2026-09-02 — <b>여기서 쌓는 일은 없다.</b> 침식은 웨이브 몬스터와 «한 대» 를
+            //   주고받을 때만 오르고(<see cref="AddHitErosion"/>), <b>시간으로는 쌓이지 않는다</b>
+            //   (유저 지시: *"시간에 따라 올라가는 로직을 삭제"*). 「교전 중 초당」·「후방 침식」
+            //   두 갈래를 통째로 걷어낸 자리다 — 그래서 이 함수에 남은 것은 <b>빠지는 쪽</b>뿐이다.
+            //
+            //   ⚠ <b>대기시간(_outOfCombatTime)은 여기서만 흐르고 <see cref="AddHitErosion"/> 이
+            //     0 으로 되돌린다</b> — 즉 «마지막으로 한 대를 주고받은 뒤 몇 초» 를 재는 값이 됐다.
+            //     후퇴시켜 아무것도 주고받지 않으면 대기시간이 차고, 그 뒤부터 빠진다.
+            //     이것이 유저가 말한 «위험할 때 후방으로 빼면 관리가 된다» 의 실체다.
+            //
+            //   저항력의 회복 배율은 그대로 먹인다 (캐릭터 가이드 p10 · 상승 배율과 대칭).
+            //   침식 수치 자체는 실수로 누적한다(정수로 깎으면 초당 0.15 회복이 0 이 된다).
             float recover = _character != null ? _character.ErosionRecoverMultiplier : 1f;
 
-            if (IsInWaveCombat(service))
-            {
-                _outOfCombatTime = 0f;
-                erosion += service.ErosionPerSecondInCombat * dt * gain;
-            }
-            else if (waveMonstersAlive && service.RearErosionPercent > 0)
-            {
-                // ★★ <b>후방 침식</b> (2026-09-01 · 유저 지시: *"후방에 있는 아군도 어느 정도는
-                //   침식이 되는 로직을 만들거나"*). 조건과 근거는 <see cref="ErosionService"/> 의
-                //   <c>rearErosionPercent</c> 위 주석에 있다.
-                //
-                //   ⚠ <b>회복 대기(_outOfCombatTime)를 여기서도 0 으로 되돌린다.</b> 안 그러면
-                //     쌓으면서 동시에 «대기시간이 흐르다가» 웨이브가 끝나는 순간 곧바로
-                //     회복이 시작돼, 후방은 쌓자마자 되돌려받는다 — 이 칸을 만든 뜻이 사라진다.
-                //   ★ 저항력 배율(gain)은 <b>전투 침식과 똑같이</b> 먹인다. 후방이라고 저항이
-                //     다르게 작동하면 «저항력» 이라는 능력치의 뜻이 두 벌이 된다.
-                _outOfCombatTime = 0f;
-                erosion += service.RearErosionPerSecond * dt * gain;
-            }
-            else
-            {
-                _outOfCombatTime += dt;
-                if (_outOfCombatTime >= service.RecoverDelaySeconds)
-                    erosion -= service.ErosionRecoverPerSecond * dt * recover;
-            }
+            _outOfCombatTime += dt;
+            if (_outOfCombatTime >= service.RecoverDelaySeconds)
+                erosion -= service.ErosionRecoverPerSecond * dt * recover;
 
             erosion = Mathf.Clamp(erosion, 0f, service.ErosionMax);
 
@@ -215,27 +198,61 @@ namespace LastSanctuary.Combat
                 Trigger(service);
         }
 
+        // ══════════════════════════════════════════════════════════════
+        // ★★★ 침식이 오르는 유일한 자리 — «한 대» 를 주고받았다 (2026-09-02)
+        //
+        //   부르는 쪽은 <c>ErosionService.HandleAttack</c> 하나다(진영·소환수
+        //   판정은 그쪽이 이미 했다). 예전의 <c>IsInWaveCombat</c> 을 대체한다 —
+        //   «전투 중인가» 를 매 프레임 <b>추론</b>하던 것을 «맞았다/때렸다» 는 <b>사실</b>로
+        //   바꾼 것이고, 그래서 «타겟은 잡았지만 아직 사거리 밖» 같은 회색 지대가 없어졌다.
+        // ══════════════════════════════════════════════════════════════
+
         /// <summary>
-        /// 웨이브 몬스터와 전투 중인지. <b>중립 몬스터는 제외</b>한다(유저 확정: 침식은
-        /// "웨이브 몬스터와 전투 시" 쌓인다) — 중립 몬스터도 <see cref="UnitKind.Monster"/> 를
-        /// 공유하므로 <see cref="Faction.Cancer"/> 까지 확인해야 갈린다. <c>WaveManager</c> 가
-        /// 전투 개시 판정에서 같은 실수를 했다가 고친 적이 있다(진행상황 24-6절 3번).
-        ///
-        /// 내가 노리는 중이거나(공격) 최근에 웨이브 몬스터에게 맞았으면(피격) 둘 다 전투로 본다 —
-        /// 원거리 캐릭터처럼 일방적으로 때리는 쪽도, 맞기만 하는 쪽도 침식이 쌓여야 한다.
+        /// 웨이브 몬스터와 «한 대» 를 주고받은 몫의 침식을 얹는다.
         /// </summary>
-        bool IsInWaveCombat(ErosionService service)
+        /// <param name="amount">이 한 대의 기본 침식량(<see cref="ErosionService"/> 인스펙터 값).</param>
+        /// <param name="dealt">true = 내가 때렸다 / false = 내가 맞았다.</param>
+        public void AddHitErosion(float amount, bool dealt)
         {
-            if (_combat != null)
+            EnsureReady();
+            if (amount <= 0f || _self == null || !_self.IsAlive) return;
+
+            ErosionService service = ErosionService.Instance;
+            if (service == null || !service.EnableErosion) return;
+
+            // ⚠ <b>범위 공격은 한 번만 센다</b> — 「내가 때렸다」쪽은 <c>UnitCombat</c> 의
+            //   광역 갈래가 <b>대상마다</b> <c>TakeDamageFrom</c> 을 부르므로 이벤트도 대상
+            //   수만큼 뜬다. 그대로 세면 여섯 마리를 쓸어담은 마법형이 근접의 여섯 배로
+            //   쌓여 «범위기를 쓰면 미친다» 가 된다. 한 번의 공격은 <b>한 프레임 안에서</b>
+            //   전부 해결되고(동기 루프) 다음 공격은 <c>_nextAttackTime</c> 이 막으므로,
+            //   «프레임당 한 번» 이 곧 «공격당 한 번» 이다.
+            //   ★ <b>맞는 쪽은 묶지 않는다</b> — 세 마리에게 둘러싸여 세 대 맞았으면 세 몫이
+            //     맞다. 앞줄이 빨리 차는 이유가 바로 이것이라 여기서 묶으면 이 변경이 무의미해진다.
+            if (dealt)
             {
-                DamageableUnit target = _combat.Target;
-                if (target != null && target.IsAlive && target.Faction == Faction.Cancer) return true;
+                if (_dealtHitFrame == Time.frameCount) return;
+                _dealtHitFrame = Time.frameCount;
             }
 
-            DamageableUnit attacker = _self.LastAttacker;   // 죽은 상대는 자동으로 비워진다
-            return attacker != null && attacker.Faction == Faction.Cancer &&
-                   Time.time - _self.LastAttackedTime <= service.WaveCombatMemorySeconds;
+            // 저항력이 상승 속도를 바꾼다 (캐릭터 가이드 p10 · 회복 배율과 정확히 대칭).
+            float gain = _character != null ? _character.ErosionGainMultiplier : 1f;
+
+            // ★★ 유물 「서늘한 해열」(relic_erosion_slow) — <b>쌓이는 쪽만</b> 늦춘다
+            //   (표 EffectType 시트: *"빠지는 속도는 건드리지 않습니다"*). 저항력 배율과
+            //   <b>곱해서</b> 쌓는다 — 둘은 서로 다른 이유로 같은 값을 바꾸므로 어느 한쪽이
+            //   다른 쪽을 덮으면 안 된다.
+            gain *= Relics.RelicEffectService.ErosionGainMultiplier(_character);
+
+            erosion = Mathf.Clamp(erosion + amount * gain, 0f, service.ErosionMax);
+
+            // ★ 회복 대기를 처음으로 되돌린다 — 이 한 칸이 «후퇴시키면 관리된다» 를 만든다.
+            //   (상한에 닿았는지 보는 것은 <see cref="Tick"/> 한 곳뿐이다 — 발동 경로를
+            //    두 벌로 만들지 않는다. 늦어도 한 프레임 뒤에 발동한다.)
+            _outOfCombatTime = 0f;
         }
+
+        /// <summary>범위 공격이 대상 수만큼 쌓는 것을 막는 «마지막으로 때린 프레임».</summary>
+        int _dealtHitFrame = -1;
 
         // ------------------------------------------------------------------
         // 발동 / 해제
